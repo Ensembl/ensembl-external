@@ -24,3 +24,5 @@ sub get_HaplotypeAdaptor {
   return $self->_get_adaptor(
 		'Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor');
 }
+
+1;

@@ -436,12 +436,17 @@ sub fetch_SNP_by_id  {
     my (@seq_nt, @seq_clone);
     while (my $r = $sth1->fetchrow_hashref()) {
         return([]) unless keys %{$r};
-        #warn Data::Dumper::Dumper($r);
         if ($r->{'SEQ_NAME'} =~ /^NT/) {
             push @seq_nt, $r;
         } else {
             push @seq_clone, $r;
         }
+	if ($r->{'CHR_NAME'} eq 23) {
+	    $r->{'CHR_NAME'} = 'X';
+	}
+	if ($r->{'CHR_NAME'} eq 24) {
+	    $r->{'CHR_NAME'} = 'Y';
+	}
     }
     # if more than one NT or clone mapping has been returned, something is
     # wrong with snp_sequence.is_current, so print a warning

@@ -49,7 +49,6 @@ use strict;
 @ISA = qw(Bio::EnsEMBL::ExternalData::BaseAdaptor);
 
 
-
 =head2 list_all_names
 
  Title   : list_all_names

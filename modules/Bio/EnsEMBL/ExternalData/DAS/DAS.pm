@@ -125,7 +125,7 @@ sub get_Ensembl_SeqFeatures_DAS {
     if($global_end>0 && $global_start<=$chr_length) { # Make sure that we are grabbing a valid section of chromosome...
         $global_start = 1           if $global_start<1;           # Convert start to 1 if non +ve
         $global_end   = $chr_length if $global_end  >$chr_length; # Convert end to chr_length if fallen off end
-        unshift @seg_requests, "chr$chr_name:$global_start,$global_end"; 
+        #unshift @seg_requests, "chr$chr_name:$global_start,$global_end"; 
         unshift @seg_requests, "$chr_name:$global_start,$global_end";  # support both types of chr ID
     }
 

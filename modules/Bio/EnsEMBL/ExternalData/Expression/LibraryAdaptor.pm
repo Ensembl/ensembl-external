@@ -53,6 +53,8 @@ use strict;
 
 @ISA = qw(Bio::EnsEMBL::ExternalData::BaseAdaptor);
 
+
+
 # new in Bio::EnsEMBL::ExternalData::BaseAdaptor
 
 

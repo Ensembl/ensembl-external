@@ -774,8 +774,11 @@ sub _get_disease_objects
 
 my ($self,$query_string)=@_;
 
+print STDERR "objects: $query_string\n";
 my $sth=$self->_db_handle->prepare($query_string);
 $sth->execute;
+
+print STDERR "query end\n";
 
 my $id;
 my @diseases;
@@ -801,12 +804,13 @@ while ( my $rowhash = $sth->fetchrow_hashref)
     $id=$rowhash->{'id'};
     $disease->add_Location($location);   
 }
-
+print STDERR "SECOND end\n";
 
 
 if (defined $self->_ensdb){@diseases=$self->_link2ensembl(@diseases);}
 if (defined $self->_mapdb){@diseases=$self->_link2maps(@diseases);}
 
+print STDERR "THIRd end\n";
 
 return @diseases;
 
@@ -820,9 +824,10 @@ sub _get_disease_names
 {
     my ($self,$query_string)=@_;
 
-
+print STDERR "names: $query_string\n";
     my $sth=$self->_db_handle->prepare($query_string);
     $sth->execute;
+
 
     my @diseases;
 

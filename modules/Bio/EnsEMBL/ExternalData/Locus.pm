@@ -15,7 +15,17 @@
 Bio::EnsEMBL::ExternalData
 
 =head1 SYNOPSIS
+my $gene1 = Bio::EnsEMBL::ExternalData::Locus->new (-GDB => 'GDB:119655'); 
+my $gene2 = Bio::EnsEMBL::ExternalData::Locus->new (-NAME => 'ADSL');
+my $gene3 = Bio::EnsEMBL::ExternalData::Locus->new (-ACC => 'AF067853');
 
+$gene1->web_fetch();    #fetch ftp and search for gene
+$gene2->web_fetch();
+$gene3->web_fetch();
+
+$gene1->printace();     #print locus object in ace format
+$gene2->printace();
+$gene3->printace();
     
 =head1 DESCRIPTION
 
@@ -26,17 +36,21 @@ Locuslink
     new,
     name           (e.g. ADSL)
     full_name      (e.g. adenylosuccinate lyase)
-    GDB_id         (e.g. GDB:119655)
-    OMIM_number    (e.g. 103050)
-    Location       (22q11.2)
+    gdbid          (e.g. GDB:119655)
+    omim           (e.g. 103050)
+    location       (22q11.2)
+    llid           (locus link number)
+    species        (e.g. Homo sapiens)
+    chromosome     (e.g. X)
+       
     print_ace      returns an ace string for a locus object 
 
     web_fetch       Uses either the gene name or the GDB 
                   id (depending on which one is present) to fill in the
                   rest of the data.  
 
-                  The data is fetched using the CPAN module LWP and the
-                  web pages to fetch the data are stored in the module
+                  The data is fetched using the CPAN module LWP. The file LL.out
+                  is ftp-ed from the NCBI and stored locally.
 
 =head1 CONTACT
 
@@ -58,6 +72,14 @@ use Data::Dumper;
 
 @ISA = qw(Bio::Root::Object);
 
+=head2 new
+    Title   :   new
+    Usage   :   my obj = Bio::EnsEMBL::ExternalData::Locus->new (-GDB => 'GDB:119655');
+    Function:   Initialises Locus object
+    Returns :   a Locus object
+    Args    :   A GDB id (-GDB), Name (-NAME) or Accession number (-ACC)
+
+=cut
 sub _initialize {
     my ($self,@args) = @_;
     my $make = $self->SUPER::_initialize(@_);
@@ -114,7 +136,14 @@ sub path {
     }
     return $self->{_path};        
 }
+=head2 accession
+    Title   :   accession
+    Usage   :   my obj->accession()
+    Function:   get/set method for accession
+    Returns :   accession
+    Args    :   accession (optional)
 
+=cut
 sub accession {
     my ($self, $accession) = @_;
     if ($accession)
@@ -142,6 +171,14 @@ sub locuslink_file {
     return $self->{_locuslink_file};        
 }
 
+=head2 gdbid
+    Title   :   gdbid
+    Usage   :   my obj->gdbid()
+    Function:   get/set method for gdbid
+    Returns :   gdbid
+    Args    :   gdbid (optional)
+
+=cut
 sub gdbid {
     my ($self, $gdbid) = @_;
     if ($gdbid)
@@ -151,6 +188,14 @@ sub gdbid {
     return $self->{_gdbid};        
 }
 
+=head2 name
+    Title   :   name
+    Usage   :   my obj->name()
+    Function:   get/set method for name
+    Returns :   name
+    Args    :   name (optional)
+
+=cut
 sub name {
     my ($self, $name) = @_;
     if ($name)
@@ -298,6 +343,14 @@ sub search_embl {
 #####################
 # public output/fetch functions
 #####################
+=head2 web_fetch
+    Title   :   web_fetch
+    Usage   :   my obj->web_fetch()
+    Function:   Searches LL.out using data provided during initialisation
+    Returns :   none
+    Args    :   none
+
+=cut
 
 sub web_fetch {
     my ($self) = @_;
@@ -340,6 +393,15 @@ sub web_fetch {
     $self->grep_locuslink($self->locuslink_file, $searchstring);          
 }
 
+=head2 printace
+    Title   :   printace
+    Usage   :   my obj->printace()
+    Function:   Prints member variables of Locus object in ace format. 
+                Only if match was found using webfetch.
+    Returns :   List of variables in ace format
+    Args    :   none
+
+=cut
 sub printace {
 my ($self, $name) = @_;
     if ($self->matched)

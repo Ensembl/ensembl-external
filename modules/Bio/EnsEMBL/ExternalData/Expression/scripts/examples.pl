@@ -22,15 +22,25 @@ $tag_ad->dbname($dbname);
 #my @libs=$lib_ad->fetch_by_SeqTag_Name("AAAAAAAAAT");
 
 my @libs=$lib_ad->fetch_by_SeqTag_Synonym("ENSG00000080561"); 
-
+#my @libs=$lib_ad->fetch_by_SeqTag_Synonym_below_relative_frequency("ENSG00000080561",1000);
 #my @tgs=("AAAAAAAAAA","AAAAAAAAAC");
 #my @libs=$lib_ad->fetch_by_SeqTagList(@tgs);
 
 #my @tgs=("ENSG00000080561","ENSG00000087370");
 #my @libs=$lib_ad->fetch_by_SeqTag_SynonymList(@tgs);
 
+
 foreach my $lib (@libs){
-    print $lib->id,"\t",$lib->name,"\t",$lib->total_seqtags,"\n";
+    my @tgs=$lib->fetch_SeqTag_by_Synonym("ENSG00000080561");
+    foreach my $tg(@tgs){
+	print $lib->name,"\n";
+	foreach my $link ($tg->each_DBLink){
+	    print $link->primary_id,"\t",$tg->name,"\t",$tg->relative_frequency,"\t",$tg->frequency,"\t",$lib->total_seqtags,"\n";
+	}
+}    
+
+
+
 #    foreach my $tag($lib->fetch_all_SeqTags_above_relative_frequency(5000)){
 #	foreach my $link ($tag->each_DBLink){
 #	    if ($link->database eq 'enstrans'){
@@ -39,14 +49,15 @@ foreach my $lib (@libs){
 #	    }    
 #	}
 #    }
+
 }
 
 
 
 
-my @tags=$tag_ad->fetch_by_Library_Name("SAGE_Duke_1273");
+#my @tags=$tag_ad->fetch_by_Library_Name("SAGE_Duke_1273");
 
-#my @ids=(1,2);
+#my @ids=(1,2,3,4,5,6,7,8,9);
 #my @tags=$tag_ad->fetch_by_LibraryList_dbIDs(@ids);
 #my @tags=$tag_ad->fetch_by_Library_dbID(2);
 
@@ -57,15 +68,15 @@ my @tags=$tag_ad->fetch_by_Library_Name("SAGE_Duke_1273");
 #my @tags=$tag_ad->fetch_by_dbID(10);
 #my @tags=$tag_ad->fetch_by_Name("AAAAAAAAAA");
 
-foreach my $tag(@tags){
-   # print $tag->name," ",$tag->frequency,"\n";
+#foreach my $tag(@tags){
+#    print $tag->id,$tag->name," ",$tag->relative_frequency,"\n";
     
-    foreach my $link ($tag->each_DBLink){
-	if ($link->database eq 'ensgene'){	    
-	    print $link->primary_id," ",$tag->frequency,"\n";
-	}	
-    }
-}
+    #foreach my $link ($tag->each_DBLink){
+   	#if ($link->database eq 'ensgene'){	    
+   	#    print $link->primary_id," ",$tag->relative_frequency,"\n";
+   	#}	
+    #}
+#}
 
 
 

@@ -30,11 +30,11 @@ cd srs
 
  For SWISSPROT
 
-ssh ice.ebi.ac.uk '/ebi/services/pkgs/srs/bin/osf_5/getz -e -sf swiss "((([libs={swissprot}-Organism: metazoa] ! [libs={swissprot}-Organism: */*]) ! [libs={swissprot}-Organism: *'\''*]) & [libs-SeqLength# 80:])"' > metazoa.swissprot
+ssh ice.ebi.ac.uk '/ebi/services/pkgs/srs/bin/osf_5/getz -e -sf swiss "((([libs={swissprot}-Organism: metazoa] ! [libs={swissprot}-Organism: */*]) ! [libs={swissprot}-Organism: *'\''*]) & [libs-SeqLength# 80:])"' |gzip -c > metazoa.swissprot.gz
 
  For SPTREMBL
 
-ssh ice.ebi.ac.uk '/ebi/services/pkgs/srs/bin/osf_5/getz -e -sf swiss "((([libs={sptrembl}-Organism: metazoa] ! [libs={sptrembl}-Organism: */*]) ! [libs={sptrembl}-Organism: *'\''*]) & [libs-SeqLength# 80:])"' > metazoa.sptrembl
+ssh ice.ebi.ac.uk '/ebi/services/pkgs/srs/bin/osf_5/getz -e -sf swiss "((([libs={sptrembl}-Organism: metazoa] ! [libs={sptrembl}-Organism: */*]) ! [libs={sptrembl}-Organism: *'\''*]) & [libs-SeqLength# 80:])"' |gzip -c > metazoa.sptrembl.gz
 
  if you want to know how many sequences you are going to get add the -c option (c for count)
 
@@ -71,7 +71,7 @@ fugu_rubripes_core_13_2 FUGU2 Fr2
 homo_sapiens_core_13_31 NCBI31 Hs31
 rattus_norvegicus_core_13_2 RGSC2 Rn2
 
-nohup cat core_dbs | while read i j k;do /nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/dumpTranslation.pl -host ecs2d -dbname $i -path $j -file $k.pep -taxon_file ERR/$k.desc > ERR/$k.dump.err 2>&1 ;done > ERR/alldumps.err 2>&1 &       
+nohup cat core_dbs | awk '!/^#/' | while read i j k;do /nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/dumpTranslation.pl -host ecs2d -dbname $i -path $j -file $k.pep -taxon_file ERR/$k.desc > ERR/$k.dump.err 2>&1 ;done > ERR/alldumps.err 2>&1 &       
 
 check the peptide numbers you get to see if they are what it is expected. Translation like X+ are not kept in the dumps. 
 
@@ -140,7 +140,7 @@ ls|wc -l
 
  will tell you how many jobs have to be run. Just have a try with one to make sure everything is ok.
 
-echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_13_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_13_1.index -dir ' | bsub -q acari -Ralpha -JFamilyBlastp"[1]" -o PeptideSet.%I.out -e PeptideSet.%I.err
+echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_13_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_13_1.index -dir ../blast_tribe/' | bsub -q acari -Ralpha -JFamilyBlastp"[1]" -o PeptideSet.%I.out
 
  In the kind of construction the full path of each file/script is needed.
  The -Ralpha in the busb, is there because the fastafetch and tribe-parse executables were just compiled 
@@ -163,7 +163,7 @@ ls|grep out|while read i;do awk '/^Subject/ && $NF!="Done" {print;exit}' $i;done
 
  Then run the whole lot of jobs
 
-echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_13_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_13_1.index -dir ' | bsub -q acari -Ralpha -JFamilyBlastp"[2-3806]" -o PeptideSet.%I.out -e PeptideSet.%I.err
+echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_13_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_13_1.index -dir /acari/work4/family_14_1/blast_tribe' | bsub -q acari -Ralpha -JFamilyBlastp"[2-3806]" -o PeptideSet.%I.out -e PeptideSet.%I.err
 
  Rerun the failed jobs. Do not forget to delete the output files .out .err and .blast_tribe
 
@@ -173,7 +173,9 @@ echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBla
  This step use a really big amount of memory, so for step 8 and 9, jobs should be run on aristotle
  that have 187Gb of memory :)))
 
-bsub -q acaritest -C0 -R"select[mem>=20000] rusage[mem=20000]" -o ../mcl/cat.blast_tribe.out -e ../mcl/cat.blast_tribe.err "ls|grep PeptideSet|xargs gunzip -c > /tmp/blast_tribe_13_1"
+cd ../blast_tribe
+
+bsub -q acaritest -C0 -R"select[mem>=20000] rusage[mem=20000]" -o ../mcl/cat.blast_tribe.out -e ../mcl/cat.blast_tribe.err "ls|xargs gunzip -c > /tmp/blast_tribe_13_1"
 
 cd ../mcl
 bsub -q acaritest -C0 -R"select[mem>=20000] rusage[mem=20000]" -f "index_tribe_13_1 < /tmp/index_tribe_13_1" -f "matrix_tribe_13_1 < /tmp/matrix_tribe_13_1" -o tribe_matrix.out -e tribe_matrix.err /nfs/acari/abel/bin/tribe-matrix /tmp/blast_tribe_13_1 -ind /tmp/index_tribe_13_1 -out /tmp/matrix_tribe_13_1
@@ -207,24 +209,20 @@ gzip mcl_tribe_13_1
 11- Load in a family database
     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl mcl_tribe_13_1.gz index_tribe_13_1.gz ../srs/metazoa_13_1.desc > mcl_description 2> parse_mcl.err &
+nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl mcl_tribe_13_1.gz index_tribe_13_1.gz ../srs/metazoa_13_1.desc > mcl_description_13_1 2> mcl_description_13_1.err &
 
 12- Generates the family descriptions
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        
-       ensembl-external/family/scripts/add-annotations.pl
-       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-       add-annotations.pl description_file cluster_file > cluster.description
-
        ensembl-external/family/scripts/consensifier.pl 
        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-       consensifier.pl -d SWISSPROT cluster.description > cluster.SWISSPROT.consensus
-       consensifier.pl -d SPTREMBL cluster.description > cluster.SPTREMBL.consensus
+       consensifier.pl -d SWISSPROT mcl_description_13_1 > mcl_description_13_1.SWISSPROT-consensus
+       consensifier.pl -d SPTREMBL mcl_description_13_1 > mcl_description_13_1.SPTREMBL-consensus
 
        ensembl-external/family/scripts/assemble-consensus.pl
        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-       assemble-consensus.pl cluster.description cluster.SWISSPROT.consensus cluster.SPTREMBL.consensus \
-       > families.out 2> families.err
+       assemble-consensus.pl cluster.description mcl_description_13_1.SWISSPROT-consensus \
+mcl_description_13_1.SPTREMBL-consensus  > families.out 2> families.err
 
 
 update the family description in ensembl_family_13_1 with the data in families.out
@@ -232,7 +230,7 @@ update the family description in ensembl_family_13_1 with the data in families.o
 13- Run clustalw over all the families
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-LaunchClustalwOnFamilies.pl
+echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchClustalwOnFamilies.pl -host ecs2d -dbname ensembl_family_14_1 -dbuser ecs2dadmin -dbpass TyhRv -family_id ${LSB_JOBINDEX} -fasta_file /data/blastdb/Ensembl/family/metazoa_14_1.pep -fasta_index /data/blastdb/Ensembl/family/metazoa_14_1.pep.index -store' | bsub -q acarichunky -Rncbi -JFamilyClustalw"[1-10000]" -o %I.out
 
 14- Insert the gene stable ids
     ~~~~~~~~~~~~~~~~~~~~~~~~~~

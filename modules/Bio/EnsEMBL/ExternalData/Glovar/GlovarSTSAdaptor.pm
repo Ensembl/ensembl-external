@@ -35,111 +35,109 @@ package Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor;
 
 use strict;
 
-use Bio::EnsEMBL::DnaDnaAlignFeature;
+use Bio::EnsEMBL::ExternalData::Glovar::STS;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
-use Bio::EnsEMBL::Utils::Eprof('eprof_start','eprof_end','eprof_dump');
 
 use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
 
 
-=head2 fetch_all_by_Slice
+=head2 fetch_all_by_clone_accession
 
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Arg [2]    : (optional) boolean $is_lite
-               Flag indicating if 'light weight' variations should be obtained
-  Example    : @list = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
-  Description: Retrieves a list of STSs on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
+  Arg[1]      : clone internal ID
+  Arg[2]      : clone embl accession
+  Arg[3]      : clone start coordinate
+  Arg[4]      : clone end coordinate
+  Example     : @list = @{$glovar_adaptor->fetch_all_by_clone_accession(
+                    'AL100005', 'AL100005', 1, 10000)};
+  Description: Retrieves STSs on a clone in clone coordinates.
+  Returntype : Listref of Bio::EnsEMBL::ExternalData::Glovar::STS objects
   Exceptions : none
-  Caller     : Bio::EnsEMBL::Slice::get_all_ExternalFeatures
+  Caller     : $self->fetch_all_by_Clone
 
 =cut
 
-sub fetch_all_by_Slice {
-    my ($self, $slice, $is_light) = @_;
+sub fetch_all_by_clone_accession {
+    my ($self, $embl_acc, $embl_version, $cl_start, $cl_end) = @_;
 
-    unless($slice->assembly_name() && $slice->assembly_version()){
-        warn("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
-        return([]);
-    }
-
-    my @f = ();
-    if($is_light){
-        push @f, @{$self->fetch_Light_STS_by_chr_start_end($slice)};
-    } else {
-        push @f, @{$self->fetch_STS_by_chr_start_end($slice)};
-    } 
-    return(\@f); 
-}
-
-
-=head2 fetch_Light_STS_by_chr_start_end
-
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Arg [2]    : (optional) boolean $is_lite
-               Flag indicating if 'light weight' variations should be obtained
-  Example    : @list = @{$glovar_adaptor->fetch_Light_STS_by_chr_start_end($slice)};
-  Description: Retrieves a list of STSs on a slice in slice coordinates.
-               Returns lightweight objects for drawing purposes.
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
-  Exceptions : none
-  Caller     : $self->fetch_all_by_Slice
-
-=cut
-
-sub fetch_Light_STS_by_chr_start_end  {
-    my ($self, $slice) = @_; 
-    my $slice_chr    = $slice->chr_name();
-    my $slice_start  = $slice->chr_start();
-    my $slice_end    = $slice->chr_end();
-    my $ass_name     = $slice->assembly_name();
-    my $ass_version  = $slice->assembly_version();
-
-    &eprof_start('glovar_sts1');
-
-    ## NOTES:
-    ## 1. this query only gets ExoSeq STSs (sts_summary.assay_type = 8)
-    ## 2. all code here assumes that ssm.contig_orientation is always 1
-    ##    and ms.is_revcomp is always 0
-
-    my $q = qq(
-        SELECT 
-                ss.id_sts,
-                ms.start_coordinate + ssm.start_coordinate - 1
-                                                    as start_coord,
-                ms.end_coordinate + ssm.start_coordinate - 1
-                                                    as end_coord,
-                ss.sts_name                         as sts_name,
-                length(ss.sense_oligoprimer) as sen_len,
-                length(ss.antisense_oligoprimer) as anti_len,
-                ss.pass_status                      as pass_status,
-                -1 * (ms.is_revcomp * 2 - 1)        as ori,
-                ssm.contig_orientation              as contig_ori,
-                ss.is_private as private
-        FROM    chrom_seq cs,
-                database_dict dd,
-                seq_seq_map ssm,
-                mapped_sts ms,
-                sts_summary ss
-        WHERE   cs.database_seqname = '$slice_chr'
-        AND     dd.database_name = '$ass_name'
-        AND     dd.database_version = '$ass_version'
-        AND     dd.id_dict = cs.database_source
-        AND     ssm.id_chromseq = cs.id_chromseq
-        AND     ms.id_sequence = ssm.sub_sequence
-        AND     ss.id_sts = ms.id_sts
-        AND     ss.assay_type = 8
-        AND     ms.start_coordinate < ('$slice_end' - ssm.start_coordinate + 1)
-        AND     ms.end_coordinate > ('$slice_start' - ssm.start_coordinate + 1)
-        ORDER BY 
-                start_coord
+    ## get info on clone
+    my $q1 = qq(
+        SELECT
+                ss.database_seqnname,
+                csm.id_sequence,
+                csm.start_coordinate,
+                csm.end_coordinate,
+                csm.contig_orientation
+        FROM    clone_seq cs,
+                clone_seq_map csm,
+                snp_sequence ss
+        WHERE   cs.database_seqname = '$embl_acc'
+        AND     cs.id_cloneseq = csm.id_cloneseq
+        AND     csm.id_sequence = ss.id_sequence
+        AND     ss.is_current = 1
     );
-    
     my $sth;
     eval {
-        $sth = $self->prepare($q);
+        $sth = $self->prepare($q1);
         $sth->execute();
+    }; 
+    if ($@){
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        return([]);
+    }
+    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
+    my $i;
+    while (my @res = $sth->fetchrow_array) {
+        ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @res;
+        $i++;
+    }
+    if ($i > 1) {
+        $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
+    }
+
+    ## now get the SNPs on this clone
+    # get only features in the desired region of the clone
+    my ($q_start, $q_end);
+    if ($clone_strand == 1) {
+        $q_start = $clone_start + $cl_start - 1;
+        $q_end = $clone_start + $cl_end + 1;
+    } else{
+        $q_start = $clone_end - $cl_end - 1;
+        $q_end = $clone_end - $cl_start + 1;
+    }
+    # also get STS which don't start within the clone region, but overlap it
+    # (assumes a max STS length of 1000 bp)
+    $q_start -= 1000;
+    
+    ## NOTE:
+    ## This query only gets ExoSeq STSs (sts_summary.assay_type = 8).
+    my $q2 = qq(
+        SELECT 
+                ss.id_sts                           as internal_id,
+                ss.sts_name                         as sts_name,
+                ms.start_coordinate                 as sts_start,
+                ms.end_coordinate                   as sts_end,
+                ms.is_revcomp                       as sts_strand,
+                length(ss.sense_oligoprimer)        as sen_len,
+                length(ss.antisense_oligoprimer)    as anti_len,
+                sod.description                     as pass_status,
+                sad.description                     as assay_type,
+                ss.is_private                       as private
+        FROM    
+                mapped_sts ms,
+                sts_summary ss,
+                sts_outcome_dict sod,
+                snpassaydict sad
+        WHERE   ms.id_sequence = ?
+        AND     ms.id_sts = ss.id_sts
+        AND     ss.assay_type = sad.id_dict
+        AND     ss.pass_status = sod.id_dict
+        AND     ms.start_coordinate BETWEEN $q_start AND $q_end
+    );
+    
+    eval {
+        $sth = $self->prepare($q2);
+        $sth->execute($id_seq);
     }; 
     if ($@){
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
@@ -147,102 +145,63 @@ sub fetch_Light_STS_by_chr_start_end  {
     }
 
     my @features = ();
-    my %passmap = ( 1 => 'pass', 2 => 'fail' );
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        #next if $row->{'PRIVATE'};
+        warn "WARNING: private STS!" if $row->{'PRIVATE'};
+
+        ## calculate coords depending on clone orientation
+        # NOTE:
+        # these calculations try to correct for ipcress errors, but don't
+        # fully succeed; adapt once database has been fixed
+        my ($start, $end);
+        $row->{'STS_END'} ||= $row->{'STS_START'};
+        if ($clone_strand == 1) {
+            $start = $row->{'STS_START'} - $clone_start + 2;
+            $end = $row->{'STS_END'} + $row->{'SEN_LEN'} - $clone_start + 1;
+        } else {
+            $start = $clone_end - ($row->{'STS_END'} + $row->{'SEN_LEN'} - 1);
+            $end = $clone_end - $row->{'STS_START'};
+        }
+        my $strand = (1 - 2 * $row->{'STS_STRAND'}) * $clone_strand;
+
+        # the following lines correct for an off by one error in mapped_sts
+        # 1 should be substracted from all coords once db has been fixed
         
-        ## NT_contigs should always be on forward strand
-        warn "Contig is in reverse orientation. THIS IS BAD!"
-            if ($row->{'CONTIG_ORI'} == -1);
-        ## STSs should always be on forward strand
-        warn "STS is in reverse orientation. THIS IS BAD!"
-            if ($row->{'ORI'} == -1);
-        
-        my $pass = $passmap{$row->{'PASS_STATUS'}} || "unknown";
-        my $sen_start = $row->{'START_COORD'};
-        my $sen_end = $row->{'START_COORD'} + $row->{'SEN_LEN'};
-        my $anti_start = $row->{'END_COORD'};
-        my $anti_end = $row->{'END_COORD'} - $row->{'ANTI_LEN'};
-        push @features, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
-                '_analysis'      =>  'glovar_sts',
-                '_gsf_start'    =>    $sen_start - $slice_start + 1,
-                '_gsf_end'      =>    $sen_end - $slice_start + 1,
-                '_gsf_strand'    =>  1,
-                '_seqname'       =>  $slice->name,
-                '_hstart'        =>  1,
-                '_hend'          =>  $row->{'SEN_LEN'},
-                '_hstrand'       =>  1,
-                '_hseqname'      =>  $row->{'STS_NAME'},
-                '_gsf_seq'       =>  $slice,
-                '_cigar_string'  =>  $row->{'SEN_LEN'}."M",
-                '_id'            =>  $row->{'ID_STS'},
-                '_database_id'   =>  $row->{'ID_STS'},
-                '_pass'          =>  $pass,
-        });
-        push @features, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
-                '_analysis'      =>  'glovar_sts',
-                '_gsf_start'    =>    $anti_start - $slice_start + 1,
-                '_gsf_end'      =>    $anti_end - $slice_start + 1,
-                '_gsf_strand'    =>  1,
-                '_seqname'       =>  $slice->name,
-                '_hstart'        =>  1,
-                '_hend'          =>  $row->{'ANTI_LEN'},
-                '_hstrand'       =>  1,
-                '_hseqname'      =>  $row->{'STS_NAME'},
-                '_gsf_seq'       =>  $slice,
-                '_cigar_string'  =>  $row->{'ANTI_LEN'}."M",
-                '_id'            =>  $row->{'ID_STS'},
-                '_database_id'   =>  $row->{'ID_STS'},
-                '_pass'          =>  $pass,
+        push @features, Bio::EnsEMBL::ExternalData::Glovar::STS->new_fast({
+                'analysis'          =>  'glovar_sts',
+                'display_id'        =>  $row->{'STS_NAME'},
+                'dbID'              =>  $row->{'INTERNAL_ID'},
+                'start'             =>  $start,
+                'end'               =>  $end,
+                'strand'            =>  $strand,
+                'seqname'           =>  $embl_acc,
+                'sense_length'      =>  $row->{'SEN_LEN'},
+                'antisense_length'  =>  $row->{'ANTI_LEN'},
+                'pass_status'       =>  $row->{'PASS_STATUS'},
+                'assay_type'        =>  $row->{'ASSAY_TYPE'},
         });
     }
-    
-    &eprof_end('glovar_sts1');
     
     return(\@features);
 }                                       
 
-=head2 fetch_STS_by_chr_start_end
+=head2 coordinate_systems
 
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Example    : @list = @{$glovar_adaptor->fetch_STS_by_chr_start_end($slice)};
-  Description: Retrieves a list of STSs on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
-  Exceptions : none
-  Caller     : $self->fetch_all_by_Slice
-
-=cut
-
-sub fetch_STS_by_chr_start_end  {
-    my ($self,$slice) = @_; 
-    my @vars = ();
-
-    ## to be inplemented ...
-    
-    return(\@vars);
-}                                       
-
-=head2 fetch_STS_by_id
-
-  Arg[1]      : String - STS ID
-  Example     : my $sts = $glovar_adaptor->fetch_STS_by_id($id);
-  Description : retrieve STSs from Glovar by ID
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
-  Exceptions : none
-  Caller     : $self
+  Arg[1]      : none
+  Example     : my @coord_systems = $glovar_adaptor->coordinate_systems;
+  Description : This method returns a list of coordinate systems which are
+                implemented by this class. A minimum of one valid coordinate
+                system must be implemented. Valid coordinate systems are:
+                'SLICE', 'ASSEMBLY', 'CONTIG', and 'CLONE'.
+  Return type : list of strings
+  Exceptions  : none
+  Caller      : internal
 
 =cut
 
-sub fetch_STS_by_id  {
-    my ($self, $id) = @_;
-    my @vars = ();
-    
-    ## to be inplemented ...
-
-    return \@vars;
+sub coordinate_systems {
+    return ('CLONE');
 }
-
 
 =head2 track_name
 

@@ -12,7 +12,8 @@ $glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -host   => 'go_host',
                                          -driver => 'Oracle');
 my $glovar_adaptor = $glodb->get_GlovarHaplotypeAdaptor;
-$var_listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
+$var_listref  = $glovar_adaptor->fetch_all_by_clone_accession(
+                    'AL100005', 'AL100005', 1, 10000);
 
 =head1 DESCRIPTION
 
@@ -30,181 +31,268 @@ Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
 =cut
 
 package Bio::EnsEMBL::ExternalData::Glovar::GlovarHaplotypeAdaptor;
-use vars qw(@ISA);
+
 use strict;
 
-use Bio::EnsEMBL::DnaDnaAlignFeature;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
-use Bio::EnsEMBL::Utils::Eprof('eprof_start','eprof_end','eprof_dump');
+use Bio::EnsEMBL::ExternalData::Glovar::Haplotype;
+use Bio::EnsEMBL::Utils::Exception qw(throw warning);
+use Bio::EnsEMBL::Registry;
 
+use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
 
 
-=head2 fetch_all_by_Slice
+=head2 fetch_all_by_clone_accession
 
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Arg [2]    : (optional) boolean $is_lite
-               Flag indicating if 'light weight' objects should be obtained
-  Example    : @list = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
-  Description: Retrieves a list of haplotypes on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
+  Arg[1]      : clone internal ID
+  Arg[2]      : clone embl accession
+  Arg[3]      : clone start coordinate
+  Arg[4]      : clone end coordinate
+  Example     : @list = @{$glovar_adaptor->fetch_all_by_clone_accession(
+                    'AL100005', 'AL100005', 1, 10000)};
+  Description: Retrieves haplotypes (blocks of SNPs) on a clone in clone
+               coordinates. Since Glovar stores now haplotype start/end data,
+               the haplotypes have to be retrieved in a two-step process:
+               1. get IDs of all haplotypes in the requested region
+               2. for all these IDs, get tagSNPs assigned to them
+               Haplotype start/end have to be inferred from the tagSNP
+               coordinates.
+  Returntype : Listref of Bio::EnsEMBL::ExternalData::Glovar::Haplotype objects
   Exceptions : none
-  Caller     : Bio::EnsEMBL::Slice::get_all_ExternalFeatures
+  Caller     : $self->fetch_all_by_Clone
 
 =cut
 
-sub fetch_all_by_Slice {
-  my ($self, $slice, $is_light) = @_;
+sub fetch_all_by_clone_accession {
+    my ($self, $embl_acc, $embl_version, $cl_start, $cl_end) = @_;
 
-  unless($slice->assembly_name() && $slice->assembly_version()){
-      warn("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
-      return([]);
-  }
-
-  my @f = ();
-  if($is_light){
-    push @f, @{$self->fetch_Light_Haplotype_by_chr_start_end($slice)};
-  } else {
-    push @f, @{$self->fetch_Haplotype_by_chr_start_end($slice)};
-  } 
-  return(\@f); 
-}
-
-
-=head2 fetch_Light_Haplotype_by_chr_start_end
-
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Example    : @list = @{$glovar_adaptor->fetch_Light_Haplotype_by_chr_start_end($slice)};
-  Description: Retrieves a list of haplotypes on a slice in slice coordinates.
-               Returns lightweight objects for drawing purposes.
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
-  Exceptions : none
-  Caller     : $self->fetch_all_by_Slice
-
-=cut
-
-sub fetch_Light_Haplotype_by_chr_start_end  {
-    my ($self,$slice) = @_; 
-
-    my $slice_chr    = $slice->chr_name();
-    my $slice_start  = $slice->chr_start();
-    my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();
-    my $ass_name     = $slice->assembly_name();
-    my $ass_version  = $slice->assembly_version();
-
-    ## return traces from cache if available
-    my $key = join(":", $slice_chr, $slice_start, $slice_end);
-    if ($self->{'_cache'}->{$key}) {
-        return $self->{'_cache'}->{$key};
+    my $dnadb = Bio::EnsEMBL::Registry->get_DNAAdaptor($ENV{'ENSEMBL_SPECIES'}, 'glovar');
+    unless ($dnadb) {
+        warning("ERROR: No dnadb attached to Glovar.\n");
+        return([]);
+    }
+    
+    ## get info on clone
+    my $q1 = qq(
+        SELECT
+                ss.database_seqnname,
+                csm.id_sequence,
+                csm.start_coordinate,
+                csm.end_coordinate,
+                csm.contig_orientation
+        FROM    clone_seq cs,
+                clone_seq_map csm,
+                snp_sequence ss
+        WHERE   cs.database_seqname = '$embl_acc'
+        AND     cs.id_cloneseq = csm.id_cloneseq
+        AND     csm.id_sequence = ss.id_sequence
+        AND     ss.is_current = 1
+    );
+    my $sth;
+    eval {
+        $sth = $self->prepare($q1);
+        $sth->execute();
+    }; 
+    if ($@){
+        warning("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        return([]);
+    }
+    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
+    my $i;
+    while (my @res = $sth->fetchrow_array) {
+        ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @res;
+        $i++;
+    }
+    if ($i > 1) {
+        warning("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
     }
 
-    &eprof_start('glovar_haplotype');
-
-    ## NOTE:
-    ## all code here assumes that ssm.contig_orientation is always 1!
-
-    my $q = qq(
+    # get only features in the desired region of the clone
+    my ($q_start, $q_end);
+    if ($clone_strand == 1) {
+        $q_start = $clone_start + $cl_start - 1;
+        $q_end = $clone_start + $cl_end + 1;
+    } else{
+        $q_start = $clone_end - $cl_end - 1;
+        $q_end = $clone_end - $cl_start + 1;
+    }
+    my $clone_length = $clone_end - $clone_start + 1;
+    
+    # get all haplotype blocks
+    my $q2 = qq(
         SELECT
-                ms.position + ssm.start_coordinate - 1
-                                    as start_coord,
-                ms.end_position + ssm.start_coordinate - 1
-                                    as end_coord,
-                ms.id_snp           as id_snp,
-                sb.id_block         as block,
-                b.length            as block_length,
-                b.num_snps          as num_snps,
-                p.description       as population,
-                p.id_pop            as id_pop,
-                ssum.is_private     as private_snp,
-                bs.is_private       as private_block
-        FROM    chrom_seq cs,
-                database_dict dd,
-                seq_seq_map ssm,
+                sb.id_block             as block,
+                ss.is_private           as private_snp,
+                bs.is_private           as private_block
+        FROM    
                 mapped_snp ms,
-                snp_summary ssum,
+                snp_summary ss,
+                snp_block sb,
+                block b,
+                block_set bs
+        WHERE   ms.id_sequence = ?
+        AND     ms.id_snp = ss.id_snp
+        AND     ss.id_snp = sb.id_snp
+        AND     sb.id_block = b.id_block
+        AND     b.id_block_set = bs.id_block_set
+        AND     ms.position BETWEEN $q_start AND $q_end
+    );
+
+    eval {
+        $sth = $self->prepare($q2);
+        $sth->execute($id_seq);
+    }; 
+    if ($@){
+        warning("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        return([]);
+    }
+
+    my @blocks;
+    while (my $b = $sth->fetchrow_hashref()) {
+        return([]) unless keys %{$b};
+        warning("WARNING: private haplotype/SNP!") if ($b->{'PRIVATE_SNP'} ||
+                                                   $b->{'PRIVATE_BLOCK'});
+
+        push @blocks, $b->{'BLOCK'};
+    }
+    return([]) unless (@blocks);
+    my $blocklist = join(",", @blocks);
+
+    # now get all tagSNPs for the haplotypes found
+    my $q3 = qq(
+        SELECT
+                ms.position             as snp_start,
+                ms.end_position         as snp_end,
+                ms.is_revcomp           as snp_strand,
+                sb.id_block             as internal_id,
+                b.name                  as block_name,
+                b.length                as block_length,
+                b.num_snps              as num_snps,
+                p.description           as population,
+                ss.is_private           as private_snp,
+                bs.is_private           as private_block
+        FROM    
+                mapped_snp ms,
+                snp_summary ss,
                 snp_block sb,
                 block b,
                 block_set bs,
                 population p
-        WHERE   cs.database_seqname = '$slice_chr'
-        AND     dd.database_name = '$ass_name'
-        AND     dd.database_version = '$ass_version'
-        AND     dd.id_dict = cs.database_source
-        AND     ssm.id_chromseq = cs.id_chromseq
-        AND     ms.id_sequence = ssm.sub_sequence
-        AND     ssum.id_snp = ms.id_snp
-        AND     ssum.id_snp = sb.id_snp
+        WHERE   ms.id_sequence = ?
+        AND     sb.id_block IN ($blocklist)
+        AND     ms.id_snp = ss.id_snp
+        AND     ss.id_snp = sb.id_snp
         AND     sb.id_block = b.id_block
         AND     b.id_block_set = bs.id_block_set
         AND     bs.id_pop = p.id_pop
-        AND     ms.position
-                BETWEEN
-                ($slice_start - ssm.start_coordinate - 99)
-                AND 
-                ($slice_end - ssm.start_coordinate + 1)
-        ORDER BY
-                start_coord
     );
 
-    my $sth;
     eval {
-        $sth = $self->prepare($q);
-        $sth->execute();
+        $sth = $self->prepare($q3);
+        $sth->execute($id_seq);
     }; 
     if ($@){
-        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        warning("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
 
-    my @haplotypes = ();
+    # get a clone slice and projectc it to chromosomal coordinates
+    # this is needed for tag SNP and haplotype coordinate calculations
+    my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
+    my $projected_clone = $clone->project('chromosome');
+    unless ($projected_clone) {
+        warning("Clone $embl_acc doesn't project to chromosome.");
+        return([]);
+    }
+
+    my $haplotypes;
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        #next if ($row->{'PRIVATE_SNP'} || $row->{'PRIVATE_BLOCK'});
-        my $length = $row->{'END_COORD'} - $row->{'START_COORD'};
-        push @haplotypes, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
-                '_analysis'     => 'glovar_haplotype',
-                '_gsf_start'    => $row->{'START_COORD'} - $slice_start + 1,
-                '_gsf_end'      => $row->{'END_COORD'} - $slice_start + 1,
-                '_gsf_strand'   => $row->{'CHR_STRAND'},
-                '_seqname'      => $slice->name,
-                '_hstart'       => 1,
-                '_hend'         => $length,
-                '_hstrand'      => 1,
-                '_hseqname'     => $row->{'BLOCK'},
-                '_gsf_seq'      => $slice,
-                '_cigar_string' => $length."M",
-                '_id'           => $row->{'BLOCK'},
-                '_database_id'  => $row->{'ID_SNP'},
-                '_population'   => $row->{'POPULATION'},
-                '_pop_id'       => $row->{'ID_POP'},
-                '_block_length' => $row->{'BLOCK_LENGTH'},
-                '_num_snps'     => $row->{'NUM_SNPS'},
-        });
+        warn "WARNING: private haplotype/SNP!" if ($row->{'PRIVATE_SNP'} ||
+                                                   $row->{'PRIVATE_BLOCK'});
+
+        ## filter SNPs without strand (this is gruft in mapped_snp)
+        next unless $row->{'SNP_STRAND'};
+
+        ## calculate clone coords depending on clone orientation
+        my ($start, $end);
+        $row->{'SNP_END'} ||= $row->{'SNP_START'};
+        if ($clone_strand == 1) {
+            $start = $row->{'SNP_START'} - $clone_start + 1;
+            $end = $row->{'SNP_END'} - $clone_start + 1;
+        } else {
+            $start = $clone_end - $row->{'SNP_END'} + 1;
+            $end = $clone_end - $row->{'SNP_START'} + 1;
+        }
+        my $strand = $row->{'SNP_STRAND'}*$clone_strand;
+
+        # create a haplotype object if it doesn't already exist
+        $haplotypes->{$row->{'INTERNAL_ID'}} ||=
+                Bio::EnsEMBL::ExternalData::Glovar::Haplotype->new_fast({
+                    'analysis'      => 'glovar_haplotype',
+                    'display_id'    => $row->{'BLOCK_NAME'},
+                    'dbID'          => $row->{'INTERNAL_ID'},
+                    'start'         => $start,
+                    'end'           => $end,
+                    'strand'        => $clone_strand,
+                    'seqname'       => $embl_acc,
+                    'population'    => $row->{'POPULATION'},
+                    'num_snps'      => $row->{'NUM_SNPS'},
+                });
+        my $hap = $haplotypes->{$row->{'INTERNAL_ID'}};
+
+        # record haplotype start/end, ie max(snp_start)/max(snp_end)
+        $hap->start($start) if ($hap->start > $start);
+        $hap->end($end) if ($hap->end < $end);
+
+        # calculate SNP chromosomal coords
+        my $snp = Bio::EnsEMBL::Feature->new(
+                    -SLICE  => $clone,
+                    -START  => $start,
+                    -END    => $end,
+                    -STRAND => $strand,
+        );
+        $snp = $snp->transform('chromosome');
+        # skip SNPs that don't transform
+        next unless $snp;
+        
+        # push tag SNP coords on haplotype
+        $hap->add_tagSNP($snp->start, $snp->end);
     }
     
-    &eprof_end('glovar_haplotype');
-    
-    return $self->{'_cache'}->{$key} = \@haplotypes;
+    # return listref of haplotype objects
+    my @haps = ();
+    foreach my $key (keys %$haplotypes) {
+        # trim haplotype to golden portion of clone (otherwise it will be 
+        # discarded during the mapping to chromosome)
+        if ($haplotypes->{$key}->start < $projected_clone->[0]->from_start) {
+            $haplotypes->{$key}->start($projected_clone->[0]->from_start);
+        }
+        if ($haplotypes->{$key}->end > $projected_clone->[0]->from_end) {
+            $haplotypes->{$key}->end($projected_clone->[0]->from_end);
+        }
+        push @haps, $haplotypes->{$key};
+    }
+    return \@haps;
 }                                       
 
-=head2 fetch_Haplotype_by_chr_start_end
-  
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Example    : @list = @{$glovar_adaptor->fetch_Haplotype_by_chr_start_end($slice)};
-  Description: Retrieves a list of haplotypes on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::DnaDnaAlignFeature objects
-  Exceptions : none
-  Caller     : $self->fetch_all_by_Slice
+=head2 coordinate_systems
+
+  Arg[1]      : none
+  Example     : my @coord_systems = $glovar_adaptor->coordinate_systems;
+  Description : This method returns a list of coordinate systems which are
+                implemented by this class. A minimum of one valid coordinate
+                system must be implemented. Valid coordinate systems are:
+                'SLICE', 'ASSEMBLY', 'CONTIG', and 'CLONE'.
+  Return type : list of strings
+  Exceptions  : none
+  Caller      : internal
 
 =cut
 
-sub fetch_Haplotype_by_chr_start_end  {
-    my ($self, $slice) = @_;
-    
-    ## to be implemented
-    
-    return(1);
+sub coordinate_systems {
+    return ('CLONE');
 }
 
 =head2 track_name

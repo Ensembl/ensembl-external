@@ -243,6 +243,7 @@ sub fetch_all_by_clone_accession {
     #warn join("|", $clone_start, $clone_end, $cl_start, $cl_end, $q_start, $q_end, "\n");
     my $q2 = qq(
         SELECT
+                distinct(sgc.id_snp)    as id_snp,
                 ss.id_snp               as internal_id,
                 ss.default_name         as id_default,
                 ms.position             as snp_start,
@@ -251,14 +252,25 @@ sub fetch_all_by_clone_accession {
                 scd.description         as validated,
                 ss.alleles              as alleles,
                 svd.description         as snpclass,
-                ss.is_private           as private
+                ss.is_private           as private,
+                ptd.description         as pos_type,
+                sgc_dict.description    as consequence
         FROM    
                 mapped_snp ms,
                 snp,
                 snpvartypedict svd,
                 snp_confirmation_dict scd,
                 snp_summary ss
-        WHERE   ms.id_sequence = $id_seq
+        LEFT JOIN
+                snp_gene_consequence sgc on sgc.id_snp = ss.id_snp
+        LEFT JOIN
+                coding_sequence cs on sgc.id_codingseq = cs.id_codingseq
+                AND cs.design_entry = ?
+        LEFT JOIN
+                position_type_dict ptd on sgc.position_description = ptd.id_dict
+        LEFT JOIN
+                sgc_dict on sgc.consequence = sgc_dict.id_dict
+        WHERE   ms.id_sequence = ?
         AND     ms.id_snp = ss.id_snp
         AND     ss.id_snp = snp.id_snp
         AND     snp.var_type = svd.id_dict
@@ -268,7 +280,7 @@ sub fetch_all_by_clone_accession {
 
     eval {
         $sth = $self->prepare($q2);
-        $sth->execute();
+        $sth->execute($self->consequence_exp, $id_seq);
     }; 
     if ($@){
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
@@ -309,12 +321,11 @@ sub fetch_all_by_clone_accession {
                 '_source'       =>    'Glovar',
                 '_source_tag'   =>    'glovar',
                 '_consequence'  =>    $row->{'CONSEQUENCE'},
-                '_type'         =>    $row->{'POS_TYPE'},
+                '_type'         =>    $self->_map_position_type($row->{'POS_TYPE'}),
             });
 
         ## DBLinks and consequences
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
-        $self->_get_consequences($snp, $row->{'INTERNAL_ID'}, $self->consequence_exp);
         
         push (@snps, $snp); 
     }
@@ -350,6 +361,7 @@ sub fetch_SNP_by_id  {
     
     my $q1 = qq(
         SELECT
+                distinct(sgc.id_snp)        as id_snp,
                 ss.id_snp                   as internal_id,
                 ss.default_name             as id_default,
                 ms.position                 as snp_start,
@@ -362,7 +374,9 @@ sub fetch_SNP_by_id  {
                 sseq.database_seqversion    as seqversion,
                 sseq.chromosome             as chr_name,
                 ss.is_private               as private,
-                sseq.id_sequence            as nt_id
+                sseq.id_sequence            as nt_id,
+                ptd.description             as pos_type,
+                sgc_dict.description        as consequence
         FROM    
                 snp_sequence sseq,
                 mapped_snp ms,
@@ -370,7 +384,16 @@ sub fetch_SNP_by_id  {
                 snpvartypedict svd,
                 snp_confirmation_dict scd,
                 snp_summary ss
-        WHERE   ss.default_name = '$id'
+        LEFT JOIN
+                snp_gene_consequence sgc on sgc.id_snp = ss.id_snp
+        LEFT JOIN
+                coding_sequence cs on sgc.id_codingseq = cs.id_codingseq
+                AND cs.design_entry = ?
+        LEFT JOIN
+                position_type_dict ptd on sgc.position_description = ptd.id_dict
+        LEFT JOIN
+                sgc_dict on sgc.consequence = sgc_dict.id_dict
+        WHERE   ss.default_name = ?
         AND     sseq.id_sequence = ms.id_sequence
         AND     ms.id_snp = ss.id_snp
         AND     ss.id_snp = snp.id_snp
@@ -383,7 +406,7 @@ sub fetch_SNP_by_id  {
 
     eval {
         $sth1 = $self->prepare($q1);
-        $sth1->execute();
+        $sth1->execute($self->consequence_exp, $id);
     }; 
     if ($@){
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
@@ -396,7 +419,6 @@ sub fetch_SNP_by_id  {
         $row->{'SNP_END'} ||= $row->{'SNP_START'};
         my $snp_start = $row->{'SNP_START'};
         my $id_seq = $row->{'NT_ID'};
-        #warn Data::Dumper::Dumper($row);
         my $q2 = qq(
             SELECT
                     cs.database_seqname     as embl_acc,
@@ -448,7 +470,7 @@ sub fetch_SNP_by_id  {
             #if maps to multiple locations in assembly, skip feature
             next if(@mapped > 1);
 
-            warn join ("|", $clone_strand, $row->{'SNP_STRAND'});
+            #warn join ("|", $clone_strand, $row->{'SNP_STRAND'});
 
             #try next clone if mapped to gap
             #warn $mapped[0]->start;
@@ -474,8 +496,9 @@ sub fetch_SNP_by_id  {
         $snp->source_tag('Glovar');
         $snp->snpclass($row->{'SNPCLASS'});
         $snp->raw_status($row->{'VALIDATED'});
-
         $snp->alleles($row->{'ALLELES'});
+        $snp->type($self->_map_position_type($row->{'POS_TYPE'}));
+        $snp->consequence($row->{'CONSEQUENCE'});
 
         ## get flanking sequence from core
         my $slice = $dnadb->get_SliceAdaptor->fetch_by_chr_start_end(
@@ -498,9 +521,8 @@ sub fetch_SNP_by_id  {
         #$snp->het($het);
         #$snp->hetse($hetse);
         
-        ## DBLinks and consequences
+        ## DBLinks
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
-        $self->_get_consequences($snp, $row->{'INTERNAL_ID'}, $self->consequence_exp);
         
         push @snps, $snp;
     }

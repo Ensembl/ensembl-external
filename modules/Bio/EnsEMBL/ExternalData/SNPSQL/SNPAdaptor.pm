@@ -738,7 +738,60 @@ sub  fetch_all_by_Slice{
   return \@var_objs;
 }
  
+=head2 fetch_genotyped_by_Slice
+
+ Title   : fetch_genotyped_by_Slice
+ Usage   : snpa->fetch_genotyped_by_Slice($slice)
+ Function: return variation objects in the given slice that have been genotyped
+ Example : snpa->fetch_genotyped_by_Slice($slice)
+ Returns : a list of genotyped variation objects in the given slice
+ Args    : $slice
+
+=cut
+
+sub  fetch_genotyped_by_Slice{
+  my ($self, $slice) = @_;
+  warn ("ERROR:  No slice object passed to $0") if !$slice;
+  my ($query, @var_objs, %var_objs);
+  my $chr_start = $slice->start;
+  my $chr_end = $slice->end;
+  my $chr_name = $slice->seq_region_name;
   
+
+#mysql> SELECT distinct(r.id), r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3,ch.physmap as start, ch.physmapstr as end , ch.physmapstrand as strand FROM   RefSNP as r, ContigHit as ch, Strain as s WHERE  r.snptype = "notwithdrawn"  and r.internal_id = ch.internal_id and r.internal_id= s.internal_id  and ch.physmap between 11474465 and 11584465 and ch.chr = '11' and s.allele like "%/%";
+
+    $query = qq{
+      SELECT distinct(r.id), r.snpclass, r.mapweight, r.observed, r.seq5, 
+      r.seq3, ch.physmap as start, ch.physmapstr as end, 
+      ch.physmapstrand as strand 
+      FROM   RefSNP as r, ContigHit as ch, Strain as s 
+      WHERE  r.snptype = "notwithdrawn" 
+            and r.internal_id =  s.internal_id 
+            and r.internal_id = ch.internal_id 
+            and s.allele != ""
+            and ch.physmap between $chr_start 
+            and $chr_end  and ch.chr = "$chr_name"
+          };
+  
+  my $sth=$self->prepare($query);
+  my $res=$sth->execute();
+  while (my $info = $sth->fetchrow_hashref()) {
+ if ($info) {
+      my $physmapstr = $info->{end};
+      my ($start, $end) = split /\^|\.\./, $physmapstr if ($info->{start} ne $info->{end});
+      $info->{start} = $start-$chr_start+1 if ($start);
+      $info->{end} = $end-$chr_start+1 if ($end);
+      $info->{start} = $info->{start}-$chr_start+1 if (!$start);
+      $info->{end} = $info->{end}-$chr_start+1 if (!$end);
+      my $var_obj = $self->_objFromHashref($info);
+      #$var_objs{$var_obj->snpid}=$var_obj;
+      push (@var_objs, $var_obj);
+    }
+  }
+  return \@var_objs;
+}
+
+
 
 =head2 fetch_by_refsnpid
 

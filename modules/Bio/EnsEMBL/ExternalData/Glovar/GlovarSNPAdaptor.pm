@@ -436,7 +436,7 @@ sub fetch_SNP_by_id  {
     my (@seq_nt, @seq_clone);
     while (my $r = $sth1->fetchrow_hashref()) {
         return([]) unless keys %{$r};
-        warn Data::Dumper::Dumper($r);
+        #warn Data::Dumper::Dumper($r);
         if ($r->{'SEQ_NAME'} =~ /^NT/) {
             push @seq_nt, $r;
         } else {

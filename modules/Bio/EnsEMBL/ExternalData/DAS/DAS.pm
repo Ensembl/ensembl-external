@@ -158,6 +158,7 @@ sub fetch_dsn_info {
 sub fetch_all_by_DBLink_Container {
    my $self       = shift;
    my $parent_obj = shift;
+   my $id_method  = shift || 'display_id';
 
    my $id_type    = $self->adaptor->type || 'swissprot';
    my $url        = $self->adaptor->url;
@@ -167,22 +168,54 @@ sub fetch_all_by_DBLink_Container {
      $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can ".
 		   "get_all_DBLinks" );
 
-
    my $ensembl_id = '';
    if( $parent_obj->can('stable_id') ){
      $ensembl_id = $parent_obj->stable_id();
    }
 
    my %ids = ();
-   # If $id_type is suffixed with '_acc', use primary_id call 
-   # rather than display_id
-   my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
-   foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
-     lc( $xref->dbname ) ne $id_type and next;
 
-     my $id = $xref->$id_method || next;
-     $ids{$id} = $xref;
+   # If $id_type is prefixed with 'ensembl_', then ensembl id type
+   if( $id_type =~ m/ensembl_(.+)/o ){
+     my $type = $1;
+     my @gene_ids;
+     my @tscr_ids;
+     my @tran_ids;
+     if( $parent_obj->isa("Bio::EnsEMBL::Gene") ){
+       push( @gene_ids, $parent_obj->stable_id );
+       foreach my $tscr( $parent_obj->get_all_transcripts ){
+	 push( @tscr_ids, $tscr->stable_id );
+	 my $tran = $tscr->translation || next;
+	 push( @tran_ids, $tran->stable_id );
+       }
+     }
+     elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
+       push( @tscr_ids, $parent_obj->stable_id );
+       my $tran = $parent_obj->translation || next;
+       push( @tran_ids, $tran->stable_id );
+     }
+     elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
+       push( @tran_ids, $parent_obj->stable_id );
+     }     
+     else{ # Assume protein
+       warn( "??? - ", $parent_obj->transcript->translation->stable_id );
+       push( @tran_ids, $parent_obj->transcript->translation->stable_id );
+     }
+     if(   $type eq 'gene'       ){ map{ $ids{$_} = 'gene' }       @gene_ids }
+     elsif($type eq 'transcript' ){ map{ $ids{$_} = 'transcript' } @tscr_ids }
+     elsif($type eq 'peptide'    ){ map{ $ids{$_} = 'peptide' }    @tran_ids }
+   }
 
+   # If no 'ensembl_' prefix, then DBLink ID
+   else{
+     # If $id_type is suffixed with '_acc', use primary_id call 
+     # rather than display_id
+     my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+     foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
+       lc( $xref->dbname ) ne $id_type and next;
+       my $id = $xref->$id_method || next;
+       $ids{$id} = $xref;
+     }
    }
 
    my @das_features = ();
@@ -233,7 +266,8 @@ sub fetch_all_by_DBLink_Container {
 
    my @result_list = grep 
      {
-       $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment->ref}, $_ ) == 1 
+       $self->_map_DASSeqFeature_to_pep
+	 ( $ids{$_->das_segment->ref}, $_ ) == 1
      } @das_features;
 
    my $key = join( '_', $dsn, keys(%ids) );
@@ -316,6 +350,8 @@ sub _map_DASSeqFeature_to_pep{
   my $self = shift;
   my $dblink = shift || die( "Need a DBLink object" ); 
   my $dsf    = shift || die( "Need a DASSeqFeature object" );
+
+  if( ! ref( $dblink ) ){ return 1 } # Ensembl id_type - mapping not needed
 
   # Check for 'global' feature - mapping not needed 
   if( $dsf->das_feature_id eq $dsf->das_segment->ref or

@@ -110,10 +110,15 @@ sub new {
 #    #$self = {};
 #    #bless $self, $class;
 
-    my ($start, $end, $strand, $primary_tag, $source,
+    my ($acc, $version, $seqname, $snpid, $snpclass, $start, $end, $strand, $primary_tag, $source,
 	$frame, $score, $gff_string, $status, $alleles,
 	$upstreamseq, $dnstreamseq,$subsnpid,$handle,$original_strand, $type) =
-	    $self->_rearrange([qw(START
+	    $self->_rearrange([qw(ACC
+                                  VERSION
+                                  SEQNAME
+                                  SNPID
+                                  SNPCLASS
+				  START
 				  END
 				  STRAND
 				  PRIMARY_TAG
@@ -132,6 +137,11 @@ sub new {
 				)],@args);
 
     $self->primary_tag("Variation");
+    $acc   && $self->acc($acc);
+    $version && $self->version($version);
+    $seqname && $self->seqname($seqname);
+    $snpid   && $self->snpid($snpid);
+    $snpclass && $self->snpclass($snpclass);
     $start && $self->start($start);
     $end   && $self->end($end);
     $start && $self->start_in_clone_coord($start);
@@ -156,6 +166,50 @@ sub new {
     return $self; # success - we hope!
 }
 
+sub acc {
+    my ($self,$value) = @_;
+ 
+    if( defined $value ) {
+        $self->{'_acc'} = $value;
+    }
+    return $self->{'_acc'};
+}
+
+sub version {
+    my ($self,$value) = @_;
+ 
+    if( defined $value ) {
+        $self->{'_version'} = $value;
+    }
+    return $self->{'_version'};
+}
+
+sub seqname {
+    my ($self,$value) = @_;
+ 
+    if( defined $value ) {
+        $self->{'_seqname'} = $value;
+    }
+    return $self->{'_seqname'};
+}
+  
+sub snpid {
+    my ($self,$value) = @_;
+ 
+    if( defined $value ) {
+        $self->{'_snpid'} = $value;
+    }
+    return $self->{'_snpid'};
+}
+
+sub snpclass {
+    my ($self,$value) = @_;
+
+    if( defined $value ) {
+        $self->{'_snpclass'} = $value;
+    }
+    return $self->{'_snpclass'};
+}
 
 sub strand {
     my ($self,$value) = @_;

@@ -31,9 +31,16 @@ $fam = $famdb->get_Family_of_db_id('SWISSPROT', 'P000123');
 
 =head1 DESCRIPTION
 
+This module is an entry point into a database of protein families,
+clustering SWISSPROT using Anton Enright's algorithm. The clustering
+neatly follows the SWISSPROT DE-lines, which are taken as the description
+of the whole family.
+
+For more info, see Family.pm
+
 =head1 CONTACT
 
-Describe contact details here
+ Philip Lijnzaad <Lijnzaad@ebi.ac.uk>, Anton Enright <enright@ebi.ac.uk>
 
 =head1 APPENDIX
 
@@ -41,6 +48,7 @@ The rest of the documentation details each of the object methods. Internal metho
 
 =cut
 
+# '; pacify emacs
 
 package Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use vars qw(@ISA);
@@ -75,13 +83,11 @@ sub _initialize {
 =head2 new
 
  Title   : new
- Usage   :
- Function:
+ Usage   : 
+ Function: create a new adaptor for the Anton Enrights protein family database
  Example :
  Returns : 
- Args    :
-
-
+ Args    : -dbname, -host, -user
 =cut
 
 sub new{
@@ -117,7 +123,18 @@ sub new{
    $self;
 }                                       # new
 
-sub get_Family_by_id  {# ('ENSF000013034');           # get family, given id
+=head2 get_Family_by_id
+
+ Title   : get_Family_by_id
+ Usage   : $db->get_Family_by_id('ENSF00000000009');
+ Function: find Family, given its id.
+ Example :
+ Returns : a Family object if found, undef otherwise
+ Args    : an ENS Family ID
+
+=cut
+
+sub get_Family_by_id  {
     my ($self, $id) = @_; 
 
     my $q = 
@@ -127,6 +144,91 @@ sub get_Family_by_id  {# ('ENSF000013034');           # get family, given id
 
     $self->_get_family($q);
 }                                       # get_Family_by_id
+
+=head2 get_Family_of_Ensembl_id
+
+ Title   : get_Family_of_Ensembl_id
+ Usage   : $fam = $db->get_Family_of_Ensembl_id('ENSP00000204233');
+ Function: find the family to which the given Ensembl id belongs.
+ Example :
+ Returns : a Family or undef if not found 
+ Args    : the ENSEMBLPEP identifier (display_id)
+=cut
+
+sub get_Family_of_Ensembl_id { # ('ENSP00000012304'); # family _of_ an entry
+    my ($self, $eid) = @_; 
+
+    $self->get_Family_of_db_id('ENSEMBLPEP', $eid);  #PL: what db_name ???
+}
+
+=head2 get_Family_of_db_id
+
+ Title   : get_Family_of_db_id
+ Usage   : $fam = $db->get_Family_of_db_id('SWISSPROT', 'P01235');
+ Function: find the family to which the given database and id belong
+ Example :
+ Returns : a Family or undef if not found 
+ Args    : the ENSEMBLPEP identifier (display_id)
+=cut
+
+sub get_Family_of_db_id { 
+    my ($self, $db_name, $db_id) = @_; 
+
+    my $q = 
+      "SELECT f.internal_id, f.id, f.description, 
+              f.release, f.annotation_confidence_score
+       FROM family f, family_members fm
+       WHERE f.internal_id = fm.family
+         AND fm.db_name = '$db_name' 
+         AND fm.db_id = '$db_id'"; 
+
+    $self->_get_family($q);
+}
+
+=head2 get_Families_described_as
+
+ Title   : get_Families_described_as
+ Usage   : my @fams = $db->get_Families_described_as('REDUCTASE');
+ Function: simplistic substring searching on the description
+ Example :
+ Returns : a possibly empty list of Families that contain the string. 
+           (The search is currently case-insensitive; this may change if
+           SWISSPROT changes to case-preservation)
+ Args    : search string.
+=cut
+
+sub get_Families_described_as{ 
+    my ($self, $desc) = @_; 
+
+    my $q = 
+      "SELECT f.internal_id, f.id, f.description, 
+              f.release, f.annotation_confidence_score
+       FROM family f
+       WHERE f.description LIKE '%". "\U$desc" . "%'";
+
+    $self->_get_families($q);
+}
+
+=head2 all_Families
+
+ Title   : all_Families
+ Usage   : 
+ Function: return all known families (use with care)
+ Example :
+ Returns : 
+ Args    : 
+=cut
+
+
+sub all_Families() { 
+    my ($self) = @_; 
+    
+    my $q = 
+      "SELECT f.internal_id, f.id, f.description, 
+              f.release, f.annotation_confidence_score
+       FROM family f";
+    $self->_get_families($q);
+}
 
 # pull all fam's members from db
 sub _get_members {
@@ -151,48 +253,6 @@ sub _get_members {
     $self->throw("internal error; expecting at least one member for id $iid") 
       if ($n < 1);
     undef;
-}
-
-sub get_Family_of_Ensembl_id { # ('ENSP00000012304'); # family _of_ an entry
-    my ($self, $eid) = @_; 
-
-    $self->get_Family_of_db_id('ENSEMBLPEP', $eid);  #PL: what db_name ???
-}
-
-sub get_Family_of_db_id { # ('SWISSPROT', 'P000123')  # family of any entry
-    my ($self, $db_name, $db_id) = @_; 
-
-    my $q = 
-      "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score
-       FROM family f, family_members fm
-       WHERE f.internal_id = fm.family
-         AND fm.db_name = '$db_name' 
-         AND fm.db_id = '$db_id'"; 
-
-    $self->_get_family($q);
-}
-
-sub get_Families_described_as{ # ('interleukin'); # families that contain this
-    my ($self, $desc) = @_; 
-
-    my $q = 
-      "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score
-       FROM family f
-       WHERE f.description LIKE '%". $desc . "%'";
-
-    $self->_get_families($q);
-}
-
-sub all_Families() { 
-    my ($self) = @_; 
-    
-    my $q = 
-      "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score
-       FROM family f";
-    $self->_get_families($q);
 }
 
 # set/get handle on ensembl database

@@ -46,7 +46,8 @@ my @useless_annots =
 my $word_splitter='[\/ \t,:]+';
 
 ### words that get scored off; the balance of useful/useless words
-### determines whether they make it through
+### determines whether they make it through.
+### (these regexps are surrounded by ^ and $ before they're used)
 my @useless_words =  # and misspellings, that is
   qw( PROTEIN UNKNOWN FRAGMENT HYPOTHETICAL HYPOTETICAL 
       NOVEL PUTATIVE PREDICTED UNNAMED UNNMAED
@@ -55,6 +56,14 @@ my @useless_words =  # and misspellings, that is
       RIKEN FIS KIAA\d+ \S+RIK IMAGE HSPC\d+  # db-specific ID's
       .*\d\d\d+.*                       # anything that looks like an ID
     );
+
+#
+foreach my $w (@useless_words) {
+    if ( $w =~ /$word_splitter/) {
+        die "word '$w' to be matched matches ".
+          "the word_splitter regexp '$word_splitter', so will never match";
+    }
+}
 
 open (DISCARDED,">$discarded_file") || die "$discarded_file: $!";
 

@@ -100,37 +100,80 @@ sub fetch_Light_Variations_by_chr_start_end  {
     my $slice_start  = $slice->chr_start();
     my $slice_end    = $slice->chr_end();
     my $slice_strand = $slice->strand();
-    my $assembly     = $slice->assembly_type();
-    
-    my ($ass_name,$ass_version) = $slice->assembly_type() =~ /([A-Za-z]+)(\d+)/; # NCBI33 -> NCBI,33
+    my $ass_name     = $slice->assembly_name();
+    my $ass_version  = $slice->assembly_version();
 
-    my $q = qq(SELECT distinct
-           (mapped_snp.position + seq_seq_map.START_COORDINATE -1) as snppos,
-           snp_name.snp_name as snp_name,
-           snp.is_confirmed as confirmed,
-           snp.is_private as private
-    FROM chrom_seq,
-         seq_seq_map,
-         snp_sequence,
-         mapped_snp,
-         snp_name,
-         snp,
-         database_dict
-    WHERE chrom_seq.DATABASE_SEQNAME='$slice_chr'
-    AND chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
-    AND snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE
-    AND mapped_snp.ID_SEQUENCE = snp_sequence.ID_SEQUENCE
-    AND snp_name.id_snp = mapped_snp.id_snp
-    AND snp.id_snp = snp_name.id_snp
-    AND snp_name.snp_name_type = 1
-    AND chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT
-    AND database_dict.DATABASE_NAME = '$ass_name'
-    AND database_dict.DATABASE_VERSION = '$ass_version'
-    AND (mapped_snp.position + seq_seq_map.START_COORDINATE -1) BETWEEN '$slice_start' AND '$slice_end'
-    ORDER BY SNPPOS
-    );
+    unless($ass_name && $ass_version){
+        self->throw("Cannot determine assembly name and version!\n");
+    }
+
+    my $q = qq(
+        SELECT                                                                                                                                  
+                mapped_snp.position + seq_seq_map.START_COORDINATE -1                                                                       
+                                                as chr_start,                                                                                
+                mapped_snp.id_snp               as internal_id,                                                                              
+                seq_seq_map.contig_orientation  as chr_strand,                                                                               
+                snp_name.snp_name               as id_refsnp,                                                                                
+                'glovar'                        as source,                                                                                   
+                'snp'                           as snpclass,                                                                                 
+                svd.description                 as type,                                                                                     
+                snp.is_private                  as private,                                                                                     
+                snpf.allele_txt(snp.id_snp)     as alleles,                                                                                  
+                scd.description                 as validated                                                                                 
+        FROM    chrom_seq,                                                                                                                   
+                seq_seq_map,                                                                                                                 
+                snp_sequence,                                                                                                                
+                mapped_snp,                                                                                                                  
+                snp_name,                                                                                                                    
+                snp,                                                                                                                         
+                snpvartypedict svd,                                                                                                          
+                snp_confirmation_dict scd,                                                                                                   
+                database_dict                                                                                                                
+        WHERE   chrom_seq.DATABASE_SEQNAME= '$slice_chr'                                                                                             
+        AND     chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ                                                                              
+        AND     snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE                                                                          
+        AND     mapped_snp.ID_SEQUENCE = snp_sequence.ID_SEQUENCE                                                                            
+        AND     snp_name.id_snp = mapped_snp.id_snp                                                                                          
+        AND     snp.id_snp = snp_name.id_snp                                                                                                 
+        AND     snp.var_type = svd.id_dict                                                                                                   
+        AND     snp.is_confirmed = scd.id_dict                                                                                               
+        AND     snp_name.snp_name_type = 1                                                                                                   
+        AND     chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT                                                                            
+        AND     database_dict.DATABASE_NAME = '$ass_name'                                                                                         
+        AND     database_dict.DATABASE_VERSION = '$ass_version'                                                                                        
+        AND     (mapped_snp.position + seq_seq_map.START_COORDINATE -1) BETWEEN                                                              
+                '$slice_start' AND '$slice_end'                                                                                                              
+        ORDER BY 
+                chr_start                                                                                                                   
+        );
+
+        my $q1 = qq(SELECT distinct
+               (mapped_snp.position + seq_seq_map.START_COORDINATE -1) as snppos,
+               snp_name.snp_name as snp_name,
+               snp.is_confirmed as confirmed,
+               snp.is_private as private
+        FROM chrom_seq,
+             seq_seq_map,
+             snp_sequence,
+             mapped_snp,
+             snp_name,
+             snp,
+             database_dict
+        WHERE chrom_seq.DATABASE_SEQNAME='$slice_chr'
+        AND chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
+        AND snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE
+        AND mapped_snp.ID_SEQUENCE = snp_sequence.ID_SEQUENCE
+        AND snp_name.id_snp = mapped_snp.id_snp
+        AND snp.id_snp = snp_name.id_snp
+        AND snp_name.snp_name_type = 1
+        AND chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT
+        AND database_dict.DATABASE_NAME = '$ass_name'
+        AND database_dict.DATABASE_VERSION = '$ass_version'
+        AND (mapped_snp.position + seq_seq_map.START_COORDINATE -1) BETWEEN '$slice_start' AND '$slice_end'
+        ORDER BY SNPPOS
+        );
     
-    my $sth = $self->prepare($q);
+    my $sth = $self->prepare($q1);
     $sth->execute();
 
     my @vars = ();
@@ -138,13 +181,24 @@ sub fetch_Light_Variations_by_chr_start_end  {
         return([]) unless keys %{$rowhash};
         if ($rowhash->{'PRIVATE'}){
             print Dumper($rowhash);
+            next;
         }
+        #print Dumper($rowhash);
         my $var = Bio::EnsEMBL::SNP->new_fast(
             {
                 'dbID'          =>    $rowhash->{'SNP_NAME'},
                 '_gsf_start'    =>    $rowhash->{'SNPPOS'} - $slice_start + 1,#convert assembly coords to slice coords
                 '_gsf_end'      =>    $rowhash->{'SNPPOS'} - $slice_start + 1,
-                '_snp_strand'   =>    -1,
+#                'dbID'          =>    $rowhash->{'ID_REFSNP'},
+#                '_gsf_start'    =>    $rowhash->{'CHR_START'} - $slice_start + 1,#convert assembly coords to slice coords
+#                '_gsf_end'      =>    $rowhash->{'CHR_START'} - $slice_start + 1,
+                '_snp_strand'   =>    $rowhash->{'CHR_STRAND'},
+                '_gsf_score'    =>    -1,
+                '_type'         =>    $rowhash->{'TYPE'},
+                '_validated'    =>    $rowhash->{'VALIDATED'},
+                'alleles'       =>    $rowhash->{'ALLELES'} =~ s/\\\\/|/g,
+                '_snpclass'     =>    $rowhash->{'SNPCLASS'},
+                '_source_tag'   =>    $rowhash->{'SOURCE'},
             });
 
         push (@vars,$var); 
@@ -171,10 +225,13 @@ sub fetch_Variations_by_chr_start_end  {
     my $slice_chr    = $slice->chr_name();
     my $slice_start  = $slice->chr_start();
     my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();
-    my $assembly     = $slice->assembly_type();
-    
-    my ($ass_name,$ass_version) = $slice->assembly_type() =~ /([A-Za-z]+)(\d+)/; # NCBI33 -> NCBI,33
+    my $slice_strand = $slice->strand();    
+    my $ass_name     = $slice->assembly_name();
+    my $ass_version  = $slice->assembly_version();
+
+    unless($ass_name && $ass_version){
+        self->throw("Cannot determine assembly name and version!\n");
+    }
 
     my $q = qq(SELECT distinct
            (mapped_snp.position + seq_seq_map.START_COORDINATE -1) as snppos,
@@ -223,6 +280,7 @@ sub fetch_Variations_by_chr_start_end  {
         return([]) unless keys %{$rowhash};
         if ($rowhash->{'PRIVATE'}){
             print Dumper($rowhash);
+            next;
         }
         my $var = Bio::EnsEMBL::SNP->new_fast(
             {

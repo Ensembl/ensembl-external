@@ -165,6 +165,12 @@ sub new {
 
 =cut
 
+sub get_Ensembl_SeqFeatures_contig{
+   my ($self) = @_;
+   my @tmp;
+   return @tmp;
+}
+
 sub Xget_Ensembl_SeqFeatures_contig{
 #   my ($self) = @_;
 #   my @tmp;
@@ -255,7 +261,7 @@ sub Xget_Ensembl_SeqFeatures_contig{
 
        #prune flank sequences to 25 nt
        $seq5 = substr($seq5, -25, 25);
-       $seq3 = substr($seq5, 0, 25);
+       $seq3 = substr($seq3, 0, 25);
 
        #
        # prepare the output objects
@@ -357,7 +363,7 @@ sub get_SeqFeature_by_id {
     my @variations;
 
     $id = uc $id;
-    # if ID given is not dbSNP ref id (has other than number charecters)
+    # if ID given is not dbSNP ref id (has other than number characters)
     if ($id =~ /\D/) {
 	$query = qq{
 	
@@ -388,7 +394,7 @@ sub get_SeqFeature_by_id {
 		   };
     }
 
-
+    #print STDERR "$query\n";
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
     my $rows = $sth->rows();
@@ -420,7 +426,7 @@ sub get_SeqFeature_by_id {
 	
 	#prune flank sequences to 25 nt
 	$seq5 = substr($seq5, -25, 25);
-	$seq3 = substr($seq5, 0, 25);
+	$seq3 = substr($seq3, 0, 25);
 
 	#
 	# prepare the output objects
@@ -585,7 +591,6 @@ sub get_Ensembl_SeqFeatures_clone {
    while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
        my $allele_pos = 0;
-       #my $strand = 1;
 
        my ($begin, $end, $hittype, $strand,
 	   $snpuid, $class, $type,
@@ -617,7 +622,7 @@ sub get_Ensembl_SeqFeatures_clone {
 
        #prune flank sequences to 25 nt
        $seq5 = substr($seq5, -25, 25);
-       $seq3 = substr($seq5, 0, 25);
+       $seq3 = substr($seq3, 0, 25);
 
        #
        # prepare the output objects

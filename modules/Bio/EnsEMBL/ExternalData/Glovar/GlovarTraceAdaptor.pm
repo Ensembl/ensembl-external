@@ -1,7 +1,7 @@
 # 
 # BioPerl module for Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor
 # 
-# Cared for by Tony Cox <avc@sanger.ac.uk>
+# Cared for by Patrick Meidl <pm2@sanger.ac.uk>
 #
 # Copyright EnsEMBL
 #
@@ -11,9 +11,7 @@
 
 =head1 NAME
 
-GlovarAdaptor - DESCRIPTION of Object
-
-  This object represents the Glovar database.
+GlovarHaplotypeAdaptor - Database adaptor for Glovar haplotypes
 
 =head1 SYNOPSIS
 
@@ -22,41 +20,36 @@ $glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -dbname => 'snp',
                                          -host   => 'go_host',
                                          -driver => 'Oracle');
-
-my $glovar_adaptor = $glodb->get_GlovarAdaptor;
-
-$var_listref  = $glovar_adaptor->fetch_all_by_Slice($slice);  # grab the lot!
-
+my $glovar_adaptor = $glodb->get_GlovarHaplotypeAdaptor;
+$var_listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
 
 =head1 DESCRIPTION
 
 This module is an entry point into a glovar database,
 
-Objects can only be read from the database, not written. (They are
-loaded using a separate system).
+Objects can only be read from the database, not written. (They are loaded using
+a separate system).
 
 =head1 CONTACT
 
- Tony Cox <avc@sanger.ac.uk>
+ Patrick Meidl <pm2@sanger.ac.uk>
 
 =head1 APPENDIX
 
-The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
+The rest of the documentation details each of the object methods. Internal
+methods are usually preceded with a _
 
 =cut
 
 package Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor;
-use vars qw(@ISA);
+
 use strict;
-use Data::Dumper;
 
-use Bio::EnsEMBL::DBSQL::BaseAdaptor;
-use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
-use Bio::EnsEMBL::SeqFeature;
-use Bio::EnsEMBL::SNP;
-use Bio::Annotation::DBLink;
+use Bio::EnsEMBL::MapFrag;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
+use Bio::EnsEMBL::Utils::Eprof('eprof_start','eprof_end','eprof_dump');
 
+use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
 
 
@@ -69,36 +62,32 @@ use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
   Description: Retrieves a list of variations on a slice in slice coordinates 
   Returntype : Listref of Bio::EnsEMBL::Variation objects
   Exceptions : none
-  Caller     : Bio::EnsEMBL::Slice::get_all_Glovar_variations
+  Caller     : Bio::EnsEMBL::Slice::get_all_ExternalFeatures
 
 =cut
 
 sub fetch_all_by_Slice {
-  my ($self, $slice, $is_light) = @_;
+    my ($self, $slice, $is_light) = @_;
 
-  unless($slice->assembly_name() && $slice->assembly_version()){
-      warn("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
-      return([]);
-  } else {
-    my $assembly = $slice->assembly_name() . $slice->assembly_version();
-    my $type = $self->track_name();
-    warn("Fetching $type features on assembly $assembly\n");
-  }
+    unless ($slice->assembly_name && $slice->assembly_version) {
+        warn ("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
+        return ([]);
+    }
 
-  my @f = ();
-  if($is_light){
-    push @f, @{$self->fetch_Light_Trace_Alignments_by_chr_start_end($slice)};
-  } else {
-    push @f, @{$self->fetch_Trace_Alignments_by_chr_start_end($slice)};
-  } 
-  return(\@f); 
+    my @f = ();
+    if($is_light){
+        push @f, @{$self->fetch_Light_Trace_by_chr_start_end($slice)};
+    } else {
+        push @f, @{$self->fetch_Trace_by_chr_start_end($slice)};
+    } 
+    return(\@f); 
 }
 
 
-=head2 fetch_Light_Variations_by_chr_start_end
+=head2 fetch_Light_Trace_by_chr_start_end
 
- Title   : fetch_Light_Variations_by_chr_start_end
- Usage   : $db->fetch_Light_Variations_by_chr_start_end($slice);
+ Title   : fetch_Light_Trace_by_chr_start_end
+ Usage   : $db->fetch_Light_Trace_by_chr_start_end($slice);
  Function: find lightweight variations by chromosomal location.
  Example :
  Returns : a list ref of very light SNP objects - designed for drawing only.
@@ -106,53 +95,67 @@ sub fetch_all_by_Slice {
 
 =cut
 
-sub fetch_Light_Trace_Alignments_by_chr_start_end  {
+sub fetch_Light_Trace_by_chr_start_end  {
     my ($self,$slice) = @_; 
-
     my $slice_chr    = $slice->chr_name();
     my $slice_start  = $slice->chr_start();
     my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();
     my $ass_name     = $slice->assembly_name();
     my $ass_version  = $slice->assembly_version();
 
+    ## return traces from cache if available
+    my $key = join(":", $slice_chr, $slice_start, $slice_end);
+    if ($self->{'_cache'}->{$key}) {
+        warn "using trace cache $key";
+        return $self->{'_cache'}->{$key};
+    }
+
+    &eprof_start('glovar_trace2');
+
+    ## removed DISTINCT ???
     my $q = qq(
         SELECT   
-        DISTINCT 
-                (mapped_seq.contig_match_start + seq_seq_map.start_coordinate -1) 
-                                                    as start_coord,
-                (mapped_seq.contig_match_end   + seq_seq_map.start_coordinate -1) 
-                                                    as end_coord,
-                mapped_seq.snp_rea_id_read          as read_id,
-                snp_read.readname                   as readname,
-                mapped_seq.is_revcomp               as orientation
-        FROM    chrom_seq,
-                seq_seq_map,
-                snp_sequence,
-                mapped_seq,
-                snp_read,
-                database_dict
-        WHERE   chrom_seq.database_seqname      = '$slice_chr'
-        AND     chrom_seq.id_chromseq           = seq_seq_map.id_chromseq
-        AND     seq_seq_map.sub_sequence        = snp_sequence.id_sequence
-        AND     mapped_seq.id_sequence          = snp_sequence.id_sequence
-        AND     mapped_seq.snp_rea_id_read      = snp_read.id_read
-        AND     chrom_seq.database_source       = database_dict.id_dict
-        AND     database_dict.database_version  = '$ass_version'
-        AND     database_dict.database_name     = '$ass_name'
-        AND     
-                (
-                (mapped_seq.contig_match_start + seq_seq_map.start_coordinate -1) 
-        BETWEEN 
-                '$slice_start' AND '$slice_end' 
-        OR 
-                (mapped_seq.contig_match_end   + seq_seq_map.start_coordinate -1) 
-        BETWEEN 
-                '$slice_start' AND '$slice_end'
-                )
+        DISTINCT
+                (ssm.contig_orientation * ms.contig_match_start)
+                    + ssm.start_coordinate - 1 as start_coord,
+                (ssm.contig_orientation * ms.contig_match_end)
+                    + ssm.start_coordinate - 1 as end_coord,
+                ms.snp_rea_id_read      as read_id,
+                sr.readname             as readname,
+                ms.is_revcomp           as orientation,
+                ms.read_match_start     as read_start,
+                ms.read_match_end       as read_end
+        FROM    chrom_seq cs,
+                seq_seq_map ssm,
+                mapped_seq ms,
+                snp_read sr,
+                database_dict dd
+        WHERE   cs.database_seqname = '$slice_chr'
+        AND     dd.database_version = '$ass_version'
+        AND     dd.database_name = '$ass_name'
+        AND     cs.database_source = dd.id_dict
+        AND     cs.id_chromseq = ssm.id_chromseq
+        AND     ssm.sub_sequence = ms.id_sequence
+        AND     ms.snp_rea_id_read = sr.id_read
+        AND ((
+                (ms.is_revcomp = 0) 
+            AND
+                (ms.contig_match_start BETWEEN
+                $slice_start-10000-ssm.start_coordinate AND
+                $slice_end-ssm.start_coordinate+1)
+            AND
+                (ms.contig_match_end >$slice_start-ssm.start_coordinate+1)
+            ) OR (
+                (ms.is_revcomp = 1)
+            AND
+                (ms.contig_match_start BETWEEN
+                $slice_start-ssm.start_coordinate+1 AND
+                $slice_end-ssm.start_coordinate+10000)
+            AND
+                (ms.contig_match_end < $slice_end-ssm.start_coordinate+1)
+            ))
         ORDER BY 
                 start_coord
-
     );
 
     my $sth;
@@ -161,49 +164,66 @@ sub fetch_Light_Trace_Alignments_by_chr_start_end  {
         $sth->execute();
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_Light_Trace_Alignments_by_chr_start_end()!\n$@");
+        warn("ERROR: SQL failed in GlovarAdaptor->fetch_Light_Trace_by_chr_start_end()!\n$@");
         return([]);
     }
 
     my @traces = ();
-    while (my $rowhash = $sth->fetchrow_hashref()) {
-        return([]) unless keys %{$rowhash};
-        #print STDERR Dumper($rowhash);
-        my $trace = Bio::EnsEMBL::SNP->new_fast(
-            {
-                '_snpid'        =>    $rowhash->{'READNAME'},
-                '_gsf_start'    =>    $rowhash->{'START_COORD'} - $slice_start + 1,#convert assembly coords to slice coords
-                '_gsf_end'      =>    $rowhash->{'END_COORD'} - $slice_start + 1,
-                '_snp_strand'   =>    $rowhash->{'ORIENTATION'},
-                '_gsf_score'    =>    -1,
-                '_type'         =>    '_',
-                 '_source_tag'  =>    $rowhash->{'SOURCE'},
-                'source_tag'   =>    "Glovar",
-            });
-            
-         my $link = Bio::Annotation::DBLink->new();
-         $link->database("Glovar");
-         $link->primary_id($rowhash->{'READNAME'});
-         $trace->add_DBLink($link);
-        #print STDERR Dumper($trace);
+    while (my $row = $sth->fetchrow_hashref()) {
+        return([]) unless keys %{$row};
+        next if $row->{'PRIVATE'};
+        my ($start, $end, $strand);
+        if ($row->{'ORIENTATION'} == 1) {
+            $start = $row->{'END_COORD'};
+            $end = $row->{'START_COORD'};
+            $strand = '-1';
+        } else {
+            $start = $row->{'START_COORD'};
+            $end = $row->{'END_COORD'};
+            $strand = 1;
+        }
+        my $trace = Bio::EnsEMBL::MapFrag->new(
+            $slice_start,
+            $row->{'READ_ID'},
+            'clone',
+            $slice_chr,
+            'Chromosome',
+            $start,
+            $end,
+            $strand,
+            $row->{'READNAME'},
+        );
+        $trace->add_annotation('read_start', $row->{'READ_START'});
+        $trace->add_annotation('read_end', $row->{'READ_END'});
+        ## add strand as annotation so that GlyphSet_simple understands it
+        $trace->add_annotation('strand', $strand);
 
         push (@traces,$trace); 
+
+        #warn join(" | ", $row->{'READNAME'}, $start, $end, $strand);
     }
-    return(\@traces);
+    
+    &eprof_end('glovar_trace2');
+    #&eprof_dump(\*STDERR);
+    
+    return $self->{'_cache'}->{$key} = \@traces;
 }                                       
 
 
+sub fetch_Trace_by_chr_start_end  {
+    my ($self, $slice) = @_;
+    return(1);
+}
 
 sub fetch_Trace_Alignment_by_id  {
     my ($self, $id) = @_;
     return(1);
 }
 
-
 sub track_name {
     my ($self) = @_;    
     return("GlovarTrace");
 }
 
-
 1;
+

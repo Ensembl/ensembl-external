@@ -60,7 +60,7 @@ sub new {
 
 	my $self = bless {}, $pkg;
 
-    my ( $url, $dsn, $ensdb, $proxy_url ) = $self->_rearrange([qw( URL DSN ENSDB PROXY_URL )],@args);
+    my ( $url, $dsn, $ensdb, $proxy_url, $types ) = $self->_rearrange([qw( URL DSN ENSDB PROXY_URL TYPES)],@args);
 
     $url   || $self->throw("DAS database adaptor must be given a database url");
     $dsn   || $self->throw("DAS database adaptor must be given a DSN (data source name)");
@@ -72,6 +72,7 @@ sub new {
     }
     $self->_db_handle($dbh);
     $self->dsn($dsn);
+    $self->types($types);
     $self->url($url);
     $self->ensembldb($ensdb);
 
@@ -118,6 +119,25 @@ sub url {
     return $self->{'_url'};
 }
 
+
+=head2 types
+
+ Title   : types
+ Usage   : $obj->types([ 'type', 'type', .... ])
+ Function: select types to return...
+ Returns : 
+ Args    : none
+
+
+=cut
+
+sub types {
+    my ($self,$value) = @_;
+    if( defined $value ) {
+        $self->{'_types'} = $value;
+    }
+    return $self->{'_types'};
+}
 
 =head2 dsn
 

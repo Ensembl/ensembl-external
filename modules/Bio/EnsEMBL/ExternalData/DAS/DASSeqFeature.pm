@@ -61,6 +61,16 @@ use Bio::EnsEMBL::Root;
 
 # The <SEGMENT> tag
 
+sub das_move {
+   my( $self, $offset, $strand) = @_;
+      $self->{'das_start'}  += $offset;
+      $self->{'_gsf_start'} += $offset;
+      $self->{'das_end'}    += $offset;
+      $self->{'_gsf_end'}   += $offset;
+      $self->{'das_strand'}  *= $strand;
+      $self->{'_gsf_strand'} *= $strand;
+}
+
 sub das_segment_id {
    my ($self,$arg) = @_;
    if( $arg) {

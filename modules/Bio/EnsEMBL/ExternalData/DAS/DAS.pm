@@ -82,6 +82,7 @@ sub new {
 
 	$self->_db_handle($adaptor->_db_handle());
     $self->_dsn($adaptor->dsn()); 
+    $self->_types($adaptor->types()); 
     $self->_url($adaptor->url()); 
 
 	return $self; # success - we hope!
@@ -106,6 +107,7 @@ sub get_Ensembl_SeqFeatures_DAS {
     my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref, $chr_length) = @_;
 	my $dbh 	   = $self->_db_handle();
 	my $dsn 	   = $self->_dsn();
+	my $types 	   = $self->_types() || [];
 	my $url 	   = $self->_url();
 
     my $DAS_FEATURES = [];
@@ -150,7 +152,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         #$CURRENT_FEATURE->das_group_label($f->group_label());
         #$CURRENT_FEATURE->das_group_type($attr{'type'});
         $CURRENT_FEATURE->das_target($f->target());
-        #$CURRENT_FEATURE->das_target_id($f->target());
+        $CURRENT_FEATURE->das_target_id($f->target());
         #$CURRENT_FEATURE->das_target_start($attr{'start'});
         #$CURRENT_FEATURE->das_target_stop($attr{'stop'});
         $CURRENT_FEATURE->das_type($f->type());
@@ -168,14 +170,14 @@ sub get_Ensembl_SeqFeatures_DAS {
 
     my $response;
 	
-    # Test POST echo server to request debugging
-    # print STDERR "URL/DSN: $url/$dsn\n\n";
-    #     $response = $dbh->features(
-    #                  -dsn    =>  "http://ensrv3.sanger.ac.uk:9999/das/$dsn",
-    #                  -segment    =>  \@seg_requests,
-    #                  -callback   =>  $callback,
-    #                  #-category   =>  'all',
-    # );
+     # Test POST echo server to request debugging
+     print STDERR "URL/DSN: $url/$dsn\n\n";
+  #   $response = $dbh->features(
+  #                    -dsn    =>  "http://ecs3.internal.sanger.ac.uk:4001/das/$dsn",
+  #                    -segment    =>  \@seg_requests,
+  #                    -callback   =>  $callback,
+  #                    -type   =>  $types,
+  #   );
 
 #    if($url=~/servlet\.sanger/) {
 #        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
@@ -183,14 +185,22 @@ sub get_Ensembl_SeqFeatures_DAS {
 #        $CURRENT_FEATURE->id("Hardware failure");
 #        $CURRENT_FEATURE->das_dsn($dsn); 
 #        unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
-#        return (@{$DAS_FEATURES});
+#        return ($DAS_FEATURES);
 #    }
-    $response = $dbh->features(
+     if(@$types) {
+        $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",
                     -segment    =>  \@seg_requests,
                     -callback   =>  $callback,
-                    #-category   =>  'all',
-                    );
+                    -type   => $types,
+        );
+     } else {
+        $response = $dbh->features(
+                    -dsn    =>  "$url/$dsn",
+                    -segment    =>  \@seg_requests,
+                    -callback   =>  $callback,
+        );
+     }
     
     unless ($response->success()){
         print STDERR "DAS fetch for $dsn failed\n";
@@ -199,7 +209,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_type_id('__ERROR__'); 
         $CURRENT_FEATURE->das_dsn($dsn); 
         unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
-        return (@{$DAS_FEATURES});
+        return ($DAS_FEATURES);
     }
     
     if(0){
@@ -214,7 +224,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         }
     }
     
-	return(@{$DAS_FEATURES});  # _MUST_ return a list here or StaticContig breaks!
+	return($DAS_FEATURES);  # _MUST_ return a list here or StaticContig breaks!
 }
 
 
@@ -277,10 +287,31 @@ sub _db_handle{
 }
 
 
+=head2 _types
+
+ Title   : _types
+ Usage   : $obj->_types($newval)
+ Function:
+ Example :
+ Returns : value of _types
+ Args    : newvalue [ 'type', 'type', ... ] (optional)
+
+=cut
+
+
+sub _types {
+   my ($self,$value) = @_;
+   if( defined $value) {
+      $self->{'_types'} = $value;
+    }
+    return $self->{'_types'};
+
+}
+
 =head2 _dsn
 
  Title   : _dsn
- Usage   : $obj->dsn($newval)
+ Usage   : $obj->_dsn($newval)
  Function:
  Example :
  Returns : value of _dsn

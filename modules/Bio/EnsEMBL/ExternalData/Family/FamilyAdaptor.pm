@@ -80,6 +80,7 @@ package Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use vars qw(@ISA);
 use strict;
 
+use Bio::Annotation::DBLink;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Family::Family;
@@ -87,28 +88,28 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
-=head2 get_Family_by_id
+=head2 get_Family_by_stable_id
 
- Title   : get_Family_by_id
- Usage   : $db->get_Family_by_id('ENSF00000000009');
- Function: find Family, given its id.
+ Title   : get_Family_by_stable_id
+ Usage   : $db->get_Family_by_stable_id('ENSF00000000009');
+ Function: find Family, given its stable_id.
  Example :
  Returns : a Family object if found, undef otherwise
- Args    : an ENS Family ID
+ Args    : an ENS Family STABLE_ID
 
 =cut
 
-sub get_Family_by_id  {
-    my ($self, $id) = @_; 
+sub get_Family_by_stable_id  {
+    my ($self, $stable_id) = @_; 
 
     my $q = 
       "SELECT family_id, stable_id, description, release, 
               annotation_confidence_score
        FROM family f
-       WHERE stable_id = '$id'";
+       WHERE stable_id = '$stable_id'";
 
     $self->_get_family($q);
-}                                       # get_Family_by_id
+}                                       # get_Family_by_stable_id
 
 =head2 get_Family_of_Ensembl_pep_id
 
@@ -259,7 +260,7 @@ sub _known_databases {
 sub _get_members {
     my ($self, $fam) = @_;
 
-    my $fid = $fam->internal_id;
+    my $fid = $fam->dbID;
 # warn hard coding here !!!
     my $q = 
       "SELECT external_db_id, external_member_id
@@ -272,7 +273,11 @@ sub _get_members {
     my ($rowhash, $n, $mem, $db_name, $db_id);
 
     while ( $rowhash = $q->fetchrow_hashref) {
-        $fam->add_member( $rowhash->{external_db_id}, $rowhash->{external_member_id});
+	my $link = new Bio::Annotation::DBLink();
+
+	$link->database($rowhash->{external_db_id});
+	$link->primary_id($rowhash->{external_member_id});
+        $fam->add_member($link);
         $n++;
     }
 
@@ -327,7 +332,7 @@ sub _get_family {
 sub get_max_id {
     my($self, $db)=@_;
 
-    my $q = "select max(id) from family";
+    my $q = "select max(stable_id) from family";
     
     $q = $self->prepare($q);
     $q->execute;
@@ -342,7 +347,7 @@ sub get_max_id {
 sub _get_alignment_string {
     my ($self, $fam) = @_; 
 
-    my $fid = $fam->internal_id();
+    my $fid = $fam->dbID();
     my $q= "SELECT alignment
             FROM alignments 
             WHERE family_id = $fid";
@@ -388,18 +393,55 @@ sub _get_families {
     while ( $rowhash = $q->fetchrow_hashref) {
         $fam = new Bio::EnsEMBL::ExternalData::Family::Family;
         $fam->{'adaptor'}=$self;
-        $fam->internal_id($rowhash->{family_id});
-        $fam->id($rowhash->{stable_id});
+        $fam->dbID($rowhash->{family_id});
+        $fam->stable_id($rowhash->{stable_id});
         $fam->description($rowhash->{description});
         $fam->release($rowhash->{release});
         $fam->annotation_confidence_score($rowhash->{annotation_confidence_score});
 
         $self->_get_members($fam);      # make more lazy ? 
+        $self->_get_totals($fam);
         push(@fams, $fam);
     }
     
     @fams;                              # maybe empty
 }                                       # _get_families
+
+=head2 _get_totals
+
+ Title   : _get_totals
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+sub _get_totals{
+   my ($self,$fam) = @_;
+
+   my $fid = $fam->dbID;
+   my $q = "SELECT external_db_id, members_total
+             FROM family_totals
+             WHERE family_id = $fid";
+   
+   $q = $self->prepare($q);
+   $q->execute;
+   
+   my $all=0;
+   my %totals; 
+   
+   while ( my $rowhash = $q->fetchrow_hashref) {
+       $totals{$rowhash->{external_db_id}}=$rowhash->{members_total};
+       $all =+ $rowhash->{members_total};
+   }
+   $totals{'all'}=$all;
+   $fam->_totalhash(\%totals);
+}
+
+
 
 sub _db_handle 
 {

@@ -3,11 +3,12 @@
 # tables for Anton Enrights protein family clustering. 
 
 CREATE TABLE family (
-   family_id    int(10) NOT NULL,
-   stable_id  varchar(40) NOT NULL, ##  e.g. ENSF0000012345
-   description  varchar(255) NOT NULL,
-   release      varchar(10) NOT NULL,
+   family_id   int(10) NOT NULL,
+   stable_id   varchar(40) NOT NULL, ##  e.g. ENSF0000012345
+   description varchar(255) NOT NULL,
+   release     varchar(10) NOT NULL,
    annotation_confidence_score double, 
+   size        int(10) NOT NULL,
 
    PRIMARY KEY(family_id), 
    UNIQUE KEY(stable_id),
@@ -56,6 +57,16 @@ CREATE TABLE cumulative_distrib (
   cum_fraction_of_peptides float(4) NOT NULL, 
   PRIMARY KEY(family_size)
 ); 
+
+CREATE TABLE meta (
+    meta_id INT unsigned not null auto_increment,
+    meta_key varchar( 40 ) not null,
+    meta_value varchar( 255 ) not null,
+
+    PRIMARY KEY( meta_id ),
+    KEY meta_key_index ( meta_key ),
+    KEY meta_value_index ( meta_value )
+);
 
 ### not yet implemented:
 # ## table to hold keywords

@@ -13,6 +13,16 @@ INSERT INTO family (family_id, stable_id, description, release, annotation_confi
 INSERT INTO family (family_id, stable_id, description, release, annotation_confidence_score) VALUES (9,'ENSF00000000009','UNKNOWN','999',0);
 INSERT INTO family (family_id, stable_id, description, release, annotation_confidence_score) VALUES (10,'ENSF00000000010','UNKNOWN','999',0);
 
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (1,1,10);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (1,2,20);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (1,3,30);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (2,1,5);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (2,2,10);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (2,3,15);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (3,1,10);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (3,2,10);
+INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES (3,3,10);
+
 INSERT INTO external_db (external_db_id,name) VALUES(1,'ENSEMBLGENE');
 INSERT INTO external_db (external_db_id,name) VALUES(2,'ENSEMBLPEP');
 INSERT INTO external_db (external_db_id,name) VALUES(3,'SPTR');

@@ -90,35 +90,42 @@ use Bio::Annotation::DBLink;
 
 sub new {
   my($class,@args) = @_;
-
+  
   my $self = $class->SUPER::new(@args);
+  
+  my $n = scalar(@args);
+  if ($n) {
+      #do this explicitly.
+      my ($dbid, $stable_id,$descr,$release, $score, $memb,$totalhash,$adap); 
+      $self->_rearrange([qw(
+			    DBID
+			    STABLE_ID
+			    DESCRIPTION
+			    RELEASE
+			    SCORE
+			    MEMBERS
+			    TOTALHASH
+			    ADAPTOR
+			    )], @args);
+      
+      $dbid && $self->dbID($dbid);
+      $stable_id || $self->throw("Must have a stable_id");
+      $self->stable_id($stable_id);
 
+      $descr || $self->throw("family must have a description");
+      $self->description($descr);
 
-# do this explicitly.
-#    my ($internal_id, $id,$descr,$score, $rel, $debug,) 
-#      = $self->_rearrange([qw(
-#                              INTERNAL_ID
-#                              ID
-#                              DESCRIPTION
-#                              RELEASE
-#                              SCORE
-#                              DEBUG
-#                             )], @args);
-# 
-#    $id || $self->throw("family must have an id");
-#    $self->id($id);
-# 
-#    $descr || $self->throw("family must have a description");
-#    $self->description($descr);
-# 
-#    $self->{_members} = []; 
-#    foreach my $mem (@args) {
-#        $self->add_member($mem);
-#    }
-#
-#   $self->_debug($debug?$debug:0);
-   return $self;
-}                                       # new
+      $release && $self->release($release);
+      $score && $self->score($score);
+      $totalhash && $self->_totalhash($totalhash);
+      $self->{_members} = []; 
+      my @members = @$memb;
+      push (@{$self->{_members}},@members);
+      $adap && $self->adaptor($adap);
+  }
+  
+  return $self;
+}   
 
 =head2 adaptor
 
@@ -136,40 +143,40 @@ sub adaptor {
 }
 
 
-=head2 id
+=head2 stable_id
 
- Title   : id
+ Title   : stable_id
  Usage   : 
- Function: get/set the display id of the Family
+ Function: get/set the display stable_id of the Family
  Example :
  Returns : 
  Args    : 
 =cut
 
-sub id {
+sub stable_id {
     my ($self,$value) = @_;
     if( defined $value) {
-	$self->{'id'} = $value;
+	$self->{'stable_id'} = $value;
     }
-    return $self->{'id'};
+    return $self->{'stable_id'};
 }
 
-=head2 internal_id
+=head2 dbID
 
- Title   : internal_id
+ Title   : dbID
  Usage   : 
- Function: get/set the internal_id of the Family
+ Function: get/set the dbID of the Family
  Example :
  Returns : 
  Args    : 
 =cut
 
-sub internal_id {
+sub dbID {
     my ($self,$value) = @_;
     if( defined $value) {
-	$self->{'internal_id'} = $value;
+	$self->{'dbID'} = $value;
     }
-    return $self->{'internal_id'};
+    return $self->{'dbID'};
 }
 
 =head2 description
@@ -228,28 +235,28 @@ sub annotation_confidence_score {
     return $self->{'annotation_confidence_score'};
 }
 
-# =head2 keywords
-# 
-#  Title   : keywords
-#  Usage   : 
-#  Function: get/set the SWISSPROT/TREMBL keywords
-#  Example :
-#  Returns : 
-#  Args    : 
-# =cut
-# 
-# # sub keywords { 
-#     my ($self) = @_; 
-#     $self->throw("not yet implemented");
-# }
+=head2 _totalhash
 
-sub num_ens_pepts {
-    my ($self,$value) = @_;
-    if( defined $value) {
-	$self->{'num_ens_pepts'} = $value;
-    }
-    return $self->{'num_ens_pepts'};
+ Title   : _totalhash
+ Usage   : internal method for family_totalhash hash
+ Function: Getset for family_totalhash hash
+ Returns : internal hash of total number of members per database id
+ Args    : newvalue (optional)
+
+
+=cut
+
+sub _totalhash{
+   my $self= shift;
+
+   if( @_ ) {
+       my $value = shift;
+       $self->{'_totalhash'} = $value;
+   }
+   return $self->{'_totalhash'};
 }
+
+
 
 =head2 size
 
@@ -262,12 +269,15 @@ sub num_ens_pepts {
 =cut
 
 sub size {
- my ($self, $db_name) = @_; 
-
- if  ( defined $db_name) { return int($self->each_member_of_db($db_name)); }
- if ( defined $self->{'_members'} ) { return int(@{$self->{'_members'}}); }
- # else: empty. 
- return 0;
+    my ($self, $dbid) = @_; 
+    
+    my %tot = %{$self->_totalhash()};
+    if  ( defined $dbid) { 
+	return $tot{$dbid};
+    }
+    else {
+	return $tot{'all'};
+    }
 }
 
 =head2 each_ens_pep_member
@@ -281,9 +291,9 @@ sub size {
 =cut
 
 sub each_ens_pep_member {
-  my ($self) = @_;
-
-  return $self->each_member_of_db('ENSEMBLPEP');
+    my ($self) = @_;
+    
+    return $self->each_member_of_db('ENSEMBLPEP');
 }
 
 =head2 each_ens_gene_member
@@ -297,9 +307,9 @@ sub each_ens_pep_member {
 =cut
 
 sub each_ens_gene_member {
-  my ($self) = @_;
-
-  return $self->each_member_of_db('ENSEMBLGENE');
+    my ($self) = @_;
+    
+    return $self->each_member_of_db('ENSEMBLGENE');
 }
 
 =head2 each_member_of_db
@@ -313,17 +323,17 @@ sub each_ens_gene_member {
 =cut
 
 sub each_member_of_db {
-  my ($self, $db) = @_;
-
-  # might be slowish; do we need to change this, e.g., go to database? 
-
-  # see if we have it cached -- big win when doing family id mapping
-  if ( defined($self->{mems_per_db}->{$db}) ) {
-      return @{$self->{mems_per_db}->{$db}};
-  }
-  my @mems = $self->_each_member_of_db($db);
-  $self->{mems_per_db}->{$db}= \@mems;
-  return @mems;
+    my ($self, $db) = @_;
+    
+    # might be slowish; do we need to change this, e.g., go to database? 
+    
+    # see if we have it cached -- big win when doing family id mapping
+    if ( defined($self->{mems_per_db}->{$db}) ) {
+	return @{$self->{mems_per_db}->{$db}};
+    }
+    my @mems = $self->_each_member_of_db($db);
+    $self->{mems_per_db}->{$db}= \@mems;
+    return @mems;
 }
 
 sub _each_member_of_db {
@@ -353,49 +363,10 @@ sub _each_member_of_db {
 =cut
 
 sub each_DBLink{
-   my ($self) = @_;
-
- if ( defined $self->{'_members'} ) { return @{$self->{'_members'}}; }
- return ();
-}
-
-=head2 add_DBLink
-
- Title   : add_DBLink
- Usage   : not for general use (in fact, currently unused)
- Function: add a member to this family
- Example :
- Returns :  undef;
- Args    : a DBLink pointing to the member
-
-
-=cut
-
-sub add_DBLink {
-    my ($self,$value) = @_;
-
-    if(     !defined $value 
-         || !ref $value 
-         || ! $value->isa('Bio::Annotation::DBLink') ) {
-        $self->throw("This [$value] is not a DBLink");
-    }
-    push(@{$self->{'_members'}},$value);
-    undef;
-}
-
-
-# convert a string pair to a DBLink
-sub _dbid_to_dblink {
-    my($self,$database, $primary_id) = @_; 
-
-    if ($database eq '' || $primary_id eq '') {
-        $self->warn("Bio::EnsEMBL::ExternalData::Family::Family::_dbid_to_dblink:  must have both a database and an id $database $primary_id"); 
-    }
-    my $link = new Bio::Annotation::DBLink();
-
-    $link->database($database);
-    $link->primary_id($primary_id);
-    $link;
+    my ($self) = @_;
+    
+    if ( defined $self->{'_members'} ) { return @{$self->{'_members'}}; }
+    return ();
 }
 
 =head2 add_member
@@ -411,10 +382,9 @@ sub _dbid_to_dblink {
 =cut
 
 sub add_member { 
-    my ($self, $database, $primary_id) = @_; 
-
-    push @{$self->{_members}}, $self->_dbid_to_dblink($database, $primary_id);
-    undef;
+    my ($self, $link) = @_; 
+    
+    push (@{$self->{_members}}, $link);
 }
 
 =head2 get_alignment_string
@@ -447,25 +417,6 @@ sub get_alignment_string {
 sub get_alignment {
     my ($self) = @_;
     $self->adaptor->_get_alignment($self);
-}
-=head2 _debug
-
- Title   : _debug
- Usage   : $obj->_debug($newval)
- Function: 
- Example : 
- Returns : value of _debug
- Args    : newvalue (optional)
-
-
-=cut
-
-sub _debug{
-    my ($self,$value) = @_;
-    if( defined $value) {
-	$self->{'_debug'} = $value;
-    }
-    return $self->{'_debug'};
 }
 
 1;

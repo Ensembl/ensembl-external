@@ -83,8 +83,6 @@ sub get_Ensembl_SeqFeatures_contig {
        "FROM   feature WHERE " .
        "feature.contig = " . $internal_id;
 
-                     
-
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;
 
@@ -92,7 +90,6 @@ sub get_Ensembl_SeqFeatures_contig {
    $sth->bind_columns(undef,\$fid,\$start,\$end,\$strand,\$f_score,\$analysisid,\$name,\$hstart,\$hend,\$hid,\$evalue,\$perc_id,\$phase,\$end_phase);
    
    while($sth->fetch) {
-
        my $out;
        my $analysis;
        my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
@@ -132,8 +129,10 @@ sub get_Ensembl_SeqFeatures_contig {
 	   $out->start      ($start);
 	   $out->end        ($end);
 	   $out->strand     ($strand);
-	   $out->source_tag ($name);
-	   $out->primary_tag('similarity');
+#	   $out->source_tag ($name);
+# temporary, for Tony
+	   $out->source_tag ('est');
+	   $out->primary_tag('est');
 	   $out->id         ($fid);
 	   $out->p_value    ($evalue)    if (defined $evalue);
 	   $out->percent_id ($perc_id)   if (defined $perc_id); 

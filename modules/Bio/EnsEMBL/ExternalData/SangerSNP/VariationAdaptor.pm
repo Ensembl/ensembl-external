@@ -53,6 +53,7 @@ SELECT DISTINCT MAPPED_SNP.ID_SNP,
           (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snppos,
           (MAPPED_SNP.END_POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snpendpos,
           (MAPPED_SNP.IS_REVCOMP * SEQ_SEQ_MAP.CONTIG_ORIENTATION) AS snpstrand,
+           CHROM_SEQ.DATABASE_SEQNAME as chrname,
            SNP_SUMMARY.ALLELES,
            SNP_SUMMARY.DEFAULT_NAME
 FROM     DATABASE_DICT,
@@ -113,6 +114,8 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
         'allele_string'     => $hashref->{ALLELES},
         'source'            => 'SangerSNP',
       });
+
+    $varfeat->slice($self->ensembl_db->get_SliceAdaptor->fetch_by_region('chromosome',$hashref->{CHRNAME}));
 
     # add minimal Variation object
     my $var = Bio::EnsEMBL::Variation::Variation->new(
@@ -217,10 +220,10 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
     }
 
     if ($hashref->{CHRNAME} ne $range_chr || $start < $range_start || $start > $range_end) {
-      print "Outside range ($range_chr,$range_start,$range_end) for id $dbID " . $hashref->{CHRNAME} . " $start $end\n"; 
+      #print "Outside range ($range_chr,$range_start,$range_end) for id $dbID " . $hashref->{CHRNAME} . " $start $end\n"; 
       next;
     }
-    print "In range ($range_chr,$range_start,$range_end) for id $dbID " . $hashref->{CHRNAME} . " $start $end\n"; 
+    #print "In range ($range_chr,$range_start,$range_end) for id $dbID " . $hashref->{CHRNAME} . " $start $end\n"; 
     my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
       {
         'dbID'              => $hashref->{ID_SNP},
@@ -233,6 +236,7 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
         'source'            => 'SangerSNP',
       });
 
+    $varfeat->slice($self->ensembl_db->get_SliceAdaptor->fetch_by_region('chromosome',$hashref->{CHRNAME}));
     # add minimal Variation object
     my $var = Bio::EnsEMBL::Variation::Variation->new(
         -dbID               => $hashref->{'ID_SNP'},
@@ -248,5 +252,92 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
     print STDERR "Got multiple vars for $dbID - only returning 1\n";
   }
   return $snps[0];
+}
+
+sub fetch_all_by_dbID {
+  my ($self,$dbID) = @_;
+
+  my $assembly = $self->ensembl_db->assembly_type;
+  
+  (my $assembly_name = $assembly) =~ s/[0-9]*$//;
+  (my $assembly_version = $assembly) =~ s/[A-Z,a-z]*([0-9]*)$/$1/;
+
+  my $query = qq {
+SELECT DISTINCT MAPPED_SNP.ID_SNP,  
+          (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snppos,
+          (MAPPED_SNP.END_POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snpendpos,
+          (MAPPED_SNP.IS_REVCOMP * SEQ_SEQ_MAP.CONTIG_ORIENTATION) AS snpstrand,
+           CHROM_SEQ.DATABASE_SEQNAME as chrname,
+           SNP_SUMMARY.ALLELES,
+           SNP_SUMMARY.DEFAULT_NAME
+FROM     DATABASE_DICT,
+         CHROM_SEQ,
+         SEQ_SEQ_MAP,
+         MAPPED_SNP,
+         SNP_SUMMARY
+WHERE     DATABASE_DICT.DATABASE_NAME = '$assembly_name'
+    AND   DATABASE_DICT.DATABASE_VERSION = '$assembly_version'
+    AND   CHROM_SEQ.DATABASE_SOURCE = DATABASE_DICT.ID_DICT
+    AND   CHROM_SEQ.IS_CURRENT = 1
+    AND   CHROM_SEQ.ID_CHROMSEQ = SEQ_SEQ_MAP.ID_CHROMSEQ
+    AND   MAPPED_SNP.ID_SEQUENCE =SEQ_SEQ_MAP.SUB_SEQUENCE
+    AND   SNP_SUMMARY.ID_SNP = MAPPED_SNP.ID_SNP
+    AND   MAPPED_SNP.IS_REVCOMP IS NOT NULL
+    AND   SNP_SUMMARY.ID_SNP = $dbID
+ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
+  };
+
+  my $sth = $self->prepare($query);
+
+  #print $sth->{Statement} . "\n";
+
+  $sth->execute;
+  # print "Query finished\n";
+
+  my @snps;
+
+# Naughty but should speed things up a bit
+  my $cur_snp_id = -1;
+  my $snp;
+  my %ids;
+  my $hashref;
+  while ($hashref = $sth->fetchrow_hashref) {
+    
+    my $start;
+    my $end;
+    if ($hashref->{SNPPOS} >= $hashref->{SNPENDPOS} ||
+       ($hashref->{ALLELES} =~ /-/ && abs($hashref->{SNPPOS}-$hashref->{SNPENDPOS})==1)) {
+      $start = $hashref->{SNPENDPOS};
+      $end = $hashref->{SNPPOS};
+    } else {
+      $start = $hashref->{SNPPOS};
+      $end = $hashref->{SNPENDPOS};
+    }
+
+    my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
+      {
+        'dbID'              => $hashref->{ID_SNP},
+        'adaptor'           => $self,
+        'variation_name'    => $hashref->{DEFAULT_NAME},
+        'start'             => $start,
+        'end'               => $end,
+        'strand'            => $hashref->{SNPSTRAND},
+        'allele_string'     => $hashref->{ALLELES},
+        'source'            => 'SangerSNP',
+      });
+    $varfeat->slice($self->ensembl_db->get_SliceAdaptor->fetch_by_region('chromosome',$hashref->{CHRNAME}));
+
+    # add minimal Variation object
+    my $var = Bio::EnsEMBL::Variation::Variation->new(
+        -dbID               => $hashref->{'ID_SNP'},
+        -ADAPTOR            => $self,
+        -NAME               => $hashref->{'DEFAULT_NAME'},
+        -SOURCE             => 'Glovar',
+      );
+
+    push @snps,$varfeat;
+  }
+
+  return \@snps;
 }
 1;

@@ -69,7 +69,7 @@ foreach my $ex (@expected) {
     $dbs{$ex}++;
 }
 
-my @found = $famad->known_databases;
+my @found = @{$famad->known_databases};
 #test 3
 ok $found[0],'ENSEMBLGENE',"Unexpected db in database";
 #test 4
@@ -85,9 +85,9 @@ ok $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Did not find famil
 #test 7
 ok $fam->size,4,"Got unexpected family size";
 #test 8
-ok $fam->size_by_dbname('ENSEMBLGENE'),2,"Unexpected family size by database name";
+ok $fam->size_by_dbname('ENSEMBLGENE'),3,"Unexpected family size by database name";
 #test 9
-ok $fam->size_by_dbname_taxon('ENSEMBLGENE',9606),1,"Unexpected family size by database name";
+ok $fam->size_by_dbname_taxon('ENSEMBLGENE',9606),2,"Unexpected family size by database name";
 
 
 my $got = length($fam->get_alignment_string());
@@ -116,25 +116,26 @@ eval {
 $@ || $fam,'',"got: $@ and/or $fam\n";
 
 my @pair = ('SPTR', 'O15520');
-$fam = $famad->fetch_by_dbname_id(@pair);
+my @fam = @{$famad->fetch_by_dbname_id(@pair)};
 
 #test 13
-ok $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Could not fetch family for @pair";
-my $id = $famad->store($fam);
+ok $fam[0]->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Could not fetch family for @pair";
+my $id = $famad->store($fam[0]);
 #test 14
 ok $id,4,"Tried to store existing family, and did not get correct dbid back";
-$fam->stable_id('test');
-foreach my $member ($fam->each_member) {
+$fam[0]->stable_id('test');
+foreach my $member (@{$fam[0]->get_all_members}) {
   $member->stable_id($member->stable_id."_test");
 }
 
-$famad->store($fam);
+$famad->store($fam[0]);
 my $fam = $famad->fetch_by_stable_id('test');
+
 #test 15
 ok $fam->size_by_dbname('ENSEMBLPEP'),18,"Got wrong size for specific database";
 
 $id = 'growth factor';
-my @fams = $famad->fetch_by_description_with_wildcards($id,1);
+my @fams = @{$famad->fetch_by_description_with_wildcards($id,1)};
 $expected = 6;
 #test 16
 ok @fams == $expected,1,"expected $expected families, found ".int(@fams);
@@ -168,20 +169,20 @@ $taxon->taxon_id(3000);
 ok $taxonad->store($taxon),3000,"store species failed";
 
 #test21
-$fam = $famad->fetch_by_dbname_taxon_member('ENSEMBLGENE',9606,'ENSG000001101002');
-ok $fam->dbID,1,"not the good family picked up\n";
+@fam = @{$famad->fetch_by_dbname_taxon_member('ENSEMBLGENE',9606,'ENSG000001101002')};
+ok $fam[0]->dbID,1,"not the good family picked up\n";
 
 #test 22
-ok $fam->stable_id,"ENSF00000000001","Not the good family stable_id\n";
+ok $fam[0]->stable_id,"ENSF00000000001","Not the good family stable_id\n";
 
 #test 23->25
-ok $fam->each_member_of_db('SPTR'),2,"Not the good number of SPTR";
-ok $fam->each_member_of_db('ENSEMBLGENE'),2,"Not the good number of ENSEMBLGENE";
-ok $fam->each_member_of_db('ENSEMBLPEP'),2,"Not the good number of ENSEMBLPEP";
+ok @{$fam[0]->get_members_by_dbname('SPTR')},2,"Not the good number of SPTR";
+ok @{$fam[0]->get_members_by_dbname('ENSEMBLGENE')},2,"Not the good number of ENSEMBLGENE";
+ok @{$fam[0]->get_members_by_dbname('ENSEMBLPEP')},2,"Not the good number of ENSEMBLPEP";
 
 #test 26->30
-ok $fam->each_member_of_db_taxon('SPTR',0),2,"Not the good number of SPTR taxon:0";
-ok $fam->each_member_of_db_taxon('ENSEMBLGENE',9606),1,"Not the good number of ENSEMBLGENE taxon:9606";
-ok $fam->each_member_of_db_taxon('ENSEMBLGENE',10090),1,"Not the good number of ENSEMBLGENE taxon:10090";
-ok $fam->each_member_of_db_taxon('ENSEMBLPEP',9606),1,"Not the good number of ENSEMBLPEP taxon:9606";
-ok $fam->each_member_of_db_taxon('ENSEMBLPEP',10090),1,"Not the good number of ENSEMBLPEP taxon:10090";
+ok @{$fam[0]->get_members_by_dbname_taxon('SPTR',0)},2,"Not the good number of SPTR taxon:0";
+ok @{$fam[0]->get_members_by_dbname_taxon('ENSEMBLGENE',9606)},1,"Not the good number of ENSEMBLGENE taxon:9606";
+ok @{$fam[0]->get_members_by_dbname_taxon('ENSEMBLGENE',10090)},1,"Not the good number of ENSEMBLGENE taxon:10090";
+ok @{$fam[0]->get_members_by_dbname_taxon('ENSEMBLPEP',9606)},1,"Not the good number of ENSEMBLPEP taxon:9606";
+ok @{$fam[0]->get_members_by_dbname_taxon('ENSEMBLPEP',10090)},1,"Not the good number of ENSEMBLPEP taxon:10090";

@@ -18,6 +18,7 @@ INSERT INTO external_db (external_db_id,name) VALUES(2,'ENSEMBLPEP');
 INSERT INTO external_db (external_db_id,name) VALUES(3,'SPTR');
 
 INSERT INTO family_members (family_id, external_db_id, external_member_id, taxon_id) VALUES (1,1,'ENSG000001101002',9606);
+INSERT INTO family_members (family_id, external_db_id, external_member_id, taxon_id) VALUES (2,1,'ENSG000001101002',9606);
 INSERT INTO family_members (family_id, external_db_id, external_member_id, taxon_id) VALUES (1,2,'ENSP00000227515',9606);
 INSERT INTO family_members (family_id, external_db_id, external_member_id, taxon_id) VALUES (1,1,'ENSMUSG000001101002',10090);
 INSERT INTO family_members (family_id, external_db_id, external_member_id, taxon_id) VALUES (1,2,'ENSMUSP00000227515',10090);

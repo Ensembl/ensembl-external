@@ -1,0 +1,21 @@
+#!/usr/local/bin/perl
+
+use Bio::EnsEMBL::ExternalData::Schuler;
+use Bio::EnsEMBL::DBSQL::Obj;
+
+$| = 1;
+
+my $url = "http://ray.nlm.nih.gov/genome/seq/Hs_Data/contig.xml";
+
+my $db  = new Bio::EnsEMBL::DBSQL::Obj(-host => 'obi-wan',
+				       -port => 410000,
+				       -user => 'root',
+				       -pass => 'superpog',
+				       -dbname => 'ens500');
+
+
+my $schuler = new  Bio::EnsEMBL::ExternalData::Schuler(-file => 'contig05042000.xml',
+						       -db  => $db);
+
+
+$schuler->parse;

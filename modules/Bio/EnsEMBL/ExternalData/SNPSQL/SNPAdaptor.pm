@@ -30,6 +30,8 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor;
 
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::Variation;
+use Bio::EnsEMBL::ExternalData::Population;
+use Bio::EnsEMBL::ExternalData::Frequency;
 use Bio::EnsEMBL::SNP;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
@@ -133,11 +135,26 @@ sub fetch_attributes_only{
     #add dbXref to Variation
     $snp->add_DBLink($link);
   }
+    # Add Genotypes (Variation objects) to the SNP
+    # fc1 & jws 2004
+#  eval {
+#    foreach my $genotype (@{$self->fetch_genotype_by_SNP_id($snp->id)}){
+#      $snp->add_genotype($genotype);
+#    }
+#  };
+
+  foreach my $pop (@{$self->fetch_pops_by_SNP_id($snp->id)}) {
+    my $freqs = $self->fetch_freqs_by_pop_SNP_id($pop->pop_id, $snp->id);
+    next unless @$freqs;
+
+    foreach my $freq (@$freqs) {
+      $pop->add_frequency($freq);
+    }
+    $snp->add_population($pop);
+  }
 
   return $snp;
-}
-  
-
+ }
 
 =head2 fetch_by_SNP_id
 
@@ -312,6 +329,96 @@ sub fetch_genotype_by_SNP_id {
 
   return \@snps;
 }
+
+
+=head2 fetch_pops_by_SNP_id
+
+  Arg [1]    : int $refsnpid
+               Use refsnp identifier of the snp to retrieve the populations
+               in which it has been genotyped.
+  Example    : @pops = @{$snp_adaptor->fetch_pop_by_SNP_id($refsnpid)};
+  Description: Retreives a population objects for a given refSNP id
+  Returntype : Array ref of Bio::EnsEMBL::ExternalData::Population objects
+  Exceptions : none
+  Caller     : internal
+
+=cut
+
+sub fetch_pops_by_SNP_id {
+  my ($self, $refsnpid) = @_;
+  my $sth = $self->prepare('
+      SELECT sp.id, sp.name, sp.class, sp.samplesize 
+      FROM   SubSNP ss, RefSNP rs, SubPop sp 
+      WHERE  rs.internal_id = ss.internal_id 
+      AND    ss.id=sp.ssid 
+      AND    sp.batchtype="ALE"   
+      AND    rs.id = ?');
+
+  $sth->execute($refsnpid) || $self->throw("$refsnpid not in database or don't have genotype data");
+
+  my $arr;
+  my @pops = ();
+  while ($arr = $sth->fetchrow_arrayref) { 
+    my ($pop_id, $name, $region, $sample_size) = @$arr;
+    my $pop = new Bio::EnsEMBL::ExternalData::Population;
+
+    $pop->pop_id($pop_id);
+    $pop->name($name);
+    $pop->region($region);
+    $pop->sample_size($sample_size);
+    push @pops, $pop;
+  }
+
+  return \@pops;
+}
+
+
+=head2 fetch_freqs_by_pop_SNP_id
+
+  Arg [1]    : int $refsnpid
+               Use refsnp identifier and population ID to retrieve the allele frequencies
+  Example    : @pops = @{$snp_adaptor->fetch_pops_by_SNP_id($refsnpid)};
+  Description: Retreives a population objects for a given refSNP id
+  Returntype : Array ref of Bio::EnsEMBL::ExternalData::Population objects
+  Exceptions : none
+  Caller     : internal
+
+=cut
+
+sub fetch_freqs_by_pop_SNP_id {
+  my ($self, $pop_id, $refsnpid) = @_;
+
+  my $sth = $self->prepare('
+      SELECT f.snpallele, f.otherallele, f.freq, f.count, f.ssid, f.batchid 
+      FROM   Freq f, SubSNP ss, RefSNP rs #
+      WHERE  rs.internal_id = ss.internal_id 
+      AND    ss.id=f.ssid 
+      AND    f.type="ALE" AND rs.id=? AND f.popid=?
+      ORDER BY f.batchid;');
+
+  $sth->execute($refsnpid, $pop_id);
+
+  $sth->rows || $self->throw("$refsnpid not in database or don't have frequency data");
+
+  my $arr;
+  my @freqs = ();
+  while ($arr = $sth->fetchrow_arrayref) { 
+    my ($snpallele, $otherallele, $frequency, $count, $ssid,$batch_id) = @$arr;
+    my $freq = new Bio::EnsEMBL::ExternalData::Frequency;
+    my $allele = $snpallele || $otherallele;
+    $freq->allele($allele);
+    $freq->frequency($frequency);
+    $freq->count($count);
+    $freq->ssid($ssid);
+    $freq->batch_id($batch_id);
+
+    push @freqs, $freq;
+  }
+
+  return \@freqs;
+}
+
+
 
 
 =head2 fetch_by_clone_accession_vesion

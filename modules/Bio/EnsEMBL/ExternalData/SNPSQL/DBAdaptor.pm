@@ -58,7 +58,6 @@ more details on how to use this class.
 The method get_Ensembl_SeqFeatures_clone_web() is now in the derived
 class WebAdaptor.
 
-
 The objects returned in a list are
 L<Bio::EnsEMBL::ExternalData::Variation> objects which contain
 L<Bio::Annotation::DBLink> objects to give unique IDs in various
@@ -687,20 +686,12 @@ sub get_Ensembl_SeqFeatures_clone_web {
 
 sub get_snp_info_between_two_internalids {
 
-  my ($self,$start_intnum,$end_intnum,$mouse) = @_;
+  my ($self,$start_intnum,$end_intnum) = @_;
   my ($query, @var_objs, %var_objs);
   if (!$end_intnum) {
     $end_intnum = $start_intnum;
   }
-  #if ($mouse) {
-    #$query = qq{
-    #SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3
-    #FROM   RefSNP as r
-	#WHERE  r.snptype = "notwithdrawn" 
-	  #and r.internal_id between $start_intnum and $end_intnum
-	#};
-  #}
-  #else {
+  
     $query = qq{
       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3, 
       h.acc, h.version, h.start, h.end, h.strand
@@ -708,8 +699,7 @@ sub get_snp_info_between_two_internalids {
 	  WHERE  r.id = h.refsnpid and snptype = "notwithdrawn" 
 	    and r.internal_id between $start_intnum and $end_intnum
 	  };
-  #}
-
+  
   my $sth=$self->prepare($query);
   
   my $res=$sth->execute();
@@ -763,8 +753,10 @@ sub get_snp_info_by_refsnpid {
   while (my $info = $sth->fetchrow_hashref()) {
     if ($info) {
       my $var_obj = $self->_objFromHashref($info);
-      $var_objs{$var_obj->snpid}=$var_obj;
-      return values %var_objs;
+      return $var_obj if $var_obj;
+      
+      #$var_objs{$var_obj->snpid}=$var_obj;
+      #return values %var_objs;
     }
   }
 }

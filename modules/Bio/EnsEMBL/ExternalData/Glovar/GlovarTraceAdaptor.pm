@@ -167,14 +167,6 @@ sub fetch_Light_Trace_by_chr_start_end  {
         my $start = $row->{'CONTIG_START'} + $row->{'CHR_START'} - 1;
         my $end = $row->{'CONTIG_END'} + $row->{'CHR_START'} - 1;
 
-        ## hack for broken data -- remove this
-        my $strand = $row->{'READ_ORI'};
-        if ($start > $end) {
-            my $temp = $start;
-            $start = $end;
-            $end = $temp;
-        }
-        
         my $trace = Bio::EnsEMBL::MapFrag->new(
             $slice_start,
             $row->{'READ_ID'},
@@ -183,7 +175,7 @@ sub fetch_Light_Trace_by_chr_start_end  {
             'Chromosome',
             $start,
             $end,
-            $strand,
+            $row->{'READ_ORI'},
             $row->{'READNAME'},
         );
         

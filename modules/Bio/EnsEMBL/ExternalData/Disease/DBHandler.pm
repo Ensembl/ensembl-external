@@ -212,12 +212,12 @@ sub disease_name_by_ensembl_gene
     $self->throw("$gene is not a Bio::EnsEMBL::Gene object!") unless $gene->isa('Bio::EnsEMBL::Gene');
 	
 	my $DBlinks = $gene->get_all_DBLinks;
-    my @genes = map { $_->display_id } grep { $_->database eq 'HUGO' } @$DBlinks;
+    my @genes = map { $_->display_id, @{$_->get_all_synonyms} } grep { $_->database eq 'HUGO' } @$DBlinks;
     return 0 unless @genes;   
 
-	my $query_string = "select d.disease, g.omim_id
+	my $query_string = "select distinct d.disease, g.omim_id
           from disease as d,gene as g
-          where d.id = g.id and g.gene_symbol in ('".join(qq(','),@genes) ."')";
+          where d.id = g.id and g.gene_symbol in ('".join(qq(','),@genes) ."') order by d.disease";
 
 	return $self->_get_disease_objects($query_string);
 

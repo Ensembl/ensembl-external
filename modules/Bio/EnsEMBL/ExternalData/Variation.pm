@@ -651,6 +651,32 @@ sub each_DBLink{
   return @{$self->{'link'}} if defined $self->{'link'};
 }
 
+=head2 unique_id
+
+  Arg 1      : Bio::EnsEMBL::ExternalData::Variation object
+  Arg 2      : Start position of the SNP
+  Arg 3      : Internal database ID for the SNP
+  Example    :  $snp->unique_id($info->{chr_start},$info->{internal_id});
+  Description: add a unique id to the SNP.  This is a HACK for the 
+               webteam.  It is simply the internal_id:start_position
+  Returntype : Bio::EnsEMBL::ExternalData::Variation objects
+  Exceptions : none
+  Caller     : general
+
+=cut
+
+sub unique_id {
+ my ($self, $start, $internal_id) = @_;
+   if( defined $internal_id) {
+      $self->{'_unique_id'} = $internal_id.":".$start;
+  }
+   if( ! exists $self->{'_unique_id'} ) {
+       return undef;
+   }
+   return $self->{'_unique_id'};
+}
+
+
 =head2 add_genotype
 
   Arg 1      : Bio::EnsEMBL::ExternalData::Variation object

@@ -255,6 +255,7 @@ sub fetch_by_SNP_id {
     $snp->score($mapweight); 
     $snp->het($het);
     $snp->hetse($hetse);
+
     
     #DBLink
     my $link = new Bio::Annotation::DBLink;
@@ -762,8 +763,8 @@ sub  fetch_genotyped_by_Slice{
 
     $query = qq{
       SELECT distinct(r.id), r.snpclass, r.mapweight, r.observed, r.seq5, 
-      r.seq3, ch.physmap as start, ch.physmapstr as end, 
-      ch.physmapstrand as strand 
+      r.seq3, ch.physmap as start, ch.physmapstr as end,
+      ch.physmapstrand as strand, r.internal_id as internal_id
       FROM   RefSNP as r, ContigHit as ch, Strain as s 
       WHERE  r.snptype = "notwithdrawn" 
             and r.internal_id =  s.internal_id 
@@ -779,6 +780,7 @@ sub  fetch_genotyped_by_Slice{
  if ($info) {
       my $physmapstr = $info->{end};
       my ($start, $end) = split /\^|\.\./, $physmapstr if ($info->{start} ne $info->{end});
+      $info->{chr_start} = $start || $info->{start};
       $info->{start} = $start-$chr_start+1 if ($start);
       $info->{end} = $end-$chr_start+1 if ($end);
       $info->{start} = $info->{start}-$chr_start+1 if (!$start);
@@ -790,7 +792,6 @@ sub  fetch_genotyped_by_Slice{
   }
   return \@var_objs;
 }
-
 
 
 =head2 fetch_by_refsnpid
@@ -863,6 +864,7 @@ sub _objFromHashref {
   #$snp->hetse($info->{hetse});
   $snp->snpid($info->{id});
   $snp->snpclass($info->{snpclass});
+  $snp->unique_id($info->{chr_start},$info->{internal_id});
 
   #DBLink
   my $link = new Bio::Annotation::DBLink;

@@ -68,7 +68,9 @@ sub new {
 
     my $dbh = Bio::Das->new($url);
     $self->_db_handle($dbh);
-	$dbh->agent()->agent("Ensembl DAS requester (enquiries to: webmaster\@ensembl.org)");
+	#$dbh->agent()->agent("Ensembl DAS requester (enquiries to: webmaster\@ensembl.org)");
+	#$dbh->agent()->agent("Mozilla/4.0 (compatible; MSIE 5.0; SunOS 5.6 sun4u; X11)");
+	$dbh->agent()->agent("Mozilla/3.01 (compatible;)");
 	$dbh->agent()->timeout(3);
     $dbh->dsn($dsn);
 

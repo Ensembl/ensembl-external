@@ -29,10 +29,10 @@ print $fam->description, join('; ',$fam->keywords), $fam->release,
 
 =head1 DESCRIPTION
 
-This object describes protein families obtained from 
-clustering SWISSPROT using Anton Enright's algorithm. The clustering
-neatly follows the SWISSPROT DE-lines, which are taken as the description
-of the whole family.
+This object describes protein families obtained from clustering
+SWISSPROT/TREMBL using Anton Enright's Tribe algorithm. The clustering
+neatly follows the SWISSPROT/TREMBL DE-lines, which are taken as the
+description of the whole family.
 
 The object is a bit bare, still; dbxrefs (i.e., family to family) are not
 implemented, and SWSISSPROT keywords aren't there yet either. 
@@ -221,7 +221,7 @@ sub annotation_confidence_score {
 # 
 #  Title   : keywords
 #  Usage   : 
-#  Function: get/set the SWISSPROT keywords
+#  Function: get/set the SWISSPROT/TREMBL keywords
 #  Example :
 #  Returns : 
 #  Args    : 
@@ -285,7 +285,7 @@ sub each_ens_gene_member {
 =head2 each_member_of_db
 
  Title   : each_member_of_db
- Usage   : $obj->each_member_of_db('SWISSPROT')
+ Usage   : $obj->each_member_of_db('SPTR')
  Function: returns all the members that belong to a particular database
  Returns : a list of DBLinks (which may be empty)
  Args    : the database name
@@ -369,7 +369,7 @@ sub _dbid_to_dblink {
  Usage   : (not for general usage)
  Function: adds member to family. Like add_DBLlink, but takes a string
            pair, rather than a DBLink.
- Example : $fam->add_member('SWISSPROT', 'P12345');
+ Example : $fam->add_member('SPTR', 'P12345');
  Returns : undef
  Args    : db: the database name and primary_id: the primary_id of the database
 

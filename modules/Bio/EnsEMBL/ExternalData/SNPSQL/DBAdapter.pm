@@ -120,9 +120,10 @@ sub new {
     $self = {};
     bless $self, $class;
 
-  my ($db,$host,$driver,$user,$password) =
+  my ($db,$host,$port,$driver,$user,$password) =
       $self->_rearrange([qw(DBNAME
                             HOST
+                            PORT
                             DRIVER
                             USER
                             PASS
@@ -138,7 +139,11 @@ sub new {
       $host = 'localhost';
   }
 
-  my $dsn = "DBI:$driver:database=$db;host=$host";
+  if (! $port ) {
+      $port = 3306;
+  }
+
+  my $dsn = "DBI:$driver:database=$db;host=$host;port=$port";
   my $dbh = DBI->connect("$dsn","$user",$password);
 
   $dbh || $self->throw("Could not connect to database $db user $user using [$dsn] as a locator");

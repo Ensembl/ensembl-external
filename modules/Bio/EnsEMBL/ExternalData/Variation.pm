@@ -330,7 +330,9 @@ sub alleles {
     if( defined $value) { 
 	$obj->{'alleles'} = $value;
     }
-    if ($obj->original_strand == -1 && defined $obj->_reversed && $obj->_reversed != 1) {             
+    if (   defined $obj->original_strand && $obj->original_strand == -1
+        && defined $obj->_reversed       && $obj->_reversed != 1 )
+    {             
 	my $value=$obj->{'alleles'};
 	$value=~tr/ATGCatgc/TACGtagc/; 
 	$obj->{'alleles'} = $value;

@@ -313,12 +313,12 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_link_label($f->link_label());
         #$CURRENT_FEATURE->das_link_href($f->link());
         $CURRENT_FEATURE->das_group_id($f->group());
-        #$CURRENT_FEATURE->das_group_label($f->group_label());
-        #$CURRENT_FEATURE->das_group_type($attr{'type'});
+        $CURRENT_FEATURE->das_group_label($f->group_label());
+        $CURRENT_FEATURE->das_group_type($f->group_type());
         $CURRENT_FEATURE->das_target($f->target());
-        $CURRENT_FEATURE->das_target_id($f->target());
-        #$CURRENT_FEATURE->das_target_start($attr{'start'});
-        #$CURRENT_FEATURE->das_target_stop($attr{'stop'});
+        $CURRENT_FEATURE->das_target_id($f->target_id);
+        $CURRENT_FEATURE->das_target_start($f->target_start);
+        $CURRENT_FEATURE->das_target_stop($f->target_stop);
         $CURRENT_FEATURE->das_type($f->type());
         $CURRENT_FEATURE->das_method($f->method());
         $CURRENT_FEATURE->das_start($f->start());

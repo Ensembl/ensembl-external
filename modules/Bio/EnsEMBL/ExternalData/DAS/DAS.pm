@@ -313,7 +313,6 @@ sub fetch_all_by_Slice {
       } else {
 	  $csa = $csa2;
       }
-
   }
   my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 

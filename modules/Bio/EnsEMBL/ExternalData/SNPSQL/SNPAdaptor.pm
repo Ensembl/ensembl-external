@@ -348,8 +348,8 @@ sub fetch_genotype_by_SNP_id {
 sub fetch_pops_by_SNP_id {
   my ($self, $refsnpid) = @_;
   my $sth = $self->prepare('
-      SELECT sp.id, sp.name, sp.class, sp.samplesize 
-      FROM   SubSNP ss, RefSNP rs, SubPop sp 
+      SELECT straight_join sp.id, sp.name, sp.class, sp.samplesize 
+      FROM   RefSNP rs, SubSNP ss, SubPop sp 
       WHERE  rs.internal_id = ss.internal_id 
       AND    ss.id=sp.ssid 
       AND    sp.batchtype="ALE"   
@@ -391,8 +391,8 @@ sub fetch_freqs_by_pop_SNP_id {
   my ($self, $pop_id, $refsnpid) = @_;
 
   my $sth = $self->prepare('
-      SELECT f.snpallele, f.otherallele, f.freq, f.count, f.ssid, f.batchid 
-      FROM   Freq f, SubSNP ss, RefSNP rs #
+      SELECT straight_join f.snpallele, f.otherallele, f.freq, f.count, f.ssid, f.batchid 
+      FROM   RefSNP rs, SubSNP ss, Freq f
       WHERE  rs.internal_id = ss.internal_id 
       AND    ss.id=f.ssid 
       AND    f.type="ALE" AND rs.id=? AND f.popid=?

@@ -248,6 +248,38 @@ sub size {
  return int(@{$self->{'_members'}});
 }
 
+=head2 each_ens_pep_member
+
+ Title   : each_ens_pep_member
+ Usage   : $obj->each_ens_pep_member
+ Function: returns all the ENSEMBLPEP members of the family
+ Returns : a list of DBLinks (which may be empty)
+ Args    : none
+
+=cut
+
+sub each_ens_pep_member {
+  my ($self) = @_;
+
+  return $self->each_member_of_db('ENSEMBLPEP');
+}
+
+=head2 each_ens_gene_member
+
+ Title   : each_ens_gene_member
+ Usage   : $obj->each_ens_gene_member
+ Function: returns all the ENSEMBLGENE members of the family
+ Returns : a list of DBLinks (which may be empty)
+ Args   : none
+
+=cut
+
+sub each_ens_gene_member {
+  my ($self) = @_;
+
+  return $self->each_member_of_db('ENSEMBLGENE');
+}
+
 =head2 each_member_of_db
 
  Title   : each_member_of_db

@@ -82,7 +82,10 @@ sub fetch_by_dbID {
  Usage   : $memberadaptor->fetch_by_stable_id($stable_id);
  Function: fetches a FamilyMember given its stable identifier (external_member_id)
  Example : $db->fetch_by_stable_id('ENSG00000000009');
- Returns : a Bio::EnsEMBL::ExternalData::Family::FamilyMember object if found, undef otherwise
+ Returns : a array referecne with Bio::EnsEMBL::ExternalData::Family::FamilyMember objects
+           if found, undef otherwise
+           IMPORTANT: this method returns an array reference because the stable_id could not be unique
+           i.e. the same member maybe part of more than one family
  Args    : an EnsEMBL Gene/Peptide stable id (e.g. ENSG00000000009) or an Accession Number (e.g.O35622)
 
 =cut
@@ -95,9 +98,17 @@ sub fetch_by_stable_id  {
     my $q = "SELECT family_member_id FROM family_members WHERE external_member_id = ?";
     $q = $self->prepare($q);
     $q->execute($stable_id);
-    my ($id) = $q->fetchrow_array;
-    $id || $self->throw("Could not find family member for stable id $stable_id");
-    return $self->fetch_by_dbID($id);
+    my @members;
+
+    while (defined (my $id = $q->fetchrow_array)) {
+      push @members, $self->fetch_by_dbID($id);
+    }
+    
+    return \@members;
+
+#    my ($id) = $q->fetchrow_array;
+#    $id || $self->throw("Could not find family member for stable id $stable_id");
+#    return $self->fetch_by_dbID($id);
 }           
 
 sub fetch_by_family_id {

@@ -142,7 +142,7 @@ foreach $link ( $obj->each_DBLink ) {
 }
 print  "ok 18\n";       
 
-if ($obj->id eq 'TSC::TSC0000030') {
+if ($obj->id eq 'TSC0000030') {
     print "ok 19\n"; 
 } else {
     print "not ok 19\n"; 

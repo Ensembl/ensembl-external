@@ -74,16 +74,19 @@ use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use GO::AppHandle;
 use Bio::EnsEMBL::Root;
+use Bio::EnsEMBL::Registry;
+my $reg = "Bio::EnsEMBL::Registry";
 
 @ISA = qw(Bio::EnsEMBL::Root GO::AppHandle);
 
 sub new {
     my($class,@args) = @_;
 
+    my $group = "go";
     my $self = {};
     bless $self, $class;
 
-    my ($db,$user,$pass,$host,$port,$driver) = 
+    my ($db,$user,$pass,$host,$port,$driver,$species) = 
       $self->_rearrange([qw(
                 DBNAME
                 USER
@@ -91,8 +94,18 @@ sub new {
                 HOST
                 PORT
                 DRIVER
+		SPECIES
                 )],@args);
 
+    if(!defined($species)){
+      $species = "MULTI";
+    }
+    if(defined($reg->get_alias($species,"no throw"))){
+      my $adap = $reg->get_DBAdaptor($species,$group);
+      if(defined($adap)){
+	return $adap;
+      }
+    }
     if( ! $driver ) {
 	    $driver = 'mysql';
     }
@@ -108,8 +121,62 @@ sub new {
     $dbh->throw("Could not connect to database $db user $user as a locator ($@)") unless $dbh;
     $self->_db_handle($dbh);
     
+    $self->dbname($db);
+    $self->port($port);
+    $self->host($host);
+    $self->driver($driver);
+    $self->group($group);
+    $self->species($species);
+
     return $self; # success - we hope!
 }
+sub db{
+  my $self = shift;
+  return $self;
+}
+sub port {
+  my ($self, $arg) = @_;
+
+  (defined $arg) && 
+    ($self->{_port} = $arg );
+  return $self->{_port};
+}
+sub species {
+  my ($self, $arg) = @_;
+
+  (defined $arg) && 
+    ($self->{_species} = $arg );
+  return $self->{_species};
+}
+sub group {
+  my ($self, $arg) = @_;
+
+  (defined $arg) && 
+    ($self->{_group} = $arg );
+  return $self->{_group};
+}
+sub dbname {
+  my ($self, $arg ) = @_;
+  ( defined $arg ) &&
+    ( $self->{_dbname} = $arg );
+  $self->{_dbname};
+}
+sub driver {
+  my($self, $arg ) = @_;
+
+  (defined $arg) &&
+    ($self->{_driver} = $arg );
+  return $self->{_driver};
+}
+
+
+sub host {
+  my ($self, $arg ) = @_;
+  ( defined $arg ) &&
+    ( $self->{_host} = $arg );
+  $self->{_host};
+}
+
 
 # evil....
 sub AUTOLOAD {

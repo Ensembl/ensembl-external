@@ -81,18 +81,16 @@ methods. Internal methods are usually preceded with a _
 
 package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor;
 
+use Bio::EnsEMBL::Registry;
+my $reg = "Bio::EnsEMBL::Registry";
 use Bio::EnsEMBL::DBSQL::DBConnection;
+use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 
 use strict;
 use vars qw(@ISA);
 
-# Object preamble - inherits from Bio::Root:RootI
-@ISA = qw(Bio::EnsEMBL::DBSQL::DBConnection);
 
-
-
-#use the DBConnection superclass constructor
-
+@ISA = qw(Bio::EnsEMBL::DBSQL::DBAdaptor);
 
 =head2 get_SNPAdaptor
 
@@ -106,12 +104,13 @@ use vars qw(@ISA);
 sub get_SNPAdaptor {
   my $self = shift;
 
-  return $self->_get_adaptor("Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor");
+#  return $self->_get_adaptor("Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor");
+  return  Bio::EnsEMBL::Registry->get_adaptor($self->db->species(), "SNP", "ProxySNP");
 }
 
 sub get_Hitcount {
     my ($self) = @_;
-    my $sth=$self->prepare("select count(*) from RefSNP");
+    my $sth=$self->db->prepare("select count(*) from RefSNP");
     my $res=$sth->execute();
 
     my ($count) = $sth->fetchrow_array();
@@ -121,7 +120,7 @@ sub get_Hitcount {
 
 sub get_max_refsnpid {
     my ($self) = @_;
-    my $sth=$self->prepare("select max(id) from RefSNP");
+    my $sth=$self->db->prepare("select max(id) from RefSNP");
     my $res=$sth->execute();
 
     my ($count) = $sth->fetchrow_array();

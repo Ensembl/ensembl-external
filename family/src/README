@@ -3,15 +3,8 @@ $Id$
 The markov/ directory contains a program to transform blast scores into a
 markov matrix.
 
-The  mcl/ directory contains the programs for doing Stijn van Dongens MCL
-clustering routine. It was cvs imported as
+NB: It used to have here a mcl/ directory containing the programs for
+doing clustering routine. It is not here anymore, see ensembl-doc/family.txt for details.
 
-  cvs -d /nfs/ensembl/cvsroot import -I '!' ensembl-external/family/src/mcl MCL MCL_`date +"%Y-%m-%d"` 
 
-Please use something similar when Stijn releases a new version.  After this,
-users can update their local working copies with
 
-    cvs  up -j rel_MCL2001-09-10 -j MCL  
-
-(that is, if 'rel_MCL2001-09-10' is the latest MCL release they
-synchronized with). 

@@ -1,0 +1,34 @@
+.\" Copyright (c) 2002 Stijn van Dongen
+.TH clmmeet 1 "22 Feb 2002" "clmmeet 1\&.00" "USER COMMANDS"
+.SH NAME
+
+clmmeet \- compute the intersection of a set of clusterings\&.
+.SH SYNOPSIS
+
+\fBclmmeet\fP -o <output file name> <file name>+
+.SH DESCRIPTION
+
+\fBclmmeet\fP computes the intersection of a set of clusterings, that is,
+the largest clustering that is a subclustering of all the clusterings
+in the set\&. It stores the intersection (or meet) in the argument
+to the \fB-o\fP flag, which must be the first option given\&.
+All remaining arguments are interpreted as names of files containing
+clusterings in mcl format (see \fBmcx(5)\fP), which must all
+pertain to a set of the same cardinality\&.
+
+This utility can be useful in measuring (in conjunction with
+\fBclmdist(1)\fP) the consistency of a set of clusterings at different
+levels of granularity \- if the meet of all those clusterings is close to
+being a subclustering of each of them, consistency is good\&. See
+\fBclmdist(1)\fP for an example\&.
+.SH AUTHOR
+
+Stijn van Dongen\&.
+.SH SEE ALSO
+
+\fBmcl(1)\fP,
+\fBmcx(1)\fP,
+\fBclmdist(1)\fP,
+\fBclminfo(1)\fP,
+\fBclmconf(1)\fP,
+\fBmcx(5)\fP\&.

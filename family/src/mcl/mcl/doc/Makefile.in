@@ -1,0 +1,456 @@
+# Makefile.in generated automatically by automake 1.4-p4 from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DESTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+CC = @CC@
+MAKEINFO = @MAKEINFO@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+VERSION = @VERSION@
+
+TROFF = groff
+ZOEM = $(top_srcdir)/zoem/zoem
+
+TIDY = tidy
+
+docdir = $(datadir)/doc/$(PACKAGE)
+
+doc_DATA = mcl.html mcl.ps             mcx.html mcx.ps             mcxconvert.html mcxconvert.ps             mcxsubs.html mcxsubs.ps             clmdist.html clmdist.ps             clminfo.html clminfo.ps             clmmeet.html clmmeet.ps             clmconf.html clmconf.ps             mcxformat.html mcxformat.ps
+
+
+MAINTAINERCLEANFILES = mcl.1 mcx.1 mcx.5 clmdist.1 clminfo.1 clmconf.1   clmmeet.1 mcxconvert.1 mcxsubs.1 $(doc_DATA)
+
+EXTRA_DIST = man.zmm mcx.zmm clmdist.azm clminfo.azm clmmeet.azm clmconf.azm   mcl.azm mcx.azm mcxformat.azm mcxsubs.azm mcxconvert.azm zoemtut.azm   $(MAINTAINERCLEANFILES)
+
+
+man_MANS = mcl.1 mcx.1 mcx.5 clmdist.1 clminfo.1 clmmeet.1 clmconf.1   mcxconvert.1 mcxsubs.1
+
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+man1dir = $(mandir)/man1
+man5dir = $(mandir)/man5
+MANS = $(man_MANS)
+
+NROFF = nroff
+DATA =  $(doc_DATA)
+
+DIST_COMMON =  Makefile.am Makefile.in TODO
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = tar
+GZIP_ENV = --best
+all: all-redirect
+.SUFFIXES:
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps doc/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+install-man1:
+	$(mkinstalldirs) $(DESTDIR)$(man1dir)
+	@list='$(man1_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst; \
+	done
+
+uninstall-man1:
+	@list='$(man1_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man1dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man1dir)/$$inst; \
+	done
+
+install-man5:
+	$(mkinstalldirs) $(DESTDIR)$(man5dir)
+	@list='$(man5_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.5*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man5dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man5dir)/$$inst; \
+	done
+
+uninstall-man5:
+	@list='$(man5_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.5*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man5dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man5dir)/$$inst; \
+	done
+install-man: $(MANS)
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-man1 install-man5
+uninstall-man:
+	@$(NORMAL_UNINSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-man1 uninstall-man5
+
+install-docDATA: $(doc_DATA)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(docdir)
+	@list='$(doc_DATA)'; for p in $$list; do \
+	  if test -f $(srcdir)/$$p; then \
+	    echo " $(INSTALL_DATA) $(srcdir)/$$p $(DESTDIR)$(docdir)/$$p"; \
+	    $(INSTALL_DATA) $(srcdir)/$$p $(DESTDIR)$(docdir)/$$p; \
+	  else if test -f $$p; then \
+	    echo " $(INSTALL_DATA) $$p $(DESTDIR)$(docdir)/$$p"; \
+	    $(INSTALL_DATA) $$p $(DESTDIR)$(docdir)/$$p; \
+	  fi; fi; \
+	done
+
+uninstall-docDATA:
+	@$(NORMAL_UNINSTALL)
+	list='$(doc_DATA)'; for p in $$list; do \
+	  rm -f $(DESTDIR)$(docdir)/$$p; \
+	done
+tags: TAGS
+TAGS:
+
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+subdir = doc
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am: all-am
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+install-exec-am:
+install-exec: install-exec-am
+
+install-data-am: install-man install-docDATA
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am: uninstall-man uninstall-docDATA
+uninstall: uninstall-am
+all-am: Makefile $(MANS) $(DATA)
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+installdirs:
+	$(mkinstalldirs)  $(DESTDIR)$(mandir)/man1 $(DESTDIR)$(mandir)/man5 \
+		$(DESTDIR)$(docdir)
+
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+mostlyclean-am:  mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-generic mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-generic clean-am
+
+distclean: distclean-am
+
+maintainer-clean-am:  maintainer-clean-generic distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+
+.PHONY: install-man1 uninstall-man1 install-man5 uninstall-man5 \
+install-man uninstall-man uninstall-docDATA install-docDATA tags \
+distdir info-am info dvi-am dvi check check-am installcheck-am \
+installcheck install-exec-am install-exec install-data-am install-data \
+install-am install uninstall-am uninstall all-redirect all-am all \
+installdirs mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+mcl-all.ps: mcl.ps mcx.ps mcxformat.ps clmdist.ps clminfo.ps clmmeet.ps clmconf.ps mcxsubs.ps mcxconvert.ps
+	mpage -c -2 -o -M-50 mcl.ps mcx.ps mcxformat.ps clmdist.ps clminfo.ps clmmeet.ps clmconf.ps mcxsubs.ps mcxconvert.ps > mcl-all.ps
+
+mcl-all.tar.gz:
+	tar czf mcl-all.tar.gz *.{1,5,html,ps}
+
+mcxformat: mcxformat.html mcx.5 mcxformat.ps
+
+mcxformat.html: mcxformat.azm
+	$(ZOEM) -i mcxformat -d html -o mcxformat.html
+	$(ZOEM) -i mcxformat -d html -o mcxformat.html
+	- $(TIDY) -e mcxformat.html
+
+mcx.5: mcxformat.azm
+	$(ZOEM) -i mcxformat -d roff -o  mcx.5
+	$(ZOEM) -i mcxformat -d roff -o  mcx.5
+
+mcxformat.ps: mcx.5
+	$(TROFF) -man mcx.5 > mcxformat.ps
+
+clminfo: clminfo.1 clminfo.html clminfo.ps
+
+clminfo.html: clminfo.azm
+	$(ZOEM) -i clminfo -d html -o clminfo.html
+	$(ZOEM) -i clminfo -d html -o clminfo.html
+	- $(TIDY) -e clminfo.html
+
+clminfo.ps: clminfo.1
+	$(TROFF) -man clminfo.1 > clminfo.ps
+
+clminfo.1: clminfo.azm
+	$(ZOEM) -i clminfo -d roff -o clminfo.1
+	$(ZOEM) -i clminfo -d roff -o clminfo.1
+
+clmmeet: clmmeet.1 clmmeet.html clmmeet.ps
+
+clmmeet.html: clmmeet.azm
+	$(ZOEM) -i clmmeet -d html -o clmmeet.html
+	$(ZOEM) -i clmmeet -d html -o clmmeet.html
+	- $(TIDY) -e clmmeet.html
+
+clmmeet.ps: clmmeet.1
+	$(TROFF) -man clmmeet.1 > clmmeet.ps
+
+clmmeet.1: clmmeet.azm
+	$(ZOEM) -i clmmeet -d roff -o clmmeet.1
+	$(ZOEM) -i clmmeet -d roff -o clmmeet.1
+
+clmconf: clmconf.1 clmconf.html clmconf.ps
+
+clmconf.html: clmconf.azm
+	$(ZOEM) -i clmconf -d html -o clmconf.html
+	$(ZOEM) -i clmconf -d html -o clmconf.html
+	- $(TIDY) -e clmconf.html
+
+clmconf.ps: clmconf.1
+	$(TROFF) -man clmconf.1 > clmconf.ps
+
+clmconf.1: clmconf.azm
+	$(ZOEM) -i clmconf -d roff -o clmconf.1
+	$(ZOEM) -i clmconf -d roff -o clmconf.1
+
+clmdist: clmdist.1 clmdist.html clmdist.ps
+
+clmdist.html: clmdist.azm
+	$(ZOEM) -i clmdist -d html -o clmdist.html
+	$(ZOEM) -i clmdist -d html -o clmdist.html
+	- $(TIDY) -e clmdist.html
+
+clmdist.ps: clmdist.1
+	$(TROFF) -man clmdist.1 > clmdist.ps
+
+clmdist.1: clmdist.azm
+	$(ZOEM) -i clmdist -d roff -o clmdist.1
+	$(ZOEM) -i clmdist -d roff -o clmdist.1
+
+mcl: mcl.1 mcl.html mcl.ps
+
+mcl.html: mcl.azm
+	$(ZOEM) -i mcl -d html -o mcl.html
+	$(ZOEM) -i mcl -d html -o mcl.html
+	- $(TIDY) -e mcl.html
+
+mcl.ps: mcl.1
+	$(TROFF) -man mcl.1 > mcl.ps
+
+mcl.1: mcl.azm
+	$(ZOEM) -i mcl -d roff -o mcl.1
+	$(ZOEM) -i mcl -d roff -o mcl.1
+
+mcx: mcx.1 mcx.html mcx.ps
+
+mcx.html: mcx.azm
+	$(ZOEM) -i mcx -d html -o mcx.html
+	$(ZOEM) -i mcx -d html -o mcx.html
+	- $(TIDY) -e mcx.html
+
+mcx.ps: mcx.1
+	$(TROFF) -man mcx.1 > mcx.ps
+
+mcx.1: mcx.azm
+	$(ZOEM) -i mcx -d roff -o mcx.1
+	$(ZOEM) -i mcx -d roff -o mcx.1
+
+mcxsubs: mcxsubs.1 mcxsubs.html mcxsubs.ps
+
+mcxsubs.html: mcxsubs.azm
+	$(ZOEM) -i mcxsubs -d html -o mcxsubs.html
+	$(ZOEM) -i mcxsubs -d html -o mcxsubs.html
+	- $(TIDY) -e mcxsubs.html
+
+mcxsubs.ps: mcxsubs.1
+	$(TROFF) -man mcxsubs.1 > mcxsubs.ps
+
+mcxsubs.1: mcxsubs.azm
+	$(ZOEM) -i mcxsubs -d roff -o mcxsubs.1
+	$(ZOEM) -i mcxsubs -d roff -o mcxsubs.1
+
+mcxconvert: mcxconvert.1 mcxconvert.html mcxconvert.ps
+
+mcxconvert.html: mcxconvert.azm
+	$(ZOEM) -i mcxconvert -d html -o mcxconvert.html
+	$(ZOEM) -i mcxconvert -d html -o mcxconvert.html
+	- $(TIDY) -e mcxconvert.html
+
+mcxconvert.ps: mcxconvert.1
+	$(TROFF) -man mcxconvert.1 > mcxconvert.ps
+
+mcxconvert.1: mcxconvert.azm
+	$(ZOEM) -i mcxconvert -d roff -o mcxconvert.1
+	$(ZOEM) -i mcxconvert -d roff -o mcxconvert.1
+
+faq: mclfaq.1 mclfaq.html mclfaq.ps
+
+mclfaq.html: mclfaq.azm
+	$(ZOEM) -i mclfaq -d html -o mclfaq.html
+	$(ZOEM) -i mclfaq -d html -o mclfaq.html
+	- $(TIDY) -e mclfaq.html
+
+mclfaq.ps: mclfaq.1
+	$(TROFF) -man mclfaq.1 > mclfaq.ps
+
+mclfaq.1: mclfaq.azm
+	$(ZOEM) -i mclfaq -d roff -o mclfaq.1
+	$(ZOEM) -i mclfaq -d roff -o mclfaq.1
+
+buzz: buzz.1 buzz.html buzz.ps
+
+buzz.html: buzz.azm
+	$(ZOEM) -i buzz -d html -o buzz.html
+	$(ZOEM) -i buzz -d html -o buzz.html
+	- $(TIDY) -e buzz.html
+
+buzz.ps: buzz.1
+	$(TROFF) -man buzz.1 > buzz.ps
+
+buzz.1: buzz.azm
+	$(ZOEM) -i buzz -d roff -o buzz.1
+	$(ZOEM) -i buzz -d roff -o buzz.1
+
+zoemtut: zoemtut.html
+
+zoemtut.html: zoemtut.azm
+	$(ZOEM) -i zoemtut -d html -o zoemtut.html
+	$(ZOEM) -i zoemtut -d html -o zoemtut.html
+	- $(TIDY) -e zoemtut.html
+
+# once there's roff support form zoemtut, we might like to add
+# zoem.7 to man_MANS
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

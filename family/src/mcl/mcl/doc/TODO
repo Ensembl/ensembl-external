@@ -1,0 +1,37 @@
+
+o
+   there is a double <br> in html itemize env. single sufficient?
+
+o
+   make faq env. probably <dl> in html
+   make toc for all faq questions.
+
+o
+   can I use .ns and .rs in troff for verbatim environment?
+
+o
+   instead of the <br><br> to create paragraph skips between dt
+   entries, wrap each dt entry in a div, give it a class, and set
+   its margin-bottom attribute. Well, try at least.
+
+o
+   after vbt env, no need to enter \par for html.
+   How is that for troff?
+
+#
+   TP niet goed voor toc in nroff -> paragraphs skip.
+   need sth else.
+   use tab positions now: it will not wrap.
+
+o
+   een spatie op einde regel zou in troff wel eens ongewenst
+   kunnen zijn.
+
+o
+   goede organizatie van
+   
+   font/char/symbol
+   structuur (sectie, itemize)
+   man specifieke dingen (opt)
+   user specifieke dingen (\mcla)
+

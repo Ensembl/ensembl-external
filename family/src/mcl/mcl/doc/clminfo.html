@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- Copyright (c) 2002 Stijn van Dongen -->
+  <head>
+    <style type="text/css">
+      body {text-align: justify}
+      body { color: #001111 ; background: white; }
+      body { margin-left: 8%; margin-right: 8%; }
+      a:link { text-decoration: none; }
+      a:active { text-decoration: none; }
+      a:visited { text-decoration: none; }
+    </style>
+    <title>The clminfo manual
+    </title>
+  </head>
+<body>
+<p style="text-align:right">
+22 Feb 2002&nbsp;&nbsp;&nbsp;<b>clminfo</b> version 1.00
+</p>
+<dl compact>
+<dt>1.<dd><a href="#name">NAME</a>
+<dt>2.<dd><a href="#synopsis">SYNOPSIS</a>
+<dt>3.<dd><a href="#description">DESCRIPTION</a>
+<dt>4.<dd><a href="#author">AUTHOR</a>
+<dt>5.<dd><a href="#seealso">SEE ALSO</a>
+<dt>6.<dd><a href="#references">REFERENCES</a>
+</dl>
+
+<a name="name"></a>
+<h2>NAME</h2>
+
+<p>
+clminfo - Compute performance measures for
+(possibly multiple) clusterings relative to some graph.
+
+<a name="synopsis"></a>
+<h2>SYNOPSIS</h2>
+
+<p>
+<b>clminfo</b> &lt;graph file&gt; &lt;cluster file&gt; &lt;cluster file&gt;*
+
+<a name="description"></a>
+<h2>DESCRIPTION</h2>
+
+<p>
+<b>clminfo</b> computes several numbers indicative for the efficiency with
+with a clustering captures the edge mass of a given graph.
+Use it in conjunction with <b>clmdist</b> to determine which clusterings
+you accept. See the EXAMPLES section in <a href="clmdist.html">clmdist</a>
+for an example of <b>clmdist</b> and <b>clminfo</b> (and <b>clmmeet</b>) usage.
+Output can be generated for multiple clusterings at the same time.
+
+<p>
+The first number is called the <b>efficiency</b> and is described in [1] (see
+the
+<a href="#references">REFERENCES</a> section). It tries to balance the dual aims of
+capturing a lot of edges or edge weights and keeping the cluster footprint
+or area fraction small. The efficiency number has several appealing
+mathematical properties, cf. [1]. It is related to, but not derivable from,
+the second and third numbers, the <i>mass fraction</i> and the
+<i>area fraction</i>.
+
+<p>
+The second number is the mass fraction, which is defined as follows.
+Let <b>e</b> be an edge of the graph. The clustering <i>captures</i> <b>e</b>
+if the two nodes associated with <b>e</b> are in the same cluster.
+Now the mass fraction is the joint weight of all captured edges divided
+by the joint weight of all edges in the input graph.
+
+<p>
+The third number is the area fraction, which is roughly the sum of the
+squares of all cluster sizes for all clusters in the clustering, divided by
+the square of the number of nodes in the graph. It says <i>roughly</i>,
+because the actual formula uses the quantity <b>N</b>*(<b>N-1</b>) wherever it
+says square (of <b>N</b>) above. A low/high area fraction indicates a
+fine-grained/coarse clustering.
+
+<p>
+The fourth number is the cluster link weight, which is the average
+edge weight over all edges captured by the clustering.
+
+<p>
+The fifth number is the graph link weight, which is the average weight
+over all edges in the graph.
+
+<a name="author"></a>
+<h2>AUTHOR</h2>
+
+<p>
+Stijn van Dongen.
+
+<a name="seealso"></a>
+<h2>SEE ALSO</h2>
+
+<p>
+<a href="mcl.html">mcl</a>,
+<a href="mcx.html">mcx</a>,
+<a href="clmdist.html">clmdist</a>,
+<a href="clmmeet.html">clmmeet</a>,
+<a href="clmconf.html">clmconf</a>,
+<a href="mcxformat.html">mcxformat</a>.
+
+<a name="references"></a>
+<h2>REFERENCES</h2>
+
+<p>
+[1] <b>Performance criteria for graph clustering and
+Markov cluster experiments</b> (technical report)<br>
+<a href="http://www.cwi.nl/ftp/CWIreports/INS/INS-R0012.ps.Z">http://www.cwi.nl/ftp/CWIreports/INS/INS-R0012.ps.Z</a>
+
+</body>
+</html>

@@ -1,0 +1,934 @@
+.\" Copyright (c) 2002 Stijn van Dongen
+.TH mcl 1 "22 Feb 2002" "mcl 1\&.00" "USER COMMANDS"
+.SH NAME
+
+mcl \- the Amsterdam implementation of the Markov Cluster Algorithm
+.SH SYNOPSIS
+
+\fBmcl\fP <-|fname>
+\fB[-I\fP f (\fIinflation\fP)\fB]\fP
+\fB[-o\fP str (\fIfname\fP)\fB]\fP
+.br
+These two options are sufficient in 95 percent of the cases, or
+more\&.
+
+\fBmcl\fP <-|fname>
+\fB[-I\fP f (\fIinflation\fP)\fB]\fP
+\fB[-o\fP str (\fIfname\fP)\fB]\fP
+\fB[-c\fP f (\fIcentering\fP)\fB]\fP
+\fB[-p\fP f (\fIcutoff\fP)\fB]\fP
+\fB[-P\fP n (\fI1/cutoff\fP)\fB]\fP
+\fB[-S\fP n (\fIselection number\fP)\fB]\fP
+\fB[-R\fP n (\fIrecovery number\fP)\fB]\fP
+\fB[-pct\fP f (\fIrecover percentage\fP)\fB]\fP
+\fB[-scheme\fP k (\fIuse preset scheme\fP)\fB]\fP
+\fB[--show-schemes\fP (\fIshow preset schemes\fP)\fB]\fP
+\fB[-warn-pct\fP n (\fIprune warn percentage\fP)\fB]\fP
+\fB[-warn-factor\fP n (\fIprune warn factor\fP)\fB]\fP
+\fB[--rigid\fP (\fIpruning\fP)\fB]\fP
+\fB[-ae\fP f (\fIadaptive pruning exponent\fP)\fB]\fP
+\fB[-af\fP f (\fIadaptive pruning factor\fP)\fB]\fP
+\fB[--adapt\fP (\fIpruning\fP)\fB]\fP
+\fB[-nx\fP x (\fItrack worst n\fP)\fB]\fP
+\fB[-ny\fP y (\fItrack worst n\fP)\fB]\fP
+\fB[-v\fP str (\fIverbosity type on\fP)\fB]\fP
+\fB[-V\fP str (\fIverbosity type off\fP)\fB]\fP
+\fB[--silent\fP (\fIvery\fP)\fB]\fP
+\fB[--verbose\fP (\fIvery\fP)\fB]\fP
+\fB[-progress\fP k (\fIgauge\fP)\fB]\fP
+\fB[-te\fP k (\fI#expansion threads\fP)\fB]\fP
+\fB[-ti\fP k (\fI#inflation threads\fP)\fB]\fP
+\fB[--clone\fP (\fIwhen threading\fP)\fB]\fP
+\fB[-cloneat\fP n (\fItrigger\fP)\fB]\fP
+\fB[-t\fP k (\fI#threads\fP)\fB]\fP
+\fB[-l\fP n (\fIinitial iteration number\fP)\fB]\fP
+\fB[-L\fP n (\fImain iteration number\fP)\fB]\fP
+\fB[-i\fP f (\fIinitial inflation\fP)\fB]\fP
+\fB[-a\fP f (\fIloop weight\fP)\fB]\fP
+\fB[-dumpi\fP i:j (\fIinterval i\&.\&.j-1\fP)\fB]\fP
+\fB[-dumpm\fP k (\fIdump i+0\&.\&.i+k\&.\&.\fP)\fB]\fP
+\fB[-dumpstem\fP stem (\fIfile stem\fP)\fB]\fP
+\fB[-dump\fP str (\fItype\fP)\fB]\fP
+\fB[-digits\fP n (\fIprinting precision\fP)\fB]\fP
+\fB[--show\fP (\fIprint matrices to screen\fP)\fB]\fP
+\fB[--ascii\fP (\fIoutput format\fP)\fB]\fP
+\fB[--binary\fP (\fIoutput format\fP)\fB]\fP
+\fB[--overlap\fP (\fIkeep it\fP)\fB]\fP
+\fB[--expand-only\fP (\fIfactor out computation\fP)\fB]\fP
+\fB[--inflate-first\fP (\fIrather then expand\fP)\fB]\fP
+\fB[-preprune\fP n (\fIinput matrix\fP)\fB]\fP
+\fB[-z\fP (\fIshow current settings\fP)\fB]\fP
+.SH DESCRIPTION
+
+\fBmcl\fP implements the \fBMCL algorithm\fP, short for the \fBMarkov cluster
+algorithm\fP, a cluster algorithm for graphs developed by Stijn van Dongen at
+the Centre for Mathematics and Computer Science in Amsterdam, the
+Netherlands\&. The algorithm simulates flow using two simple algebraic
+operations on matrices\&. The theory behind it is extensively described
+elsewhere (see \fBREFERENCES\fP)\&. The program described here is a fast
+threaded implementation written by the algorithm\&'s creator with
+contributions by several others\&. Anton Enright co-implemented threading; see
+the \fBHISTORY/CREDITS\fP section for a complete account\&. The implementation is
+used for the TRIBES project in which large numbers of proteins are clustered
+into families, and has become all the better from the feedback this has
+generated\&.
+See the \fBAPPLICABILITY\fP section for a description of the type of
+graph \fBmcl\fP likes best, and for a qualitative assessment of its speed\&.
+
+The \fB-I\fP\ \fIf\fP option is the main control,
+affecting cluster granularity\&. Using \fBmcl\fP is as simple as
+typing (assuming a file \fIproteins\fP contains a matrix/graph
+in \fBmcl\fP input format)
+
+.nf \fC
+   mcl proteins -I 2\&.0
+.fi \fR
+
+The above will result in a clustering written to the file
+named \fIout\&.mcl\fP\&. The \fBmcl\fP input format is described in the
+\fBmcx(5)\fP section\&. Clusterings are also stored as matrices
+- this is again discussed in the \fBmcx(5)\fP section\&.
+In finding good \fBmcl\fP parameter settings for a particular domain,
+or in finding cluster structure at different levels of granularity,
+one typically runs \fBmcl\fP multiple times for varying values of f (refer
+to the \fB-I\fP option for further information)\&.
+
+\fBmcl\fP expects a nonnegative matrix in the input file, or equivalently, a
+weighted (possibly directed) graph\&. NOTE \- \fBmcl\fP interprets the matrix
+entries or graph edge weights as \fBsimilarities\fP, and it likes
+\fBundirected input graphs\fP best\&. It can handle directed graphs, but any
+node pair (i,j) for which w(i,j) is much smaller than w(j,i) or vice versa
+will presumably have a slightly negative effect on the clusterings output by
+\fBmcl\fP\&. Many such node pairs will have a distinctly negative effect, so try to
+make your input graphs undirected\&. How your edge weights are computed may
+affect \fBmcl\fP\&'s performance\&. In protein clustering, it is best to choose the
+negated logarithm of the BLAST probabilities (see \fBREFERENCES\fP)\&.
+
+\fBmcl\fP\&'s default parameters should make it quite fast in almost all
+circumstances\&. Taking default parameters, \fBmcl\fP has been used to generate
+good protein clusters on 133k proteins, taking 10 minutes running time on a
+Compaq ES40 system with four alpha EV6\&.7 processors\&.
+
+For large graphs, there are several groups of parameters available for
+tuning the mcl computing process, should it be necessary\&.
+The easiest thing
+to do is just vary the \fB-scheme\fP option\&. This
+triggers different settings for the group of pruning parameters
+\fB{\fP\fB-p/-P\fP, \fB-R\fP, \fB-S\fP, and
+\fB-pct\fP\fB}\fP\&. The default setting corresponds with
+\fB-scheme\fP\ \fB2\fP\&.
+There is an additional group of control parameters
+\fB{\fP\fB--adapt\fP, \fB--rigid\fP, \fB-ae\fP,
+\fB-af\fP\fB}\fP, which may be helpful in speeding up \fBmcl\fP\&.
+When doing multiple \fBmcl\fP runs for the same graphs with different
+\fB-I\fP settings (for obtaining clusterings at different levels
+of granularity), it can be useful to factor out the first bit
+of computation that is common to all runs, by using
+the \fB--expand-only\fP option one time
+and then using \fB--inflate-first\fP for
+each run in the set\&.
+Whether \fBmcl\fP considers a graph large depends mainly on the graph
+connectivity; a highly connected graph on 50,000 nodes is large to
+\fBmcl\fP (so that you might want to tune resources) whereas a sparsely
+connected graph on 500,000 nodes may be business as usual\&. If graphs
+are really huge, the time to read a graph from file can be shortened
+by converting the input graph from ascii mcl format to binary mcl
+format with \fBmcxconvert(1)\fP\&.
+
+Two other groups of interest are the thread-related
+options (you can specify the number of threads to use)
+\fB{\fP\fB-t\fP, \fB-te\fP, \fB-ti\fP,
+\fB--clone\fP, \fB-cloneat\fP\fB}\fP
+and the verbosity-related options
+\fB{\fP\fB--verbose\fP, \fB--silent\fP, \fB-v\fP,
+\fB-V\fP\fB}\fP\&.
+The actual settings are shown with \fB-z\fP, and for graphs with
+at most 12 nodes or so you can view the MCL matrix iterands on screen
+by supplying \fB--show\fP (this may give some
+more feeling)\&.
+
+The first option is the input file name (see the \fBmcx(5)\fP section
+for its expected format), or a single hyphen to read from stdin\&.
+The rationale is that you typically do several runs with different
+parameters, and in command line mode it is pleasant if you do not have
+to skip over an immutable parameter all the time\&.
+
+In the \fBOPTIONS\fP section options are listed in order of
+importance, with related options grouped together\&.
+
+The creator of this page feels that manual pages are a valuable resource,
+that online html documentation is also a good thing to have, and
+that info pages are way \fIway\fP ahead of their time\&. The
+\fBNOTES\fP section explains how this page was created\&.
+.SH OPTIONS
+.nr mi \n(.iu
+.TP
+\fB-I\fP f (\fIinflation\fP)
+Sets the main inflation value to f\&. This value is the main handle
+for affecting cluster granularity\&. It is usually chosen somewhere
+in the range [1\&.2-5\&.0]\&. \fB-I\fP\ \fB5\&.0\fP will tend to result
+in fine-grained clusterings, and \fB-I\fP\ \fB1\&.2\fP will tend to
+result in very coarse grained clusterings\&. Your mileage will vary
+depending on the characteristics of your data\&. That is why it is
+a good idea to test the quality and coherency of your clusterings
+using \fBclmdist(1)\fP and \fBclminfo(1)\fP\&. This will most likely reveal that
+certain values of \fB-I\fP are simply not right for your data\&. The
+\fBclmdist(1)\fP section contains a discussion of how to use the cluster
+validation tools shipped with \fBmcl\fP (see the \fBSEE ALSO\fP section)\&.
+
+A second option for affecting cluster granularity is the
+\fB-c\fP option\&.
+It may possibly increase granularity\&.
+
+With low values for \fB-I\fP, like \fB-I\fP\ \fB1\&.2\fP, you should be
+prepared to use more resources in order to maintain quality of
+clusterings, i\&.e\&. increase the arguments to the
+\fB-P/-S/-R\fP options or simply increase
+the argument to \fB-scheme\fP\&.
+.TP
+\fB-o\fP str (\fIfname\fP)
+Output the clustering to file named fname\&. The default file name
+is out\&.mcl\&. It is possible to send the clustering to stdout
+by supplying \fB-o\fP\ \fB-\fP\&. The clustering is output in the
+mcl matrix format; see the \fBmcx(5)\fP section for
+more information on this\&.
+.TP
+\fB-c\fP f (\fIcentering\fP)
+The larger the value of f the more nodes are attached
+to themselves rather than their neighbours, the more
+expansion (the spreading of flow through the graph) is
+opposed, and the more fine-grained clusterings tend to be\&. f should be
+chosen greater than or equal to 1\&.0\&. The default is f=1\&.0\&. This option
+has a much weaker effect than the \fB-I\fP option, but it can be
+useful depending on your data\&.
+
+The following resource control options are discussed as a group:
+.TP
+\fB-p\fP f (\fIcutoff\fP)
+.TP
+\fB-P\fP n (\fI1/cutoff\fP)
+.TP
+\fB-S\fP s (\fIselection number\fP)
+.TP
+\fB-R\fP r (\fIrecover number\fP)
+.TP
+\fB-pct\fP pct (\fIrecover percentage\fP)
+.TP
+\fB-scheme\fP k (\fIuse a preset pruning scheme\fP)
+.TP
+\fB--show-schemes\fP (\fIshow preset schemes\fP)
+If you do not know nor want to know the mcl internals, just ignore the
+additional information below and follow the recommendations\&. They are
+quite straightforward\&.
+
+After computing a new (column stochastic) matrix vector during expansion
+(which is matrix multiplication c\&.q\&. squaring), the vector is
+successively exposed to different pruning strategies\&. The intent of
+pruning is that many small entries are removed while retaining much of
+the stochastic mass of the original vector\&. After pruning, vectors are
+rescaled to be stochastic again\&. MCL iterands are theoretically known to
+be sparse in a weighted sense, and this manoever effectively perturbs the
+MCL process a little in order to obtain matrices that are genuinely
+sparse, thus keeping the computation tractable\&. An example of monitoring
+pruning can be found in the discussion of \fB-v\fP\ \fBpruning\fP under the
+\fB--verbose\fP option\&.
+
+\fBmcl\fP proceeds as follows\&.
+First, entries that are smaller than \fIcutoff\fP are removed,
+resulting in a vector with at most \fI1/cutoff\fP entries\&.
+The cutoff can be supplied either by \fB-p\fP, or as the inverse value
+by \fB-P\fP\&. The latter is more intuitive, if your intuition is like
+mine (and the P stands for precision or pruning by the way)\&.
+The cutoff just described is rigid; it is the same for all vectors\&. The
+\fB--adapt\fP option causes the computation of a
+cutoff that depends on a vector\&'s homogeneity properties, and this option
+may speed up \fBmcl\fP considerably\&.
+
+Second, if the remaining stochastic mass (i\&.e\&. the sum of all remaining
+entries) is less than \fIpct\fP/100 and the number of remaining
+entries is less than \fIr\fP (as specified by the \fB-R\fP flag),
+\fBmcl\fP will try to regain ground by recovering the largest discarded
+entries\&. The total number of entries is not allowed to grow larger than
+\fIr\fP\&.
+If recovery was not necessary, \fBmcl\fP tries to prune the vector further
+down to at most \fIs\fP entries (if applicable), as specified by the
+\fB-S\fP flag\&. If this results in a vector that satisfies the recovery
+condition then recovery is attempted, exactly as described above\&.
+The latter will not occur of course if \fIr\fP <= \fIs\fP\&.
+
+The default setting is something like \fB-P\fP\ \fB2000\fP \fB-S\fP\ \fB500\fP
+\fB-R\fP\ \fB600\fP\&. Check the \fB-z\fP flag to be sure\&. There is a set
+of precomposed settings, which can be triggered with the
+\fB-scheme\fP\ \fIk\fP option\&. \fIk\fP=2 is the default
+scheme; higher values for \fIk\fP result in costlier and
+more accurate computations (vice versa for lower, cheaper, and less
+accurate)\&. The schemes are listed using the
+\fB--show-schemes\fP option\&. It is advisable to use the
+\fB-scheme\fP option only in interactive mode, and to use the explicit
+expressions when doing batch processing\&. The reason is that there
+is \fIno guarantee whatsoever\fP that the schemes will not change
+between different releases\&. This is because the scheme options
+should reflect good general purpose settings, and it may become
+appararent that other schemes are better\&.
+
+Note that \&'less accurate\&' or \&'more accurate\&' computations
+may still generate the same output clusterings\&. Use \fBclmdist\fP
+to compare output clusterings for different resource parameters\&.
+Refer to \fBclmdist(1)\fP for a discussion of this issue\&.
+
+As a reminder of the existence of pruning and its importance for both
+speed and accuracy, \fBmcl\fP reports three numbers when it is done, the
+\&'jury marks\&'\&.
+These are somewhat (but not totally) indicative for the quality of
+pruning, and they are excerpts from the output produced by
+\fB-v\fP\ \fBpruning\fP, namely the numbers listed under the \fInx\fP column
+for the three first iterations\&. Each number gives the average stochastic
+mass of the \fBnx\fP worst instances of pruning, i\&.e\&. those vectors
+for which the most mass was removed\&. The average is listed as a
+percentage\&. The numbers should preferably be higher than 70\&. If they are
+in the vicinity of 80 or 90, \fBmcl\fP is doing fine as far as pruning is
+concerned\&. Choose a higher scheme if you think them too low\&.
+For very dense graphs that do have strong cluster structure,
+the jury marks can sink as low as to the 30\&'s
+and 40\&'s, but the clusterings generated by \fBmcl\fP may still be good\&.
+Refer to the \fB-v\fP option for more information, and
+note that the jury becomes friendlier, resp\&. harsher when the
+\fB-nx\fP option is increased/decreased\&.
+.TP
+\fB-warn-pct\fP k (\fIprune warn percentage\fP)
+.TP
+\fB-warn-factor\fP k (\fIprune warn factor\fP)
+The two options \fB-warn-pct\fP and \fB-warn-factor\fP relate to
+warnings that may be triggered once the \fIinitial\fP pruning of a vector
+is completed\&. The idea is to issue warnings if initial pruning almost
+completely destroys a computed vector, as this may be a sign that the
+pruning parameters should be changed\&. It depends on the mass remaining
+after initial pruning whether a warning will be issued\&. If that mass is
+less than \fIwarn-pct\fP or if the number of remaining entries is smaller
+by a factor \fIwarn-factor\fP than both the number of entries originally
+computed \fIand\fP the recovery number, in that case, \fBmcl\fP will issue a
+warning\&.
+
+\fB-warn-pct\fP takes an integer between 0 and 100 as parameter,
+\fB-warn-factor\fP takes a real positive number\&. They default to
+something like 30 and 50\&.0\&. If you want to see less warnings, decrease
+\fIwarn-pct\fP and increase \fIwarn-factor\fP\&. Set \fIwarn-factor\fP to zero
+if you want no warnings\&.
+.TP
+\fB--rigid\fP (\fIpruning\fP)
+See the \fB--adapt\fP option below\&.
+.TP
+\fB-ae\fP f (\fIadaptive pruning exponent\fP)
+See the \fB--adapt\fP option below\&.
+.TP
+\fB-af\fP f (\fIadaptive pruning factor\fP)
+See the \fB--adapt\fP option below\&.
+.TP
+\fB--adapt\fP (\fIpruning\fP)
+The default \fBmcl\fP pruning behaviour as described under
+the \fB-P\fP option is called \fIrigid pruning\fP
+(it being the default renders the switch \fB--rigid\fP
+currently useless), refering to the fact that the first stage
+of pruning removes entries smaller than a fixed threshold\&.
+The options discussed here enable the computation of a threshold that
+depends on the homogeneity characteristics of a vector\&. This behaviour is
+triggered by supplying \fB--adapt\fP\&.
+
+The \fB--adapt\fP behaviour only affects the first pruning stage, c\&.q\&.
+the computation of the first threshold (see the discussion under the
+\fB-P\fP option)\&. It does not interfere with either
+selection or recovery\&. It is affected however by the threshold as
+specified by the \fB-P\fP option\&. When using \fB--adapt\fP, you
+typically use the \fB-P\fP option as well, and you can and should use
+a higher value then you would without using \fB--adapt\fP\&.
+
+All that said, \fB--adapt\fP triggers this behaviour: Given a
+stochastic vector v, its mass center of order two is computed,
+which is the sum of each entry squared\&. The mass center of v,
+call it c, is strongly related to its homogeneity properties
+(see \fBREFERENCES\fP)\&. The threshold T is computed as 1/f *
+pow(c, e), where e and f are the arguments to the \fB-af\fP\ \fIf\fP
+and \fB-ae\fP\ \fIe\fP options respectively (check \fB-z\fP
+for the respective defaults)\&.
+For either e or f decreasing it means that T becomes larger\&.
+\fIFinally, T is maxed with the rigid threshold value\fP, which
+can be altered using either \fB-p\fP\ \fIf\fP or \fB-P\fP\ \fIn\fP\&.
+The latter is why you should increase the \fB-P\fP parameter n
+(so that the rigid threshold is decreased) once you switch to
+adaptive pruning\&. The adaptive threshold should be the main factor
+controlling pruning, with the rigid threshold acting as a safeguard
+that does not take over too often\&.
+
+This may seem complicated, but the rules are actually quite simple, and
+you may just disregard the definition of T\&. The usefulness of these
+options will vary\&. If you want to speed up \fBmcl\fP, try it out
+and add \fB--adapt\fP to your settings\&.
+.TP
+\fB-nx\fP x (\fItrack worst n\fP)
+See in the \fB--verbose\fP option below the discussion
+of the \fIpruning\fP mode\&.
+.TP
+\fB-ny\fP y (\fItrack worst n\fP)
+See in the \fB--verbose\fP option below the discussion
+of the \fIpruning\fP mode\&.
+.TP
+\fB-v\fP str (\fIverbosity type on\fP)
+See the \fB--verbose\fP option below\&.
+.TP
+\fB-V\fP str (\fIverbosity type off\fP)
+See the \fB--verbose\fP option below\&.
+.TP
+\fB--silent\fP (\fIvery\fP)
+See the \fB--verbose\fP option below\&.
+.TP
+\fB--verbose\fP (\fIvery\fP)
+These are the different verbosity modes:
+
+\fBprogress\fP
+.br
+\fBpruning\fP
+.br
+\fBexplain\fP
+.br
+\fBall\fP
+
+where \fIall\fP means all three previous modes\&.
+\fB--verbose\fP and \fB-v\fP\ \fBall\fP
+turn them all on, \fB--silent\fP and \fB-V\fP\ \fBall\fP
+turn them all off\&. \fB-v\fP\ \fIstr\fP and \fB-V\fP\ \fIstr\fP
+turn on/off the single mode \fIstr\fP (for \fIstr\fP
+equal to one of \fBprogress\fP, \fBpruning\fP, or \fBexplain\fP)\&.
+Each verbosity mode is given its own entry below\&.
+.TP
+\fB-v\fP\ \fBprogress\fP
+This mode causes \fBmcl\fP to emit an ascii gauge
+for each single matrix multiplication\&. It uses some
+default length for the gauge, which can be altered by
+the \fB-progress\fP\ \fIk\fP option\&. Simply using the latter
+will also turn on this verbosity mode\&.
+This mode can give you quickly an idea how long an \fBmcl\fP
+run might take\&. If you use threading
+(see the \fB-t\fP option and its friends),
+this option may slow down the program a little (relative to
+\fB-V\fP\ \fBprogress\fP, not relative to a single-CPU \fBmcl\fP run)\&.
+.TP
+\fB-v\fP\ \fBexplain\fP
+This mode causes the output of explanatory headers illuminating the
+output generated with the \fBpruning\fP verbosity mode\&.
+.TP
+\fB-v\fP\ \fBpruning\fP
+The pruning process takes place during \fIexpansion\fP, and is needed
+because expansion causes matrices to fill very rapidly\&. Expansion is
+nothing but taking the square of a stochastic matrix\&. The square is
+computed by successively computing its columns, which are stochastic
+vectors\&. A new vector is first computed, and is then exposed to pruning\&.
+Pruning consists of either one or two out of \fIselection\fP and
+\fIrecovery\fP \- see the discussion of \fB-S\fP and \fB-R\fP under
+the \fB-P\fP option\&.
+
+Pruning verbosity mode causes \fBmcl\fP to emit several statistics related to
+the pruning process, each of which is described below\&. Use
+\fB-v\fP\ \fBexplain\fP to get explanatory headers in the output as well\&.
+
+\fBSelection and recovery\fP
+.br
+The number of selections and recoveries \fBmcl\fP had to perform during each
+iteration is shown\&. It also shows the number of vectors for which the
+mass after final pruning was below the fraction defined by the
+\fB-pct\fP option as a percentage (default probably 90
+or 95)\&.
+
+\fBInitial and final vector footprint distributions\fP
+.br
+The distribution of the vector footprints (i\&.e\&. the number of nonzero
+entries) before and after pruning is shown\&. This is assembled in a terse
+(horrid if you will) ascii output format, looking as follows
+(with some context stripped, noting that the data for three
+multiplications is shown):
+
+.di XX
+.in 0
+.nf \fC
+----------------------------------------------------
+ mass percentages  | distribution of vec footprints|
+         |         |__ compose ________ prune _____|
+  prune  | final   |000  00   0    |000  00   0    |
+all ny nx|all ny nx|8532c8532c8532c|8532c8532c8532c|
+---------\&.---------\&.---------------\&.---------------\&.
+ 98 88 86  98 91 86 ____0224567899@ ______02346899@ 
+ 98 89 86  98 94 91 __002456789@@@@ ______02346899@ 
+ 98 90 89  99 95 94 __002355689@@@@ ______02346789@ 
+ \&.\&.\&.
+.fi \fR
+.in
+.di
+.ne \n(dnu
+.nf \fC
+.XX
+.fi \fR
+
+This particular output was generated (and truncated after three rounds
+of expansion and inflation) from clustering
+a protein graph on 9058 nodes with settings \fB-I\fP\ \fB1\&.4\fP,
+\fB-P\fP\ \fB2000\fP, \fB-S\fP\ \fB500\fP, \fB-R\fP\ \fB600\fP,
+and \fB-pct\fP\ \fB95\fP (which was supplied more succinctly
+as \fB-scheme\fP\ \fB2\fP \fB-pct\fP\ \fB95\fP)\&.
+
+The header entries 8532c85\&.\&. with the zeroes on top indicate
+thresholds going from 8000, 5000, 2000, 1250, 800, all the way down
+to 30, 20, and 12\&. The character \&'c\&' signifies the base 12\&.5 (for
+no apparent reason)\&. The
+second entry \&'2\&' (after \&'0\&') signifies that roughly 20 percent
+of all the vectors had footprint (#nonzero entries) between 800 and
+1250\&. Likewise, 80 percent had footprint between 500 and 800\&. The \&'0\&'
+entries signify a fraction somewhere below 5 percent, and the \&'@\&'
+entries signify a fraction somewhere above 95 percent\&.
+
+Two columns are listed, one for the composed vector footprints
+(i\&.e\&. after squaring), and the other for the vector
+footprints \fIright after initial pruning took place\fP (i\&.e\&. before
+selection and recovery, after either adaptive or rigid pruning)\&.
+This may give an idea of the soundness of the initial pruning
+process (overly severe, or overly mild), and the extent
+to which you want to apply selection and/or recovery\&.
+
+\fBInitial and final vector mass distributions\fP
+.br
+The mass averages of the pruned vectors after the first selection
+stage are shown, and the mass averages of the vectors as \fIfinally
+pruned\fP, i\&.e\&. after selection and recovery\&. Note that the latter
+corresponds to a different stage than what is shown for the vector
+footprints, if either selection or recovery is turned on\&.
+The mass averages are shown as percentages: \&'88\&' means that overall
+88 percent of the stochastic mass of the matrix was kept\&. For both
+cases, three averages are shown: the average of all vectors,
+the average of the worst x cases, and the average of the worst y
+cases\&. The values x and y default to something like x=10 and y=100;
+check the \fB-z\fP option to be sure\&. They can be
+changed using \fB-nx\fP\ \fBx\fP and \fB-ny\fP\ \fBy\fP\&.
+The jury marks refered to earlier are in this particular case [86,91,94]\&.
+
+In the example above it is clearly seen that many entries could be
+removed while retaining much of the stochastic mass\&. The effect of the
+recovery (\fB-R\fP) parameter is also clear: the final averages are
+higher than the initial averages, as a result of \fBmcl\fP undoing some
+overenthousiastic pruning\&.
+.TP
+\fB-progress\fP k (\fIgauge\fP)
+If k>0 then for each matrix multiplication \fBmcl\fP will print an
+ascii gauge telling how far it is\&. The gauge will be (in some
+cases approximately) k characters long\&. If k<0 then \fBmcl\fP will
+emit a gauge that is extended by one character after every |k|
+vectors computed\&. For large graphs, this option has been known
+to ease the pain of impatience\&. If k=0 then \fBmcl\fP will print a
+message only after every matrix multiplication, and not during
+matrix multiplication\&. This can be useful when you want \fBmcl\fP to be
+as speedy as possible, for example when using parallellized mode
+(as monitoring progress requires thread communication)\&.
+For parallellization (by threading) see the
+\fB-t\fP option\&.
+.TP
+\fB-te\fP k (\fI#expansion threads\fP)
+See the \fB-t\fP\ \fIk\fP option below\&.
+.TP
+\fB-ti\fP k (\fI#inflation threads\fP)
+See the \fB-t\fP\ \fIk\fP option below\&.
+.TP
+\fB--clone\fP (\fIwhen threading\fP)
+See the \fB-t\fP\ \fIk\fP option below\&.
+.TP
+\fB-cloneat\fP n (\fItrigger\fP)
+See the \fB-t\fP\ \fIk\fP option below\&.
+.TP
+\fB-t\fP k (\fI#threads\fP)
+The \fB-t\fP options are self-explanatory\&. Note that threading
+inflation is hardly useful, as inflation is orders of magnitude
+faster than expansion\&. Also note that threading is only useful
+if you have a multi-processor system\&.
+
+The \fB--clone\fP
+option says to give each thread its own copy of the matrix being
+expanded/squared\&. The latter option can be further controlled
+using the \fB--cloneat\fP\ \fIk\fP option\&. Copies are only made if
+the source matrix (the one to be squared) has on average at least
+k positive entries per vector\&.
+
+When threading, it is best not to turn on pruning verbosity
+mode if you are letting mcl run unattended, unless you want to
+scrutinize its output later\&. This is because it makes \fBmcl\fP run
+somewhat slower, although the difference is not dramatic\&.
+.TP
+\fB-l\fP n (\fIinitial iteration number\fP) (small letter ell)
+The number of times \fBmcl\fP will use a different inflation value
+before it switches to the (main) inflation given by the \fB-I\fP
+(capital eye) option\&. The different value is called \fIinitial
+inflation\fP and is tunable using the \fB-i\fP\ \fIf\fP
+option (default value f=2\&.0)\&. The default value (to \fB-l\fP)
+is zero\&. This option supplies new ways of affecting cluster
+granularity, e\&.g\&. by supplying
+
+.nf \fC
+   mcl proteins -i 1\&.4 -l 2 -I 4\&.0
+.fi \fR
+
+one lets expansion prevail during the first two iterations,
+followed by inflation catching up (in a figurative way of writing)\&.
+This may be useful in certain cases, but this type of experiment
+is \fIcertainly secondary\fP to simply varying \fB-I\fP (capital eye)\&.
+.TP
+\fB-L\fP n (\fImain iteration number\fP)
+Normally, \fBmcl\fP computes the MCL process until it has converged
+fully to a doubly idempotent matrix\&. The number of iterations
+required is typically somewhere in the range 10-100\&.
+The first few iterations generally take the longest time\&.
+The \fB-L\fP option can be used to specify the number of
+iterations \fBmcl\fP may do at most\&. When this number is reached,
+\fBmcl\fP will output the clustering associated with the iterand
+last computed\&.
+.TP
+\fB-i\fP f (\fIinitial inflation\fP)
+The inflation value used during the first n iterations,
+where n is specified by the \fB-l\fP (ell) option\&.
+By default, n=0 and f=2\&.0\&.
+.TP
+\fB-a\fP f (\fIloop weight\fP)
+\fBDeprecated\fP\ \ Like the \fB-c\fP option,
+except that it adds loops of absolute weight\&. This can be intuitive
+when testing with simple graphs, however, using \fB-c\fP\ \fBf\fP
+will in this case have exactly the same effect as \fB-a\fP\ \fBf\fP,
+so do use the former\&.
+.TP
+\fB-dumpi\fP i:j (\fIinterval i\&.\&.j-1\fP)
+Dump during iterations i\&.\&.j-1\&. See the \fB-dump\fP\ \fIstr\fP option below\&.
+.TP
+\fB-dumpm\fP k (\fIdump i+0\&.\&.i+k\&.\&.\fP)
+Sampling rate: select only these iterations in the dump interval\&.
+See the \fB-dump\fP\ \fIstr\fP option below\&.
+.TP
+\fB-dumpstem\fP stem (\fIfile stem\fP)
+Set the the stem for file names of dumped
+objects (default \fImcl\fP)\&. See the \fB-dump\fP\ \fIstr\fP option below\&.
+.TP
+\fB-dump\fP str (\fItype\fP)
+\fIstr\fP can be of the following types\&.
+
+\fBatt\fP
+.br
+\fBite\fP
+.br
+\fBcls\fP
+
+Repeated use is allowed\&. The \fBatt\fP option says to output a vector
+measuring for each node how much it is attracted to itself (which
+measures the extent to which nodes are situated in the core of a
+cluster)\&. It is somewhat forlorn because the other mcl utilities
+(see the \fBSEE ALSO\fP section) can not yet utilize its output\&.
+The \fBite\fP option writes \fBmcl\fP iterands to file\&. The \fBcls\fP
+option writes clusterings associated with \fBmcl\fP iterands to file\&.
+
+The \fB-dumpstem\fP sets the stem for file names of dumped
+objects (default \fImcl\fP)\&. The \fB-dumpi\fP and \fB-dumpm\fP
+allow a selection of iterands to be made\&.
+.TP
+\fB-digits\fP n (\fIprinting precision\fP)
+See the \fB--show\fP option below\&.
+.TP
+\fB--show\fP (\fIprint matrices to screen\fP)
+Print matrices to screen\&. The number of significant digits to be
+printed can be tuned with \fB-digits\fP\ \fIn\fP\&. An 80-column screen
+allows graphs (matrices) of size up to 12(x12) to be printed with
+three digits precision (behind the comma), and of size up to 14(x14)
+with two digits\&. This can give you an idea of how \fBmcl\fP operates,
+and what the effect of pruning is\&. Use e\&.g\&. \fB-S\fP\ \fB6\fP for such
+a small graph and view the MCL matrix iterands with \fB--show\fP\&.
+.TP
+\fB--ascii\fP (\fIoutput format\fP)
+See the \fB--binary\fP option below\&.
+.TP
+\fB--binary\fP (\fIoutput format\fP)
+Write the resulting clustering in binary mcl format rather
+than ascii mcl format (the default)\&. Note that \fBmcxconvert\fP
+can be used to convert each one into the other\&.
+See \fBmcx(5)\fP and \fBmcxconvert(1)\fP for more information\&.
+.TP
+\fB--overlap\fP (\fIkeep it\fP)
+Keep overlap\&. In theory, \fBmcl\fP may generate a clustering that
+contains overlap, although this almost never happens in practice,
+as it requires some particular type of symmetry to be present in
+the input graph (not just any symmetry will do)\&. Mathematically
+speaking, this is a conjecture and not a theorem, but I am willing
+to eat my shoe if it does not hold (for marzipan values
+of shoe)\&. It is easy though to construct an input graph for which
+certain \fBmcl\fP settings result in overlap - for example a line graph
+on an odd number of nodes\&. The default is to remove overlap should
+it occur\&.
+
+This option has more than theoretical use because \fBmcl\fP is able
+to generate clusterings associated with intermediate iterands\&.
+For these clusterings, overlap is more than a theoretical
+possibility, and will often occur\&. If you specify
+the \fB-L\fP\ \fIk\fP option, \fBmcl\fP will output the
+clustering associated with the last iterand computed, and
+it may well contain overlap\&.
+
+This option has no effect on the clusterings that are
+output when using \fB-dump\fP\ \fIcls\fP -
+the default for those is that overlap is not touched,
+and this default can not yet be overridden\&.
+.TP
+\fB--inflate-first\fP (\fIrather then expand\fP)
+Normally, \fBmcl\fP will take the input graph/matrix, make it stochastic, and
+start computing an \fBmcl\fP process, where expansion and inflation are
+alternated\&. This option changes that to alternation of inflation and
+expansion, i\&.e\&. inflation is the first operator to be applied\&. This is
+intended for use with an input matrix that was generated with the
+\fB--expand-only\fP option (see below)\&.
+If you do multiple \fBmcl\fP runs for the same graph, then the first step will
+be the same for all runs, namely computing the square of the input
+matrix\&. With the pair of \fB--inflate-first\fP and
+\fB--expand-only\fP this bit of computing can be factored out\&.
+\fBNOTE\fP this option assumes that the input matrix is stochastic
+(as it will be when generated with \fB--expand-only\fP\&.
+The \fB--inflate-first\fP option renders all options useless that will
+otherwise affect the input matrix, and precisely these options \fIdo\fP
+affect the matrix resulting from using \fB--expand-only\fP\&. See the
+entry below for more information\&.
+.TP
+\fB--expand-only\fP (\fIfactor out computation\fP)
+This option makes \fBmcl\fP compute just the square of the input graph/matrix,
+and write it to the file name supplied with the \fB-o\fP flag, or to
+the default file named out\&.mce\&. \fBNOTE\fP in this case the output matrix
+is \fInot\fP a clustering\&. The intended use is that the output matrix is
+used as input for \fBmcl\fP with the \fB--inflate-first\fP switch turned
+on, so that multiple \fBmcl\fP runs need not redo the same computation (the
+first expansion step)\&.
+
+Note that the \fB-scheme\fP parameters affect the
+matrix computed with \fB--expand-only\fP\&. Other options that affect
+the matrix resulting from this option:
+\fB-preprune\fP, \fB-c\fP,
+and \fB-digits\fP\&. The latter option
+sets the precision for output in native ascii format\&.
+This is overloading the \fB-digits\fP option, as it has a different
+meaning if \fB--expand-only\fP is not supplied\&.
+.TP
+\fB-preprune\fP n (\fIinput matrix\fP)
+For each column vector (node) in the input matrix (graph) \fBmcl\fP will
+keep the n entries (outgoing edges) of that vector (node) that
+have largest weight and remove the rest\&.
+.TP
+\fB-z\fP (\fIshow settings\fP)
+Show current settings for tunable parameters\&.
+\fB--show-settings\fP is a synonym\&.
+.TP
+\fBThat\&'s All Folks\fP
+for now\&.
+.in \n(miu
+.SH APPLICABILITY
+
+\fBmcl\fP will work very well for graphs in which the diameter of the natural
+clusters is not too large\&. The presence of many edges between different
+clusters is not problematic; as long as there is cluster structure, \fBmcl\fP
+will find it\&. It is less likely to work well for graphs with clusters
+(inducing subgraphs) of large diameter, e\&.g\&. grid-like graphs derived from
+Euclidean data\&. So \fBmcl\fP in its canonical form is certainly not fit for
+boundary detection or image segmentation\&. I experimented with a modified
+\fBmcl\fP and image segmentation in the thesis pointed to below (see
+\fBREFERENCES\fP)\&. This was fun and not entirely unsuccesful, but not
+something to be pursued further\&.
+
+\fBmcl\fP likes \fIundirected input graphs best\fP, and it really dislikes graphs
+with node pairs (i,j) for which an arc going from i to j is present and the
+counter-arc from j to i is absent\&. Try to make your input graph undirected\&.
+Furthermore, \fBmcl\fP interprets edge weights in graphs as similarities\&. If you
+are used to working with dissimilarities, you will have to convert those to
+similarities using some conversion formula\&. The most important thing is
+that you feel confident that the similarities are reasonable, i\&.e\&. if X is
+similar to Y with weight 2, and X is similar to Z with weight 200, then this
+should mean that the similarity of Y (to X) is neglectible compared with the
+similarity of Z (to X)\&.
+
+\fBmcl\fP is probably not suited for clustering \fItree graphs\fP\&. This is because
+mcl works best if there are multiple paths between different nodes in the
+natural clusters, but in tree graphs there is only one path between any pair
+of nodes\&. Trees are too sparse a structure for \fBmcl\fP to work on\&.
+
+\fBmcl\fP may well be suited for clustering \fIlattices\fP\&. It will depend
+on the density characteristics of the lattice, and the conditions for
+success are the same as those for clustering graphs in general: The
+diameter of the natural clusters should not be too large\&.
+\fBNOTE\fP when clustering a lattice, you \fIhave\fP to cluster
+the underlying undirected graph, and not the directed graph that represents
+the lattice itself\&. The reason is that one has to allow \fBmcl\fP (or any other
+cluster algorithm) to \&'look back in time\&', so to speak\&. Clustering and
+directionality bite each other (long discussion omitted)\&.
+
+\fBmcl\fP has a worst-case time complexity O(N*k^2), where N is the number of
+nodes in the graph, and k is the maximum number of neighbours tracked during
+computations\&. k depends on the \fB-P\fP and \fB-S\fP options\&. If the
+\fB-S\fP option is used (which is the default setting) then k equals the
+value corresponding with this option\&. Typical values for k are in the range
+500\&.\&.1000\&. The average case is much better than the worst case though, as
+cluster structure itself has the effect of helping \fBmcl\fP\&'s pruning schemes,
+certainly if the diameter of natural clusters is not large\&.
+.SH FILES
+
+There are currently no resource nor configuration files\&.
+The mcl matrix format is described in the \fBmcx(5)\fP section\&.
+.SH ENVIRONMENT
+
+Currently, no environmental issues with \fBmcl\fP\&.
+.SH DIAGNOSTICS
+
+If \fBmcl\fP issues a diagnostic error, it will most likely be
+because the input matrix could not be parsed succesfully\&.
+\fBmcl\fP tries to be helpful in describing the kind of parse error\&.
+The mcl matrix format is described in the \fBmcx(5)\fP section\&.
+.SH BUGS
+
+No known bugs at this time\&. Please send bug reports to mcl-bugs@mdcc\&.cx\&.
+.SH AUTHOR
+
+Stijn van Dongen\&.
+.SH HISTORY/CREDITS
+
+The MCL algorithm was conceived in spring 1996 by the present author\&.
+The first implementation of the MCL algorithm followed that spring
+and summer\&. It was written in Perl and proved the viability of
+the algorithm\&. The implementation described here began its life in
+autumn 1997\&. The first versions of the vital matrix library
+were designed jointly by Stijn van Dongen and Annius Groenink in
+the period Oktober 1997 - May 1999\&. The efficient matrix-vector
+multiplication routine was written by Annius\&. This routine is
+without significant changes still one of the cornerstones of this
+MCL implementation\&.
+
+Since May 1999 all MCL libraries have seen much development and
+redesign by the present author\&. Matrix-matrix multiplication has been
+rewritten several times to take full advantage of the sparseness
+properties of the stochastic matrices brought forth by the MCL
+algorithm\&. This mostly concerns the issue of pruning \- removal of
+small elements in a stochastic column in order to keep matrices
+sparse\&.
+
+Very instructive was that around April 2001 Rob Koopman pointed out
+that selecting the k largest elements out of a collection of n is
+best done using a min-heap\&. This was the key to the second major
+rewrite (now counting three) of the MCL pruning schemes, resulting in
+much faster code, generally producing a more accurate computation of
+the MCL process\&.
+
+In May 2001 Anton Enright initiated the parallellization of the
+\fBmcl\fP code and threaded inflation\&. From this example, Stijn threaded
+expansion\&. This was great, as the MCL data structures and operands
+(normal matrix multiplication and Hadamard multiplication) just beg
+for parallellization\&.
+
+Joost van Baal set up the \fBmcl\fP CVS tree and packaged \fBmcl\fP for Debian
+GNU/Linux\&. He completely autotooled the sources, so much so that at first I
+found it hard to find them back amidst bootstrap, aclocal\&.m4, depcomp, and
+other beauties\&.
+
+Jan van der Steen shared his elegant mempool code\&. Philip Lijnzaad
+and Shawn Hoon sent useful bug reports\&.
+.SH SEE ALSO
+
+\fBmcl\fP development is discussed on \fCmcl-devel@lists\&.mdcc\&.cx\fR, this list is
+archived at http://lists\&.mdcc\&.cx/mcl-devel/\&.
+
+\fBmcx(5)\fP - a description of the mcl matrix format\&.
+
+\fBmcx(1)\fP - an interpreter for a stack language that enables
+interaction with the \fBmcl\fP matrix libraries\&. It can be used both from the
+command line and interactively, and supports a rich set of operations such
+as transposition, scaling, column scaling, multiplication, Hadamard powers
+and products, et cetera\&. The general aim is to provide handles for simple
+number and matrix arithmetic,
+and for graph, set, and clustering operations\&. The following is
+a very simple example of implementing and using \fBmcl\fP in this language\&.
+
+.nf \fC
+ 2\&.0 \&.i def                    # define inflation value\&.
+ /small lm                     # load matrix in file \&'small\&'\&.
+ dim id add                    # add identity matrix\&.
+ st \&.x def                     # make stochastic, bind to x\&.
+ { xpn \&.i infl vm } \&.mcl def   # define one mcl iteration\&.
+ 20 \&.x \&.mcl repeat             # iterate  20 times
+ imac                          # interpret matrix as clustering\&.
+ vm                            # view matrix (clustering)\&.
+.fi \fR
+
+One of the more interesting things that can be done is doing mcl runs
+with more complicated inflation profiles than the two-constant approach used
+in \fBmcl\fP itself\&.
+
+Several other utilities come with \fBmcl\fP, facilitating analysis and
+comparison of different clusterings\&.
+
+\fBclmdist(1)\fP - compute the split/join distance between two
+partitions\&. The split/join distance is better suited for measuring partition
+similarity than the long-known equivalence mismatch coefficient\&. The former
+measures the number of node moves required to transform one partition into
+the other, the latter measures differences between volumes of edges of
+unions of complete graphs associated with partitions\&.
+
+\fBclminfo(1)\fP - compute a performance measure saying how well
+a clustering captures the edge weights of the input graph\&. Useful
+for comparing different clusterings on the same graph, best used in
+conjunction with \fBclmdist\fP - because comparing clusterings at
+different levels of granularity should somewhat change the performance
+interpretation\&. The latter issue is discussed in the \fBclmdist(1)\fP
+entry\&.
+
+\fBclmmeet(1)\fP - compute the intersection of a set of clusterings,
+i\&.e\&. the largest clustering that is a subclustering of all\&. Useful
+for measuring the consistency of a set of different clusterings
+at supposedly different levels of granularity (in conjunction with
+\fBclmdist\fP)\&.
+
+\fBclmconf(1)\fP - for inspecting local cluster structure\&.
+Computes how well nodes fit into the cluster
+in which they are located (for a given clustering) by looking at
+the (weighted) percentage of its edges going to that same cluster\&.
+Computes also the cohesiveness of a cluster, by computing and averaging
+the above over all nodes in a cluster\&. Useful for inspecting local
+cluster structure\&.
+
+\fBmcxsubs(1)\fP - compute a submatrix of a given matrix, where row
+and column index sets can be specified as lists of indices combined
+with list of clusters in a given clustering\&. Useful for inspecting
+local cluster structure\&.
+
+\fBmcxconvert(1)\fP - convert matrices from ascii mcl format to
+binary mcl format or vice versa\&.
+.SH REFERENCES
+
+\fBGraph Clustering by Flow Simulation\fP (thesis)
+.br
+http://www\&.library\&.uu\&.nl/digiarchief/dip/diss/1895620/inhoud\&.htm
+
+\fBA cluster algorithm for graphs\fP (technical report)
+.br
+http://www\&.cwi\&.nl/ftp/CWIreports/INS/INS-R0010\&.ps\&.Z
+
+\fBA stochastic uncoupling process for graphs\fP (technical report)
+.br
+http://www\&.cwi\&.nl/ftp/CWIreports/INS/INS-R0011\&.ps\&.Z
+
+\fBPerformance criteria for graph clustering and
+Markov cluster experiments\fP (technical report)
+.br
+http://www\&.cwi\&.nl/ftp/CWIreports/INS/INS-R0012\&.ps\&.Z
+
+\fBAn efficient algorithm for large-scale detection of protein families\fP
+(preprint)
+.br
+Not yet available\&.
+.SH NOTES
+
+This page was generated from \fBZOEM\fP manual macros\&.
+Both html and roff pages can be created from the same source without having
+to bother with all the usual conversion problems, while keeping some level
+of sophistication in the typesetting\&. The ZOEM primitives only provide macro
+expansion and filter capabilities; the proof of the typesetting is in
+striking the macros right\&.

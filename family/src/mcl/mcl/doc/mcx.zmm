@@ -1,0 +1,24 @@
+
+\input{man.zmm}
+
+\set{"man::year"}{2002}
+\set{"man::month"}{Feb}
+\set{"man::day"}{22}
+
+\def{mcl}{\bf{mcl}}
+\def{mcx}{\bf{mcx}}
+\def{clmdist}{\bf{clmdist}}
+\def{clminfo}{\bf{clminfo}}
+\def{clmmeet}{\bf{clmmeet}}
+\def{clmconf}{\bf{clmconf}}
+\def{mcxconvert}{\bf{mcxconvert}}
+\def{mcxsubs}{\bf{mcxsubs}}
+
+\: different conventions for html and roff.
+\: in roff I use 'section 5' of the manual pages.
+
+\def{sib#1}{\sibref{\1}{1}}
+
+\${html}{\def{mcx5ref}{\sibref{mcxformat}{5}}}
+\${roff}{\def{mcx5ref}{\sibref{mcx}{5}}}
+

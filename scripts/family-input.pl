@@ -50,8 +50,8 @@ getopts($opts) || die $usage; # bugger, getopt docu is wrong, use getopts.
 
 die $usage if $opt_h;
 
-my $famdb_connect_string = ($opt_F || 'database=family;host=localhost;user=root');
-my $ensdb_connect_string = ($opt_E || 'database=ens075;host=ecs1b;user=ensro');
+my $famdb_connect_string = ($opt_F || 'database=family110;host=ensrv3;user=ensadmin');
+my $ensdb_connect_string = ($opt_E || 'database=homo_sapiens_core_110;host=ensr3;user=ensro');
 #     my ($host, $user, $db) = ('ensrv5', 'ensro', 'ensembl080');
 #     my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
 

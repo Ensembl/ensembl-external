@@ -62,8 +62,7 @@ sub fetch_by_dbID {
   if (defined (my $rowhash = $q->fetchrow_hashref)) {
     my $taxon = new Bio::EnsEMBL::ExternalData::Family::Taxon;
     
-    $taxon->ncbi_taxid($taxon_id); #for bioperl-1-0-0 only
-#    $taxon->taxon_id($taxon_id); # for bioperl -07 compliancy
+    $taxon->ncbi_taxid($taxon_id); #for bioperl-1-0-0 on
     $taxon->sub_species($rowhash->{sub_species});
     my @classification = split /\s+/,$rowhash->{classification};
     $taxon->classification(@classification);

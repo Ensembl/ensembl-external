@@ -28,8 +28,8 @@ FamilyAdaptor - DESCRIPTION of Object
   my $fam_adtor = $famdb->get_FamilyAdaptor;
 
   my $fam = $fam_adtor->fetch_by_stable_id('ENSF000013034');
-  $fam = $fam_adtor->fetch_by_dbname_id('SPTR', 'P000123');
-  my @fam = @{$fam_adtor->fetch_by_description_with_wildcards('interleukin',1)};
+  my @fam = @{$fam_adtor->fetch_by_dbname_id('SPTR', 'P000123')};
+  @fam = @{$fam_adtor->fetch_by_description_with_wildcards('interleukin',1)};
   @fam = @{$fam_adtor->fetch_all()};
 
   ### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
@@ -83,13 +83,12 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 =head2 fetch_by_dbID
 
- Title   : fetch_by_dbID
- Usage   : $family_adaptor->fetch_by_dbID($id);
- Function: fetches a Family given its internal database identifier
- Example : $family_adaptor->fetch_by_dbID(1)
- Returns : a Bio::EnsEMBL::ExternalData::Family::Family object
- Args    : an integer
-
+ Arg [1]    : int $dbID
+ Example    : $fam = $FamilyAdaptor->fetch_by_dbID(1);
+ Description: fetches a Family given its database identifier
+ Returntype : an Bio::EnsEMBL::ExternalData::Family::Family object
+ Exceptions : when missing arguments
+ Caller     : general
 
 =cut
 
@@ -108,12 +107,12 @@ sub fetch_by_dbID {
 
 =head2 fetch_by_stable_id
 
- Title   : fetch_by_stable_id
- Usage   : $family_adaptor->fetch_by_stable_id($id);
- Function: fetches a Family given its stable identifier
- Example : $db->fetch_by_stable_id('ENSF00000000009');
- Returns : a Family object if found, undef otherwise
- Args    : an EnsEMBL Family stable id
+ Arg [1]    : string $family_stable_id
+ Example    : $fam = $FamilyAdaptor->fetch_by_stable_id('ENSF00000000009');
+ Description: fetches a Family given its stable identifier
+ Returntype : an Bio::EnsEMBL::ExternalData::Family::Family object
+ Exceptions : when missing arguments
+ Caller     : general
 
 =cut
 
@@ -132,13 +131,14 @@ sub fetch_by_stable_id  {
 
 =head2 fetch_by_dbname_id
 
- Title   : fetch_of_dbname_id
- Usage   : $fam = $db->fetch_of_dbname_id($dbname,$dbid);
- Function: find the family to which the given database and id belong
- Example : $fam = $db->fetch_of_dbname_id('SPTR', 'P01235');
- Returns : an array of Family (could be empty or contain more than
-           one Family in the case of ENSEMBLGENE only)
- Args    : a database name and a member identifier (display_id)
+ Arg [1]    : string $dbname
+ Arg [2]    : string $member_stable_id
+ Example    : $fams = $FamilyAdaptor->fetch_of_dbname_id('SPTR', 'P01235');
+ Description: find the family to which the given database and  member_stable_id belong
+ Returntype : an array reference of Bio::EnsEMBL::ExternalData::Family::Family objects
+              (could be empty or contain more than one Family in the case of ENSEMBLGENE only)
+ Exceptions : when missing arguments
+ Caller     : general
 
 =cut
 
@@ -155,20 +155,20 @@ sub fetch_by_dbname_id {
              AND edb.name = '$dbname' 
              AND fm.external_member_id = '$extm_id'"; 
 
-#    return $self->_get_family($q);
-#    return @{$self->_get_families($q)};
     return $self->_get_families($q);
 }
 
 =head2 fetch_by_dbname_taxon_member
 
- Title   : fetch_of_dbname_taxon_member
- Usage   : $fam = $db->fetch_of_dbname_taxon_member($dbname,$taxon_id,$member_stable_id);
- Function: find the family to which the given database and id belong
- Example : $fam = $db->fetch_of_dbname_taxon_member('ENSEMBLGENE', '9606', 'ENSG000001101002');
- Returns : an array of Family (could be empty or contain more than
-           one Family in the case of ENSEMBLGENE only)
- Args    : a database name and a member identifier (display_id)
+ Arg [1]    : string $dbname
+ Arg [2]    : int $taxon_id
+ Arg [3]    : string $member_stable_id
+ Example    : $fams = $db->fetch_of_dbname_taxon_member('ENSEMBLGENE', '9606', 'ENSG000001101002');
+ Description: find the family to which the given database, taxon_id and member_stable_id belong
+ Returntype : an array reference of Bio::EnsEMBL::ExternalData::Family::Family objects
+              (could be empty or contain more than one Family in the case of ENSEMBLGENE only)
+ Exceptions : when missing arguments
+ Caller     : general
 
 =cut
 
@@ -186,23 +186,21 @@ sub fetch_by_dbname_taxon_member {
              AND fm.external_member_id = '$extm_id'
              AND fm.taxon_id = $taxon_id"; 
 
-#    return $self->_get_family($q);
-#    return @{$self->_get_families($q)};
     return $self->_get_families($q);
 }
 
 =head2 fetch_by_description_with_wildcards
 
- Title   : fetch_by_description_with_wildcards
- Usage   : my @fams = $db->fetch_by_description_with_wildcards($desc);
- Function: simplistic substring searching on the description
- Example : my @fams = $db->fetch_by_description_with_wildcards('REDUCTASE',1);
- Returns : a (possibly empty) list of Families that either are named by the string,
-           or contain the string (depending on the optional wildcard argument) 
-           (The search is currently case-insensitive; this may change if
-           SPTR changes to case-preservation)
- Args    : search string, optional wildcard (if set to 1, wildcards are added and the 
-           search is a slower LIKE search)
+ Arg [1]    : string $description
+ Arg [2]    : int $wildcard (optional)
+              if set to 1, wildcards are added and the search is a slower LIKE search
+ Example    : $fams = $FamilyAdaptor->fetch_by_description_with_wildcards('REDUCTASE',1);
+ Description: simplistic substring searching on the description to get the families
+              matching the description. (The search is currently case-insensitive;
+              this may change if SPTR changes to case-preservation)
+ Returntype : an array reference of Bio::EnsEMBL::ExternalData::Family::Family objects
+ Exceptions : none
+ Caller     : general
 
 =cut
 
@@ -226,18 +224,17 @@ sub fetch_by_description_with_wildcards{
                FROM family f
               WHERE f.description = '$query'";
     }
-#    return @{$self->_get_families($q)};
     return $self->_get_families($q);
 }
 
 =head2 fetch_all
 
- Title   : fetch_all
- Usage   : 
- Function: return all known families
- Example :
- Returns : 
- Args    : 
+ Args       : none
+ Example    : $FamilyAdaptor->fetch_all
+ Description: get all the families from a family database
+ Returntype : an array reference of Bio::EnsEMBL::ExternalData::Family::Family objects
+ Exceptions : none
+ Caller     : general
 
 =cut
 
@@ -249,7 +246,6 @@ sub fetch_all {
       "SELECT f.family_id, f.stable_id, f.description, 
               f.release, f.annotation_confidence_score
        FROM family f";
-#    return @{$self->_get_families($q)};
     return $self->_get_families($q);
 }
 
@@ -297,12 +293,12 @@ sub fetch_Taxon_by_dbname_dbID {
 
 =head2 known_databases
 
- Title   : known_databases
- Usage   : 
- Function: return all names of databases being cross-referenced by this db
- Example :
- Returns : list of strings
- Args    : none
+ Args       : none
+ Example    : $FamilyAdaptor->known_databases
+ Description: get all database name, source of the family members
+ Returntype : an array reference of string
+ Exceptions : none
+ Caller     : general
 
 =cut
 
@@ -312,20 +308,18 @@ sub known_databases {
   if (not defined $self->{_known_databases}) {
       $self->{_known_databases} = $self->_known_databases();
   }
-  
-#  return @{$self->{_known_databases}};
   return $self->{_known_databases};
 }
        
 
 =head2 get_max_id
 
- Title   : get_max_id
- Usage   : $new_id=$fam_adtor->get_max_id
- Function: find the higest ENSF in this database (needed for mapping). 
- Example : see Usage
- Returns : an int
- Args    : none
+ Args       : none
+ Example    : $FamilyAdaptor->get_max_id
+ Description: find the higest family_stable_id (ENSFxxx) in this database (needed for mapping). 
+ Returntype : string
+ Exceptions : none
+ Caller     : general
 
 =cut
 
@@ -448,12 +442,13 @@ sub _known_databases {
 
 =head2 store
 
- Title   : store
- Usage   : $famad->store($fam)
- Function: Stores a family object into the database
- Example : $famad->store($fam)
- Returns : $fam->dbID
- Args    : Bio::EnsEMBL::ExternalData::Family::Family object
+ Arg [1]    : Bio::EnsEMBL::ExternalData:Family::Family $fam
+ Example    : $FamilyAdaptor->store($fam)
+ Description: Stores a family object into a family  database
+ Returntype : int 
+              been the database family identifier, if family stored correctly
+ Exceptions : when isa if Arg [1] is not Bio::EnsEMBL::ExternalData::Family::Family
+ Caller     : general
 
 =cut
 

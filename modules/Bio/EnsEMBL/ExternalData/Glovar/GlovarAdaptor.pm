@@ -93,7 +93,7 @@ sub fetch_clone_by_accession {
         WHERE   cs.database_seqname = '$embl_acc'
         AND     cs.id_cloneseq = csm.id_cloneseq
         AND     csm.id_sequence = ss.id_sequence
-        AND     ss.is_current = 1
+        AND     ss.database_source = 314
     );
     my $sth;
     eval {
@@ -108,7 +108,7 @@ sub fetch_clone_by_accession {
     my (@cloneinfo, $i);
     while (my @res = $sth->fetchrow_array) {
         @cloneinfo = @res;
-        warn "current: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
+        warn "NCBI35: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
         $i++;
     }
     if ($i > 1) {
@@ -133,7 +133,7 @@ sub fetch_clone_by_accession {
             WHERE   cs.database_seqname = '$embl_acc'
             AND     cs.id_cloneseq = csm.id_cloneseq
             AND     csm.id_sequence = ss.id_sequence
-            AND     ss.database_source = 314
+            AND     ss.is_current = 1
         );
         my $sth;
         eval {
@@ -146,7 +146,7 @@ sub fetch_clone_by_accession {
         }
         while (my @res = $sth->fetchrow_array) {
             @cloneinfo = @res;
-            warn "NCBI35: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
+            warn "current: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
         }
     }
 

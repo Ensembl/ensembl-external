@@ -89,16 +89,26 @@ use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::SeqIO::FTHelper;
 
-@ISA = qw(Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
+@ISA = qw( Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
 
-sub _initialize {
-    my($self,@args) = @_;
+
+sub new {
+    my($class,@args) = @_;
+    my $self;
+    $self = Bio::SeqFeature::Generic->new();
+
+    # rebless into own class
+    bless $self, $class;
     
- my $make = $self->SUPER::_initialize;
 
-    #my $self;
-    #$self = {};
-    #bless $self, $class;
+#sub _initialize {
+#    my($self,@args) = @_;
+#    
+# my $make = $self->SUPER::_initialize;
+#
+#    #my $self;
+#    #$self = {};
+#    #bless $self, $class;
 
     my ($start, $end, $strand, $primary_tag, $source,
 	$frame, $score, $gff_string, $status, $alleles,
@@ -142,7 +152,7 @@ sub _initialize {
     $self->{ 'link' } = [];
 
     # set stuff in self from @args
-    return $make; # success - we hope!
+    return $self; # success - we hope!
 }
 
 

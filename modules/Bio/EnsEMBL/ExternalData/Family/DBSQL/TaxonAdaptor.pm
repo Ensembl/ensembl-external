@@ -115,8 +115,7 @@ sub store {
   my $q = "INSERT INTO taxon (taxon_id,genus,species,sub_species,common_name,classification) 
            VALUES (?,?,?,?,?,?)";
   my $sth = $self->prepare($q);
-  $sth->execute($taxon->ncbi_taxid,$taxon->genus,$taxon->species,$taxon->sub_species,$taxon->common_name,join " ",$taxon->classification); # for bioperl-1-0-0 only
-#  $sth->execute($taxon->taxon_id,$taxon->genus,$taxon->species,$taxon->sub_species,$taxon->common_name,join " ",$taxon->classification); # for bioperl -07 compliancy
+  $sth->execute($taxon->ncbi_taxid,$taxon->genus,$taxon->species,$taxon->sub_species,$taxon->common_name,join " ",$taxon->classification);
   
   $taxon->adaptor($self);
 

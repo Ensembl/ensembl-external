@@ -13,9 +13,11 @@ Bio::EnsEMBL::ExternalData::Disease::DBHandler
 =head1 SYNOPSIS
 
 
-my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'ensembl', 
+my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( 
+						      -user => 'ensembl', 
 						      -dbname => 'disease',
 						      -host=>'sol28.ebi.ac.uk',
+						      -port=>'3307',
 						      -ensdb=>$ensembldb,
 						      -mapdb=>$mapdb);
 
@@ -71,9 +73,10 @@ sub new
     my($class,@args) = @_;
     my $self = bless {}, $class;
     
-    my ($db,$host,$driver,$user,$password,$debug,$ensdb,$mapdb) = 
+    my ($db,$host,$port,$driver,$user,$password,$debug,$ensdb,$mapdb) = 
       $self->_rearrange([qw(DBNAME
 			    HOST
+			    PORT
 			    DRIVER
 			    USER
 			    PASS
@@ -85,6 +88,7 @@ sub new
 
     $driver || ( $driver = 'mysql' );
     $host   || ( $host = 'sol28.ebi.ac.uk' );
+    $port   || ( $port = 3306 );
     $db     || ( $db = 'disease' );
     $user   || ( $user = 'ensembl' );   
     $ensdb  || $self->throw("I need ensembl db obj");
@@ -93,7 +97,7 @@ sub new
     $self->_ensdb($ensdb); 
     $self->_mapdb($mapdb); 
     
-    my $dsn = "DBI:$driver:database=$db;host=$host";
+    my $dsn = "DBI:$driver:database=$db;host=$host;port=$port";
     if( $debug && $debug > 10 ) {
 	$self->_db_handle("dummy dbh handle in debug mode $debug");
     } else {

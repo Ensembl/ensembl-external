@@ -121,6 +121,40 @@ sub fetch_by_dbID {
 }
 
 
+=head2 fetch_by_Name
+
+ Title   : fetch_by_Name
+ Usage   : $obj->fetch_by_Name
+ Function: 
+ Example : 
+ Returns : library object
+ Args    : 
+
+
+=cut
+
+
+
+
+sub fetch_by_Name {
+    my ($self,$name)=@_;
+    
+    $self->throw("need a library name") unless $name; 
+   
+    my $statement="select library_id,source,cgap_id,
+                          dbest_id,name,
+                          tissue_type,description,total_seqtags
+                   from   library where library.name='$name'";
+
+    my @libs=$self->_fetch($statement);   
+    
+    if (defined $libs[0]){
+	return $libs[0];
+    }else{return;}
+    
+
+}
+
 =head2 fetch_by_SeqTag_Name
 
  Title   : fetch_by_SeqTag_Name

@@ -19,7 +19,8 @@ my $tag_ad= Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($obj);
 #my @libs=$lib_ad->fetch_all;
 #my @libs=$lib_ad->fetch_by_SeqTag_Name("AAAAAAAAAT");
 
-my @libs=$lib_ad->fetch_by_SeqTag_Name("ENSG00000080561"); 
+my $ensgene="AAAAAAAAAA";
+my @libs=$lib_ad->fetch_by_SeqTag_Name($ensgene); 
 #my @libs=$lib_ad->fetch_by_SeqTag_Synonym_below_relative_frequency("ENSG00000080561",1000);
 #my @tgs=("AAAAAAAAAA","AAAAAAAAAC");
 #my @libs=$lib_ad->fetch_by_SeqTagList(@tgs);
@@ -27,17 +28,35 @@ my @libs=$lib_ad->fetch_by_SeqTag_Name("ENSG00000080561");
 #my @tgs=("ENSG00000080561","ENSG00000087370");
 #my @libs=$lib_ad->fetch_by_SeqTag_SynonymList(@tgs);
 
+my @tgs=$tag_ad->fetch_by_Name_with_allAliases($ensgene);
+
+foreach my $t(@tgs){
+   
+
+    foreach my $link ($t->each_DBLink){
+    
+ print $link->primary_id,"\n";
+
+
+    }
+
+
+}
+
 
 foreach my $lib (@libs){
-    my @tgs=$lib->fetch_SeqTag_by_Name("ENSG00000080561");
+    print $lib->name,"\n";
+    my @tgs=$lib->fetch_SeqTag_by_Name($ensgene);
     foreach my $tg(@tgs){
-	print $lib->name,"\n";
-	foreach my $link ($tg->each_DBLink){
+	
+	foreach my $link ($tg->each_DBLink){ if ($tg->name ne "AAAAAAAAAA"){
+ #print $lib->name,"\n";
 	    print $link->primary_id,"\t",$tg->name,"\t",$tg->relative_frequency,"\t",$tg->frequency,"\t",$lib->total_seqtags,"\n";
+	}
 	}
 }    
 
-
+    
 
 #    foreach my $tag($lib->fetch_all_SeqTags_above_relative_frequency(5000)){
 #	foreach my $link ($tag->each_DBLink){
@@ -50,7 +69,21 @@ foreach my $lib (@libs){
 
 }
 
-my $lib=$lib_ad->fetch_by_dbID(1);
+#exit;
+
+#my $lib=$lib_ad->fetch_by_dbID(1);
+my $libname="SAGE_Duke_H247_Hypoxia";
+my $lib=$lib_ad->fetch_by_Name($libname);
+
+
+print "\n\n\n";
+print $lib->name,"\n";
+print "description:\n";
+print $lib->description,"\n";
+
+exit;
+
+
 
  foreach my $tag($lib->fetch_all_SeqTags_above_relative_frequency(1000)){
 #     print $tag->name," ",$tag->relative_frequency,"\n";

@@ -209,9 +209,9 @@ sub fetch_by_Name {
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency,
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   seqtag s,frequency f,seqtag_alias sa, 
+                   from   seqtag s,frequency f,seqtag_alias sa,
                           library l 
-                   where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id
+                   where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id  
                    and    l.library_id=f.library_id and l.library_id=$lib_id and sa.external_name='$synonym'";
 
 
@@ -220,6 +220,54 @@ sub fetch_by_Name {
     
 }
 
+
+
+=head2 fetch_by_Name_with_allAliases
+
+ Title   : fetch_by_Name_with_allAliases
+ Usage   : $obj->fetch_by_Name_with_allAliases
+ Function: 
+ Example : 
+ Returns :array of seqtag objects
+ Args    :seqtag name or alias
+
+
+=cut
+
+
+
+
+
+sub fetch_by_Name_with_allAliases {
+
+    my ($self,$synonym)=@_;
+ 
+#    $self->throw("need a library id") unless  $lib_id;
+    $self->throw("need a tag synonym") unless  $synonym;
+
+   
+  #  my $multiplier=$self->multiplier; 
+
+  #  my $statement="select s.seqtag_id,s.source,s.name,
+  #                        sa1.db_name,sa1.external_name,f.frequency,
+  #                        ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
+  #                 from   seqtag s,frequency f,seqtag_alias sa1, seqtag_alias sa2,
+  #                        library l 
+  #                 where  s.seqtag_id=f.seqtag_id and sa1.seqtag_id=s.seqtag_id and sa1.seqtag_id=sa2.seqtag_id 
+  #                 and    l.library_id=f.library_id and l.library_id=$lib_id and sa2.external_name='$synonym'";
+
+
+    my $statement="select s1.external_name,s2.db_name 
+                   from   seqtag_alias s1,seqtag_alias s2 
+                   where  s1.seqtag_id=s2.seqtag_id 
+                   and    s2.external_name='$synonym'"; 
+
+
+
+    return $self->_fetch_aliases($statement);  
+    
+    
+}
 
 
 
@@ -598,6 +646,50 @@ sub _fetch {
     }    
     return @tags;    
 }
+
+
+
+
+
+
+sub _fetch_aliases {
+
+    my ($self,$statement)=@_;
+
+    my @tags;
+    my $sth = $self->prepare($statement);    
+    $sth->execute();
+    
+    my ($external_name,$db);
+
+    $sth->bind_columns(undef,\$external_name,\$db);
+
+    while ($sth->fetch){	
+	my ($library_id,$source,$name,$frequency,$relative_frequency);
+	my @args=($library_id,$source,$name,$frequency,$relative_frequency);	
+	my $tg=Bio::EnsEMBL::ExternalData::Expression::SeqTag->new($self,@args);
+	push @tags,$tg;
+	
+	my $link = new Bio::Annotation::DBLink;
+	$link->database($db);
+	$link->primary_id($external_name);
+	$tg->add_DBLink($link);
+	
+    }    
+    return @tags;    
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

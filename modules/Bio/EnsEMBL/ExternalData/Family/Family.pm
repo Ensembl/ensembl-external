@@ -29,23 +29,32 @@ print $fam->description, join('; ',$fam->keywords), $fam->release,
 
 =head1 DESCRIPTION
 
-Describe the object here
+This object describes protein families obtained from 
+clustering SWISSPROT using Anton Enright's algorithm. The clustering
+neatly follows the SWISSPROT DE-lines, which are taken as the description
+of the whole family.
+
+The object is a bit bare, still; dbxrefs (i.e., family to family) are not
+implemented, and SWSISSPROT keywords aren't there yet either. 
+
+The family members are currently represented by DBLink's; more convenient
+navigation may be added at a later stage.
+
 
 =head1 CONTACT
 
-Describe contact details here
+ Philip Lijnzaad <Lijnzaad@ebi.ac.uk>, Anton Enright <enright@ebi.ac.uk>
 
 =head1 APPENDIX
 
-The rest of the documentation details each of the object methods. Internal
-methods are usually preceded with a _
+The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
 
 =cut
 
+# ';  # (pacify emacs).  
 
 # Let the code begin...;
 
-;
 package Bio::EnsEMBL::ExternalData::Family::Family;
 use vars qw(@ISA);
 use strict;
@@ -74,7 +83,7 @@ sub _initialize {
 =head2 new
 
  Title   : new
- Usage   :
+ Usage   : not intended for general use.
  Function:
  Example :
  Returns : a family (but without members; caller has to fill using
@@ -115,6 +124,17 @@ sub new {
    $self;
 }                                       # new
 
+
+=head2 id
+
+ Title   : id
+ Usage   : 
+ Function: get/set the display id of the Family
+ Example :
+ Returns : 
+ Args    : 
+=cut
+
 sub id {
     my ($self,$value) = @_;
     if( defined $value) {
@@ -122,6 +142,16 @@ sub id {
     }
     return $self->{'id'};
 }
+
+=head2 internal_id
+
+ Title   : internal_id
+ Usage   : 
+ Function: get/set the internal_id of the Family
+ Example :
+ Returns : 
+ Args    : 
+=cut
 
 sub internal_id {
     my ($self,$value) = @_;
@@ -131,6 +161,16 @@ sub internal_id {
     return $self->{'internal_id'};
 }
 
+=head2 description
+
+ Title   : description
+ Usage   : 
+ Function: get/set the description of the Family. 
+ Example :
+ Returns : A string (currently all upper case, and no longer than 255 chars).
+ Args    : 
+=cut
+
 sub description {
     my ($self,$value) = @_;
     if( defined $value) {
@@ -138,6 +178,16 @@ sub description {
     }
     return $self->{'desc'};
 }
+
+=head2 release
+
+ Title   : release
+ Usage   : 
+ Function: get/set the release number of the family database;
+ Example :
+ Returns : 
+ Args    : 
+=cut
 
 sub release {
     my ($self,$value) = @_;
@@ -147,6 +197,18 @@ sub release {
     return $self->{'release'};
 }
 
+=head2 annotation_confidence_score
+
+ Title   : annotation_confidence_score
+ Usage   : 
+
+ Function: get/set the annotation_confidence_score of the Family. This a
+           measure of how good the cluster is (what is the scale??)
+ Example :
+ Returns : 
+ Args    : 
+=cut
+
 sub annotation_confidence_score {
     my ($self,$value) = @_;
     if( defined $value) {
@@ -155,10 +217,21 @@ sub annotation_confidence_score {
     return $self->{'annotation_confidence_score'};
 }
 
-# sub keywords { 
+# =head2 keywords
+# 
+#  Title   : keywords
+#  Usage   : 
+#  Function: get/set the SWISSPROT keywords
+#  Example :
+#  Returns : 
+#  Args    : 
+# =cut
+# 
+# # sub keywords { 
 #     my ($self) = @_; 
 #     $self->throw("not yet implemented");
 # }
+
 
 =head2 size
 
@@ -205,7 +278,7 @@ sub each_member_of_db {
 
  Title   : each_DBLink
  Usage   : foreach $ref ( $self->each_DBLink() )
- Function: gets an array of DBLink of objects
+ Function: find all the members of the family
  Example :
  Returns : an array of Bio::Annotation::DBLink objects
  Args    : none
@@ -220,17 +293,16 @@ sub each_DBLink{
 =head2 add_DBLink
 
  Title   : add_DBLink
- Usage   :
+ Usage   : not for general use (in fact, currently unused)
  Function: add a member to this family
  Example :
- Returns : 
+ Returns :  undef;
  Args    : a DBLink pointing to the member
 
 
 =cut
-;
 
-sub add_DBLink{
+sub add_DBLink {
     my ($self,$value) = @_;
 
     if(     !defined $value 
@@ -238,8 +310,8 @@ sub add_DBLink{
          || ! $value->isa('Bio::Annotation::DBLink') ) {
         $self->throw("This [$value] is not a DBLink");
     }
-
     push(@{$self->{'_members'}},$value);
+    undef;
 }
 
 
@@ -260,13 +332,11 @@ sub _dbid_to_dblink {
 =head2 add_member
 
  Title   : add_member
- Usage   : $fam->add_member('SWISSPROT', 'P12345');
-
+ Usage   : (not for general usage)
  Function: adds member to family. Like add_DBLlink, but takes a string
            pair, rather than a DBLink.
-
- Example :
- Returns : 
+ Example : $fam->add_member('SWISSPROT', 'P12345');
+ Returns : undef
  Args    : db: the database name and primary_id: the primary_id of the database
 
 =cut
@@ -275,6 +345,7 @@ sub add_member {
     my ($self, $database, $primary_id) = @_; 
 
     push @{$self->{_members}}, _dbid_to_dblink($database, $primary_id);
+    undef;
 }
 
 =head2 _debug

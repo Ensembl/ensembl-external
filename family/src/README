@@ -1,0 +1,17 @@
+$Id$
+
+The markov/ directory contains a program to transform blast scores into a
+markov matrix.
+
+The  mcl/ directory contains the programs for doing Stijn van Dongens MCL
+clustering routine. It was cvs imported as
+
+  cvs -d /nfs/ensembl/cvsroot import -I '!' ensembl-external/family/src/mcl MCL MCL_`date +"%Y-%m-%d"` 
+
+Please use something similar when a new release is made. 
+Users can  update their local working copies with 
+
+    cvs  up -j rel_MCL2001-09-10 -j MCL  
+
+(that is, if 'rel_MCL2001-09-10' is the latest MCL release that they
+synchronized with). 

@@ -14,7 +14,7 @@ GetOptions('fasta_file=s' => \$fasta_file);
 my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host   => 'ecs1b.internal.sanger.ac.uk',
 									 -user   => 'ensadmin',
 									 -pass   => 'ensembl',
-									 -dbname => 'ensembl_family_test');
+									 -dbname => 'family_load_test');
 
 my $FamilyMemberAdaptor = $family_db->get_FamilyMemberAdaptor;
 
@@ -27,26 +27,27 @@ my $member_seq;
 while (<$FH>) {
   if (/^>(\S+)\s*.*$/) {
     if (defined $member_stable_id && defined $member_seq) {
-      print "MEMBER: $member_stable_id\n";
-      print "SEQ: $member_seq\n";
       my $member = $FamilyMemberAdaptor->fetch_by_stable_id($member_stable_id)->[0];
       $member->alignment_string($member_seq);
       $FamilyMemberAdaptor->update($member);
+      print STDERR "$member_stable_id sequence loaded\n";
       undef $member_stable_id;
       undef $member_seq;
     }
     $member_stable_id = $1;
-  } elsif (/^[a-zA-Z]+$/) {
+  } elsif (/^[a-zA-Z\*]+$/) { ####### add * for protein with stop in it!!!!
     chomp;
     $member_seq .= $_;
   }
 }
 
+$FH->close;
+
 if (defined $member_stable_id && defined $member_seq) {
   my $member = $FamilyMemberAdaptor->fetch_by_stable_id($member_stable_id)->[0];
   $member->alignment_string($member_seq);
-  undef $member_stable_id;
-  undef $member_seq;
+  $FamilyMemberAdaptor->update($member);
+  print STDERR "$member_stable_id sequence loaded\n";
 }
 
-$FH->close;
+exit 0;

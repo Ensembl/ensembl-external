@@ -1,85 +1,82 @@
-#!/usr/local/bin/perl
+#!/usr/local/ensembl/bin/perl -w
 # $Id$
 
 ### This produces one big file with database name, cluster_id, accession,
 ### and description. It is the input for the consensifier.pl script.
 
 use strict;
-use Getopt::Std;
+use Getopt::Long;
 
-my $opts = 'h';
-use vars qw($opt_h);
+my $help = 0;
 
-my (%annotatehash, %clustered, %seqtype, $lastcluster);
-
-my $Usage=<<END_USAGE;
+my $usage=<<END_USAGE;
 
 Usage:
-  $0 peptidefile seqtypes clusterfile > outfile
+  $0 description_file cluster_file > outfile
   Options:
    -h       : this message
+
 END_USAGE
-  #;
-  ;
 
-if (@ARGV!=3 || !getopts($opts) || $opt_h ) {
-    die $Usage; 
+unless (GetOptions('help' => \$help)) {
+  die $usage;
 }
 
+unless (scalar @ARGV == 2 || ! $help ) {
+  die $usage; 
+}
 
-warn "Reading Annotations\n";
-# my $outfile="annotate.out";
-# open (OUT,">$outfile") or die "$outfile:$!\n";
+my ($desc_file, $cluster_file) = @ARGV;
 
+print STDERR  "Reading Annotations and Sequence Type Information...";
+
+my (%annotatehash, %clustered, %seqtype, $lastcluster);
 my $file=$ARGV[0];
-open (FILE,$file) || die "pepfile $file: $!";
-while (<FILE>) {
-    chomp($_);
-    if (/^>(\S+)\s*(.*)/) {
-          $annotatehash{$1}=$2;
-          my $seqid=$1;
-          $_=$seqid;
-          if (/^ENS/ || /^COB/ || /^PGB/ ) {
-              $seqtype{$seqid}="ENSEMBL";
-          }
-      }
+
+open (DESC,$desc_file) || die "can not open $desc_file, $!\n";
+
+while (<DESC>) {
+  if (/^(.*)\t(.*)\t(.*)\t.*$/) {
+    my ($type,$seqid,$desc) = ($1,$2,$3);
+    $seqtype{$seqid} = $type; 
+    $annotatehash{$seqid} = uc $desc;
+  }
 }
-close (FILE)|| die "$file:$!";
 
-warn "Reading Sequence Type Information\n";
-$file=$ARGV[1];
-open (FILE,$file) || die "Sequence information file $file:$!";
-while (<FILE>) {
-    /^(\S+)\: (\S+)/;
-    $seqtype{$2}=$1;
-}
-close (FILE)|| die "$file:$!";
+close DESC;
 
-warn "Reading Clustering Information\n";
-$file=$ARGV[2];
-open (FILE, $file) ||  die "Clusters file:$!";
-while (<FILE>) {
-    /^(\S+)\s+(\S+)/;
-    
-    if ($lastcluster ne $1)       {       } # so?
-    # $id=(split('\|',$2))[-1]; # not used
+print STDERR "Done\n";
 
-    if ($seqtype{$2} eq '')  {
-        print "Error: $2\n";
-        $seqtype{$2} = 'SPTREMBL'
+print STDERR "Reading Clustering Information...";
+
+open (CLUSTER, $cluster_file) ||  die "can not open $cluster_file, $!\n";
+
+my $last_cluster_id;
+
+while (<CLUSTER>) {
+  if (/^(\S+)\s+(\S+)$/) {
+    my ($cluster_id,$seqid) = ($1,$2);
+
+    unless (defined $seqtype{$seqid})  {
+      die "$seqid not identified previously in $desc_file\n" 
     }
-    print STDOUT "$seqtype{$2} $1\t$2\t>$annotatehash{$2}\n";
-    $clustered{$2}=1;
-    $lastcluster=$1;
+    print "$seqtype{$seqid} $cluster_id\t$seqid\t>$annotatehash{$seqid}\n";
+    $clustered{$seqid} = 1;
+    $last_cluster_id = $cluster_id;
+  }
 }
-close (FILE)|| die "$file:$!";
 
-foreach my $thing (sort(keys(%annotatehash))) {
-    if (!$clustered{$thing})
-      {
-          $lastcluster++;
-          print STDOUT "$seqtype{$thing} $lastcluster $thing >$annotatehash{$thing}\n";
-      }
+close CLUSTER;
+
+#to get sequence not included in the clustering because no blastp hits to anything
+
+foreach my $seqid (sort keys %annotatehash) {
+  unless ($clustered{$seqid}) {
+    $last_cluster_id++;
+    print "$seqtype{$seqid} $last_cluster_id $seqid >$annotatehash{$seqid}\n";
+  }
 }
-# close (OUT)|| die "$outfile:$!";
 
+print STDERR "Done\n";
+
+exit 0;

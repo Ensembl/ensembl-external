@@ -114,8 +114,8 @@ sub fetch_Light_SNP_by_chr_start_end  {
 
     my $q = qq(
         SELECT
-                snp_summary.ID_SNP              as INTERNAL_ID,
-                snp_summary.DEFAULT_NAME        as ID_DEFAULT,
+                ss.ID_SNP                       as INTERNAL_ID,
+                ss.DEFAULT_NAME                 as ID_DEFAULT,
                 (seq_seq_map.contig_orientation * mapped_snp.POSITION)
                     + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
@@ -124,18 +124,18 @@ sub fetch_Light_SNP_by_chr_start_end  {
                                                 as CHR_END,
                 seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
                 scd.DESCRIPTION                 as VALIDATED,
-                snp_summary.ALLELES             as ALLELES,
+                ss.ALLELES                      as ALLELES,
                 svd.DESCRIPTION                 as SNPCLASS,
-                snp_summary.IS_PRIVATE          as PRIVATE
+                ss.IS_PRIVATE                   as PRIVATE
         FROM    chrom_seq,
                 database_dict,
                 seq_seq_map,
                 snp_sequence,
                 mapped_snp,
-                snp_summary,
                 snp,
                 snpvartypedict svd,
-                snp_confirmation_dict scd
+                snp_confirmation_dict scd,
+                snp_summary ss
         WHERE   chrom_seq.DATABASE_SEQNAME= '$slice_chr'
         AND     database_dict.DATABASE_NAME = '$ass_name'
         AND     database_dict.DATABASE_VERSION = '$ass_version'
@@ -143,10 +143,10 @@ sub fetch_Light_SNP_by_chr_start_end  {
         AND     chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
         AND     seq_seq_map.SUB_SEQUENCE = snp_sequence.ID_SEQUENCE
         AND     snp_sequence.ID_SEQUENCE = mapped_snp.ID_SEQUENCE
-        AND     mapped_snp.ID_SNP = snp_summary.ID_SNP
-        AND     snp_summary.ID_SNP = snp.ID_SNP
+        AND     mapped_snp.ID_SNP = ss.ID_SNP
+        AND     ss.ID_SNP = snp.ID_SNP
         AND     snp.VAR_TYPE = svd.ID_DICT
-        AND     snp_summary.CONFIRMATION_STATUS = scd.ID_DICT
+        AND     ss.CONFIRMATION_STATUS = scd.ID_DICT
         AND     mapped_snp.POSITION
         BETWEEN
                 ('$slice_start' - seq_seq_map.START_COORDINATE - 99)
@@ -183,7 +183,6 @@ sub fetch_Light_SNP_by_chr_start_end  {
                 '_gsf_end'      =>    $row->{'CHR_END'} - $slice_start + 1,
                 '_snp_strand'   =>    $row->{'CHR_STRAND'},
                 '_gsf_score'    =>    -1,
-                #'_type'         =>    '', # coding|intron|...
                 '_validated'    =>    $row->{'VALIDATED'},
                 '_raw_status'   =>    $row->{'VALIDATED'},
                 '_ambiguity_code' =>  $ambig,
@@ -191,37 +190,14 @@ sub fetch_Light_SNP_by_chr_start_end  {
                 '_snpclass'     =>    $row->{'SNPCLASS'},
                 '_source'       =>    'Glovar',
                 '_source_tag'   =>    'glovar',
+                '_consequence'  =>    $row->{'CONSEQUENCE'},
+                '_type'         =>    $row->{'POS_TYPE'},
             });
 
-        #DBLink
-        my $q2 = qq(
-            SELECT
-                    snp_name.SNP_NAME               as NAME,
-                    snpnametypedict.DESCRIPTION     as TYPE
-            FROM    
-                    snp_name,
-                    snpnametypedict
-            WHERE   snp_name.ID_SNP = ?
-            AND     snp_name.SNP_NAME_TYPE = snpnametypedict.ID_DICT
-        );
-        my $sth2;
-        eval {
-            $sth2 = $self->prepare($q2);
-            $sth2->execute($row->{'INTERNAL_ID'});
-        }; 
-        if ($@){
-            warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
-                \n$@");
-            return;
-        }
-
-        while (my $xref = $sth2->fetchrow_hashref()) {
-            my $link = new Bio::Annotation::DBLink;
-            $link->database($xref->{'TYPE'});
-            $link->primary_id($xref->{'NAME'});
-            $snp->add_DBLink($link);
-        }
-
+        ## DBLinks and consequences
+        $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
+        $self->_get_consequences($snp, $row->{'INTERNAL_ID'});
+        
         push (@snps, $snp); 
     }
 
@@ -241,6 +217,8 @@ sub fetch_Light_SNP_by_chr_start_end  {
 
 sub fetch_SNP_by_chr_start_end  {
     my ($self,$slice) = @_; 
+
+    ## to be implemented
 
     my @vars = ();
     return(\@vars);
@@ -270,8 +248,8 @@ sub fetch_SNP_by_id  {
     
     my $q1 = qq(
         SELECT
-                snp_summary.ID_SNP              as INTERNAL_ID,
-                snp_summary.DEFAULT_NAME        as ID_DEFAULT,
+                ss.ID_SNP                       as INTERNAL_ID,
+                ss.DEFAULT_NAME                 as ID_DEFAULT,
                 (seq_seq_map.contig_orientation * mapped_snp.POSITION)
                     + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
@@ -283,16 +261,16 @@ sub fetch_SNP_by_id  {
                 snp_sequence.DATABASE_SEQNNAME      as SEQNAME,
                 snp_sequence.DATABASE_SEQVERSION    as SEQVERSION,
                 snp_sequence.CHROMOSOME         as CHR_NAME,
-                snp_summary.ALLELES             as ALLELES,
-                snp_summary.IS_PRIVATE          as PRIVATE
+                ss.ALLELES                      as ALLELES,
+                ss.IS_PRIVATE                   as PRIVATE
         FROM    chrom_seq,
                 database_dict,
                 seq_seq_map,
                 snp_sequence,
                 mapped_snp,
-                snp_summary,
                 snp_name,
-                snp_confirmation_dict scd
+                snp_confirmation_dict scd,
+                snp_summary ss
         WHERE   snp_name.SNP_NAME = '$id'
         AND     database_dict.DATABASE_NAME = '$ass_name'
         AND     database_dict.DATABASE_VERSION = '$ass_version'
@@ -300,9 +278,9 @@ sub fetch_SNP_by_id  {
         AND     chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
         AND     seq_seq_map.SUB_SEQUENCE = snp_sequence.ID_SEQUENCE
         AND     snp_sequence.ID_SEQUENCE = mapped_snp.ID_SEQUENCE
-        AND     mapped_snp.ID_SNP = snp_summary.ID_SNP
-        AND     snp_summary.ID_SNP = snp_name.ID_SNP
-        AND     snp_summary.CONFIRMATION_STATUS = scd.ID_DICT
+        AND     mapped_snp.ID_SNP = ss.ID_SNP
+        AND     ss.ID_SNP = snp_name.ID_SNP
+        AND     ss.CONFIRMATION_STATUS = scd.ID_DICT
     );
 
     my @snps = ();
@@ -352,46 +330,131 @@ sub fetch_SNP_by_id  {
         $snp->upStreamSeq(substr($seq, 0, 25));
         $snp->dnStreamSeq(substr($seq, 26));
         
-        ## not available
-        #$snp->score($mapweight); 
+        ## these attributes are on ensembl SNPs, but are not available in Glovar
+        #$snp->score($mapweight);
         #$snp->het($het);
         #$snp->hetse($hetse);
         
-        #DBLink
-        my $q2 = qq(
-            SELECT
-                    snp_name.SNP_NAME               as NAME,
-                    snpnametypedict.DESCRIPTION     as TYPE
-            FROM    
-                    snp_name,
-                    snpnametypedict
-            WHERE   snp_name.ID_SNP = ?
-            AND     snp_name.SNP_NAME_TYPE = snpnametypedict.ID_DICT
-        );
-        my $sth2;
-        eval {
-            $sth2 = $self->prepare($q2);
-            $sth2->execute($row->{'INTERNAL_ID'});
-        }; 
-        if ($@){
-            warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
-                \n$@");
-            return;
-        }
-
-        while (my $xref = $sth2->fetchrow_hashref()) {
-            my $link = new Bio::Annotation::DBLink;
-            $link->database($xref->{'TYPE'});
-            $link->primary_id($xref->{'NAME'});
-            $snp->add_DBLink($link);
-        }
-
+        ## DBLinks and consequences
+        $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
+        $self->_get_consequences($snp, $row->{'INTERNAL_ID'});
+        
         push @snps, $snp;
     }
 
     return \@snps;
 }
 
+=head2 _get_DBLinks
+
+  Arg[1]      : Bio::EnsEMBL::SNP object
+  Arg[2]      : glovar SNP ID (ID_SNP)
+  Example     : $glovar_adaptor->_get_DBLinks($snp, '104567');
+  Description : adds external database links to snp object; links are added
+                as Bio::Annotation::DBLink objects
+  Return type : none
+
+=cut
+
+sub _get_DBLinks {
+    my ($self, $snp, $id) = @_;
+    my $q = qq(
+        SELECT
+                snp_name.SNP_NAME               as NAME,
+                snpnametypedict.DESCRIPTION     as TYPE
+        FROM    
+                snp_name,
+                snpnametypedict
+        WHERE   snp_name.ID_SNP = ?
+        AND     snp_name.SNP_NAME_TYPE = snpnametypedict.ID_DICT
+    );
+    my $sth;
+    eval {
+        $sth = $self->prepare($q);
+        $sth->execute($id);
+    }; 
+    if ($@){
+        warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
+            \n$@");
+        return;
+    }
+
+    while (my $xref = $sth->fetchrow_hashref()) {
+        my $link = new Bio::Annotation::DBLink;
+        $link->database($xref->{'TYPE'});
+        $link->primary_id($xref->{'NAME'});
+        $snp->add_DBLink($link);
+    }
+}
+
+=head2 _get_consequences
+
+  Arg[1]      : Bio::EnsEMBL::SNP object
+  Arg[2]      : glovar SNP ID (ID_SNP)
+  Example     : $glovar_adaptor->_get_consequences($snp, '104567');
+  Description : adds consequences (position type, consequence) to snp object;
+                these are stored as anonymous arrayrefs in snp->type and
+                snp->consequence
+  Return type : none
+
+=cut
+
+sub _get_consequences {
+    my ($self, $snp, $id) = @_;
+    my $q = qq(
+        SELECT
+                ptd.DESCRIPTION         as POS_TYPE,
+                sgc_dict.DESCRIPTION    as CONSEQUENCE
+        FROM    
+                snp_gene_consequence sgc
+        LEFT JOIN
+                position_type_dict ptd on sgc.POSITION_DESCRIPTION = ptd.ID_DICT
+        LEFT JOIN
+                sgc_dict on sgc.CONSEQUENCE = sgc_dict.ID_DICT
+        WHERE   sgc.ID_SNP = ?
+        ORDER BY ptd.ID_DICT
+    );
+    my $sth;
+    eval {
+        $sth = $self->prepare($q);
+        $sth->execute($id);
+    }; 
+    if ($@){
+        warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
+            \n$@");
+        return;
+    }
+
+    # this is a bit hacky, since it abuses Variation::type and
+    # Variation::consequence to store an anonymous arrayref instead of a string
+    my ($t, $c);
+    while (my $cons = $sth->fetchrow_hashref()) {
+        push @{$t}, $self->_map_position_type($cons->{'POS_TYPE'});
+        push @{$c}, $cons->{'CONSEQUENCE'};
+    }
+    $snp->type($t || []);
+    $snp->consequence($c || []);
+}
+
+=head2 _map_position_type
+
+  Arg[1]      : String - position type
+  Example     : my $type = $glovar_adaptor->_map_position_type($glovar_type);
+  Description : maps glovar position types to ensembl naming convention
+  Return type : String - position type
+
+=cut
+
+sub _map_position_type {
+    my ($self, $type) = @_;
+    my %mapping = (
+        'Coding' => 'coding',
+        'Non-coding exonic' => 'utr',
+        'Intronic' => 'intron',
+        'Upstream' => 'local',
+    );
+    return $mapping{$type} || $type;
+}
 
 sub track_name {
     my ($self) = @_;    

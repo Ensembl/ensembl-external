@@ -47,18 +47,14 @@ methods are usually preceded with a _
 =cut
 
 package Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor;
-use vars qw(@ISA);
-use strict;
-use Data::Dumper;
 
-use Bio::EnsEMBL::DBSQL::BaseAdaptor;
-use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
-use Bio::EnsEMBL::SeqFeature;
+use strict;
+
 use Bio::EnsEMBL::SNP;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
-use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);
 
+use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
 
 =head2 fetch_all_by_Slice
@@ -104,7 +100,7 @@ sub fetch_all_by_Slice {
 =cut
 
 sub fetch_Light_SNP_by_chr_start_end  {
-    my ($self,$slice) = @_; 
+    my ($self, $slice) = @_; 
     my $slice_chr    = $slice->chr_name();
     my $slice_start  = $slice->chr_start();
     my $slice_end    = $slice->chr_end();
@@ -179,7 +175,7 @@ sub fetch_Light_SNP_by_chr_start_end  {
             {
                 '_snpid'        =>    $row->{'ID_DEFAULT'},
                 'dbID'          =>    $row->{'INTERNAL_ID'},
-                '_gsf_start'    =>    $row->{'CHR_START'} - $slice_start + 1,#convert assembly coords to slice coords
+                '_gsf_start'    =>    $row->{'CHR_START'} - $slice_start + 1,
                 '_gsf_end'      =>    $row->{'CHR_END'} - $slice_start + 1,
                 '_snp_strand'   =>    $row->{'CHR_STRAND'},
                 '_gsf_score'    =>    -1,

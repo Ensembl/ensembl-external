@@ -115,13 +115,13 @@ sub fetch_SeqTag_by_dbID {
 
 
 
-=head2 fetch_SeqTag_by_Synonym
+=head2 fetch_SeqTag_by_Name
 
- Title   : fetch_SeqTag_by_Synonym
- Usage   : $obj->fetch_SeqTag_by_Synonym
+ Title   : fetch_SeqTag_by_Name
+ Usage   : $obj->fetch_SeqTag_by_Name
  Function: 
  Example : 
- Returns : seqtag object
+ Returns : an array of seqtag objects
  Args    :
 
 
@@ -129,11 +129,11 @@ sub fetch_SeqTag_by_dbID {
 
 
 
-sub fetch_SeqTag_by_Synonym {
+sub fetch_SeqTag_by_Name {
     my ($self,$synonym)=@_;
 
-    $self->throw ("need a seqtag synonym") unless $synonym;
-    return $self->adaptor->fetch_SeqTag_by_Synonym($self->id,$synonym);
+    $self->throw ("need a seqtag name") unless $synonym;
+    return $self->adaptor->fetch_SeqTag_by_Name($self->id,$synonym);
 
 }
 
@@ -208,6 +208,41 @@ sub fetch_all_SeqTags_above_relative_frequency {
 
 
 }
+
+
+
+=head2 fetch_all_SeqTags_below_relative_frequency
+
+ Title   : fetch_all_SeqTags_below_relative_frequency
+ Usage   : $obj->fetch_all_SeqTags_below_realtive_frequency
+ Function: returns seqtags with expression below given level 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
+
+
+
+sub fetch_all_SeqTags_below_relative_frequency {
+    my ($self,$frequency,$multiplier)=@_;
+
+
+ return $self->adaptor->fetch_all_SeqTags_below_relative_frequency($self->id,$frequency,$multiplier);
+
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
 =head2 id

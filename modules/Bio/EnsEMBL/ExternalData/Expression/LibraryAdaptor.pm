@@ -75,13 +75,48 @@ use strict;
 sub fetch_all {
     my ($self)=shift;
 
-    my $dbname=$self->dbname;
+   
     my $statement="select library_id,source,cgap_id,
                           dbest_id,name,
                           tissue_type,description,total_seqtags
-                   from   $dbname.library";
+                   from   library";
 
     return $self->_fetch($statement);   
+
+}
+
+
+=head2 fetch_by_dbID
+
+ Title   : fetch_by_dbID
+ Usage   : $obj->fetch_by_dbID
+ Function: 
+ Example : 
+ Returns : library object
+ Args    : 
+
+
+=cut
+
+
+
+
+sub fetch_by_dbID {
+    my ($self,$id)=@_;
+    
+    $self->throw("need a library id") unless $id; 
+   
+    my $statement="select library_id,source,cgap_id,
+                          dbest_id,name,
+                          tissue_type,description,total_seqtags
+                   from   library where library.library_id=$id";
+
+    my @libs=$self->_fetch($statement);   
+    
+    if (defined $libs[0]){
+	return $libs[0];
+    }else{return;}
+    
 
 }
 
@@ -100,55 +135,18 @@ sub fetch_all {
 
 
 
+
 sub fetch_by_SeqTag_Name {
 
     my ($self,$name)=@_;
 
     $self->throw("need a seqtag name") unless $name; 
 
-    my $dbname=$self->dbname;
+   
     my $statement="select l.library_id,l.source,l.cgap_id,
                           l.dbest_id,l.name,
                           l.tissue_type,l.description,l.total_seqtags
-                   from   $dbname.library l,$dbname.seqtag s,$dbname.frequency f 
-                   where  l.library_id=f.library_id 
-                   and    f.seqtag_id=s.seqtag_id 
-                   and    s.name='$name'"; 
-            
-    return $self->_fetch($statement); 
-
-
-}
-
-
-
-=head2 fetch_by_SeqTag_Synonym
-
- Title   : fetch_by_SeqTag_Synonym
- Usage   : $obj->fetch_by_SeqTag_Synonym
- Function: 
- Example : 
- Returns : array of library objects
- Args    : seqtag synonym
-
-
-=cut
-
-
-
-
-
-sub fetch_by_SeqTag_Synonym {
-
-    my ($self,$name)=@_;
-
-    $self->throw("need a seqtag name") unless $name; 
-
-    my $dbname=$self->dbname;
-    my $statement="select l.library_id,l.source,l.cgap_id,
-                          l.dbest_id,l.name,
-                          l.tissue_type,l.description,l.total_seqtags
-                   from   $dbname.library l,$dbname.seqtag_alias a,$dbname.frequency f 
+                   from   library l,seqtag_alias a,frequency f 
                    where  l.library_id=f.library_id 
                    and    f.seqtag_id=a.seqtag_id
                    and    a.external_name='$name'"; 
@@ -157,89 +155,6 @@ sub fetch_by_SeqTag_Synonym {
 
 
 }
-
-
-
-=head2 fetch_by_SeqTag_Synonym_above_relative_frequency
-
- Title   : fetch_by_SeqTag_Synonym_above_relative_frequency
- Usage   : $obj->fetch_by_SeqTag_Synonym_above_reltive_frequency
- Function: 
- Example : 
- Returns : array of library objects
- Args    : seqtag synonym
-
-
-=cut
-
-
-sub fetch_by_SeqTag_Synonym_above_relative_frequency {
-
-    my ($self,$name,$frequency)=@_;
-
-    $self->throw("need a seqtag name") unless $name; 
-    $self->throw("need a seqtag frequency") unless $frequency; 
-
-    my $dbname=$self->dbname;
-    my $multiplier=$self->multiplier; 
-
-    my $statement="select l.library_id,l.source,l.cgap_id,
-                          l.dbest_id,l.name,
-                          l.tissue_type,l.description,l.total_seqtags
-                   from   $dbname.library l,$dbname.seqtag_alias a,$dbname.frequency f 
-                   where  l.library_id=f.library_id 
-                   and    f.seqtag_id=a.seqtag_id
-                   and    ceiling((f.frequency*$multiplier/l.total_seqtags) -1)>$frequency 
-                   and    a.external_name='$name'"; 
-            
-    return $self->_fetch($statement); 
-
-
-}
-
-
-
-
-
-
-=head2 fetch_by_SeqTag_Synonym_above_relative_frequency
-
- Title   : fetch_by_SeqTag_Synonym_above_relative_frequency
- Usage   : $obj->fetch_by_SeqTag_Synonym_above_reltive_frequency
- Function: 
- Example : 
- Returns : array of library objects
- Args    : seqtag synonym
-
-
-=cut
-
-
-sub fetch_by_SeqTag_Synonym_below_relative_frequency {
-
-    my ($self,$name,$frequency)=@_;
-
-    $self->throw("need a seqtag name") unless $name; 
-    $self->throw("need a seqtag frequency") unless $frequency; 
-
-    my $dbname=$self->dbname;
-    my $multiplier=$self->multiplier; 
-
-    my $statement="select l.library_id,l.source,l.cgap_id,
-                          l.dbest_id,l.name,
-                          l.tissue_type,l.description,l.total_seqtags
-                   from   $dbname.library l,$dbname.seqtag_alias a,$dbname.frequency f 
-                   where  l.library_id=f.library_id 
-                   and    f.seqtag_id=a.seqtag_id
-                   and    ceiling((f.frequency*$multiplier/l.total_seqtags) -1)<$frequency 
-                   and    a.external_name='$name'"; 
-            
-    return $self->_fetch($statement); 
-
-
-}
-
-
 
 
 
@@ -265,11 +180,11 @@ sub fetch_by_SeqTagList {
     $self->throw("need a seqtag name") unless  @seqtags && $#seqtags>=0; 
 
     my $list=$self->_prepare_list(@seqtags);
-    my $dbname=$self->dbname;
+   
     my $statement="select l.library_id,l.source,l.cgap_id,
                           l.dbest_id,l.name,
                           l.tissue_type,l.description,l.total_seqtags
-                   from   $dbname.library l,$dbname.seqtag s,$dbname.frequency f 
+                   from   library l,seqtag s,frequency f 
                    where  l.library_id=f.library_id 
                    and    f.seqtag_id=s.seqtag_id 
                    and    s.name in $list"; 
@@ -307,11 +222,11 @@ sub fetch_by_SeqTag_SynonymList {
     $self->throw("need a seqtag name") unless  @seqtags && $#seqtags>=0; 
 
     my $list=$self->_prepare_list(@seqtags);
-    my $dbname=$self->dbname;
+   
     my $statement="select l.library_id,l.source,l.cgap_id,
                           l.dbest_id,l.name,
                           l.tissue_type,l.description,l.total_seqtags
-                   from   $dbname.library l,$dbname.seqtag_alias a,$dbname.frequency f 
+                   from   library l,seqtag_alias a,frequency f 
                    where  l.library_id=f.library_id 
                    and    f.seqtag_id=a.seqtag_id
                    and    a.external_name in $list"; 
@@ -320,35 +235,6 @@ sub fetch_by_SeqTag_SynonymList {
 }
 
 
-
-=head2 fetch_SeqTag_by_dbID
-
- Title   : fetch_SeqTag_by_dbID
- Usage   : $obj->fetch_SeqTag_by_dbID
- Function: 
- Example : 
- Returns : seqtag object
- Args    :
-
-
-=cut
-
-
-sub fetch_SeqTag_by_dbID {
-    my ($self,$id)=@_;
-
-    $self->throw("need a seqtag id") unless $id; 
-
-    my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
-    $seqtag_ad->dbname($self->dbname);
-    
-    my $seqtag=$seqtag_ad->fetch_by_dbID($id);
-    if (defined $seqtag){
-	return $seqtag;
-    }else{
-	return;
-    }
-}
 
 
 =head2 fetch_SeqTag_by_dbID
@@ -371,9 +257,9 @@ sub fetch_SeqTag_by_dbID {
     $self->throw("need a seqtag id") unless $id; 
 
     my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
-    $seqtag_ad->dbname($self->dbname);
+   
     
-    my $seqtag=$seqtag_ad->fetch_by_dbID($library_id,$id);
+    my $seqtag=$seqtag_ad->fetch_by_Library_dbID_SeqTag_dbID($library_id,$id);
     if (defined $seqtag){
 	return $seqtag;
     }else{
@@ -382,10 +268,10 @@ sub fetch_SeqTag_by_dbID {
 }
 
 
-=head2 fetch_SeqTag_by_Synonym
+=head2 fetch_SeqTag_by_Name
 
- Title   : fetch_SeqTag_by_Synonym
- Usage   : $obj->fetch_SeqTag_by_Synonym
+ Title   : fetch_SeqTag_by_Name
+ Usage   : $obj->fetch_SeqTag_by_Name
  Function: 
  Example : 
  Returns : seqtag object
@@ -395,27 +281,18 @@ sub fetch_SeqTag_by_dbID {
 =cut
 
 
-sub fetch_SeqTag_by_Synonym {
+sub fetch_SeqTag_by_Name {
     my ($self,$library_id,$synonym)=@_;
     
     $self->throw("need a library id") unless $library_id; 
     $self->throw("need a seqtag synonym") unless $synonym; 
 
     my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
-    $seqtag_ad->dbname($self->dbname);
+   
     
-    return $seqtag_ad->fetch_by_Synonym($library_id,$synonym);
+    return $seqtag_ad->fetch_by_Name($library_id,$synonym);
    
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -438,7 +315,7 @@ sub fetch_all_SeqTags {
     $self->throw("need a library id") unless $id; 
 
     my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
-    $seqtag_ad->dbname($self->dbname);
+   
     return $seqtag_ad->fetch_by_Library_dbID($id);
 
 }
@@ -468,7 +345,7 @@ sub fetch_all_SeqTags_above_frequency {
     $self->throw("need a frequency value") unless $frequency;
 
     my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
-    $seqtag_ad->dbname($self->dbname);
+   
     return $seqtag_ad->fetch_by_Library_dbID_above_frequency($id,$frequency);
 
 }
@@ -491,40 +368,48 @@ sub fetch_all_SeqTags_above_frequency {
 
 
 sub fetch_all_SeqTags_above_relative_frequency {
-    my ($self,$id,$frequency)=@_;
+    my ($self,$id,$frequency,$multiplier)=@_;
 
     $self->throw("need a library id") unless $id; 
     $self->throw("need a frequency value") unless $frequency;
+    $multiplier=$self->multiplier unless $multiplier; 
 
     my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
-    $seqtag_ad->dbname($self->dbname);
-    return $seqtag_ad->fetch_by_Library_dbID_above_relative_frequency($id,$frequency);
+   
+    return $seqtag_ad->fetch_by_Library_dbID_above_relative_frequency($id,$frequency,$multiplier);
 
 }
 
 
+=head2 fetch_all_SeqTags_below_relative_frequency
 
-
-=head2 dbname
-
- Title   : dbname
- Usage   : $obj->dbname($newval)
- Function: 
+ Title   : fetch_all_SeqTags_below_relative_frequency
+ Usage   : $obj->fetch_all_SeqTags_below_realtive_frequency
+ Function: returns seqtags with expression below given level 
  Example : 
- Returns : value of dbname
- Args    : newvalue (optional)
+ Returns : array of seqtags objects
+ Args    :
 
 
 =cut
 
-sub dbname {
-   my ($obj,$value) = @_;
-   if( defined $value) {
-      $obj->{'_dbname'} = $value;
-    }
-    return $obj->{'_dbname'};
+
+
+sub fetch_all_SeqTags_below_relative_frequency {
+    my ($self,$id,$frequency,$multiplier)=@_;
+
+    $self->throw("need a library id") unless $id; 
+    $self->throw("need a frequency value") unless $frequency;
+    $multiplier=$self->multiplier unless $multiplier; 
+
+
+    my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
+   
+    return $seqtag_ad->fetch_by_Library_dbID_below_relative_frequency($id,$frequency);
 
 }
+
+
 
 
 

@@ -66,8 +66,8 @@ use strict;
 sub list_all_names {
     my ($self)=shift;
 
-    my $dbname=$self->dbname;
-    my $statement="select name from $dbname.seqtag";
+   
+    my $statement="select name from seqtag";
 
     return $self->_list($statement);   
 
@@ -92,8 +92,8 @@ sub list_all_names {
 sub list_all_ids {
     my ($self)=shift;
 
-    my $dbname=$self->dbname;
-    my $statement="select seqtag_id from $dbname.seqtag";
+   
+    my $statement="select seqtag_id from seqtag";
 
     return $self->_list($statement);   
 
@@ -121,13 +121,13 @@ sub list_all_ids {
 sub fetch_all {
     my ($self)=shift;
 
-    my $dbname=$self->dbname;
+   
     my $multiplier=$self->multiplier;    
 
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency,
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa 
+                   from   seqtag s,frequency f,seqtag_alias sa 
                    where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id";
 
     return $self->_fetch($statement);  
@@ -159,14 +159,14 @@ sub fetch_by_dbID {
 
     $self->throw("need a db id") unless  $id;
 
-    my $dbname=$self->dbname; 
+    
     my $multiplier=$self->multiplier; 
 
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency,
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa, 
-                          $dbname.library l 
+                   from   seqtag s,frequency f,seqtag_alias sa, 
+                          library l 
                    where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id
                    and    l.library_id=f.library_id and s.seqtag_id=$id";
 
@@ -186,74 +186,31 @@ sub fetch_by_dbID {
  Usage   : $obj->fetch_by_Name
  Function: 
  Example : 
- Returns :seqtag object
- Args    :db id
+ Returns :array of seqtag objects
+ Args    :seqtag name or alias
 
 
 =cut
+
 
 
 
 
 sub fetch_by_Name {
 
-    my ($self,$library_id,$name)=@_;
- 
-    $self->throw("need a library_id") unless  $library_id;
-    $self->throw("need a tag name") unless  $name;
-
-    my $dbname=$self->dbname; 
-    my $multiplier=$self->multiplier; 
-
-    my $statement="select s.seqtag_id,s.source,s.name,
-                          sa.db_name,sa.external_name,f.frequency,
-                          ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa, 
-                          $dbname.library l 
-                   where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id
-                   and    l.library_id=f.library_id l.library_id=$library_id and s.name='$name'";
-
-    my @tags=$self->_fetch($statement);  
-    if ($#tags>=0){
-	return shift @tags;
-    }else {return;}
-    
-}
-
-
-
-
-
-=head2 fetch_by_Synonym
-
- Title   : fetch_by_Synonym
- Usage   : $obj->fetch_by_Synonym
- Function: 
- Example : 
- Returns :array of seqtag objects
- Args    :db id
-
-
-=cut
-
-
-
-
-sub fetch_by_Synonym {
-
     my ($self,$lib_id,$synonym)=@_;
  
     $self->throw("need a library id") unless  $lib_id;
     $self->throw("need a tag synonym") unless  $synonym;
 
-    my $dbname=$self->dbname; 
+    
     my $multiplier=$self->multiplier; 
 
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency,
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa, 
-                          $dbname.library l 
+                   from   seqtag s,frequency f,seqtag_alias sa, 
+                          library l 
                    where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id
                    and    l.library_id=f.library_id and l.library_id=$lib_id and sa.external_name='$synonym'";
 
@@ -262,12 +219,6 @@ sub fetch_by_Synonym {
     
     
 }
-
-
-
-
-
-
 
 
 
@@ -291,18 +242,55 @@ sub fetch_by_Library_dbID
 
     $self->throw("need a library id") unless  $id;
 
-    my $dbname=$self->dbname;
+   
     my $multiplier=$self->multiplier; 
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency, 
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa,
-                          $dbname.library l  
+                   from   seqtag s,frequency f,seqtag_alias sa,
+                          library l  
                    where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id 
                    and    l.library_id=f.library_id and f.library_id='$id'";
 
     return $self->_fetch($statement); 
 }
+
+
+=head2 fetch_by_Library_dbID_SeqTag_dbID
+
+ Title   : fetch_by_Library_dbID_SeqTag_dbID
+ Usage   : $obj->fetch_by_Library_dbID_SeqTag_dbID
+ Function: 
+ Example : 
+ Returns : array of seqtag objects
+ Args    : library id,seqtag db id
+
+
+=cut
+
+
+sub fetch_by_Library_dbID_SeqTag_dbID 
+{
+    my ($self,$library_id,$id)=@_;
+
+    $self->throw("need a library id") unless  $library_id;
+    $self->throw("need a seqtag id") unless  $id;
+
+   
+    my $multiplier=$self->multiplier; 
+    my $statement="select s.seqtag_id,s.source,s.name,
+                          sa.db_name,sa.external_name,f.frequency, 
+                          ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
+                   from   seqtag s,frequency f,seqtag_alias sa,
+                          library l  
+                   where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id 
+                   and    l.library_id=f.library_id and f.library_id='$library_id' and s.seqtag_id=$id";
+
+    return $self->_fetch($statement); 
+}
+
+
+
 
 
 
@@ -327,13 +315,13 @@ sub fetch_by_Library_Name
 
   $self->throw("need a library name") unless  $name;
 
-    my $dbname=$self->dbname;
+   
     my $multiplier=$self->multiplier; 
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency,    
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa,
-                          $dbname.library l  
+                   from   seqtag s,frequency f,seqtag_alias sa,
+                          library l  
                    where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id 
                    and    l.library_id=f.library_id and l.name='$name'";
 
@@ -371,13 +359,13 @@ sub fetch_by_LibraryList_dbIDs
 	return ();
     }
            
-    my $dbname=$self->dbname;
+   
     my $multiplier=$self->multiplier; 
     my $statement="select   s.seqtag_id,s.source,s.name,
                             sa.db_name,sa.external_name,f.frequency, 
                             ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from     $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa,
-                            $dbname.library l  
+                   from     seqtag s,frequency f,seqtag_alias sa,
+                            library l  
                    where    s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id 
                    and      l.library_id=f.library_id and f.library_id in $list limit 10";
 
@@ -414,14 +402,14 @@ sub fetch_by_LibraryList_Name
 	return ();
     }
     
-    my $dbname=$self->dbname;
+   
     my $multiplier=$self->multiplier; 
 
     my $statement="select s.seqtag_id,s.source,s.name,
                           sa.db_name,sa.external_name,f.frequency,    
                           ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa,
-                          $dbname.library l   
+                   from   seqtag s,frequency f,seqtag_alias sa,
+                          library l   
                    where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id 
                    and    l.library_id=f.library_id and l.name in $list";
     
@@ -447,15 +435,17 @@ sub fetch_by_LibraryList_Name
 sub fetch_by_Library_dbID_above_frequency {
     my ($self,$id,$frequency)=@_;
 
+
+
     $self->throw("need a library id") unless  $id;
     $self->throw("need a frequency value") unless  $frequency;
 
-    my $dbname=$self->dbname;
+   
     my $multiplier=$self->multiplier; 
 
     my $statement="select s.seqtag_id,s.source,s.name,sa.db_name,sa.external_name,f.frequency,
                    ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from   $dbname.seqtag s,$dbname.frequency f,$dbname.seqtag_alias sa 
+                   from   seqtag s,frequency f,seqtag_alias sa 
                    where  s.seqtag_id=f.seqtag_id 
                    and    sa.seqtag_id=s.seqtag_id 
                    and    f.library_id='$id' and f.frequency>$frequency";
@@ -483,17 +473,15 @@ sub fetch_by_Library_dbID_above_frequency {
 
 
 sub fetch_by_Library_dbID_above_relative_frequency {
-    my ($self,$id,$frequency)=@_;
+    my ($self,$id,$frequency,$multiplier)=@_;
 
     $self->throw("need a library id") unless  $id;
     $self->throw("need a frequency value") unless  $frequency;
-    
-    my $multiplier=$self->multiplier; 
-    my $dbname=$self->dbname;
-
+    $multiplier=$self->multiplier unless $multiplier; 
+   
     my $statement="select   s.seqtag_id,s.source,s.name,sa.db_name,sa.external_name,f.frequency,  
                             ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
-                   from     $dbname.seqtag s,$dbname.frequency f,$dbname.library l,$dbname.seqtag_alias sa  
+                   from     seqtag s,frequency f,library l,seqtag_alias sa  
                    where    s.seqtag_id=f.seqtag_id                                    
                    and      l.library_id=f.library_id 
                    and      sa.seqtag_id=s.seqtag_id 
@@ -507,32 +495,43 @@ sub fetch_by_Library_dbID_above_relative_frequency {
 }
 
 
+=head2  fetch_by_Library_dbID_below_relative_frequency
 
-
-
-
-
-
-=head2 dbname
-
- Title   : dbname
- Usage   : $obj->dbname($newval)
- Function: 
+ Title   : fetch_by_Library_dbID_below_relative_frequency
+ Usage   : $obj->fetch_by_Library_dbID_below_relative_frequency
+ Function: this method is supposed to be used from LibraryAdaptor
  Example : 
- Returns : value of dbname
- Args    : newvalue (optional)
+ Returns : array of seqtag objects below relative frequency
+ Args    : libray id, frequency
 
 
 =cut
 
-sub dbname {
-   my ($obj,$value) = @_;
-   if( defined $value) {
-      $obj->{'_dbname'} = $value;
-    }
-    return $obj->{'_dbname'};
+
+sub fetch_by_Library_dbID_below_relative_frequency {
+    my ($self,$id,$frequency,$multiplier)=@_;
+
+    $self->throw("need a library id") unless  $id;
+    $self->throw("need a frequency value") unless  $frequency;
+    $multiplier=$self->multiplier unless $multiplier; 
+   
+
+    my $statement="select   s.seqtag_id,s.source,s.name,sa.db_name,sa.external_name,f.frequency,  
+                            ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
+                   from     seqtag s,frequency f,library l,seqtag_alias sa  
+                   where    s.seqtag_id=f.seqtag_id                                    
+                   and      l.library_id=f.library_id 
+                   and      sa.seqtag_id=s.seqtag_id 
+                   and      f.library_id='$id' and  
+                            ceiling((f.frequency*$multiplier/l.total_seqtags) -1)<$frequency
+                   order by relative_frequency desc";
+
+
+    return $self->_fetch($statement);  
 
 }
+
+
 
 
 =head2 multiplier

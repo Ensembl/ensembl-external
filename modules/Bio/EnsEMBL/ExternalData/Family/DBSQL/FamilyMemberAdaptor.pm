@@ -31,8 +31,6 @@ package Bio::EnsEMBL::ExternalData::Family::DBSQL::FamilyMemberAdaptor;
 use vars qw(@ISA);
 use strict;
 
-use Bio::Annotation::DBLink;
-use Bio::DBLinkContainerI;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 

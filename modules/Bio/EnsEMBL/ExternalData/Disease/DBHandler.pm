@@ -58,6 +58,7 @@ package Bio::EnsEMBL::ExternalData::Disease::DBHandler;
 
 use strict;
 use DBI;
+use Bio::EnsEMBL::Gene;
 use Bio::EnsEMBL::Root;
 use Bio::EnsEMBL::ExternalData::Disease::Disease;
 use Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation;
@@ -180,10 +181,9 @@ sub disease_by_omim_id
 =head2 disease by ensembl gene
 
  Title   : disease_by_ensembl_gene
- Usage   : my $disease=$diseasedb->disease_by_ensembl_gene("DiGeorge syndrome (2)");
+ Usage   : my @diseases=$diseasedb->disease_by_ensembl_gene($gene);
  Function: gets disease (if any) for an EnsEMBL Gene object
- Example : 
- Returns : Bio::EnsEMBL::ExternalData::Disease::Disease object or 0 if none
+ Returns : A list of Bio::EnsEMBL::ExternalData::Disease::Disease object or 0 if none
  Args    : Bio::EnsEMBL::Gene object
 
 
@@ -191,17 +191,19 @@ sub disease_by_omim_id
                      
 sub disease_name_by_ensembl_gene
 {                          
-    my ($self,$gene)=@_;
+    my ($self,$gene) = @_;
     $self->throw("$gene is not a Bio::EnsEMBL::Gene object!") unless $gene->isa('Bio::EnsEMBL::Gene');
+	
+	my $DBlinks = $gene->get_all_DBLinks;
+    my @genes = map { $_->display_id } grep { $_->database eq 'HUGO' } @$DBlinks;
+    return 0 unless @genes;   
 
-    my @genes = map { $_->primary_db } grep { $_->database eq 'HUGO' } $gene->each_DBLink;
-    return 0 unless @genes;
-    
-    return $self->_get_disease_names(
-        "select d.disease
-           from disease as d,gene as g
-          where d.id = g.id and g.gene_symbol in (".join(',',@genes) .")"
-        );
+	my $query_string = "select d.disease, g.omim_id
+          from disease as d,gene as g
+          where d.id = g.id and g.gene_symbol in ('".join(qq(','),@genes) ."')";
+
+	return $self->_get_disease_objects($query_string);
+
 }
 
 

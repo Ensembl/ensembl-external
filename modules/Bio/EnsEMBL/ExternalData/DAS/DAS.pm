@@ -248,8 +248,9 @@ sub fetch_all_by_DBLink_Container {
        $dsf->das_score         ( $f->score() );
        $dsf->das_orientation   ( $f->orientation() || 0 );
        $dsf->das_phase         ( $f->phase() );
-       $dsf->das_note          ( $f->note() );
-        $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
+       my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
+       $dsf->das_note          ( $note );
+       $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
         push(@das_features, $dsf);
    };
 

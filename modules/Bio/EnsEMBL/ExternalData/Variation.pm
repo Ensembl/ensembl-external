@@ -22,7 +22,7 @@ Bio::EnsEMBL::ExternalData::Variation - Variation SeqFeature
 		 -source => 'The SNP Consortium',
 		 -score  => 99,           #new meaning
 		 -status = > 'suspected', #new
-		 -alleles => 't/c'        #new
+		 -alleles => 't|c'        #new
 		 );
 
    # add it to an annotated sequence
@@ -87,6 +87,7 @@ use strict;
 use Bio::Root::Object;
 use Bio::SeqFeature::Generic;
 use Bio::DBLinkContainerI;
+use Bio::Annotation::DBLink;
 
 @ISA = qw(Bio::Root::Object Bio::SeqFeature::Generic Bio::DBLinkContainerI);
 
@@ -207,10 +208,10 @@ sub status {
 =head2 alleles
 
  Title   : alleles
- Usage   : @alleles = split ('/', $obj->alleles);
+ Usage   : @alleles = split ('|', $obj->alleles);
  Function: 
            Returns the a string where all known alleles for this position
-           are listed separated by '/' characters
+           are listed separated by '|' characters
 
  Returns : A string
  Args    : A string (optional, for setting)

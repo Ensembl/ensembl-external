@@ -1,6 +1,6 @@
 use strict;
 
-my $dir="../info/";
+my $dir="ncbi.nlm.nih.gov/pub/sage/info/";
 
 opendir (DIR,$dir) || die "cant open $dir";
 
@@ -125,11 +125,16 @@ while (<FH>){
 
 close (FH);
 
-my $library_file=">library.txt";
-my $transcript_file=">seqtag.txt";
-my $frequency_file=">frequency.txt";
-my $keyword_file=">key_word.txt";
-my $keylibrary_file=">lib_key.txt";
+
+
+system ("mkdir txt");
+
+
+my $library_file=">txt/library.txt";
+my $transcript_file=">txt/seqtag.txt";
+my $frequency_file=">txt/frequency.txt";
+my $keyword_file=">txt/key_word.txt";
+my $keylibrary_file=">txt/lib_key.txt";
 
 
 open (LB,$library_file) || die "cant open $library_file";

@@ -136,6 +136,7 @@ sub new {
  Example :
  Returns : 
  Args    : 
+
 =cut
 
 sub adaptor {
@@ -152,6 +153,7 @@ sub adaptor {
  Example :
  Returns : 
  Args    : 
+
 =cut
 
 sub stable_id {
@@ -170,6 +172,7 @@ sub stable_id {
  Example :
  Returns : 
  Args    : 
+
 =cut
 
 sub dbID {
@@ -188,6 +191,7 @@ sub dbID {
  Example :
  Returns : A string (currently all upper case, and no longer than 255 chars).
  Args    : 
+
 =cut
 
 sub description {
@@ -206,6 +210,7 @@ sub description {
  Example :
  Returns : 
  Args    : 
+
 =cut
 
 sub release {
@@ -226,6 +231,7 @@ sub release {
  Example :
  Returns : 
  Args    : 
+
 =cut
 
 sub annotation_confidence_score {
@@ -267,6 +273,7 @@ sub _totalhash{
  Returns : an int
  Args : optionally, a databasename; if given, only members belonging to
         that database are counted, otherwise, all are given.
+
 =cut
 
 sub size {
@@ -325,6 +332,7 @@ sub _each_member_of_db {
 }
 
 ### inherited from Bio::DBLinkContainerI
+
 =head2 each_DBLink
 
  Title   : each_DBLink
@@ -333,6 +341,7 @@ sub _each_member_of_db {
  Example :
  Returns : an array of Bio::Annotation::DBLink objects
  Args    : none
+
 =cut
 
 sub each_DBLink{

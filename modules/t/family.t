@@ -3,7 +3,7 @@
 # testing of family database.
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..12\n";
+BEGIN { $| = 1; print "1..13\n";
 	use vars qw($loaded); }
 
 END {print "not ok 1\n" unless $loaded;}
@@ -22,11 +22,11 @@ $" = ", ";                          # for easier list-printing
 
 my $testconf={
     'driver'        => 'mysql',
-    'host'          => 'localhost',
-    'user'          => 'root',
+    'host'          => 'ecs1a',
+    'user'          => 'ensadmin',
     'port'          => '3306',
-    'password'      => undef,
-    'schema_sql'    => ['../sql/family.sql'],
+    'pass'      => 'ensembl',
+#    'schema_sql'    => ['../sql/family.sql'],
     'module'        => 'Bio::EnsEMBL::DBSQL::DBAdaptor'
 };
     
@@ -34,10 +34,13 @@ my $testdb = EnsTestDB->new($testconf);
 
 # Load some data into the db
 
-$testdb->do_sql_file("t/family.dump");
+# $testdb->do_sql_file("t/family.dump");
+$testdb->do_sql_file("family.dump");
 # $testdb->pause;
 
-my $famadtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($testdb);
+my $db = $testdb->get_DBSQL_Obj;
+
+my $famadtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($db);
 print "ok 2\n";    
 
 @expected = qw(ENSEMBLPEP ENSEMBLGENE SPTR);
@@ -147,3 +150,17 @@ if (@fams == $expected) {
     print "not ok 12\n";
     warn "expected $expected families, found ",int(@fams),"\n";
 }
+
+# Test general SQL stuff:
+$expected = 10;
+my $q=$famadtor->prepare("select count(*) from family");
+$q->execute();
+my ( $row ) = $q->fetchrow_arrayref;
+if ( defined($row) && int(@$row) == 1 
+     && $$row[0] eq $expected) {
+    print "ok 13\n";
+} else { 
+    print "not ok 13\n";
+}
+
+

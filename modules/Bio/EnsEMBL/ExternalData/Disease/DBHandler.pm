@@ -1,3 +1,57 @@
+#
+# BioPerl module for Bio::EnsEMBL::ExternalData::Disease::DBHandler
+#
+# Written by Arek Kasprzyk <arek@ebi.ac.uk>
+#
+# You may distribute this module under the same terms as perl itself
+# POD documentation - main docs before the code
+
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::Disease::DBHandler 
+
+=head1 SYNOPSIS
+
+
+my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'ensembl', 
+						      -dbname => 'disease',
+						      -host=>'sol28.ebi.ac.uk',
+						      -ensdb=>$ensembldb,
+						      -mapdb=>$mapdb);
+
+
+
+my @diseases=$diseasedb->diseases_on_chromosome(22);
+my @diseases=$diseasedb->diseases_without_genes;
+my @diseases=$diseasedb->all_diseases;
+my $disease =$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+my @diseases=$diseasedb->diseases_like("corneal");
+
+
+=head1 DESCRIPTION
+
+This object represents a disease database consisting of disease phenotype descriptions, 
+chromosomal locations and/or associated genes from OMIM morbid map and 
+Mitelman Catalogoue of Chromosome Abnormalities. 
+In additon, when database representations of ensembl and map databases are set, 
+it will provide a 'translation' of OMIM and Mitelman genes to ensembl gene predictions 
+and their localization in local and global coordinates.   
+
+
+=head1 AUTHOR - Arek Kasprzyk
+
+Email arek@ebi.ac.uk
+
+Describe contact details here
+
+=head1 APPENDIX
+
+The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
+
+=cut
+
+
+
 package Bio::EnsEMBL::ExternalData::Disease::DBHandler; 
 
 
@@ -55,6 +109,23 @@ sub new
 
 
 
+=head2 all diseases
+
+ Title   : all_diseases
+ Usage   : my @diseases=$diseasedb->all_diseases;
+ Function: gets all diseases from the database
+ Example :
+ Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
+ Args    :
+
+
+=cut
+
+
+
+
+
+
 
 sub all_diseases 
 {
@@ -67,6 +138,19 @@ sub all_diseases
 
 } 
                          
+
+=head2 diseases on chromosome
+
+ Title   : diseases_on_chromosome
+ Usage   : my @diseases=$diseasedb->diseases_on_chromosome(22);
+ Function: gets all diseases for a given chromosome
+ Example :
+ Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
+ Args    :
+
+
+=cut
+
 
 
 sub diseases_on_chromosome 
@@ -82,6 +166,22 @@ sub diseases_on_chromosome
     return $self->_get_diseases($query_string);
        
 }
+
+
+
+=head2 diseases with genes
+
+ Title   : diseases_with_genes
+ Usage   : my @diseases=$diseasedb->diseases_with_genes;
+ Function: gets all diseases associated with genes
+ Example :
+ Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
+ Args    :
+
+
+=cut
+
+
                           
 
 sub diseases_with_genes 
@@ -99,6 +199,24 @@ sub diseases_with_genes
 } 
 
 
+
+
+=head2 diseases without genes
+
+ Title   : diseases_without_genes
+ Usage   : my @diseases=$diseasedb->diseases_without_genes;
+ Function: gets all diseases which have no gene info in the database
+ Example :
+ Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
+ Args    :
+
+
+=cut
+
+
+
+
+
 sub diseases_without_genes 
 {
     my ($self)=@_;
@@ -112,6 +230,22 @@ sub diseases_without_genes
 
 
 } 
+
+
+
+=head2 disease by name
+
+ Title   : disease_by_name
+ Usage   : my $disease=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+ Function: gets disease by name
+ Example :
+ Returns : Bio::EnsEMBL::ExternalData::Disease::Disease object
+ Args    :
+
+
+=cut
+
+
 
                      
 sub disease_by_name
@@ -128,6 +262,24 @@ sub disease_by_name
 
 
 
+
+
+=head2 diseases like
+
+ Title   : diseases_like
+ Usage   : my @diseases=$diseasedb->diseases_like("leukemia");
+ Function: gets diseases with a name containing given string
+ Example :
+ Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
+ Args    :
+
+
+=cut
+
+
+
+
+
 sub diseases_like 
 {
     my ($self,$disease)=@_;
@@ -139,6 +291,9 @@ sub diseases_like
 
 } 
                          
+
+
+
 
 
 sub _get_diseases
@@ -269,5 +424,14 @@ sub _mapdb
   
   return $self->{'_mapdb'};
 }
+
+
+
+
+
+
+
+
+
 
 

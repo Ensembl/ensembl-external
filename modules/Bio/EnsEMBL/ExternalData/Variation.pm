@@ -292,6 +292,7 @@ sub status {
 		 'proven by submitter' => 1,
 		 'proven by frequency' => 1,
 		 'proven by cluster' => 1,
+		 'proven ' => 1,
 		 'proven' => 1
 		 );
 

@@ -78,7 +78,7 @@ sub fetch_by_SNP_id {
 
   $sth->execute($refsnpid, $source);
 
-  $sth->rows || throw("snp $refsnpid not in database or not mapped to contig");
+  $sth->rows || $self->throw("snp $refsnpid not in database or not mapped to contig");
 
   my $arr;
   my @variations = ();

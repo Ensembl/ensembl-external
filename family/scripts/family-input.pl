@@ -1,9 +1,8 @@
 #!/usr/local/bin/perl
 # $Id$
-# parser for Anton's Families
-# 
-# format is like:
-# Cluster Number <TAB> Family Name <TAB> Annotation Score <TAB> Protein List (Colon Separated)
+#
+# script to input output from assemble-consensus.pl into a proper family
+# database.
 #
 # Run as:
 #
@@ -14,7 +13,7 @@
 # 'host=ecs1b;user=root;database=fam100;' 
 # 
 # and families.pep a file as output by assemble-consensus.pl (and possibly
-# remapped using pep-id-remap.pl)
+# remapped using e.g. univeral-id-mapper.pl)
 #
 #### Note: we rely on ensemblid's matching /^[A-Z]{3}[PG]0\d{10}/ ! (or
 #### something else ...)
@@ -383,7 +382,9 @@ sub load_families {
 
     my %seen_pept = undef;              # for ignoring (rare) duplicates
                                         # in the original clustering
-    
+
+# format is like:
+# Cluster Number <TAB> Family Name <TAB> Annotation Score <TAB> Protein List (Colon Separated)
     while(<>) {
         next if /^#/;
         chomp;

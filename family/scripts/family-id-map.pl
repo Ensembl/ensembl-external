@@ -9,7 +9,12 @@
 #
 #
 # Prints real mappings (newly assigned ENSF, "\t", existing ENSF), and
-# profuse statistics to stderr
+# profuse statistics to stderr.
+#
+# Note: I am using 'old' and 'new' in perhaps confusing ways: I am mapping
+# id's from an old release to _preliminary_ (new) id's from a new release,
+# in order that the preliminary (new) id's can be replaced with old ones
+# if appropriate. 
 #
 
 use Bio::EnsEMBL::DBSQL::DBAdaptor;

@@ -32,7 +32,7 @@ else
 #	CC							=	checker gcc
 	CC							=	gcc
 	COMPILE_SYS				=	-Wstrict-prototypes
- 	LINK_SYS					=
+	LINK_SYS					=
 endif
 endif
 
@@ -195,6 +195,7 @@ develar:
 
 clean:
 	rm -f lib/*.a */*.o
+	rm -f bin/*
 
 $(LIBDIR)/libnonema.a: $(NONEMAOBJ)
 	ar src $@ $^

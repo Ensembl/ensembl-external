@@ -96,6 +96,8 @@ use Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor;
 sub fetch_by_dbID {
   my ($self,$fid) = @_;
   
+  $self->throw("Should give a defined family_id as argument\n") unless (defined $fid);
+
   my $q = "SELECT family_id,stable_id,description,release,annotation_confidence_score
            FROM family
            WHERE family_id = $fid";
@@ -118,6 +120,8 @@ sub fetch_by_dbID {
 sub fetch_by_stable_id  {
     my ($self, $stable_id) = @_; 
 
+    $self->throw("Should give a defined family_stable_id as argument\n") unless (defined $stable_id);
+
     my $q = "SELECT family_id FROM family WHERE stable_id = '$stable_id'";
     $q = $self->prepare($q);
     $q->execute;
@@ -139,6 +143,8 @@ sub fetch_by_stable_id  {
 
 sub fetch_by_dbname_id { 
     my ($self, $dbname, $extm_id) = @_; 
+
+    $self->throw("Should give defined databasename and member_stable_id as arguments\n") unless (defined $dbname && defined $extm_id);
 
     my $q = "SELECT f.family_id, f.stable_id, f.description, 
                     f.release, f.annotation_confidence_score
@@ -164,6 +170,8 @@ sub fetch_by_dbname_id {
 
 sub fetch_by_dbname_taxon_member { 
     my ($self, $dbname, $taxon_id, $extm_id) = @_; 
+
+    $self->throw("Should give defined databasename and taxon_id and member_stable_id as arguments\n") unless (defined $dbname && defined $taxon_id && defined $extm_id);
 
     my $q = "SELECT f.family_id, f.stable_id, f.description, 
                     f.release, f.annotation_confidence_score
@@ -249,7 +257,7 @@ sub fetch_all {
 =cut
 
 sub known_databases {
-  my ($self)= shift;
+  my ($self) = @_;
   
   if (not defined $self->{_known_databases}) {
       $self->{_known_databases} = $self->_known_databases();
@@ -271,7 +279,7 @@ sub known_databases {
 =cut
 
 sub get_max_id {
-    my($self, $db)=@_;
+    my($self, $db) = @_;
 
     my $q = "select max(stable_id) from family";
     
@@ -326,8 +334,6 @@ sub _get_families {
         $fam->release($rowhash->{release});
         $fam->annotation_confidence_score($rowhash->{annotation_confidence_score});
 
-        $self->_get_members($fam); 
-        $self->_get_totals($fam);
         push(@fams, $fam);
     }
     
@@ -350,35 +356,6 @@ Check data coherence, e.g. have two families with different family_id have the s
 }              
 
 #internal method to build hash of total number of members per database name
-
-sub _get_totals {
-  my ($self,$fam) = @_;
-  
-  my $fid = $fam->dbID;
-  my $q = "SELECT ed.name, ft.taxon_id,ft.members_total
-           FROM family_totals ft, external_db ed
-           WHERE ft.external_db_id = ed.external_db_id
-           AND ft.family_id = ?";
-  
-  $q = $self->prepare($q);
-  $q->execute($fid);
-  
-  my $all=0;
-  my %totals; 
-  
-  while (defined (my $rowhash = $q->fetchrow_hashref)) {
-    $totals{$rowhash->{name}."_".$rowhash->{taxon_id}} = $rowhash->{members_total};
-    if (defined $totals{$rowhash->{name}}) {
-      $totals{$rowhash->{name}} += $rowhash->{members_total};
-    } else {
-      $totals{$rowhash->{name}} = $rowhash->{members_total};
-    }
-    # because we do not want to add gene type member, as families are build on protein basis.
-    $all += $rowhash->{members_total} if ($rowhash->{name} ne "ENSEMBLGENE");
-  }
-  $totals{'all_peptides_in_the_family'} = $all;
-  $fam->_totalhash(\%totals);
-}
  
 # function for finding alignemnts. They are not cached because they are
 # too big. 
@@ -400,7 +377,7 @@ sub _get_alignment_string {
 }   
 
 sub _known_databases {
-  my ($self)= shift;
+  my ($self) = @_;
   
   my $q = 
     "SELECT name FROM external_db";
@@ -415,33 +392,17 @@ sub _known_databases {
   return \@res;
 }
 
-sub _get_members {
-    my ($self, $family) = @_;
+sub _get_each_member {
+  my ($self,$family) = @_;
 
-    my $family_id = $family->dbID;
-    my $FamilyMemberAdaptor = $self->db->get_FamilyMemberAdaptor();
-    my @members = $FamilyMemberAdaptor->fetch_by_family_id($family_id);
-    foreach my $member (@members) {
-      $family->add_member($member);
-    }
-}
+  $self->throw("Should give a defined family a object as argument\n") unless (defined $family);
 
-# set/get handle on ensembl database
-sub _ensdb 
-{
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_ensdb'} = $value;}
-  
-  return $self->{'_ensdb'};
-}
-
-# get/set handle on family database
-sub _famdb 
-{
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_famdb'} = $value;}
-  
-  return $self->{'_famdb'};
+  my $family_id = $family->dbID;
+  my $FamilyMemberAdaptor = $self->db->get_FamilyMemberAdaptor();
+  my @members = $FamilyMemberAdaptor->fetch_by_family_id($family_id);
+  foreach my $member (@members) {
+    $family->add_member($member);
+  }
 }
 
 ###############
@@ -453,8 +414,8 @@ sub _famdb
  Usage   : $famad->store($fam)
  Function: Stores a family object into the database
  Example : $famad->store($fam)
- Returns : dbID
- Args    : Bio::EnsEMBL::ExternalData::Family object
+ Returns : $fam->dbID
+ Args    : Bio::EnsEMBL::ExternalData::Family::Family object
 
 =cut
 
@@ -464,58 +425,41 @@ sub store {
   $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family') ||
     $self->throw("You have to store a Bio::EnsEMBL::ExternalData::Family::Family object, not a $fam");
 
-  my $q = "SELECT family_id from family where stable_id ='".$fam->stable_id."'";
+  my $q = "SELECT family_id from family where stable_id = ?";
   $q = $self->prepare($q);
-  $q->execute();
+  $q->execute($fam->stable_id);
   my $rowhash = $q->fetchrow_hashref;
   if ($rowhash->{family_id}) {
-    #print STDERR "Family ".$fam->stable_id." already in the database with id ".$rowhash->{family_id}."\n";
     return $rowhash->{family_id};
   }
 
-  $q = "INSERT INTO family (family_id, stable_id, description, release, annotation_confidence_score) VALUES (NULL,'".$fam->stable_id."','".$fam->description."','".$fam->release."',".$fam->annotation_confidence_score.")";
+  $q = "INSERT INTO family (stable_id, description, release, annotation_confidence_score) VALUES (?,?,?,?)";
   $q = $self->prepare($q);
-  $q->execute();
-  my $fid = $q->{'mysql_insertid'};
-  
+  $q->execute($fam->stable_id,$fam->description,$fam->release,$fam->annotation_confidence_score);
+  $fam->dbID($q->{'mysql_insertid'});
+
   my $member_adaptor = $self->db->get_FamilyMemberAdaptor;
-  foreach my $member ($fam->each_DBLink) {
+  foreach my $member ($fam->each_member) {
     $self->_store_db_if_needed($member->database);
-    $member_adaptor->store($fid,$member);
+    $member_adaptor->store($fam->dbID,$member);
   }
-  $self->_populate_totals($fid);
 
-  return $fid;
-}
-
-sub _populate_totals {
-    my ($self,$fid) = @_;
-    
-    my $q = "SELECT external_db_id,taxon_id,count(external_member_id) as total FROM family_members WHERE family_id = ".$fid." GROUP BY external_db_id";
-    $q = $self->prepare($q);
-    $q->execute();
-    
-    while (my $rowhash = $q->fetchrow_hashref) {
-	my $q = "INSERT INTO family_totals (family_id,external_db_id,taxon_id,members_total) VALUES (?,?,?,?)";
-	$q = $self->prepare($q);
-	$q->execute($fid,$rowhash->{external_db_id},$rowhash->{taxon_id},$rowhash->{total});
-    }
+  return $fam->dbID;
 }
 
 sub _store_db_if_needed {
-    my ($self,$db) = @_;
-
-    my $q = "select external_db_id from external_db where name='".$db."'";
+  my ($self,$dbname) = @_;
+  
+  my $q = "select external_db_id from external_db where name = ?";
+  $q = $self->prepare($q);
+  $q->execute($dbname);
+  my $rowhash = $q->fetchrow_hashref;
+  if ($rowhash->{external_db_id}) {
+    return $rowhash->{external_db_id};
+  } else {
+    $q = "INSERT INTO external_db (name) VALUES (?)";
     $q = $self->prepare($q);
-    $q->execute();
-    my $rowhash = $q->fetchrow_hashref;
-    if ($rowhash->{external_db_id}) {
-	return $rowhash->{external_db_id};
-    }
-    else {
-	$q = "INSERT INTO external_db (external_db_id,name) VALUES(NULL,'$db')";
-	$q = $self->prepare($q);
-	$q->execute();
-	return $q->{'mysql_insertid'};
-    }
+    $q->execute($dbname);
+    return $q->{'mysql_insertid'};
+  }
 }

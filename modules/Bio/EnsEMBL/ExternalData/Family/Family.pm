@@ -2,7 +2,8 @@
 #
 # BioPerl module for Family
 #
-# Cared for by Philip Lijnzaad <lijnzaad@ebi.ac.uk>
+# Initially cared for by Philip Lijnzaad <lijnzaad@ebi.ac.uk>
+# Now cared by Abel Ureta-Vidal <abel@ebi.ac.uk> and Elia Stupka <elia@fugu-sg.org>
 #
 # Copyright Philip Lijnzaad
 #
@@ -52,7 +53,10 @@ navigation may be added at a later stage.
 
 =head1 CONTACT
 
- Philip Lijnzaad <Lijnzaad@ebi.ac.uk>, Anton Enright <enright@ebi.ac.uk>
+ Philip Lijnzaad <Lijnzaad@ebi.ac.uk> [original perl modules]
+ Anton Enright <enright@ebi.ac.uk> [TRIBE algorithm]
+ Elia Stupka <elia@fugu-sg.org> [refactoring]
+ Able Ureta-Vidal <abel@ebi.ac.uk> [multispecies migration]
 
 =head1 APPENDIX
 
@@ -68,12 +72,10 @@ package Bio::EnsEMBL::ExternalData::Family::Family;
 use vars qw(@ISA);
 use strict;
 
-# Object preamble - inheriets from Bio::Root::Object
+# Object preamble - inheriets from Bio::EnsEMBL::Root
 use Bio::EnsEMBL::Root;
-use Bio::DBLinkContainerI;
-use Bio::Annotation::DBLink;
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::DBLinkContainerI);
+@ISA = qw(Bio::EnsEMBL::Root);
 
 =head2 new
 
@@ -87,27 +89,14 @@ use Bio::Annotation::DBLink;
          
 =cut
 
-#';
-
 sub new {
   my($class,@args) = @_;
   
   my $self = $class->SUPER::new(@args);
   
-  my $n = scalar(@args);
-  if ($n) {
-      #do this explicitly.
-      my ($dbid, $stable_id,$descr,$release, $score, $memb,$totalhash,$adap); 
-      $self->_rearrange([qw(
-        		    DBID
-        		    STABLE_ID
-        		    DESCRIPTION
-        		    RELEASE
-        		    SCORE
-        		    MEMBERS
-        		    TOTALHASH
-        		    ADAPTOR
-        		    )], @args);
+  if (scalar @args) {
+     #do this explicitly.
+     my ($dbid, $stable_id,$descr,$release, $score, $memb,$adap) = $self->_rearrange([qw(DBID STABLE_ID DESCRIPTION RELEASE SCORE MEMBERS ADAPTOR)], @args);
       
       $dbid && $self->dbID($dbid);
       $stable_id || $self->throw("Must have a stable_id");
@@ -118,10 +107,8 @@ sub new {
 
       $release && $self->release($release);
       $score && $self->annotation_confidence_score($score);
-      $totalhash && $self->_totalhash($totalhash);
       $self->{_members} = []; 
-      my @members = @$memb;
-      push (@{$self->{_members}},@members);
+      push (@{$self->{_members}},@{$memb});
       $adap && $self->adaptor($adap);
   }
   
@@ -247,172 +234,150 @@ sub annotation_confidence_score {
     return $self->{'annotation_confidence_score'};
 }
 
-=head2 _totalhash
-
- Title   : _totalhash
- Usage   : internal method for family_totalhash hash
- Function: Getset for family_totalhash hash
- Returns : internal hash of total number of members per database id
- Args    : newvalue (optional)
-
-
-=cut
-
-sub _totalhash {
-   my ($self, $value) = @_;
-
-   if (defined $value) {
-       $self->{'_totalhash'} = $value;
-   }
-
-   return $self->{'_totalhash'};
-}
-
 =head2 size
 
  Title   : size
  Usage   : $fam->size
- Function: returns the number of members of the family
+ Function: returns the number of peptide members of the family
  Returns : an int
- Args : optionally, a databasename; if given, only members belonging to
-        that database are counted, otherwise, all are given.
+ Args    : none
 
 =cut
 
 sub size {
   my ($self) = @_; 
-    
-  my %tot = %{$self->_totalhash()};
+  
+  # we do not want to have a total number of gene+peptide members (that is non sense)
+  # That is why we substracte from the total those corresponding to genes
+  # Need to be fixed as ENSEMBLGENE is here hard coded
+  # Probably by just adding a colunm type in external_db, which would be gene, peptide, or
+  # even transcript. Then recode size as size_by_type or something like that.
+  # size_by_type('peptide'),...
 
-  return $tot{'all_peptides_in_the_family'};
+  return scalar $self->each_member - $self->size_by_dbname('ENSEMBLGENE');
 }
 
 =head2 size_by_dbname
 
  Title   : size_by_dbname
- Usage   : $fam->size_by_dbname
- Function: returns the number of members of the family
+ Usage   : $fam->size_by_dbname('ENSEMBLGENE')
+ Function: returns the number of members of the family belonging to a particular databasename
  Returns : an int
- Args : optionally, a databasename; if given, only members belonging to
-        that database are counted, otherwise, all are given.
+ Args    : a databasename
+
 
 =cut
 
 sub size_by_dbname {
   my ($self, $dbname) = @_; 
-    
-  my %tot = %{$self->_totalhash()};
-  if (defined $dbname) { 
-     return $tot{$dbname};
-  } else {
-     $self->throw("Should give a database as argument\n.");
-  }
+  
+  $self->throw("Should give a defined databasename as argument\n") unless (defined $dbname);
+  
+  return scalar $self->each_member_of_db($dbname);
 }
 
 =head2 size_by_dbname_taxon
 
- Title   : size
- Usage   : $fam->size
- Function: returns the number of members of the family
+ Title   : size_by_dbname_taxon
+ Usage   : $fam->size_by_dbname_taxon('ENSEMBLGENE',9606)
+ Function: returns the number of members of the family belonging to a particular databasename and a taxon
  Returns : an int
- Args : optionally, a databasename; if given, only members belonging to
-        that database are counted, otherwise, all are given.
+ Args    : a databasename and a taxon_id
 
 =cut
 
-sub size_by_dbname_taxon_id {
+sub size_by_dbname_taxon {
   my ($self, $dbname, $taxon_id) = @_; 
-    
-  my %tot = %{$self->_totalhash()};
-  if (defined $dbname && defined $taxon_id) { 
-    return $tot{$dbname."_".$taxon_id};
-  } else {
-     $self->throw("Should give a database and a taxon_id as arguments\n.");
+  
+  $self->throw("Should give defined databasename and taxon_id as arguments\n") unless (defined $dbname && defined $taxon_id);
+
+  return scalar $self->each_member_of_db_taxon($dbname,$taxon_id);
+}
+
+=head2 each_member
+
+ Title   : each_member
+ Usage   : foreach $member ($fam->each_member) {...
+ Function: fetch all the members of the family
+ Example :
+ Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Args    : none
+
+=cut
+
+sub each_member {
+  my ($self) = @_;
+  
+  unless (defined $self->{'_members'}) {
+    $self->adaptor->_get_each_member($self);
   }
+  return @{$self->{'_members'}};
 }
 
 =head2 each_member_of_db
 
  Title   : each_member_of_db
- Usage   : $obj->each_member_of_db('SPTR')
- Function: returns all the members that belong to a particular database
- Returns : a list of DBLinks (which may be empty)
- Args    : the database name
+ Usage   : $fam->each_member_of_db('SPTR')
+ Function: fetch all the members that belong to a particular database
+ Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Args    : a databasename
 
 =cut
 
 sub each_member_of_db {
-  my ($self, $db) = @_;
-    
-    # might be slowish; do we need to change this, e.g., go to database? 
-    
-    # see if we have it cached -- big win when doing family id mapping
-    if ( defined($self->{mems_per_db}->{$db}) ) {
-	return @{$self->{mems_per_db}->{$db}};
-    }
-    my @mems;
-    if ($self->adaptor) {
-	@mems = $self->adaptor->fetch_members_of_db($db);
-	$self->{mems_per_db}->{$db}= \@mems;
-    }
-    else {
-	@mems = $self->_each_member_of_db($db);
-	$self->{mems_per_db}->{$db}= \@mems;
-    }
-    return @mems;
-}
+  my ($self, $dbname) = @_;
 
-sub _each_member_of_db {
-  my ($self, $db) = @_;
+  $self->throw("Should give a defined databasename as argument\n") unless (defined $dbname);
 
-  my @mems = ();
-  foreach my $mem ($self->each_DBLink()) {  
-    if ($mem->database eq $db) { 
-         push @mems, $mem;
-     };
+  unless (defined $self->{_members_per_db}->{$dbname}) {
+    $self->{_members_per_db}->{$dbname} = [];
+    $self->adaptor->_get_each_member($self);
   }
-  return @mems;
+  return @{$self->{_members_per_db}->{$dbname}};
 }
 
-### inherited from Bio::DBLinkContainerI
+=head2 each_member_of_db_taxon
 
-=head2 each_DBLink
-
- Title   : each_DBLink
- Usage   : foreach $ref ( $self->each_DBLink() )
- Function: find all the members of the family
- Example :
- Returns : an array of Bio::Annotation::DBLink objects
- Args    : none
+ Title   : each_member_of_db_taxon
+ Usage   : $obj->each_member_of_db('ENSEMBLGENE',9606)
+ Function: fetch all the members that belong to a particular database and taxon_id
+ Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Args    : a databasename and taxon_id
 
 =cut
 
-sub each_DBLink{
-    my ($self) = @_;
-    
-    if (defined $self->{'_members'}) {
-      return @{$self->{'_members'}};
-    }
-    
-    return ();
+sub each_member_of_db_taxon {
+  my ($self, $dbname, $taxon_id) = @_;
+
+  $self->throw("Should give defined databasename and taxon_id as arguments\n") unless (defined $dbname && defined $taxon_id);
+
+  unless (defined $self->{_members_per_db_taxon}->{$dbname."_".$taxon_id}) {
+    $self->{_members_per_db_taxon}->{$dbname."_".$taxon_id} = [];
+    $self->adaptor->_get_each_member($self);
+  }
+  return @{$self->{_members_per_db_taxon}->{$dbname."_".$taxon_id}};
 }
 
 =head2 add_member
 
  Title   : add_member
- Usage   : (not for general usage)
- Function: adds member to family. Like add_DBLlink, but takes a string
-           pair, rather than a DBLink.
- Example : $fam->add_member('SPTR', 'P12345');
+ Usage   : 
+ Function: adds member to family. 
+ Example : $fam->add_member($family_member);
  Returns : undef
- Args    : db: the database name and primary_id: the primary_id of the database
+ Args    : a Bio::EnsEMBL::ExternalData::Family::FamilyMember object
 
 =cut
 
 sub add_member { 
-    my ($self, $link) = @_; 
+    my ($self, $member) = @_; 
     
-    push (@{$self->{_members}}, $link);
+    $member->isa('Bio::EnsEMBL::ExternalData::Family::FamilyMember') ||
+      $self->throw("You have to add a Bio::EnsEMBL::ExternalData::Family::FamilyMember object, not a $member");
+   
+    push @{$self->{_members}}, $member;
+    push @{$self->{_members_per_db}{$member->database}}, $member;
+    push @{$self->{_members_per_db_taxon}{$member->database."_".$member->taxon_id}}, $member;
 }
 
 =head2 get_alignment_string

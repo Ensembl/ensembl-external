@@ -197,31 +197,27 @@ sub get_SeqFeature_by_id {
     my @variations;
 
     $id = uc $id;
-    # if ID given is a TSC id
-    if ($id =~ /TSC/) {
-       #strip all decorations from the display id: TSC::TSC0000003 -> 3
-       #$id) = $id =~ /.*TSC0*(\d+)/;
-       #
-       # db query to return all variation information except alleles
-       #query = qq{
-       #
-       #select p1.SNP_ID,  p1.SNP_USERID, p1.SNP_CONFIDENCE,
-       #       p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN,  p1.CLIQUE_POSITION,
-       #       p1.CLIQUE_ID, p1.DBSNP_ID,
-       #       p2.Sub_Start, p2.Sub_END,
-       #       p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
-       #from   TBL_SNP_INFO as p1
-       #left join  TBL_INSILICO_RESULTS as p2
-       #on      p1.CLIQUE_ID = p2.Clique_id
-       #where   p1.SNP_ID = "$id"
-       #
-       #    };
+    # if ID given is not dbSNP ref id (has other than number charecters)
+    if ($id =~ /\D/) {
+	$query = qq{
+	
+	    SELECT p2.id, p1.acc, p1.version, p1.start, p1.end, p1.type,
+	     	   p2.snpclass,  p2.snptype,
+	     	   p2.observed, p2.seq5, p2.seq3,
+	     	   p2.het, p2.hetse, p2.validated, p2.mapweight
+	    FROM   Hit as p1, RefSNP as p2, SubSNP as p3
+            WHERE  p3.altid = "$id"
+                   AND p1.refsnpid = p2.id
+                   AND p1.refsnpid = p3.refsnpid
+
+		   };
+
     # else it is a dbSNP id
     } else {
 	
 	$query = qq{
 	
-	    SELECT p1.acc, p1.version, p1.start, p1.end, p1.type,
+	    SELECT p2.id, p1.acc, p1.version, p1.start, p1.end, p1.type,
 	     	   p2.snpclass,  p2.snptype,
 	     	   p2.observed, p2.seq5, p2.seq3,
 	     	   p2.het, p2.hetse, p2.validated, p2.mapweight
@@ -231,7 +227,7 @@ sub get_SeqFeature_by_id {
 
 		   };
     }
-
+    #print STDERR $query, "\n";
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
     my $rows = $sth->rows();
@@ -243,7 +239,7 @@ sub get_SeqFeature_by_id {
 	my $allele_pos = '0';
 	my $strand = '1';
 	
-	my ($acc, $ver, $begin, $end, $postype, $class, $type,
+	my ($dbsnp_id, $acc, $ver, $begin, $end, $postype, $class, $type,
 	    $alleles, $seq5, $seq3, $het, $hetse,  $confirmed, $mapweight
 	    ) = @{$arr};
 	
@@ -293,7 +289,7 @@ sub get_SeqFeature_by_id {
 	if ( scalar @dlinks == 0 ) {
 	    my $link = new Bio::Annotation::DBLink;
 	    $link->database('dbSNP');
-	    $link->primary_id($id);
+	    $link->primary_id($dbsnp_id);
 	    
 	    #add dbXref to Variation
 	    $snp->add_DBLink($link);

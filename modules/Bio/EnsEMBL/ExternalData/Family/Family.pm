@@ -73,9 +73,7 @@ use Bio::EnsEMBL::Root;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 
-
-@ISA = qw(Bio::Root::Root Bio::DBLinkContainerI);
-# new() is inherited from Bio::Root::Object
+@ISA = qw(Bio::EnsEMBL::Root Bio::DBLinkContainerI);
 
 =head2 new
 

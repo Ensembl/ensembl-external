@@ -4,6 +4,7 @@
 # Parse MCL output (numbers) back into real clusters (with protein names)
 
 use strict;
+use IO::File;
 use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 use Bio::EnsEMBL::ExternalData::Family::FamilyMember;
@@ -24,8 +25,6 @@ my $family_offset = 1;
 my @clusters;
 my %seqinfo;
 my %member_index;
-my $headers_off = 0;
-my $one_line_members = "";
 
 my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host   => "ecs1b.sanger.ac.uk",
 									 -user   => "ensadmin",
@@ -33,7 +32,6 @@ my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host  
 									 -pass => "ensembl");
 
 my $FamilyAdaptor = $family_db->get_FamilyAdaptor;
-my $TaxonAdaptor = $family_db->get_TaxonAdaptor;
 
 print STDERR "Reading index file...";
 
@@ -43,7 +41,7 @@ open INDEX, $index_file ||
 my $max_member_index;
 
 while (<INDEX>) {
-    /^(\S+)\s+(\S+)/;
+  if (/^(\S+)\s+(\S+)/) {
     my ($index,$seqid) = ($1,$2);
     $member_index{$index} = $seqid;
     $seqinfo{$seqid}{'index'} = $index;
@@ -52,6 +50,11 @@ while (<INDEX>) {
     } elsif ($index > $max_member_index) {
       $max_member_index = $index;
     }
+  } else {
+    warn "$index_file has not the expected format
+EXIT 1\n";
+    exit 1;
+  }
 }
 close INDEX
   || die "$index_file: $!";
@@ -74,6 +77,10 @@ while (<DESC>) {
       $max_member_index++;
       $seqinfo{$seqid}{'index'} = $max_member_index;
     }
+  } else {
+    warn "$desc_file has not the expected format
+EXIT 2\n";
+    exit 2;
   }
 }
 
@@ -86,6 +93,9 @@ print STDERR "Reading mcl file...";
 
 open MCL, $mcl_file ||
   die "$mcl_file: $!";
+
+my $headers_off = 0;
+my $one_line_members = "";
 
 while (<MCL>) {
   if (/^begin$/) {
@@ -107,7 +117,7 @@ close MCL ||
 
 print STDERR "Done\n";
 
-print STDERR "Starting family db loading...";
+print STDERR "Loading clusters in family db\n";
 
 # starting to use the Family API here to load in a family database
 # still print out description for each entries in order to determinate 
@@ -142,12 +152,11 @@ foreach my $cluster (@clusters) {
     $taxon->common_name($taxon_hash->{'taxon_common_name'});
     $taxon->sub_species($taxon_hash->{'taxon_sub_species'});
     $taxon->ncbi_taxid($taxon_hash->{'taxon_id'});
-    $TaxonAdaptor->store_if_needed($taxon);
 
     my $FamilyMember = new Bio::EnsEMBL::ExternalData::Family::FamilyMember;
     $FamilyMember->stable_id($seqid);
     $FamilyMember->database(uc $seqinfo{$seqid}{'type'});
-    $FamilyMember->taxon_id($taxon->ncbi_taxid);
+    $FamilyMember->taxon($taxon);
     $FamilyMember->alignment_string("NULL");
     $Family->add_member($FamilyMember);
   }
@@ -165,9 +174,13 @@ foreach my $cluster (@clusters) {
 # and therefore were not included in the mcl matrix. So making sure they are stored in the
 # family database as singletons.
 
+print STDERR "Loading singleton kept out of clustering because of no blastp hit...";
+
 foreach my $seqid (keys %seqinfo) {
   next if (defined $seqinfo{$seqid}{'printed'});
   $max_cluster_index++;
+
+  print STDERR "Loading singleton $max_cluster_index...";
 
   my $Family = new  Bio::EnsEMBL::ExternalData::Family::Family;
   my $family_stable_id = sprintf ("$family_prefix%011.0d",$max_cluster_index + $family_offset);
@@ -182,12 +195,11 @@ foreach my $seqid (keys %seqinfo) {
   $taxon->common_name($taxon_hash->{'taxon_common_name'});
   $taxon->sub_species($taxon_hash->{'taxon_sub_species'});
   $taxon->ncbi_taxid($taxon_hash->{'taxon_id'});
-  $TaxonAdaptor->store_if_needed($taxon);
   
   my $FamilyMember = new Bio::EnsEMBL::ExternalData::Family::FamilyMember;
   $FamilyMember->stable_id($seqid);
   $FamilyMember->database(uc $seqinfo{$seqid}{'type'});
-  $FamilyMember->taxon_id($taxon->ncbi_taxid);
+  $FamilyMember->taxon($taxon);
   $FamilyMember->alignment_string("NULL");
   $Family->add_member($FamilyMember);
   
@@ -195,6 +207,7 @@ foreach my $seqid (keys %seqinfo) {
 
   print $FamilyMember->database,"\t$dbID\t",$FamilyMember->stable_id,"\t",$seqinfo{$FamilyMember->stable_id}{'description'},"\n";
   $seqinfo{$FamilyMember->stable_id}{'printed'} = 1;
+  print STDERR "Done\n";
 }
 
 sub parse_taxon {

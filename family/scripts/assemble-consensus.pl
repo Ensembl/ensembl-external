@@ -1,7 +1,12 @@
 #!/usr/local/bin/perl 
 
 # Script to assembl the consensus annotations from different files into
-# final ones.
+# final ones. It basically takes the SWISS-PROT description consensus if
+# there is one, otherwise the SPTREMBL one, and then cleans things up
+# (even applies some edits). The reason not to do this straight away in
+# consensifier is that the latter takes too much time, so you can't tweak
+# scores etc. to obtain acceptable output.
+# 
 
 $|=1;
 use POSIX;

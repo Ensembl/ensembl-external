@@ -9,7 +9,7 @@ use strict;
 use Getopt::Std;
 
 ### deletes to be applied to correct some howlers:
-my @deletes = (' FOR\$', 'SIMILAR TO\$', 'SIMILAR TO PROTEIN\$' ); #
+my @deletes = (' FOR$', 'SIMILAR TO$', 'SIMILAR TO PROTEIN$', '\s*\bEC\s*$' ); #
 
 ### any complete annotation that matches one of the following, gets
 ### ticked off completely:
@@ -59,7 +59,7 @@ if (@ARGV!=3
     die $Usage; 
 }
 # remind us 
-warn "todo: replace UNKNOWN with AMBIGUOUS where appropriate\n";
+# warn "todo: replace UNKNOWN with AMBIGUOUS where appropriate\n";
 
 # sanity check on the words:
 foreach my $w (@useless_words) {
@@ -100,7 +100,7 @@ read_consensus($file, \%descriptions, \%scores);
 
 my $final_total=0;
 my $discarded=0;
-
+my $n=0;
 foreach my $cluster_id (sort numeric (keys(%clusters))) {
     my $annotation="UNKNOWN";
     my $score=0;
@@ -114,7 +114,18 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     }
 
     # apply the deletes:
-    foreach my $re ( @deletes ) { $annotation =~ s/$re//g; }
+    foreach my $re ( @deletes ) { 
+#        if (  $annotation =~ /$re/ && $re =~ /EC/ ) { 
+#            $annotation =~ /($re)/;
+#            print "XXX $annotation matches has re='$re' match='$1'\n";
+#            print "XXX before: '$annotation'\n";
+#            $annotation =~ s/$re//g; 
+#            print "XXX after: '$annotation'\n### XXX \n";
+#            die if $n++ > 5;
+#        } else {
+        $annotation =~ s/$re//g; 
+#        }
+    }
 
     my $useless=0;	
     my $total= 1;

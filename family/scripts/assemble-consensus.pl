@@ -5,31 +5,8 @@
 
 $|=1;
 use POSIX;
-
 use strict;
 use Getopt::Std;
-
-my $opts = 'h';
-use vars qw($opt_h);
-
-my $discarded_file="annotations.discarded";
-
-my $Usage=<<END_USAGE;
-
-Usage:
-  $0  [options ] file.annotated file.SWISSPROT-consensus file.SPTREMBL-consensus > families
-  Discarded annotations are written to $discarded_file.
-  Options:
-   -h          : this message
-END_USAGE
-  #;
-  ;
-
-if (@ARGV!=3 
-    || !getopts($opts) 
-    || $opt_h ) { 
-    die $Usage; 
-}
 
 ### deletes to be applied to correct some howlers:
 my @deletes = (' FOR\$', 'SIMILAR TO\$', 'SIMILAR TO PROTEIN\$' ); #
@@ -57,13 +34,33 @@ my @useless_words =  # and misspellings, that is
       .*\d\d\d+.*                       # anything that looks like an ID
     );
 
-#
+use vars qw($opt_h);
+my $opts = 'h';
+my $Usage=<<END_USAGE;
+Usage:
+  $0  [options ] file.annotated file.SWISSPROT-consensus file.SPTREMBL-consensus > families
+  Discarded annotations are written to $discarded_file.
+  Options:
+   -h          : this message
+END_USAGE
+  #;
+  ;
+
+if (@ARGV!=3 
+    || !getopts($opts) 
+    || $opt_h ) { 
+    die $Usage; 
+}
+
+# sanity check on the words:
 foreach my $w (@useless_words) {
     if ( $w =~ /$word_splitter/) {
         die "word '$w' to be matched matches ".
           "the word_splitter regexp '$word_splitter', so will never match";
     }
 }
+
+my $discarded_file="annotations.discarded";
 
 open (DISCARDED,">$discarded_file") || die "$discarded_file: $!";
 

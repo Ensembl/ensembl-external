@@ -18,13 +18,14 @@
 
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..6\n"; 
+BEGIN { $| = 1; print "1..7\n"; 
 	use vars qw($loaded); }
 END {print "not ok 1\n" unless $loaded;}
 
 #use lib '../';
 
-use Bio::EnsEMBL::ExternalData::SNPSQL::Obj
+use Bio::EnsEMBL::ExternalData::SNPSQL::Obj;
+use Bio::EnsEMBL::ExternalData::Variation;
 
 $loaded = 1;
 print "ok 1\n";    # 1st test passes.
@@ -65,20 +66,32 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
     }
 }
 
-#accessing the method get_Ensembl_SeqFeatures_clone
+# using the method get_SeqFeature_by_id
+
+my $id = "TSC::TSC0000002";
+my $snp = $snpdb->get_SeqFeature_by_id($id);
+if( $id eq $snp->id) {
+    print "ok 5\n";
+} else {
+    print "not ok 5\n";
+}
+
+
+
+#using the method get_Ensembl_SeqFeatures_clone
 
 #AC025148.1 AB000381.1  AB012922.1
 #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end);
 @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AB000381', '1' );
 if ( scalar @variations == 2 ) { 
-    print "ok 5\n"; 
+    print "ok 6\n"; 
 }  else {
-    print "not ok 5\n";
+    print "not ok 6\n";
 }
 
 $v = $variations[0];
 if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
-    print "ok 6\n"; 
+    print "ok 7\n"; 
 } else {
-    print "not ok 6\n"; 
+    print "not ok 7\n"; 
 }

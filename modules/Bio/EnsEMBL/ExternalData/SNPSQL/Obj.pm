@@ -36,6 +36,11 @@ database providing external features for EnsEMBL
    # get_Ensembl_SeqFeatures_clone
    #
    # Method get_Ensembl_SeqFeatures_contig return an empty list.
+
+   # accessing sequence variations by id
+   # $snp is a Bio::EnsEMBL::ExternalData::Variation object
+
+   my $snp = $snpdb->get_SeqFeature_by_id("TSC::TSC0000002");
    
 
 =head1 DESCRIPTION
@@ -181,6 +186,128 @@ sub get_Ensembl_SeqFeatures_contig{
    return @tmp;
 
 }
+       
+
+=head2 get_SeqFeature_by_id
+
+ Title   : get_SeqFeature_by_id
+ Usage   : $db->get_SeqFeature_by_id($id_from_seqfeature);
+ Function: Return SeqFeature object for any valid unique ID
+  
+ Example :
+ Returns : a L<Bio::EnsEMBL::ExternalData::Variation.pm> object
+ Args    : id as determined by this database
+              
+              
+=cut
+              
+       
+sub get_SeqFeature_by_id {
+    my($self) = shift;
+    my ($id) = @_;
+    
+    my $snp = new Bio::EnsEMBL::ExternalData::Variation;
+
+    #strip oll decorations from the display id: TSC::TSC0000002 -> 2
+    ($id) = $id =~ /.*TSC0*(\d+)/;
+
+    # db query to return all variation information except alleles
+    my $query = qq{
+
+	select p1.SNP_ID,  p1.SNP_USERID, p1.SNP_CONFIDENCE, 
+ 	       p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN,  p1.CLIQUE_POSITION,
+	       p1.DBSNP_ID
+        from   TBL_SNP_INFO as p1
+	where  p1.SNP_ID = "$id"
+		
+	    };  
+
+    my $sth = $self->prepare($query);
+    my $res = $sth->execute();
+
+
+  SNP:
+    while( (my $arr = $sth->fetchrow_arrayref()) ) {
+
+	my ($snpid,  $snpuid, $confidence, $confirmed, 
+	    $snp_withdrawn, $q_pos, $dbsnpid,
+	    ) = @{$arr};
+
+	# use the right vocabulary for the SNP status
+	if ($confirmed eq 'N') {
+	    $confirmed = "suspected";
+	}
+	else {
+	    $confirmed = "proven";
+	}
+	
+	#
+	# get the alleles
+	# & put them in a string separated by '|'
+	# 
+	
+	my $query2 = qq{
+	    
+	    select p2.ALLELE
+		from  TBL_ALLELE_INFO  as p2
+		    where p2.SNP_ID = "$snpid"
+			
+		    };  
+
+	my $sth2 = $self->prepare($query2);
+	my $res2 = $sth2->execute();
+
+	my ($alleles) = ''; 
+	while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
+	    
+	    my ($allele) = @{$arr2};
+	    $alleles .= "$allele\|";
+	    
+	}
+	chop $alleles;
+	$alleles = lc $alleles;
+	
+	#
+	# prepare the output objects
+	#
+
+	#Variation
+
+	$snp->source_tag('The SNP Consortium');
+	$snp->score($confidence);    
+	$snp->status($confirmed);
+	$snp->alleles($alleles);
+	$snp->strand(1);
+	
+	#DBLink
+	my $link = new Bio::Annotation::DBLink;
+	$link->database('TSC');
+	$link->primary_id($snpuid);
+
+	#add dbXref to Variation
+	$snp->add_DBLink($link);
+
+	#dbSNP id is given
+	if ( $dbsnpid ) {
+
+	    my $link2 = new Bio::Annotation::DBLink;
+	    $link2->database('dbSNP');
+	    $link2->primary_id($dbsnpid);
+
+	    $snp->add_DBLink($link2);
+	}
+	
+	#print join (" ", $snpuid, $confidence, $confirmed, 
+	#                    $dbsnpid, ":", 
+	#                    $alleles,
+	#                    "\n");
+
+    }
+    
+    return $snp;
+}
+
+
 
 =head2 get_Ensembl_SeqFeatures_clone
 
@@ -343,7 +470,7 @@ sub get_Ensembl_SeqFeatures_clone {
 	   (-start => $allele_pos, 
 	    -end => $allele_pos,
 	    -strand => $strand, 
-	    -source => 'The SNP Consortium', 
+	    -source_tag => 'The SNP Consortium', 
 	    -score  => $confidence,                
 	    -status => $confirmed,
 	    -alleles => $alleles   

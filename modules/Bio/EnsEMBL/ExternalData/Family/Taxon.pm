@@ -94,8 +94,8 @@ sub dbID {
 sub taxon_id {
   my ($self,$value) = @_;
   
-#  $self->warn("Taxon->taxon_id is a deprecated method!
-#Calling Taxon->ncbi_taxid instead!");
+  $self->warn("Taxon->taxon_id is a deprecated method!
+Calling Taxon->ncbi_taxid instead!");
 
   if (defined $value) {
     return $self->ncbi_taxid($value);

@@ -120,7 +120,8 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
         # (because the kiloDaltons come with at least one meaningless number)
     }
         
-    if ( ($useless >= 1 && $total == 1)
+    if ( $annotation eq ''
+         || ($useless >= 1 && $total == 1)
          || $useless > ($total+1)/2 ) {
         print DISCARDED "uselessness: $useless/$total: $cluster_id\t$annotation\t$score\n";
         $discarded++;
@@ -129,24 +130,16 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     }
 
     $_=$annotation;
+
     #Apply some fixes to the annotation:
     s/EC (\d+) (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.$4/;
     s/EC (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.-/;
     s/EC (\d+) (\d+) (\d+)/EC $1\.$2\.-\.-/;
     s/(\d+) (\d+) KDA/$1\.$2 KDA/;
         
-    #  may well be empty by now; if so, write to discarded
-    if (/^\s*$/) {
-        print DISCARDED "empty: $cluster_id; was: "
-          , $descriptions{$cluster_id},"\n";
-        $discarded++;
-        $annotation="UNKNOWN";
-        $score=0;
-    }
-
     my @members = @{$clusters{$cluster_id}};
     $final_total +=  int(@members);
-    printf "ENSF%011.0d\t%s\t%d\t:%d\t%s\n"
+    printf "ENSF%011.0d\t%s\t%d\t:%s\n"
       , $cluster_id+1, $_, $score, join(":",@members);
 }                                       # foreach $cluster_id
 close(DISCARDED);
@@ -155,7 +148,6 @@ print STDERR "FINAL TOTAL: $final_total\n";
 print STDERR "discarded: $discarded (see $discarded_file)\n";
 
 sub numeric { $a <=> $b}
-
 
 ### read consensus annotations and scores into hashes
 sub read_consensus { 

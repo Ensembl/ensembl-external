@@ -17,6 +17,7 @@ DAS - DESCRIPTION of Object
 use Bio::EnsEMBL::DBDAS::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::DAS::DASAdaptor;
 use Bio::EnsEMBL::ExternalData::DAS::DAS;
+use Bio::EnsEMBL::ExternalData::DAS::DASParser;
 
 $das_adaptor = Bio::EnsEMBL::ExternalData::DAS::DASdaptor->new(
                                              -url   => 'some_server',
@@ -74,6 +75,7 @@ use HTTP::Request::Common;
 use LWP::UserAgent;
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+use Bio::EnsEMBL::ExternalData::DAS::DASParser;
 
 # Object preamble - inherits from Bio::Root:RootI
 @ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
@@ -90,6 +92,170 @@ sub new {
 	return $self; # success - we hope!
 
 }
+
+
+
+
+=head2 get_Ensembl_SeqFeatures_DAS
+
+ Title   : get_Ensembl_SeqFeatures_DAS ()
+ Usage   : get_Ensembl_SeqFeatures_DAS($listref,
+ 											$sequence_version,
+					   						$start,
+					   						$end);
+ Function:
+ Example :
+ Returns :
+ Args    :
+ Notes   : This function sets the primary tag and source tag fields in the
+           features so that higher level code can filter them by their type
+           (das) and their data source name (dsn)
+
+=cut
+
+sub get_Ensembl_SeqFeatures_DAS {
+    my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref) = @_;
+	my $URL_MAXLEN = 256;	# The longest GET string our DAS servers can handle.....?
+	my $dbh 	   = $self->_db_handle();
+	my $dsn 	   = $dbh->dsn();
+    
+    #print STDERR "In get_Ensembl_SeqFeatures_DAS for $dsn\n";
+
+    my @cloneids   = @{$clone_list_ref};
+    my @contigids  = @{$contig_list_ref};
+    my @fpccontigids  = @{$fpccontig_list_ref};
+    # A hash of URL lists keyed on there object type (chr, fpc, clone,contig)
+    # This is needed to allow error code to know hat type of object we are dealing
+    # with at run time.
+    my %URLS = ();
+    # The assembly level request URL
+    $URLS{'chr'} = ["segment=$chr_name:$global_start,$global_end;"];
+    # The FPC contig level request URL
+    # needs to be added!
+    # The clone level request URL(s)
+    if(0){
+	     my @clone_urls = ();
+	     HOP: while(@cloneids){
+		     my $url = "";
+		     HOP2: while(@cloneids){
+			     my $c = shift (@cloneids);
+                 #print STDERR "Clone: $c\n";
+			     if ( length($url . "segment=" . $c . ";") < $URL_MAXLEN){
+				     $url = $url . "segment=" . $c . ";";
+				     next HOP2;
+			     } else {
+				     push(@clone_urls, $url);
+				     next HOP;
+			     }
+		     }
+	         push(@clone_urls, $url);
+	     }
+         $URLS{'clone'} = \@clone_urls;
+     }
+
+    # The contig level request URL(s)
+    if(1){
+    	my @contig_urls = ();
+	    DAS: while(@contigids){
+		    my $url = "";
+		    DAS2: while(@contigids){
+			    my $c = shift (@contigids);
+                #print STDERR "Contig: $c\n";
+			    if ( length($url . "segment=" . $c . ";") < $URL_MAXLEN){
+				    $url = $url . "segment=" . $c . ";";
+				    next DAS2;
+			    } else {
+				    push(@contig_urls, $url);
+				    next DAS;
+			    }
+		    }
+	        push(@contig_urls, $url);
+	     }
+         $URLS{'contig'} = \@contig_urls;
+     }
+
+    #foreach my $k (keys %URLS){
+    #    print STDERR "$k ====> ", join("\n", @{$URLS{$k}}), "\n";
+    #}
+    
+
+    my $parser = new Bio::EnsEMBL::ExternalData::DAS::DASParser;
+    my %DAS_FEATURES;
+    $DAS_FEATURES{'FEATURES'} = [];
+    
+	my $ua = $dbh->agent;
+	$ua->timeout(20);
+	my $base = URI::URL->new($dbh->base());
+
+	foreach my $type (keys %URLS){
+        # get the list of URLs for this object type....
+        my @urls = @{$URLS{$type}};
+        #print STDERR "$type: URLS: ", join("\n", @urls), "\n";
+        # loop over them requesting the DAS data...
+        foreach my $u (@urls){
+		    my $url = $base . "/" . "features?" . $u; # . "categorize=yes";
+		    my $request = HTTP::Request->new(GET => "$url");
+		    my $reply = $ua->request($request);
+			# print STDERR "Timeout: ",$ua->timeout(),"\n";
+            #print STDERR "BASE: $base\n";
+            # print STDERR "FETCHING for $type:\n$url\n";
+            #print STDERR "FETCHING $type for $dsn\n";
+
+		    ### Check to see if we got a valid HTTP response - if not
+		    ### send back a special seqfeature indicating an error condition that can
+		    ### be parsed by the drawing code
+		    my $REPLY_CODE = $reply->code();
+		    my $DAS_CODE   = $reply->header('X-DAS-Status');
+		    my $DAS_VER    = $reply->header('X-DAS-Version');
+ 		    if ($REPLY_CODE > 399 || $DAS_CODE > 399){
+			    my $CODE = "DAS";
+			    if ($REPLY_CODE > 399) {
+				    $CODE = "HTTP error code: $REPLY_CODE ($DAS_VER)"; 
+			    } else {
+				    $CODE = "DAS error code:  $DAS_CODE ($DAS_VER)"; 
+			    }
+                my $ERROR_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+                $ERROR_FEATURE->id("__ERROR__");
+                $ERROR_FEATURE->das_dsn($dsn);
+                push (@{$DAS_FEATURES{'FEATURES'}}, $ERROR_FEATURE);
+ 
+                warn "DAS ERROR for $dsn: $CODE\n";
+                #warn "$url\n";
+                #warn "DAS ERROR for $dsn: $CODE on URL:\n";
+                #print STDERR $reply->content();
+                next;
+		     } else {
+			 	#print STDERR "URL: $u $REPLY_CODE $DAS_CODE\n",$reply->content,"\n\n";
+                my @features = $parser->parse($reply->content(), $dsn);
+				#print STDERR "Features:\n\t", (join"\n\t",@features),"\n\n";
+                push (@{$DAS_FEATURES{'FEATURES'}}, @features);
+             }
+         }
+	}
+
+    if(0){
+        foreach my $feature (@{$DAS_FEATURES{'FEATURES'}}){
+            #next unless $feature;
+            print STDERR "SEG ID: ", $feature->seqname(), "\t";
+            print STDERR "DSN: ", $feature->das_dsn(), "\t";
+            print STDERR "FEATURE START: ", $feature->das_start(), "\t";
+            print STDERR "FEATURE END: ", $feature->das_end(), "\t";
+            print STDERR "FEATURE STRAND: ", $feature->das_strand(), "\t";
+            print STDERR "FEATURE TYPE: ", $feature->das_type_id(), "\t";
+            print STDERR "FEATURE ID: ", $feature->das_feature_id(), "\n";
+        }
+    }
+    
+	return(@{$DAS_FEATURES{'FEATURES'}});  # _MUST_ return a list or StaticContig breaks!
+}
+
+
+
+
+
+
+
+
 
 =head2 get_Ensembl_SeqFeatures_contig_list
 

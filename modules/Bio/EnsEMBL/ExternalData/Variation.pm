@@ -126,12 +126,12 @@ sub _initialize {
     $end   && $self->SUPER::end($end);
     $start && $self->start_in_clone_coord($start);
     $end   && $self->end_in_clone_coord($end);
-    $strand && $self->SUPER::strand($strand);
+    $strand && $self->strand($strand);
     $primary_tag && $self->SUPER::primary_tag($primary_tag);
     $source  && $self->SUPER::source_tag($source);
     $frame   && $self->SUPER::frame($frame);
     $score   && $self->SUPER::score($score);
-    $gff_string && $self->SUPER::_from_gff_string($gff_string);
+    ##$gff_string && $self->SUPER::_from_gff_string($gff_string);
     $status  && $self->status($status);
     $alleles && $self->alleles($alleles);
     $upstreamseq  && $self->upStreamSeq($upstreamseq);
@@ -145,6 +145,16 @@ sub _initialize {
     return $make; # success - we hope!
 }
 
+
+sub strand {
+    my ($self,$value) = @_;
+
+    if( defined $value ) {
+        $self->{'_snp_strand'} = $value;
+    }
+
+    return $value;
+}
 
 
 =head2 id

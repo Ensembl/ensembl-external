@@ -643,6 +643,8 @@ sub get_Ensembl_SeqFeatures_clone {
        $snp->upStreamSeq($seq5);
        $snp->dnStreamSeq($seq3);
 
+print STDERR "snp after variation ",$snp->strand,"\n";
+
        # set for compatibility to Virtual Contigs
        $snp->seqname($acc_version);
 

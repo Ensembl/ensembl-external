@@ -187,6 +187,7 @@ sub fetch_all_by_DBLink_Container {
        push( @tscr_ids, $parent_obj->stable_id );
        my $tran = $parent_obj->translation || next;
        push( @tran_ids, $tran->stable_id );
+       push( @gene_ids, $self->gene->stable_id );
      } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
        push( @tran_ids, $parent_obj->stable_id );
      } else{ # Assume protein
@@ -208,7 +209,7 @@ sub fetch_all_by_DBLink_Container {
      }
    }
 
-   warn "DAS - $id_type - @{[keys %ids]}";
+#   warn "DAS - $id_type - @{[keys %ids]}";
    # Return empty if no ids found
    if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 
@@ -252,7 +253,10 @@ sub fetch_all_by_DBLink_Container {
        $dsf->das_note          ( $note );
        $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
         push(@das_features, $dsf);
+#		 my $str = $dsf->das_feature_id.':'.$dsf->das_type.':'. $dsf->start.' : '.$dsf->end;
+#		 warn("BF: $str");
    };
+
 
    #$self->adaptor->_db_handle->debug(1);
    $self->adaptor->_db_handle->features
@@ -266,7 +270,8 @@ sub fetch_all_by_DBLink_Container {
 	 ( $ids{$_->das_segment->ref}, $_ ) == 1
      } @das_features;
 
-   my $key = join( '_', $dsn, keys(%ids) );
+#   my $key = join( '_', $dsn, keys(%ids) );
+   my $key = $self->adaptor->name;
    return( $key, [@result_list] );
 }
 
@@ -288,12 +293,18 @@ sub fetch_all_by_Slice {
 
   # Examine cache
   my $CACHE_KEY = $slice->name;
-  if( $self->{$CACHE_KEY} ){
-    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
-  }
+#  if( $self->{$CACHE_KEY} ){
+#    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
+#  }
 
   # Get all coord systems this Ensembl DB knows about
   my $csa = $slice->coord_system->adaptor;
+# The following bit has been put to investigate why we get error messages in the error log saying that fetch_all can not be called on an undefined value
+  if (! defined($csa)) {
+		my @ca = caller(2);
+		warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+		return [];
+  }
   my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 
   # Get the slice representation for each coord system. 
@@ -407,6 +418,7 @@ sub _map_DASSeqFeature_to_slice {
   unless( $fr_csystem->equals( $to_csystem ) ){
     my $mapper = $ma->fetch_by_CoordSystems( $fr_csystem, $to_csystem );
     my @coords = ();
+
     eval{ @coords = $mapper->map( $das_slice->seq_region_name, 
 				  $das_sf->das_start,
 				  $das_sf->das_end,
@@ -518,6 +530,9 @@ sub get_Ensembl_SeqFeatures_DAS {
 
         0 && warn("adding feature for $dsn.... @{[$f->id]}");
         push(@{$DAS_FEATURES}, $das_sf);
+
+#		   my $str = $das_sf->das_feature_id.':'.$das_sf->das_type.':'. $das_sf->start.' : '.$das_sf->end;
+#		  warn("CF: $str");
     };
 
     my $response;
@@ -739,6 +754,128 @@ sub DESTROY {
    }
 }
 
+
+sub fetch_all_by_ID {
+   my $self       = shift;
+   my $parent_obj = shift;
+   my $data_obj  = shift;
+
+   my $id_type    = $self->adaptor->type || 'swissprot';
+   my $url        = $self->adaptor->url;
+   my $dsn        = $self->adaptor->dsn;
+
+   $parent_obj->can('get_all_DBLinks') || $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can get_all_DBLinks" );
+
+   my $ensembl_id = $parent_obj->stable_id() ? $parent_obj->can('stable_id') : '';
+
+   my %ids = ();
+
+   # If $id_type is prefixed with 'ensembl_', then ensembl id type
+   if( $id_type =~ m/ensembl_(.+)/o ){
+     my $type = $1;
+     my @gene_ids;
+     my @tscr_ids;
+     my @tran_ids;
+     if( $parent_obj->isa("Bio::EnsEMBL::Gene") ){
+       push( @gene_ids, $parent_obj->stable_id );
+       foreach my $tscr( @{$parent_obj->get_all_Transcripts} ){
+         push( @tscr_ids, $tscr->stable_id );
+         my $tran = $tscr->translation || next;
+         push( @tran_ids, $tran->stable_id );
+       }
+     } elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
+       push( @tscr_ids, $parent_obj->stable_id );
+       my $tran = $parent_obj->translation || next;
+       push( @tran_ids, $tran->stable_id );
+       push( @gene_ids, $data_obj->gene->stable_id );
+     } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
+			push( @tran_ids, $parent_obj->stable_id );
+			# if the source is ensembl_gene - get gene stable id
+			my $gene = $parent_obj->adaptor->db->get_GeneAdaptor->fetch_by_translation_stable_id($parent_obj->stable_id);	
+			push( @gene_ids, $gene->stable_id );
+     } else{ # Assume protein
+       warn( "??? - ", $parent_obj->transcript->translation->stable_id );
+       push( @tran_ids, $parent_obj->transcript->translation->stable_id );
+     }
+     if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
+     elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
+     elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
+   } else { 
+       # If no 'ensembl_' prefix, then DBLink ID
+       # If $id_type is suffixed with '_acc', use primary_id call 
+       # rather than display_id
+     my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+     foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
+       lc( $xref->dbname ) ne lc( $id_type ) and next;
+       my $id = $xref->$id_method || next;
+       $ids{$id} = $xref;
+     }
+   }
+
+#   warn "DAS - $id_type - @{[keys %ids]}";
+   # Return empty if no ids found
+   if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
+
+   my @das_features = ();
+   my $callback = sub{
+       my $f = shift;
+       $f->isa('Bio::Das::Feature') || return;
+       my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
+       $dsf->id                ( $ensembl_id );
+       $dsf->das_feature_id    ( $f->id() );
+       $dsf->das_feature_label ( $f->label() );
+       $dsf->das_segment       ( $f->segment );
+       $dsf->das_segment_label ( $f->label() );
+       $dsf->das_id            ( $f->id() );
+       $dsf->das_dsn           ( $dsn );
+       $dsf->source_tag        ( $dsn );
+       $dsf->primary_tag       ( 'das');
+       $dsf->das_type_id       ( $f->type() );
+       $dsf->das_type_category ( $f->category() );
+       $dsf->das_type_reference( $f->reference() );
+       $dsf->das_name          ( $f->id() );
+       $dsf->das_method_id     ( $f->method() );
+       $dsf->das_link          ( $f->link() );
+       $dsf->das_link_label    ( $f->link_label() );
+       $dsf->das_group_id      ( $f->group() );
+       $dsf->das_group_label   ( $f->group_label() );
+       $dsf->das_group_type    ( $f->group_type() );
+       $dsf->das_target        ( $f->target() );
+       $dsf->das_target_id     ( $f->target_id );
+       $dsf->das_target_label  ( $f->target_label );
+       $dsf->das_target_start  ( $f->target_start );
+       $dsf->das_target_stop   ( $f->target_stop );
+       $dsf->das_type          ( $f->type() );
+       $dsf->das_method        ( $f->method() );
+       $dsf->das_start         ( $f->start() );
+       $dsf->das_end           ( $f->end() );
+       $dsf->das_score         ( $f->score() );
+       $dsf->das_orientation   ( $f->orientation() || 0 );
+       $dsf->das_phase         ( $f->phase() );
+       my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
+       $dsf->das_note          ( $note );
+       $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
+        push(@das_features, $dsf);
+#		 my $str = $dsf->das_feature_id.':'.$dsf->das_type.':'. $dsf->start.' : '.$dsf->end;
+#		 warn("AF: $str");
+   };
+
+
+   #$self->adaptor->_db_handle->debug(1);
+   $self->adaptor->_db_handle->features
+     ( -dsn=>"$url/$dsn", 
+       -segment=>[keys %ids], 
+       -feature_callback=>$callback );
+
+   my @result_list = grep 
+     {
+       $self->_map_DASSeqFeature_to_pep
+	 ( $ids{$_->das_segment->ref}, $_ ) == 1
+     } @das_features;
+
+   my $key = join( '_', $dsn, keys(%ids) );
+   return( $key, [@result_list] );
+}
 
 
 

@@ -16,9 +16,9 @@ Bio::EnsEMBL::ExternalData::Variation - Variation SeqFeature
 
 =head1 SYNOPSIS
 
-    $feat = new Bio::EnsEMBL::ExternalData::Variation 
+    $feat = new Bio::EnsEMBL::ExternalData::Variation
                 (-start => 10, -end => 10,
-		 -strand => 1, 
+		 -strand => 1,
 		 -source => 'The SNP Consortium',
 		 -score  => 99,           #new meaning
 		 -status = > 'suspected', #new
@@ -59,11 +59,11 @@ inherited method primary_tag can be used.
 
 Heikki Lehvaslaiho <heikki@ebi.ac.uk>
 
-Address: 
+Address:
 
      EMBL Outstation, European Bioinformatics Institute
      Wellcome Trust Genome Campus, Hinxton
-     Cambs. CB10 1SD, United Kingdom 
+     Cambs. CB10 1SD, United Kingdom
 
 =cut
 
@@ -84,64 +84,56 @@ use strict;
 
 # Object preamble - inheritance
 
-use Bio::Root::Object;
 use Bio::SeqFeature::Generic;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 
-
 @ISA = qw(Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
 
-# new() is inherited from Bio::Root::Object
+sub new {
+    my($class,@args) = @_;
+    my $self;
+    $self = {};
+    bless $self, $class;
 
-# _initialize is where the heavy stuff will happen when new is called
-
-sub _initialize {
-  my ($self, @args) = @_;
-
-  my ($start, $end, $strand, $primary, $source, 
-      $frame, $score, $gff_string, $status, $alleles,
-      $upstreamseq, $dnstreamseq) =
-	  $self->_rearrange([qw(START
-				END
-				STRAND
-				PRIMARY
-				SOURCE
-				FRAME
-				SCORE
-				GFF_STRING
-				STATUS
-				ALLELES
-				UPSTREAMSEQ
-				DNSTREAMSEQ
+    my ($start, $end, $strand, $primary_tag, $source,
+	$frame, $score, $gff_string, $status, $alleles,
+	$upstreamseq, $dnstreamseq) =
+	    $self->_rearrange([qw(START
+				  END
+				  STRAND
+				  PRIMARY_TAG
+				  SOURCE
+				  FRAME
+				  SCORE
+				  GFF_STRING
+				  STATUS
+				  ALLELES
+				  UPSTREAMSEQ
+				  DNSTREAMSEQ
 				)],@args);
-  
-  my $make = $self->SUPER::_initialize(@args);
-  
-  $self->primary_tag("Variation");
-  
-  
-  $start && $self->SUPER::start($start);
-  $end   && $self->SUPER::end($end);
- $start && $self->start_in_clone_coord($start);
-  $end   && $self->end_in_clone_coord($end);
-  $strand && $self->SUPER::strand($strand);
-  $primary && $self->SUPER::primary_tag($primary);
-  $source  && $self->SUPER::source_tag($source);
-  $frame   && $self->SUPER::frame($frame);
-  $score   && $self->SUPER::score($score);
-  $gff_string && $self->SUPER::_from_gff_string($gff_string);
-  $status  && $self->status($status);
-  $alleles && $self->alleles($alleles);
-  $upstreamseq  && $self->upstreamseq($upstreamseq);
-  $dnstreamseq  && $self->dnstreamseq($dnstreamseq);
 
-  $self->{ 'link' } = [];
+    $self->primary_tag("Variation");
 
- 
+    $start && $self->SUPER::start($start);
+    $end   && $self->SUPER::end($end);
+    $start && $self->start_in_clone_coord($start);
+    $end   && $self->end_in_clone_coord($end);
+    $strand && $self->SUPER::strand($strand);
+    $primary_tag && $self->SUPER::primary_tag($primary_tag);
+    $source  && $self->SUPER::source_tag($source);
+    $frame   && $self->SUPER::frame($frame);
+    $score   && $self->SUPER::score($score);
+    $gff_string && $self->SUPER::_from_gff_string($gff_string);
+    $status  && $self->status($status);
+    $alleles && $self->alleles($alleles);
+    $upstreamseq  && $self->upstreamseq($upstreamseq);
+    $dnstreamseq  && $self->dnstreamseq($dnstreamseq);
 
-  # set stuff in self from @args
-  return $make; # success - we hope!
+    $self->{ 'link' } = [];
+
+    # set stuff in self from @args
+    return $self; # success - we hope!
 }
 
 
@@ -151,9 +143,10 @@ sub _initialize {
  Title   : id
  Usage   : $obj->id
  Function:
+
            Read only method. Returns the id of the variation object.
-           The id is a string of form "dbname::id" derived from the 
-           first DBLink object attached to this object.
+           The id is derived from the first DBLink object attached to
+           this object.
 
  Example :
  Returns : scalar
@@ -167,18 +160,46 @@ sub id {
 
     my @ids = $obj->each_DBLink;
     my $id = $ids[0];
-#    return $id->database. "::". $id->primary_id;
     return  $id->primary_id;
 }
+
+=head2 clone_name
+
+ Title   : clone_name
+ Usage   : $obj->clone_name
+ Function:
+
+           Read only method.
+
+ Example :
+ Returns : scalar
+ Args    : none
+
+=cut
 
 sub clone_name {
     my ($obj) = @_;
 
     my @names = $obj->each_DBLink;
     my $name = $names[0];
-#    return $id->database. "::". $id->primary_id;
     return  $name->optional_id;
 }
+
+=head2 start_in_clone_coord
+
+ Title   : start_in_clone_coord
+ Usage   : $obj->start_in_clone_coord();
+ Function:
+
+            Sets and returns the start in the original coordinate
+            system The start attribute will be reset to other
+            cooerdiante systems. If value is not set, returns undef.
+
+ Example :
+ Returns : integer or undef
+ Args    : integer
+
+=cut
 
 sub start_in_clone_coord {
    my ($obj,$value) = @_;
@@ -186,12 +207,27 @@ sub start_in_clone_coord {
       $obj->{'start_in_clone_coord'} = $value;
     }
    if( ! exists $obj->{'start_in_clone_coord'} ) {
-       return "$obj";
+       return undef;
    }
    return $obj->{'start_in_clone_coord'};
 
 }
 
+=head2 end_in_clone_coord
+
+ Title   : end_in_clone_coord
+ Usage   : $obj->end_in_clone_coord();
+ Function:
+
+            Sets and returns the end in the original coordinate
+            system.  The end attribute will be reset to other
+            cooerdiante systems.  If value is not set, returns undef.
+
+ Example :
+ Returns : integer or undef
+ Args    : integer
+
+=cut
 
 sub end_in_clone_coord {
    my ($obj,$value) = @_;
@@ -199,24 +235,17 @@ sub end_in_clone_coord {
       $obj->{'end_in_clone_coord'} = $value;
     }
    if( ! exists $obj->{'end_in_clone_coord'} ) {
-       return "$obj";
+       return undef;
    }
-   return $obj->{'end_in_clone_coord'};
+   return $obj->{'end_in_clone_coord' };
 
 }
-
-
-
-
-
-
-
 
 =head2 status
 
  Title   : status
  Usage   : $obj->status()
- Function: 
+ Function:
 
            Returns the status of the variation object.
            Valid values are: 'suspected' and 'proven'
@@ -239,13 +268,13 @@ sub status {
        $value = lc $value;
        if ($status{$value}) {
 	   $obj->{'status'} = $value;
-       } 
+       }
        else {
 	   $obj->throw("$value is not valid status value!");
        }
     }
    if( ! exists $obj->{'status'} ) {
-       return "$obj";
+       return undef;
    }
    return $obj->{'status'};
 }
@@ -255,7 +284,7 @@ sub status {
 
  Title   : alleles
  Usage   : @alleles = split ('|', $obj->alleles);
- Function: 
+ Function:
            Returns the a string where all known alleles for this position
            are listed separated by '|' characters
 
@@ -270,7 +299,7 @@ sub alleles {
       $obj->{'alleles'} = $value;
     }
    if( ! exists $obj->{'alleles'} ) {
-       return "$obj";
+       return undef;
    }
    return $obj->{'alleles'};
 
@@ -279,11 +308,11 @@ sub alleles {
 =head2 position_problem
 
  Title   : position_problem
- Usage   : 
- Function: 
+ Usage   :
+ Function:
            Returns a value if the there are known problems in mapping
 	   the variation from internal coordinates to EMBL clone
-	   coordinates. 
+	   coordinates.
 
  Returns : A string
  Args    : A string (optional, for setting)
@@ -295,9 +324,9 @@ sub position_problem {
    if( defined $value) {
       $obj->{'position_problem'} = $value;
     }
-#   if( ! exists $obj->{'position_problem'} ) {
-#       return "$obj";
-#   }
+   if( ! exists $obj->{'position_problem'} ) {
+       return undef;
+   }
    return $obj->{'position_problem'};
 }
 
@@ -306,13 +335,13 @@ sub position_problem {
 
  Title   : upStreamSeq
  Usage   : $obj->upStreamSeq();
- Function: 
+ Function:
 
             Sets and returns upstream flanking sequence string.
-            If value is not set, returns false.
+            If value is not set, returns undef.
 
- Example : 
- Returns : string or false
+ Example :
+ Returns : string or undef
  Args    : string
 
 =cut
@@ -324,8 +353,8 @@ sub upStreamSeq {
       $obj->{'upstreamseq'} = $value;
   }
    if( ! exists $obj->{'upstreamseq'} ) {
-       return 0;
-   } 
+       return undef;
+   }
    return $obj->{'upstreamseq'};
 
 }
@@ -335,13 +364,13 @@ sub upStreamSeq {
 
  Title   : dnStreamSeq
  Usage   : $obj->dnStreamSeq();
- Function: 
+ Function:
 
             Sets and returns dnstream flanking sequence string.
-            If value is not set, returns false.
+            If value is not set, returns undef.
 
- Example : 
- Returns : string or false
+ Example :
+ Returns : string or undef
  Args    : string
 
 =cut
@@ -353,8 +382,8 @@ sub dnStreamSeq {
       $obj->{'dnstreamseq'} = $value;
   }
    if( ! exists $obj->{'dnstreamseq'} ) {
-       return 0;
-   } 
+       return undef;
+   }
    return $obj->{'dnstreamseq'};
 
 }
@@ -365,7 +394,7 @@ sub dnStreamSeq {
  Usage   : $self->add_DBLink($ref)
  Function: adds a link object
  Example :
- Returns : 
+ Returns :
  Args    :
 
 
@@ -385,7 +414,7 @@ sub add_DBLink{
  Usage   : foreach $ref ( $self->each_DBlink() )
  Function: gets an array of DBlink of objects
  Example :
- Returns : 
+ Returns :
  Args    :
 
 
@@ -393,10 +422,9 @@ sub add_DBLink{
 
 sub each_DBLink{
    my ($self) = @_;
-   
-   return @{$self->{'link'}}; 
-}
 
+   return @{$self->{'link'}};
+}
 
 
 1;

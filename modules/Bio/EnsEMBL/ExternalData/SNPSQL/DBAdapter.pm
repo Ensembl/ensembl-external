@@ -66,35 +66,21 @@ mySQL engine.
 =head2 Mailing Lists
 
   User feedback is an integral part of the evolution of this
-  and other Bioperl modules. Send your comments and suggestions preferably
+  and other Ensebl modules. Send your comments and suggestions preferably
   to one of the Bioperl mailing lists.
   Your participation is much appreciated.
 
-  vsns-bcd-perl@lists.uni-bielefeld.de          - General discussion
-  vsns-bcd-perl-guts@lists.uni-bielefeld.de     - Technically-oriented discussion
-  http://bio.perl.org/MailList.html             - About the mailing lists
-
-=head2 Reporting Bugs
-
-  Report bugs to the Bioperl bug tracking system to help us keep track
-  the bugs and their resolution.
-  Bug reports can be submitted via email or the web:
-
-  bioperl-bugs@bio.perl.org
-  http://bio.perl.org/bioperl-bugs/
+  ensembl-vdev@ebi.ac.uk                        - General discussion
 
 =head1 AUTHOR - Heikki Lehvaslaiho
 
   Email heikki@ebi.ac.uk
-
 
 Address:
 
      EMBL Outstation, European Bioinformatics Institute
      Wellcome Trust Genome Campus, Hinxton
      Cambs. CB10 1SD, United Kingdom
-
-
 
 =head1 APPENDIX
 
@@ -108,23 +94,15 @@ methods. Internal methods are usually preceded with a _
 
 package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter;
 
-use Bio::Root::Object;
-use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
-use DBI;
-use vars qw(@ISA);
 use strict;
+use vars qw(@ISA);
+use DBI;
+use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::Variation;
+
 
 # Object preamble - inherits from Bio::Root:RootI
 @ISA = qw(Bio::Root::RootI  Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
-
-#
-#my $user = 'root';
-#my $password = '';
-#my $db = 'tsc';
-#
-#my $dbh = DBI->connect('DBI:mysql:tsc',$user,$password);
-
 
 sub new {
     my($class,@args) = @_;
@@ -170,7 +148,6 @@ sub new {
  Returns :
  Args    :
 
-
 =cut
 
 sub get_Ensembl_SeqFeatures_contig{
@@ -204,7 +181,6 @@ sub get_SeqFeature_by_id {
     my($self) = shift;
     my ($id) =  @_;
 
-    my $snp = new Bio::EnsEMBL::ExternalData::Variation;
     my ($query);
 
     #lists of variations to be returned
@@ -288,6 +264,7 @@ sub get_SeqFeature_by_id {
 	$acc_version .= uc $acc if $acc;
 	$acc_version .= ".$ver" if $ver;
 
+	my $snp = new Bio::EnsEMBL::ExternalData::Variation;
 	if ($acc_version) {
 	        $snp->seqname($acc_version);
 		$snp->start($begin);
@@ -311,15 +288,6 @@ sub get_SeqFeature_by_id {
 	    #add dbXref to Variation
 	    $snp->add_DBLink($link);
 	}
-#	 #dbSNP id is given
-#	 if ( $dbsnpid ) {
-#
-#	     my $link2 = new Bio::Annotation::DBLink;
-#	     $link2->database('dbSNP');
-#	     $link2->primary_id($dbsnpid);
-#
-#	     $snp->add_DBLink($link2);
-#	 }
 
 	#add SNP to the list
 	push(@variations, $snp);
@@ -377,10 +345,13 @@ sub get_Ensembl_SeqFeatures_clone {
     my @variations;
 
     #sanity checks
+
+    if ( ! defined $acc) {
+	$self->throw("Two arguments are requided: embl_accession number and version_number!");
+    }
     if ( ! defined $ver) {
 	$self->throw("Two arguments are requided: embl_accession number and version_number!");
     }
-
     if (defined $start) {
 	$start = 1 if $start eq "";
 	if ( $start !~ /^\d+$/  and $start > 0) {
@@ -390,19 +361,19 @@ sub get_Ensembl_SeqFeatures_clone {
     if (defined $stop) {
 	$start = 1 if not defined $start;
 	if ( $stop !~ /^\d+$/ and $stop > 0 ) {
-	    $self->throw("$stop is not a valid start");
+	    $self->throw("$stop is not a valid stop");
 	}
     }
     if (defined $start and defined $stop) {
 	if ($stop < $start) {
-	    $self->throw("$stop is smaller than  $start not a valid start");
+	    $self->throw("$stop is smaller than $start not a valid start");
 	}
     }
 
     my $acc_version = uc "$acc.$ver";
 
 
-   # db query to return all variation information ; confidence is gone!!
+   # db query to return all variation information ; confidence attribute is gone!!
    my $query = qq{
 
        SELECT  p1.start, p1.end, p1.type,
@@ -478,15 +449,6 @@ sub get_Ensembl_SeqFeatures_clone {
        #add dbXref to Variation
        $snp->add_DBLink($link);
 
-#	#if dbSNP id is given
-#	if ( $dbsnpid ) {
-#
-#	    my $link2 = new Bio::Annotation::DBLink;
-#	    $link2->database('dbSNP');
-#	    $link2->primary_id($dbsnpid);
-#
-#	    $snp->add_DBLink($link2);
-#	}
 
        #add SNP to the list
        push(@variations, $snp);

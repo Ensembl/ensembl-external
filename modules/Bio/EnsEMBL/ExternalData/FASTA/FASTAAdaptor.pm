@@ -75,7 +75,7 @@ sub insert_fasta_record  {
 	my $desc = $seq->desc();
 	my $data = $seq->primary_seq->seq();
 	my $id = $seq->id();
-
+    
 	my $sql =qq( INSERT INTO 
 					$table
 				 VALUES 

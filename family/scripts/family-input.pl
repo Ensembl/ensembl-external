@@ -420,8 +420,8 @@ sub load_families {
             my $pep_dbname = "$db$type"; # e.g. ENSP
             if ( $db && $type && $rest ) {                # we have an ENS pep
 
-                my $mem_internal_id = $mem; $mem_internal_id =~ s/^COBP//g;
-                
+                my $mem_internal_id = $mem; $mem_internal_id =~ s/^COBP[0]*//g;
+
                 if ( defined $seen_pept{$mem} ) {
                     warn "### already seen peptide $mem; at line $seen_pept{$mem}; ignoring it now\n";
                     next MEM;

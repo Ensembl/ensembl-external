@@ -217,8 +217,9 @@ sub disease_name_by_ensembl_gene
 
 	my $query_string = "select distinct d.disease, g.omim_id
           from disease as d,gene as g
-          where d.id = g.id and g.gene_symbol in ('".join(qq(','),@genes) ."') order by d.disease";
-
+          where d.id = g.id and g.gene_symbol in (".
+	    join(',' , map {$self->_db_handle->quote($_)} @genes) .
+	    ") order by d.disease";
 	return $self->_get_disease_objects($query_string);
 
 }

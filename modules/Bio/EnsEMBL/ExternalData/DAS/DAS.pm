@@ -69,6 +69,9 @@ package Bio::EnsEMBL::ExternalData::DAS::DAS;
 
 use strict;
 use vars qw(@ISA);
+use URI::URL;
+use HTTP::Request::Common;
+use LWP::UserAgent;
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
@@ -109,76 +112,77 @@ sub get_Ensembl_SeqFeatures_contig_list{
     my ($self) = shift;
     my ($listref) = @_;
 
+	## TC
+	## This is a temporary fast DAS fetcher tuned for fetching features for a set of contigs
+	## It does not use the DAS perl modules or the XML parser becasue (1) the Das perl API cannot handle 
+	## multi-segment feature requests and (2) the XML parser can be slow and (3) [most important] we now
+	## only have to do a single DAS request per source, per virtual contig.
+	## It should be replaced when the DAS perl modules can handle it.
+
 	my @contigs	= @$listref;
-	#my @contig_ids = map { "segment=". $_->id() } @contigs;
-	my @contig_ids = map { $_->id() } @contigs;
+	my @contig_ids = map { "segment=". $_->id() } @contigs;
 
 	my $dbh 	= $self->_db_handle();
 	my $dsn 	= $dbh->dsn();
 
-	#my $request = join(";",@contig_ids); 
-	#print STDERR "============== DAS_REQUEST ====================\n";
-	#print STDERR "$request\n";
-	#print STDERR "============== DAS_REQUEST ====================\n";
+	print STDERR "Fetching features for $dsn...\n";
 
-	my @xml_features = ();
+
+	my $url = "features?" . join(";",@contig_ids) ;
+	my $ua = $dbh->agent;
+	my $base = URI::URL->new(join '/',$dbh->base());
+	my $url = $base . "/" . $url;
+	my $request = HTTP::Request->new(GET => "$url");
+	my $reply = $ua->request($request);
+
+	my @lines = split ("\n", $reply->content);
+	
+	my $out = undef;
+	my $seqname = undef;
 	my @features = ();
-	my $segment = undef;
-	my @segments = ();
-
-	foreach my $c (@contig_ids){
-		eval {
-			my $s =  $dbh->segment(-ref=>$c);
-			$s->{'_seqname'} = $c;
-			push(@segments, $s);
-		};
-	}
-	if ($@){
-		print STDERR "ERROR: Bad DAS segment request via DSN $dsn ($@)\n"; 
-		return(@features);
-	}
-
-	foreach my $s (@segments){
-		eval {
-			my @f = $s->features();
-			@f = map { $_->{'_seqname'} = $s->{'_seqname'}} @f;
-			push(@xml_features, @f);
-		};
-	}
-	if ($@){
-		print STDERR "ERROR: Bad DAS segment request via DSN $dsn ($@)\n"; 
-		return(@features);
-	}
-
-	foreach my $f (@xml_features){
-		next unless($f);	# sometimes get null features here: DAS bug?
-		unless (ref($f) && $f->isa("Bio::Das::Segment::Feature")){
-			warn qq(Got a bad DAS feature "$f" from DSN: $dsn ($f)\n);
-			next;
+	foreach my $line (@lines){
+		if ($line =~ /<SEGMENT id="(.*?)"/){
+			$seqname = $1;
+			#print STDERR "seqname $1\n";
 		}
-		my $out = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
-		$out->seqname($f->{'_seqname'});
-
-		$out->das_name($f->type());
-		$out->das_id($f->id());
-		$out->das_dsn($dsn);
-		$out->start($f->start());
-		$out->end($f->end());
-		$out->primary_tag('das');
-		$out->source_tag($dsn);
-		my $ori = $f->orientation();
-		if ($ori eq "+"){
-			$out->strand(1);
-		} elsif ($ori eq "-"){
-			$out->strand(-1);
-		} else {
-			$out->strand(0);	# help!
+		if ($line =~ /<FEATURE id="(.*?)"/){
+			#print STDERR "id $1\n";
+			$out = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+			$out->seqname($seqname);
+			$out->das_id($1);
+			$out->das_dsn($dsn);
+			$out->primary_tag('das');
+			$out->source_tag($dsn);
 		}
-		$out->phase($f->phase());   
-		push(@features,$out);
+		if ($line =~ /<TYPE id="(.*?)">null<\/TYPE>/){
+			$out->das_name($1);
+			#print STDERR "type $1\n";
+		}
+		if ($line =~ /<START>(.*?)<\/START>/){
+			$out->start($1);
+			#print STDERR "start $1\n";
+		}
+		if ($line =~ /<END>(.*?)<\/END>/){
+			$out->end($1);
+			#print STDERR "end $1\n";
+		}
+		if ($line =~ /<ORIENTATION>(.*?)<\/ORIENTATION>/){
+			if ($1 eq "+"){
+				$out->strand(1);
+			} else {	
+				$out->strand(-1);
+			}		
+			#print STDERR "strand $1\n";
+		}
+		if ($line =~ /<\/FEATURE/){
+			push(@features,$out);
+			#print STDERR "saved $out\n";
+		}
 	}
 
 	return(@features);
+
+
 }
 
 

@@ -12,10 +12,10 @@ use vars qw($opt_h $opt_r $opt_C $opt_E $opt_F);
 
 use Getopt::Std;
 
-my $max_desc_len = 255;                    # max length of description
-my $ens_pep_dbname = 'ENSEMBLPEP';          # name of EnsEMBL peptides database
-my $ens_gene_dbname = 'ENSEMBLGENE';        # name of EnsEMBL peptides database
-my $sp_dbname = 'SWISSPROT';               # name of SWISSPROT database
+my $max_desc_len = 255;                 # max length of description
+my $ens_pep_dbname = 'ENSEMBLPEP';      # name of EnsEMBL peptides database
+my $ens_gene_dbname = 'ENSEMBLGENE';    # name of EnsEMBL peptides database
+my $sp_dbname = 'SPTR';                 # name of SWISSPROT +TREMBL db
 my $add_ens_pep =1;                     # should ens_peptides be added?
 my $add_ens_gene =1;                    # should ens_genes be added?
 my $add_swissprot =1;                   # should swissprot entries be added?
@@ -35,6 +35,7 @@ my $usage =
 ";
 
 my $opts = 'hr:CF:E:';
+
 getopts($opts) || die $usage; # bugger, getopt docu is wrong, use getopts.
 
 die $usage if $opt_h;
@@ -82,10 +83,8 @@ sub create_tables {
     foreach my $s (grep /\S/, split /;\n/, $sql) {
         $dbh->do($s) || die $DBI::errstr;
     }
-    undef;
 }
  
-
 # from database
 sub get_max_id { 
     my($dbh) = @_; 

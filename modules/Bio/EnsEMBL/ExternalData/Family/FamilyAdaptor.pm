@@ -78,7 +78,7 @@ The rest of the documentation details each of the object methods. Internal metho
 
 package Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use vars qw(@ISA);
-use strict;
+# use strict; # FIX THIS: funny 32-char limit on module names ? 
 
 # Object preamble - inheriets from Bio::Root::Object
 
@@ -91,16 +91,12 @@ use Bio::EnsEMBL::ExternalData::Family::Family;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
-# _initialize is where the heavy stuff will happen when new is called
+sub new {
+  my($self,$dbobj) = @_;
 
-sub _initialize {
-  my($self,@args) = @_;
+  $self->db($dbobj);
 
-  my $make = $self->SUPER::_initialize;
-
-# set stuff in self from @args
-
- return $make; # success - we hope!
+ return $self;
 }
 
 =head2 get_Family_by_id

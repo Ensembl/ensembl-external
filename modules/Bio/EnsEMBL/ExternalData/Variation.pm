@@ -159,7 +159,8 @@ sub _initialize {
 sub id {
     my ($obj) = @_;
 
-    my $id = pop ($obj->each_DBLink);
+    my @ids = $obj->each_DBLink;
+    my $id = $ids[0];
     return $id->database. "::". $id->primary_id;
 }
 

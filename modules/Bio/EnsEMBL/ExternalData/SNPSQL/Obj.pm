@@ -174,9 +174,9 @@ sub _initialize {
 
 sub get_Ensembl_SeqFeatures_contig{
    my ($self) = @_;
-   my @tmp = [ ];
+   my @tmp;
    
-   $self->throw("Method get_Ensembl_SeqFeatures_contig returns an empty list.");
+#   $self->throw("Method get_Ensembl_SeqFeatures_contig returns an empty list.");
 
    return @tmp;
 
@@ -221,7 +221,7 @@ sub get_Ensembl_SeqFeatures_clone {
    #my $dbh = DBI->connect('DBI:mysql:tsc',$user,$password);
 
    #lists of variations to be returned
-   my @variations  = [];
+   my @variations;
 
    #sanity checks
    if ( ! defined $ver) {

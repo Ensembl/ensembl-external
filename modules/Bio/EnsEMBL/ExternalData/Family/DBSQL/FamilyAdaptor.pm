@@ -500,7 +500,7 @@ sub _store_db_if_needed {
 }
 
 
-=head2 store
+=head2 convert_store_family
 
  Arg [1]    : -family => \@Bio::Cluster::SequenceFamily
  Example    : $FamilyAdaptor->convert_store_family(-family=>\@family)
@@ -559,15 +559,15 @@ sub convert_store_family {
         my $member = Bio::EnsEMBL::ExternalData::Family::FamilyMember->new();
         $member->family_id($fam->family_id);
         my ($annot) = $mem->annotation->get_Annotations('dblink');
-        $member->database($annot->database);
+        $member->database(uc $annot->database);
         $member->stable_id($mem->display_name);
         $taxon->ncbi_taxid || $self->throw($mem->id." has no taxon id!");
         $self->db->get_TaxonAdaptor->store_if_needed($taxon);
-        $member->taxon_id($taxon->taxon_id);
+	$member->taxon_id($taxon->ncbi_taxid);
 
         $member->adaptor($self);
 
-        $member->database($ext_db_name);
+        $member->database(uc $ext_db_name) if (! defined $member->database || $member->database eq "");
         push @ens_mem, $member;
       }
       my $stable_id = sprintf ("$family_prefix%011.0d",$family_count);

@@ -4,9 +4,9 @@ my $counter = 0;
 #my $positive = 0;
 
 
-my $known_file="input_data_known/ELUSmapper.dat";
-my $all_file="input_data_known/ENSUpostprocessor.dat";
-my $temp_file=">input_data/ELUS_ENSUjoiner.dat";
+my $known_file="ELUSmapper.dat";
+my $all_file="ENSUpostprocessor.dat";
+my $temp_file=">ELUS_ENSUjoiner.dat";
 
 
 my %known_hash;
@@ -37,61 +37,6 @@ while (<ENSU>)
       }
   }
 close ENSU;
-
-
-
-
-
-
-
-
-   #$unigene =~ s/unigene Hs.//;
-      #$unigene_line =~ m/(Hs.\d+)/;
-      #my $unigene = $1;
-      #print "heyhey $unigene\n";
-   #   my $seen = 0;    
-   #   open (ELUS, $known_file) || die "cannot open $known_file\n";
-   #   while (<ELUS>)
-   #	 {
-   #	 chomp;
-   #	 my ($enst2, $locuslink, $unigene2, $tag) = split /\t/;
-   #	 if ($enst2 eq $enst) 
-   #	    {
-   #	    $seen = 1;
-   #	    print "from elus $enst2\t$unigene2\n";
-   #	    }
-   # }
-   #   if ($seen == 0)
-   #   {
-   #	   #open (SAGE, "SAGEmap_ug_tag-rel-Nla3-Hs") || die "cannot open SAGEmap_ug_tag-rel-Nla3-Hs";
-   #	   #while (<SAGE>) 
-   #	   #{
-   #	   #     chomp;
-   #	   #    my ($unigene3, $comment, $tag) = split /\t/;
-   #	   #   if ($unigene3 eq $unigene) 
-   #	   #     {
-   #	   #print "not seen "
-   #	   print "from ensu $enst\t$unigene\n";
-   #   }
-      
-      # }       
-      
-  #}
-      
-      #$seen = 0;
-      #close ELUS; 
-#}
-#close ENSU; 
-    
-
-
-
-
-
-
-
-
-
 
 
 

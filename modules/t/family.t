@@ -20,13 +20,15 @@ print "ok 1\n";    # 1st test passes.
 
 $" = ", ";                          # for easier list-printing
 
+## configuration thing. Note: EnsTestDB.conf is always read (if available); this
+## hash only overrides bits and pieces of that.
 my $testconf={
     'driver'        => 'mysql',
     'host'          => 'ecs1a',
     'user'          => 'ensadmin',
     'port'          => '3306',
     'pass'      => 'ensembl',
-#    'schema_sql'    => ['../sql/family.sql'],
+    'schema_sql'    => ['../sql/family.sql'],
     'module'        => 'Bio::EnsEMBL::DBSQL::DBAdaptor'
 };
     
@@ -35,7 +37,6 @@ my $testdb = EnsTestDB->new($testconf);
 # Load some data into the db
 
 $testdb->do_sql_file("t/family.dump");
-# $testdb->do_sql_file("family.dump");
 # $testdb->pause;
 
 my $db = $testdb->get_DBSQL_Obj;

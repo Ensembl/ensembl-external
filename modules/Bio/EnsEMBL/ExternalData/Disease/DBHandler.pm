@@ -142,6 +142,51 @@ sub disease_by_name
 }
 
 
+=head2 disease by ensembl gene
+
+ Title   : disease_by_ensembl_gene
+ Usage   : my $disease=$diseasedb->disease_by_ensembl_gene("DiGeorge syndrome (2)");
+ Function: gets disease (if any) for an EnsEMBL Gene object
+ Example : 
+ Returns : Bio::EnsEMBL::ExternalData::Disease::Disease object or 0 if none
+ Args    : Bio::EnsEMBL::Gene object
+
+
+=cut
+                     
+sub disease_name_by_ensembl_gene
+{                          
+    my ($self,$gene)=@_;
+    my $seen=0;
+
+    if (!$gene->isa('Bio::EnsEMBL::Gene')) {
+	$self->throw("$gene is not a Bio::EnsEMBL::Gene object!");
+    }
+    my $hugo='(';
+
+    my $seen;
+    foreach my $dblink ($gene->each_DBLink) {
+	if ($dblink->database eq 'HUGO') {
+	    $seen=1;
+	    $hugo.="'".$dblink->primary_id."',";
+
+	}
+    }
+    
+    chop($hugo);
+    $hugo.=')';
+
+
+    #If no HUGO links found, return 0, i.e. no disease link!
+    if (!$seen) {
+	return 0;
+    }
+
+    my $query_string="select distinct d.disease from disease as d,gene as g where d.id = g.id and g.gene_symbol in $hugo";
+
+    return $self->_get_disease_names($query_string);
+}
+
 
 
 

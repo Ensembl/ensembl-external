@@ -109,6 +109,44 @@ sub new
 
 
 
+
+
+
+
+
+=head2 disease by name
+
+ Title   : disease_by_name
+ Usage   : my $disease=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+ Function: gets disease by name
+ Example :
+ Returns : Bio::EnsEMBL::ExternalData::Disease::Disease object
+ Args    :
+
+
+=cut
+
+
+
+                     
+sub disease_by_name
+{                          
+    my ($self,$disease_name)=@_;
+
+ my $query_string= "select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto,
+                    g.chromosome from disease as d,gene as g where d.id = g.id 
+                    and d.disease='$disease_name'";
+
+    return $self->_get_diseases($query_string);
+
+}
+
+
+
+
+
+
+
 =head2 all diseases
 
  Title   : all_diseases
@@ -137,6 +175,79 @@ sub all_diseases
     return $self->_get_diseases($query_string);
 
 } 
+
+
+
+
+
+=head2 all disease names
+
+ Title   : all_disease_names
+ Usage   : my @diseases=$diseasedb->all_disease_names(90,2);
+ Function: gets all disease names from the database limites by offset and count
+ Example :
+ Returns : an array of disease names (strings)
+ Args    :
+
+
+=cut
+
+
+
+
+
+
+
+sub all_disease_names 
+{
+    my ($self,$offset,$count)=@_;
+
+    if ($offset){$offset='limit '.$offset;}
+    if($count){$count=','.$count;}
+  
+
+    my $query_string="select disease from disease $offset $count;";
+
+    $self->_get_disease_names($query_string);
+
+} 
+                         
+
+
+
+
+                       
+
+=head2 all disease count
+
+ Title   : all_disease_count
+ Usage   : my $count=$diseasedb->all_disease_count;
+ Function: number of diseases
+ Example :
+ Returns : a number of diseases
+ Args    :
+
+
+=cut
+
+
+
+
+
+
+
+sub all_disease_count
+{
+    my ($self)=@_;
+
+    my $query_string="select count(*) from disease;";
+
+    $self->_get_count($query_string);
+
+} 
+                         
+
+
                          
 
 =head2 diseases on chromosome
@@ -174,6 +285,74 @@ sub diseases_on_chromosome
 
 
 
+
+=head2 disease names on chromosome
+
+ Title   : diseases_names_on_chromosome
+ Usage   : my @diseases=$diseasedb->disease_name_on_chromosome(90,2);
+ Function: gets all disease names per chromosome limited by offset and count
+ Example :
+ Returns : an array of disease names (strings)
+ Args    :
+
+
+=cut
+
+
+
+
+sub disease_names_on_chromosome 
+{
+    my ($self,$chromosome_no,$offset,$count)=@_;
+
+    $chromosome_no || $self->throw("I need a chromosome");
+    if ($offset){$offset='limit '.$offset;}
+    if($count){$count=','.$count;}    
+
+    my $query_string=" select d.disease from disease as d,gene as g where d.id = g.id 
+                       and g.chromosome='$chromosome_no' $offset $count;";
+
+    $self->_get_disease_names($query_string);
+
+} 
+                         
+
+
+
+=head2 diseases on chromosome count
+
+ Title   : disease on chromosome count
+ Usage   : my $count=$diseasedb->diseases_on_chromosome_count(3);
+ Function: number of diseases
+ Example :
+ Returns : a number of diseases
+ Args    :
+
+
+=cut
+
+
+
+
+
+
+
+sub diseases_on_chromosome_count
+{
+    my ($self,$chromosome)=@_;
+
+    $chromosome || $self->throw("I need a chromosome");
+
+    my $query_string= "select count(*) from disease as d,gene as g where d.id = g.id 
+                       and g.chromosome='$chromosome'";
+
+    $self->_get_count($query_string);
+
+} 
+     
+
+
+
 =head2 diseases with genes
 
  Title   : diseases_with_genes
@@ -202,6 +381,78 @@ sub diseases_with_genes
 
 
 } 
+
+
+
+
+
+=head2 disease names with genes
+
+ Title   : disease_names_with_genes
+ Usage   : my @diseases=$diseasedb->disease_names_with_genes(90,3);
+ Function: gets all diseases associated with genes limited by offset and count
+ Example :
+ Returns : an array of disease names
+ Args    :
+
+
+=cut
+
+
+                          
+
+sub disease_names_with_genes 
+    
+{
+   
+  my ($self,$offset,$count)=@_;
+
+  if ($offset){$offset='limit '.$offset;}
+  if($count){$count=','.$count;}    
+    
+  my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
+                       and g.gene_symbol IS NOT NULL $offset $count";
+
+  $self->_get_disease_names($query_string);
+
+
+} 
+
+
+
+
+=head2 diseases with genes count
+
+ Title   : disease with genes count
+ Usage   : my $count=$diseasedb->diseases_with_genes_count(3);
+ Function: number of diseases with genes
+ Example :
+ Returns : a number of diseases with genes
+ Args    :
+
+
+=cut
+
+
+
+
+
+
+
+sub diseases_with_genes_count
+{
+    my ($self)=@_;
+
+    my $query_string= "select count(*) from disease as d,gene as g where d.id = g.id 
+                       and g.gene_symbol IS NOT NULL;";
+
+    $self->_get_count($query_string);
+
+} 
+     
+
+
+
 
 
 
@@ -238,13 +489,49 @@ sub diseases_without_genes
 
 
 
-=head2 disease by name
 
- Title   : disease_by_name
- Usage   : my $disease=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
- Function: gets disease by name
+=head2 disease names without genes
+
+ Title   : disease_names_without_genes
+ Usage   : my @diseases=$diseasedb->disease_names_without_genes(90,3);
+ Function: gets all diseases associated with genes limited by offset and count
  Example :
- Returns : Bio::EnsEMBL::ExternalData::Disease::Disease object
+ Returns : an array of disease names
+ Args    :
+
+
+=cut
+
+
+                          
+
+sub disease_names_without_genes 
+    
+{
+   
+  my ($self,$offset,$count)=@_;
+
+  if ($offset){$offset='limit '.$offset;}
+  if($count){$count=','.$count;}    
+  
+  my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
+                       and g.gene_symbol IS NULL  $offset,$count";
+
+  $self->_get_disease_names($query_string);
+
+} 
+
+
+
+
+
+=head2 diseases without genes count
+
+ Title   : disease without genes count
+ Usage   : my $count=$diseasedb->diseases_without_genes_count(3);
+ Function: number of diseases without genes
+ Example :
+ Returns : a number of diseases without genes
  Args    :
 
 
@@ -252,20 +539,21 @@ sub diseases_without_genes
 
 
 
-                     
-sub disease_by_name
-{                          
-    my ($self,$disease_name)=@_;
-
- my $query_string= "select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto,
-                    g.chromosome from disease as d,gene as g where d.id = g.id 
-                    and d.disease='$disease_name'";
-
-    return $self->_get_diseases($query_string);
-
-}
 
 
+
+
+sub diseases_without_genes_count
+{
+    my ($self)=@_;
+
+    my $query_string= "select count(*) from disease as d,gene as g where d.id = g.id 
+                       and g.gene_symbol IS NULL;";
+
+    $self->_get_count($query_string);
+
+} 
+  
 
 
 
@@ -288,6 +576,8 @@ sub disease_by_name
 sub diseases_like 
 {
     my ($self,$disease)=@_;
+
+    $disease || $self->throw("I need disease name");
     
     my $query_string="select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto, 
                       g.chromosome from disease as d,gene as g where d.id = g.id and d.disease like '%$disease%'";
@@ -296,6 +586,79 @@ sub diseases_like
 
 } 
                          
+
+
+
+=head2 disease names like
+
+ Title   : disease_names_like
+ Usage   : my @diseases=$diseasedb->disease_names_like("leukemia",3,2);
+ Function: gets diseases names with a name containing given string
+ Example :
+ Returns : an array of disease names
+ Args    :
+
+
+=cut
+
+
+
+
+
+sub disease_names_like 
+{
+    my ($self,$disease,$offset,$count)=@_;
+
+    $disease || $self->throw("I need disease name");    
+
+    if ($offset){$offset='limit '.$offset;}
+    if($count){$count=','.$count;}    
+
+
+
+    my $query_string="select d.disease from disease as d,gene as g 
+                      where d.id = g.id and d.disease like '%$disease%' $offset $count";
+
+    return $self->_get_disease_names($query_string);
+
+} 
+   
+
+
+
+
+
+=head2 disease name like count count
+
+ Title   : disease name like count
+ Usage   : my $count=$diseasedb->disease_names_like_count(3);
+ Function: number of diseases matching given string
+ Example :
+ Returns : a number of diseases matching given string 
+ Args    :
+
+
+=cut
+
+
+
+
+
+
+
+sub disease_names_like_count
+{
+    my ($self,$disease)=@_;
+
+    $disease || $self->throw("I need disease name");
+
+    my $query_string= "select count(*) from disease as d,gene as g 
+                      where d.id = g.id and d.disease like '%$disease%'";
+
+    $self->_get_count($query_string);
+
+} 
+  
 
 
 
@@ -349,19 +712,6 @@ return @diseases;
 }
 
 
-                       
-
-=head2 all disease names limit
-
- Title   : all_disease_names_limit
- Usage   : my @diseases=$diseasedb->all_disease_names_limit(90,2);
- Function: gets all disease names from the database limites by offset and count
- Example :
- Returns : an array of disease names (strings)
- Args    :
-
-
-=cut
 
 
 
@@ -369,18 +719,18 @@ return @diseases;
 
 
 
-sub all_disease_names_limit 
+
+
+
+
+
+sub _get_disease_names
 {
-    my ($self,$offset,$count)=@_;
+    my ($self,$query_string)=@_;
 
-    $offset || $self->throw("I need two parameters: offset and count");
-    $count || $self->throw("I need two parameters: offset and count");
-
-    my $query_string="select disease from disease limit $offset,$count;";
 
     my $sth=$self->_db_handle->prepare($query_string);
     $sth->execute;
-
 
     my @diseases;
 
@@ -391,9 +741,21 @@ sub all_disease_names_limit
 
     return @diseases;
 
-} 
-                         
 
+}
+
+
+
+sub _get_count
+{
+    my ($self,$query_string)=@_;
+    
+    my $sth=$self->_db_handle->prepare($query_string);
+    $sth->execute;
+
+    $sth->fetchrow_hashref->{'count(*)'};
+
+}
 
 
 

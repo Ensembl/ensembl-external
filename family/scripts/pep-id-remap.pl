@@ -2,7 +2,7 @@
 #$Id$
 
 # script to translate ens peptide ids; expects a file with lines
-# ^OLD:NEW$ to do mapping.
+# ^OLD\tNEW$ to do mapping.
 
 # Note: after this, the original format bug has been removed from the input
 
@@ -22,7 +22,7 @@ while ( <MAP> ) {
 }
 die "no mappings !?!" unless %mapping;
 
-my @id_prefixes = qw(ENSP COBP PGBP);
+my @id_prefixes = qw(COBP PGBP);
 
 warn "checking for all id with prefixes ", join(' ', @id_prefixes). "\n";
 
@@ -45,13 +45,10 @@ while (<>) {
     my @newmems=();
     my $new; 
     foreach $mem (@mems) {
-#warn $mem;
         if ( grep $mem =~ /^$_/,@id_prefixes ) {
-
             $new = $mapping{$mem};
-#warn $new;
-            if (!$new) {
-                die "didn't find mapping for $mem\n$line";
+            if (!$new) {               # 
+                die "didn't find mapping for $mem:\n$line";
             }
         } else {
             $new=$mem;

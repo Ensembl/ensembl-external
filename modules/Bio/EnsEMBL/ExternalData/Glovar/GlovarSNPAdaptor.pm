@@ -40,6 +40,7 @@ use Bio::EnsEMBL::Variation::Variation;
 use Bio::EnsEMBL::Variation::TranscriptVariation;
 use Bio::EnsEMBL::Variation::PopulationGenotype;
 use Bio::EnsEMBL::Variation::Population;
+use Bio::EnsEMBL::Variation::Allele;
 use Bio::EnsEMBL::Transcript;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);

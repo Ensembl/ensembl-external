@@ -123,6 +123,11 @@ sub get_Ensembl_SeqFeatures_contig {
 	   $out->analysis    ($analysis);
 	   $out->id          ($hid);              # MC This is for Arek - but I don't
 	                                          #    really know where this method has come from.
+	   $out->p_value    ($evalue)    if (defined $evalue);
+	   $out->percent_id ($perc_id)   if (defined $perc_id); 
+	   $out->phase      ($phase)     if (defined $phase);    
+	   $out->end_phase  ($end_phase) if (defined $end_phase);
+
        } else {
 	   $out = new Bio::EnsEMBL::SeqFeature;
 	   $out->seqname    ($self->id);

@@ -34,8 +34,8 @@ my $testdb = EnsTestDB->new($testconf);
 
 # Load some data into the db
 
-# $testdb->do_sql_file("t/family.dump");
-$testdb->do_sql_file("family.dump");
+$testdb->do_sql_file("t/family.dump");
+# $testdb->do_sql_file("family.dump");
 # $testdb->pause;
 
 my $db = $testdb->get_DBSQL_Obj;

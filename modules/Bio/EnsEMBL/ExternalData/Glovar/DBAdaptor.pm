@@ -40,7 +40,6 @@ use strict;
 use vars qw(@ISA);
 use strict;
 
-use Bio::EnsEMBL::Container;
 use Bio::EnsEMBL::DBSQL::DBConnection;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::DBConnection);
@@ -123,10 +122,7 @@ sub new {
   $self->password( $password);
   $self->driver($driver);
 
-    # be very sneaky and actually return a container object which is outside of
-    # the circular reference loops and will perform cleanup when all references
-    # to the container are gone.
-  return new Bio::EnsEMBL::Container($self);
+  return $self;
 }
 
 =head2 get_GlovarAdaptor

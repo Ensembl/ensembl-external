@@ -40,7 +40,6 @@ package Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection;
 use vars qw(@ISA);
 use strict;
 
-use Bio::EnsEMBL::Container;
 use Bio::EnsEMBL::Root;
 use DBI;
 
@@ -130,10 +129,7 @@ sub new {
 #  $self->port($port);
   $self->driver($driver);
 
-  #be very sneaky and actually return a container object which is outside
-  #of the circular reference loops and will perform cleanup when all references
-  #to the container are gone.
-  return new Bio::EnsEMBL::Container($self);
+  return $self;
 }
 
 
@@ -292,14 +288,8 @@ sub password {
 
 sub locator {
   my $self = shift;
-  
-  my $ref;
 
-  if($self->isa('Bio::EnsEMBL::Container')) {
-    $ref = ref($self->_obj);
-  } else {
-    $ref = ref($self);
-  }
+  my $ref = ref($self);
 
   return "$ref/host=".$self->host.";port=".$self->port.";dbname=".
     $self->dbname.";user=".$self->username.";pass=".$self->password;
@@ -427,11 +417,6 @@ sub add_db_adaptor {
   unless($name && $adaptor && ref $adaptor) {
     $self->throw('adaptor and name arguments are required');
   } 
-				   
-  #avoid circular references and memory leaks
-  if($adaptor->isa('Bio::EnsEMBL::Container')) {
-      $adaptor = $adaptor->_obj;
-  }
 
   $self->{'_db_adaptors'}->{$name} = $adaptor;
 }

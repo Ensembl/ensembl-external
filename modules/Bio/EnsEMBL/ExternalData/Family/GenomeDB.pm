@@ -72,11 +72,6 @@ sub db_adaptor{
 		   " not a [$dba]\n");
     }
 
-    #avoid potential memory leak
-    if($dba->isa('Bio::EnsEMBL::Container')) {
-      $dba = $dba->_obj;
-    }
-
     $self->{'_db_adaptor'} = $dba;
   }
 

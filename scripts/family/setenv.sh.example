@@ -1,6 +1,0 @@
-# $Id$
-# This file is to be source'd, before running stuff
-export FAMPATH
-FAMPATH=`pwd` # this only works if you source this file while 'in' its directory
-
-PATH=$FAMPATH:$PATH

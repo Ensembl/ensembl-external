@@ -1,12 +1,4 @@
 # $Id$
 
-This directory contains stuff needed to run Anton Enright's Tribe
-algorithm, starting from a on a complete peptide set, and finishing with a
-file of families that can be loaded into a family databases using
-the scripts. 
-
-The script/ directory contains sh and perl scripts; the src/ directory any C
-source code and Makefile; binaries are written to bin/.
-
-See ensembl-doc/family.txt for directions on how to produce a new family
-set. 
+All the scripts have moved from ensembl-external/scripts/family to
+ensembl-external/family/scripts/

@@ -20,10 +20,10 @@ HaplotypeAdaptor - DESCRIPTION of Object
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::GO::GOAdaptor;
 
-$hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
-                                             -user   => 'ensro',
-                                             -dbname => 'haplotype_5_28',
-                                             -host   => 'ecs3d',
+$godb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+                                             -user   => 'mysql_user',
+                                             -dbname => 'go702',
+                                             -host   => 'mysql_server',
                                              -driver => 'mysql',
                                             );
 my $go_adtor = Bio::EnsEMBL::ExternalData::GO::GOAdaptor->new($godb);

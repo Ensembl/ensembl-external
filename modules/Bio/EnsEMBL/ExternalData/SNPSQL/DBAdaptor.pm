@@ -230,7 +230,7 @@ sub get_SeqFeature_by_id {
 		   };
     }
 
-    #print STDERR "SNP $query\n";
+    print STDERR "SNP $query\n";
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
     my $rows = $sth->rows();

@@ -245,9 +245,10 @@ sub fetch_Haplotype_by_id {
         select 
             polymorphism_id 
         from 
-            polymorphism_block_map 
+            polymorphism_block_map
         where 
             block_id = "$bid"
+            
 		and 
 			ld_status = "1"
         );
@@ -262,26 +263,28 @@ sub fetch_Haplotype_by_id {
     
     # ....next we get the consensus patterns for this haplotype block
     my $q2 = qq(
-        select pattern_id, sample_count, haplotype_pattern 
-        from pattern 
-        where block_id = "$bid");
+        select 
+            pattern_id, sample_count, haplotype_pattern 
+        from 
+            pattern 
+        where 
+            block_id = "$bid"
+        );
 
     my $sth2 = $self->prepare($q2);
     $sth2->execute();
 
-    HOP: while (my($pattern_id, $count, $pattern) = $sth2->fetchrow_array) {
-		
-		#if ($pattern =~ /\-/){
-		#	print STDERR "Skipping pattern: $pattern\n";
-		#	next HOP;
-		#}
+    while (my($pattern_id, $count, $pattern) = $sth2->fetchrow_array) {
 		
         my $pat = new Bio::EnsEMBL::ExternalData::Haplotype::Pattern($self->adaptor, $pattern_id, $count, $pattern);
         # ....next we get the classified  patterns for this consensus block
         $pat->block_id($bid);
-        my $q3 = qq( select sample_id, pattern_id, haplotype_string 
-                    from haplotype 
-                    where pattern_id = "$pattern_id"
+        my $q3 = qq( select 
+                        sample_id, pattern_id, haplotype_string 
+                    from 
+                        haplotype 
+                    where 
+                        pattern_id = "$pattern_id"
                 );
         my $sth3 = $self->prepare($q3);
         $sth3->execute();
@@ -290,36 +293,34 @@ sub fetch_Haplotype_by_id {
         my $sample_count = 0;
 
         while (my($sample_id, $pattern_id, $haplotype_string) = $sth3->fetchrow_array) {
-
-                $samples{$sample_id} = uc($haplotype_string);
-                $sample_count++;
-                #print STDERR "saving classified sample ($sample_count) $sample_id as  $pattern\n"; 
+            $samples{$sample_id} = uc($haplotype_string);
+            $sample_count++;
         }
         
         $pat->samples(\%samples);
         $hap->samples_count($sample_count);
         
-         
-
         # ....next we get the unclassified patterns for this consensus block
         my $unclassified_sample_count = 0;
         my %unclassified_samples = ();
-        my $q4 = qq( select sample_id, haplotype_string 
-                    from haplotype 
-                    where pattern_id = ""
-                    and block_id = "$bid"
+        my $q4 = qq( select 
+                        sample_id, haplotype_string 
+                    from 
+                        haplotype 
+                    where 
+                        pattern_id = ""
+                    and 
+                        block_id = "$bid"
                 );
         my $sth4 = $self->prepare($q4);
         $sth4->execute();
 
         while (my($sample_id, $haplotype_string) = $sth4->fetchrow_array) {
-                $unclassified_samples{$sample_id} = $haplotype_string;     
-                $unclassified_sample_count++;
-                #print STDERR "saving unclassified sample $sample_id as  $pattern\n"; 
+            $unclassified_samples{$sample_id} = $haplotype_string;     
+            $unclassified_sample_count++;
         }
         $pat->unclassified_samples(\%unclassified_samples);
         $hap->unclassified_samples_count($unclassified_sample_count);
-
 
         push (@pats,$pat); 
     }
@@ -327,6 +328,8 @@ sub fetch_Haplotype_by_id {
     $hap->patterns(\@pats);
     return($hap);
 }
+
+
 
 # set/get handle on ensembl database
 sub _ensdb {
@@ -363,6 +366,28 @@ sub _db_handle {
   my ($self,$value) = @_;
   if( defined $value) {$self->{'_db_handle'} = $value;}
   return $self->{'_db_handle'};
+}
+
+sub fetchSNPs {
+    my $self = shift;
+    my $bid  = shift;
+    my $q = qq(
+        select
+            p.polymorphism_id, p.position
+        from
+            polymorphism_block_map as pbm, polymorphism as p
+        where
+            pbm.block_id = "$bid" and pbm.ld_status = "1" and
+            pbm.polymorphism_id = p.polymorphism_id
+        order by p.position asc
+    );
+    my $sth = $self->prepare($q);
+    $sth->execute();
+    my %snps = ();
+    while( my $rowhash = $sth->fetchrow_hashref ) {
+        $snps{ $rowhash->{'polymorphism_id'} } = $rowhash->{'position'};
+    }
+    return %snps;
 }
 
 sub DESTROY {

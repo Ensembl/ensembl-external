@@ -402,6 +402,11 @@ sub total_samples {
     }
     return $self->{'total_samples'} ||= 0;
 }
+sub fetchSNPs {
+    my ($self) = @_;
+    return $self->adaptor->fetchSNPs( $self->id );
+}
+
 
 sub fetchSNPs {
     my ($self) = @_;

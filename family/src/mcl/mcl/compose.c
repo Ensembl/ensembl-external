@@ -551,7 +551,7 @@ mcxMatrix* mcxFlowExpand
          ;  stats->mass_prune_ny =  sumy_prune/reg.worstYprune->n_inserted
       ;  }
 
-         {
+         ;  if (reg.worstXfinal->n_inserted) { /* patch */
             float*   flp         =  (float *) reg.worstXfinal->base
 
          ;  for (x=0;x<reg.worstXfinal->n_inserted;x++)
@@ -560,6 +560,7 @@ mcxMatrix* mcxFlowExpand
                                         /* BUG: 0.0/0 here! */
       ;  }
 
+         ;  if (reg.worstYfinal->n_inserted) /* patched */
          {
             float*   flp         =  (float *) reg.worstYfinal->base
 

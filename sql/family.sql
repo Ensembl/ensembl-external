@@ -36,7 +36,7 @@ CREATE TABLE family_members (
 
   KEY(external_db_id,external_member_id),
   KEY(external_db_id),
-  UNIQUE KEY(external_member_id),
+#  UNIQUE KEY(external_member_id),
   KEY(family_id,external_db_id)
 );
 

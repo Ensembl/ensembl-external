@@ -376,6 +376,26 @@ sub status {
    return $obj->{'status'};
 }
 
+=head2 raw_status
+
+ Title   : raw_status
+ Usage   : $obj->raw_status()
+ Function: Getter/setter for the raw status of the variation object.
+ Example : $obj->raw_status('Externally Verified');
+ Returns : scalar
+ Args    : (optional) String
+
+
+=cut
+
+sub raw_status {
+    my ($self,$value) = @_;
+ 
+    if( defined $value ) {
+        $self->{'_validated'} = $value;
+    }
+    return $self->{'_validated'};
+}
 
 =head2 alleles
 

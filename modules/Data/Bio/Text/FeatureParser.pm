@@ -109,13 +109,10 @@ sub parse_row {
     if( $tab_delimited[12] eq '.' || $tab_delimited[12] eq '+' || $tab_delimited[12] eq '-' ) {
       if( $tab_delimited[16] =~ /[ ;]/ ) { ## GTF format
         $self->store_feature( $current_key, Data::Bio::Text::Feature::GTF->new( \@tab_delimited ) ) if
-          $self->filter($tab_delimited[0],$tab_delimited[3],$tab_delimited[4]);
-      } elsif ($tab_delimited[5]){         ## GFF format
+          $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
+      } elsif ($tab_delimited[10]){         ## GFF format
         $self->store_feature( $current_key, Data::Bio::Text::Feature::GFF->new( \@tab_delimited ) ) if
           $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
-      } else {                             ## Simple format (chr/start/end/type
-        $self->store_feature( $tab_delimited[3], Data::Bio::Text::Feature::generic->new( \@tab_delimited ) ) if
-          $self->filter($tab_delimited[0],$tab_delimited[1],$tab_delimited[2]);
       }
     } else {
       my @ws_delimited = split /\s+/, $row;
@@ -128,7 +125,7 @@ sub parse_row {
       } else {                                  ## default format ( BED )
         $current_key ||= $ws_delimited[3];
         $self->store_feature( $current_key, Data::Bio::Text::Feature::BED->new( \@ws_delimited ) ) if
-          $self->filter($ws_delimited[0],$ws_delimited[1],$ws_delimited[2]);
+        $self->filter($ws_delimited[0],$ws_delimited[1],$ws_delimited[2]);
       }
     } 
   }

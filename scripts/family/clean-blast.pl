@@ -25,6 +25,11 @@ while(<>) {
     } elsif ($score eq '0.0') { 
         $factor = 1;
         $magnitude=200;
+    } elsif ($score =~  '^0\.') { 
+        $score = sprintf "%e", $score;
+        if ( $score !~ /([0-9.]?)e-(\d+)/) { die "$score doesn't match:bug";}
+        $factor= ($1 || 1);
+        $magnitude=$2;
     } else {
         die "not a valid score: '$score'";
     }

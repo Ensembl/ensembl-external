@@ -227,7 +227,7 @@ sub drop_fasta_table  {
     my $sth = $self->prepare($sql);
     $sth->execute();
   };
-  warn ("Database error! $@\n") if $@;
+  $@ && warn ("Database error! $@\n") and return 0;
 
   $sql =qq( DROP TABLE ${id}_meta );
 
@@ -235,7 +235,7 @@ sub drop_fasta_table  {
     my $sth = $self->prepare($sql);
     $sth->execute();
   };
-  warn ("Database error! $@\n") if $@;
+  $@ && warn ("Database error! $@\n") and return 0;
 }
 
 =head2 fetch_fasta_by_id

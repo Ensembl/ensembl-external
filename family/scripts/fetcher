@@ -29,7 +29,7 @@ while (<STDIN>) {                            # using stdin now
         if (grep( /$id/  , @ARGV) ) {
             $wantthis=1;
             $total++;
-            warn "Found: $_"; 
+            # warn "Found: $_"; 
         } else { 
             $wantthis=0;
         }

@@ -342,6 +342,7 @@ sub get_SeqFeature_by_id {
 
 	#Variation
 
+        $snp->seqname($acc_version);
 	$snp->start($allele_pos);
 	$snp->end($allele_pos);
 	$snp->strand($strand);

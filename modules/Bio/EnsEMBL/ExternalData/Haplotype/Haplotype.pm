@@ -108,7 +108,7 @@ sub new {
 sub id {
     my ($self,$value) = @_;
     if( defined $value) {
-	$self->{'id'} = $value;
+		$self->{'id'} = $value;
     }
     return $self->{'id'};
 }
@@ -126,7 +126,7 @@ sub id {
 sub chr_name {
     my ($self,$value) = @_;
     if( defined $value) {
-	$self->{'chr_name'} = $value;
+		$self->{'chr_name'} = $value;
     }
     return $self->{'chr_name'};
 }
@@ -205,8 +205,9 @@ sub local_start {
     unless ($self->{'local_start'}){
         my $id = $self->id();
         my $q = qq(
-        select first_reference_position from block 
-        where block_id = "$id");
+        	select first_reference_position from block 
+        	where block_id = "$id"
+		);
         my $sth = $self->adaptor->prepare($q);
         $sth->execute();
         ($self->{'local_start'}) = $sth->fetchrow_array()
@@ -233,8 +234,9 @@ sub local_end {
     unless ($self->{'local_end'}){
         my $id = $self->id();
         my $q = qq(
-        select last_reference_position from block 
-        where block_id = "$id");
+        	select last_reference_position from block 
+        	where block_id = "$id"
+		);
         my $sth = $self->adaptor->prepare($q);
         $sth->execute();
         ($self->{'local_end'}) = $sth->fetchrow_array()
@@ -277,7 +279,7 @@ sub snp_info {
     unless ($self->{'snp_info'}->{$value}){
         my $q = qq(
             select 
-                 position,ref_base,alt_base,ref_calls,alt_calls
+                 position,ref_base,alt_base,ref_calls,mut_calls
             from 
                 polymorphism
             where 

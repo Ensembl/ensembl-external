@@ -102,12 +102,30 @@ sub new {
     return($self);
 }
 
+=head2 id
+
+ Title   : id
+ Usage   : 
+ Function: get/set the display id of the pattern
+ Example :
+ Returns : 
+ Args    : 
+=cut
+
+sub id {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	    $self->pattern_id($value);
+    }
+    return $self->pattern_id();
+}
+
 
 =head2 pattern_id
 
  Title   : pattern_id
  Usage   : 
- Function: get/set the display id of the Haplotype
+ Function: get/set the display id of the pattern
  Example :
  Returns : 
  Args    : 

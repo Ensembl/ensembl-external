@@ -206,29 +206,31 @@ sub get_SeqFeature_by_id {
 	     	   p2.observed, p2.seq5, p2.seq3,
 	     	   p2.het, p2.hetse, p2.validated, p2.mapweight
 	    FROM   Hit as p1, RefSNP as p2, SubSNP as p3
-            WHERE  p3.altid = "$id"
-                   AND p1.refsnpid = p2.id
-                   AND p1.refsnpid = p3.refsnpid
+        WHERE  p3.altid = "$id"
+        AND    p1.refsnpid = p2.id
+        AND    p1.refsnpid = p3.refsnpid
 
 		   };
 
     # else it is a dbSNP id
     } else {
 	
+#			   p3.id, p3.institute
+#	    FROM   Hit as p1, RefSNP as p2, Submitter as p3
 	$query = qq{
 	
 	    SELECT p2.id, p1.acc, p1.version, p1.start, p1.end, p1.type,
 	     	   p1.strand, p2.snpclass,  p2.snptype,
 	     	   p2.observed, p2.seq5, p2.seq3,
 	     	   p2.het, p2.hetse, p2.validated, p2.mapweight
-	    FROM   Hit as p1, RefSNP as p2
-            WHERE  p2.id = "$id"
-                   AND p1.refsnpid = p2.id
+	    FROM   Hit as p1, RefSNP as p2 
+        WHERE  p2.id = "$id"
+        AND    p1.refsnpid = p2.id
 
 		   };
     }
 
-    #print STDERR "$query\n";
+    #print STDERR "SNP $query\n";
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
     my $rows = $sth->rows();
@@ -237,96 +239,95 @@ sub get_SeqFeature_by_id {
   SNP:
     while( (my $arr = $sth->fetchrow_arrayref()) ) {
        
-	my $allele_pos = '0';
-	
-	my ($dbsnp_id, $acc, $ver, $begin, $end, $postype, $strand, $class, $type,
-	    $alleles, $seq5, $seq3, $het, $hetse,  $confirmed, $mapweight
-	    ) = @{$arr};
-	$main_id = $dbsnp_id;
+		my $allele_pos = '0';
 
-        #snp info not valid
-	$self->throw("SNP withdrawn. Reason: $type ") if $type ne 'notwithdrawn';
+#	    	$alleles, $seq5, $seq3, $het, $hetse,  $confirmed, $mapweight, $sub_id, $sub_inst
+		my ($dbsnp_id, $acc, $ver, $begin, $end, $postype, $strand, $class, $type,
+	    	$alleles, $seq5, $seq3, $het, $hetse,  $confirmed, $mapweight
+	    	) = @{$arr};
+		$main_id = $dbsnp_id;
 
-        # use the right vocabulary for the SNP status
-        if ($confirmed eq 'no-info') {
-	    $confirmed = "suspected";
-        } else {
-	    $confirmed =~ s/-/ /;
-	    $confirmed = "proven $confirmed";
-	}
-	
-	# the allele separator should be  '|'
-	$alleles =~ s/\//\|/g;
-	
-	#prune flank sequences to 25 nt
-	$seq5 = substr($seq5, -25, 25);
-	$seq3 = substr($seq3, 0, 25);
+    	#snp info not valid
+		$self->throw("SNP withdrawn. Reason: $type ") if $type ne 'notwithdrawn';
 
-	#add Ns to length of 25;
-	$seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
-	$seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
+    	# use the right vocabulary for the SNP status
+    	if ($confirmed eq 'no-info') {
+	    	$confirmed = "suspected";
+    	} else {
+	    	$confirmed =~ s/-/ /;
+	    	$confirmed = "proven $confirmed";
+		}
 
-	#
-	# prepare the output objects
-	#
+		# the allele separator should be  '|'
+		$alleles =~ s/\//\|/g;
 
-	#Variation
-	my $acc_version = '';
-	$acc_version .= uc $acc if $acc;
-	$acc_version .= ".$ver" if $ver;
+		#prune flank sequences to 25 nt
+		$seq5 = substr($seq5, -25, 25);
+		$seq3 = substr($seq3, 0, 25);
 
-	my $snp = new Bio::EnsEMBL::ExternalData::Variation;
-	if ($acc_version) {
-	        $snp->seqname($acc_version);
-		$snp->start($begin);
-		$snp->end($end);
-		$snp->strand($strand);
-		$snp->original_strand($strand);
-	}
-	$snp->source_tag('dbSNP');
-	$snp->status($confirmed);
-	$snp->alleles($alleles);
-	$snp->upStreamSeq($seq5);
-	$snp->dnStreamSeq($seq3);
-	$snp->score($mapweight); 
-        $snp->het($het);
-        $snp->hetse($hetse);
+		#add Ns to length of 25;
+		$seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
+		$seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
 
-	#add SNP to the list
-	push(@variations, $snp);
+		#
+		# prepare the output objects
+		#
 
-	#DBLink
-	my $link = new Bio::Annotation::DBLink;
-	$link->database('dbSNP');
-	$link->primary_id($dbsnp_id);
+		#Variation
+		my $acc_version = '';
+		$acc_version .= uc $acc if $acc;
+		$acc_version .= ".$ver" if $ver;
 
-	#add dbXref to Variation
-	$snp->add_DBLink($link);
+		my $snp = new Bio::EnsEMBL::ExternalData::Variation;
+		if ($acc_version) {
+	    	$snp->seqname($acc_version);
+			$snp->start($begin);
+			$snp->end($end);
+			$snp->strand($strand);
+			$snp->original_strand($strand);
+		}
+		$snp->source_tag('dbSNP');
+		$snp->status($confirmed);
+		$snp->alleles($alleles);
+		$snp->upStreamSeq($seq5);
+		$snp->dnStreamSeq($seq3);
+		$snp->score($mapweight); 
+    	$snp->het($het);
+    	$snp->hetse($hetse);
+    	#$snp->submitter_id($sub_id);
+    	#$snp->submitter_institute($sub_inst);
 
-	#get alternative IDs
-	my $primid = $snp->id;
-	my $query2 = qq{
-	    
-	    SELECT p1.handle, p1.altid 
-	    FROM   SubSNP as p1
-            WHERE  p1.refsnpid = "$primid"
+		#add SNP to the list
+		push(@variations, $snp);
 
-	    };
+		#DBLink
+		my $link = new Bio::Annotation::DBLink;
+		$link->database('dbSNP');
+		$link->primary_id($dbsnp_id);
 
-	my $sth2 = $self->prepare($query2);
-	my $res2 = $sth2->execute();
-	while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
-	        
-	    my ($handle, $altid
-		) = @{$arr2};
+		#add dbXref to Variation
+		$snp->add_DBLink($link);
 
-	    my $link = new Bio::Annotation::DBLink;
-	    $link->database($handle);
-	    $link->primary_id($altid);
-	    
-	    #add dbXref to Variation
-	    $snp->add_DBLink($link);
-	}
+		#get alternative IDs
+		my $primid = $snp->id;
+		my $query2 = qq{
+	    	SELECT p1.handle, p1.altid 
+	    	FROM   SubSNP as p1
+            WHERE  p1.refsnpid = "$primid"};
+
+		my $sth2 = $self->prepare($query2);
+		my $res2 = $sth2->execute();
+		while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
+
+	    	my ($handle, $altid) = @{$arr2};
+
+	    	my $link = new Bio::Annotation::DBLink;
+	    	$link->database($handle);
+	    	$link->primary_id($altid);
+
+	    	#add dbXref to Variation
+	    	$snp->add_DBLink($link);
+		}
     }
 
     return @variations;

@@ -94,60 +94,61 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 sub fetch_Haplotype_by_chr_start_end  {
     my ($self, $chr, $s, $e, $is_lite) = @_; 
-
-    # convert fpc_ctg start to global coords....
-    # select fpcctg_name, (chr_start - fpcctg_start + 1) as fpc_start                                                              
-    # from static_golden_path where chr_name='21'                                                                                
-    # group by fpcctg_name, fpc_start;                                                                                            
-
+    
     my $q = qq(
-        select block_id, sequence_id, snp_required, first_reference_position, last_reference_position,
-        (first_reference_position+block.chr_start-1) as global_start, (last_reference_position+block.chr_start-1) 
-        as global_end
-        from block,static_golden_path
+        select 
+			block_id
+        from 
+			block
         where
-        (first_reference_position+block.chr_start-1)>= $s
+        	chr_start>= $s
         and
-        (last_reference_position+block.chr_start-1)<= $e
+        	chr_end<= $e
         and
-        block.chr_name = $chr
-        and 
-        block.sequence_id = static_golden_path.fpcctg_name
+        	chr_name = $chr
         group by block_id
     );
-    
     
     my $sth = $self->prepare($q);
     $sth->execute();
 
     my $rowhash = undef;
     my @haps = ();
-    my @pats = ();
-    my $hap;
-    #first we get the high level haplotype block info....
-    while ( $rowhash = $sth->fetchrow_hashref) {
+
+    while ($rowhash = $sth->fetchrow_hashref()) {
         return() unless keys %{$rowhash};
 		if($is_lite){
-	        $hap = $self->fetch_lite_Haplotype_by_id($rowhash->{'block_id'});
+	        my $hap = $self->fetch_lite_Haplotype_by_id($rowhash->{'block_id'});
+        	push (@haps,$hap); 
 		} else {
-	        $hap = $self->fetch_Haplotype_by_id($rowhash->{'block_id'});
+	        my $hap = $self->fetch_Haplotype_by_id($rowhash->{'block_id'});
+        	push (@haps,$hap); 
 		}
-        push (@haps,$hap); 
     }
     
     return(@haps);
 }                                       
 
-# get a "shallow" haplotype object from the database (just for drawing)
+
+=head2 fetch_lite_Haplotype_by_id
+
+ Title   : fetch_lite_Haplotype_by_id
+ Usage   : $db->fetch_lite_Haplotype_by_id('B10045');
+ Function: fetch "shallow" haplotype object based on an ID.
+ Example :
+ Returns : a list of Haplotype objects, undef otherwise
+ Args    : chr start, chr end
+
+=cut
+
 sub fetch_lite_Haplotype_by_id {
     my ($self, $id) = @_; 
 
     my $q = qq(
         select 
-            (first_reference_position+block.chr_start-1) as global_start, 
-            (last_reference_position+block.chr_start-1) as global_end, 
-            block.chr_name
-            from block,static_golden_path
+            chr_start,chr_end,chr_name
+        from 
+			block
         where
             block_id = "$id"
         group by 
@@ -161,15 +162,25 @@ sub fetch_lite_Haplotype_by_id {
     
     my $hap = undef;
     $hap = new Bio::EnsEMBL::ExternalData::Haplotype::Haplotype($self);
-    $hap->start($rowhash->{'global_start'});
-    $hap->end($rowhash->{'global_end'});
+    $hap->start($rowhash->{'chr_start'});
+    $hap->end($rowhash->{'chr_end'});
     $hap->chr_name($rowhash->{'chr_name'});
     $hap->id($id);
 	
     return($hap);
 }
 
-# get a fully populated haplotype object from the database
+=head2 fetch_Haplotype_by_id
+
+ Title   : fetch_Haplotype_by_id
+ Usage   : $db->fetch_Haplotype_by_id('B10045');
+ Function: fetch haplotype object based on an ID.
+ Example :
+ Returns : a list of Haplotype objects, undef otherwise
+ Args    : chr start, chr end
+
+=cut
+
 sub fetch_Haplotype_by_id {
     my ($self, $id) = @_; 
 
@@ -178,10 +189,9 @@ sub fetch_Haplotype_by_id {
             block_id, sequence_id, snp_required, 
             first_reference_position, last_reference_position,
             first_polymorphism_index, last_polymorphism_index,
-            (first_reference_position+block.chr_start-1) as global_start, 
-            (last_reference_position+block.chr_start-1) as global_end, 
-            block.chr_name
-            from block,static_golden_path
+            chr_start,chr_end,chr_name
+        from 
+			block
         where
             block_id = "$id"
         group by 
@@ -202,17 +212,12 @@ sub fetch_Haplotype_by_id {
     
     $hap = new Bio::EnsEMBL::ExternalData::Haplotype::Haplotype($self);
     $hap->contig_id($rowhash->{'sequence_id'});
-    $hap->start($rowhash->{'global_start'});
-    $hap->end($rowhash->{'global_end'});
+    $hap->start($rowhash->{'chr_start'});
+    $hap->end($rowhash->{'chr_end'});
     $hap->snp_req($rowhash->{'snp_required'});
-    $hap->id($rowhash->{'block_id'});
-    $hap->chr_name($rowhash->{'chr_name'});
-    
-    my $bid = $hap->id();
-    
-    my $fpoly = $rowhash->{'first_reference_position'};
-    my $lpoly = $rowhash->{'last_reference_position'};
-    
+    $hap->chr_name($rowhash->{'chr_name'});    
+    my $bid = $hap->id($rowhash->{'block_id'});
+        
     # ....next we get the SNP IDs via their chromosomal index
     my $q1 = qq(
         select 
@@ -221,10 +226,8 @@ sub fetch_Haplotype_by_id {
             polymorphism_block_map 
         where 
             block_id = "$bid"
-#        and 
-#            polymorphism_index >= $fpoly
-#        and 
-#            polymorphism_index <= $lpoly
+		and 
+			ld_status = "1"
         );
     
     my $sth1 = $self->prepare($q1);
@@ -233,7 +236,6 @@ sub fetch_Haplotype_by_id {
     while (my $s = $sth1->fetchrow_array){
         push (@ids, $s);
     }
-    #print STDERR "SNPS: ", @ids, "\n";
     $hap->snps(\@ids);
     
     # ....next we get the consensus patterns for this haplotype block
@@ -245,7 +247,13 @@ sub fetch_Haplotype_by_id {
     my $sth2 = $self->prepare($q2);
     $sth2->execute();
 
-    while (my($pattern_id, $count, $pattern) = $sth2->fetchrow_array) {
+    HOP: while (my($pattern_id, $count, $pattern) = $sth2->fetchrow_array) {
+		
+		#if ($pattern =~ /\-/){
+		#	print STDERR "Skipping pattern: $pattern\n";
+		#	next HOP;
+		#}
+		
         my $pat = new Bio::EnsEMBL::ExternalData::Haplotype::Pattern($self->adaptor, $pattern_id, $count, $pattern);
         # ....next we get the classified  patterns for this consensus block
         $pat->block_id($bid);
@@ -260,6 +268,7 @@ sub fetch_Haplotype_by_id {
         my $sample_count = 0;
 
         while (my($sample_id, $pattern_id, $haplotype_string) = $sth3->fetchrow_array) {
+
                 $samples{$sample_id} = uc($haplotype_string);
                 $sample_count++;
                 #print STDERR "saving classified sample ($sample_count) $sample_id as  $pattern\n"; 
@@ -271,7 +280,6 @@ sub fetch_Haplotype_by_id {
          
 
         # ....next we get the unclassified patterns for this consensus block
-        
         my $unclassified_sample_count = 0;
         my %unclassified_samples = ();
         my $q4 = qq( select sample_id, haplotype_string 

@@ -49,7 +49,7 @@ sub fetch_all_by_chr_start_end {
   (my $assembly_version = $assembly) =~ s/[A-Z,a-z]*([0-9]*)$/$1/;
 
   my $query = qq {
-SELECT DISTINCT MAPPED_SNP.ID_SNP,  
+SELECT MAPPED_SNP.ID_SNP,  
           (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snppos,
           (MAPPED_SNP.END_POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snpendpos,
           (MAPPED_SNP.IS_REVCOMP * SEQ_SEQ_MAP.CONTIG_ORIENTATION) AS snpstrand,
@@ -69,6 +69,8 @@ WHERE     DATABASE_DICT.DATABASE_NAME = '$assembly_name'
     AND   CHROM_SEQ.ID_CHROMSEQ = SEQ_SEQ_MAP.ID_CHROMSEQ
     AND   MAPPED_SNP.ID_SEQUENCE =SEQ_SEQ_MAP.SUB_SEQUENCE
     AND   SNP_SUMMARY.ID_SNP = MAPPED_SNP.ID_SNP
+    AND   SNP_SUMMARY.IS_PRIVATE = 0
+    AND   MAPPED_SNP.IGNORE_REASON IS NULL
     AND   MAPPED_SNP.IS_REVCOMP IS NOT NULL
     AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) BETWEEN $start AND $end
 ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
@@ -88,9 +90,13 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
   my $snp;
   my %ids;
   my $hashref;
+
   while ($hashref = $sth->fetchrow_hashref) {
     
-    next if exists($ids{$hashref->{ID_SNP}});
+
+    if ($hashref->{SNPSTRAND} != 1 && $hashref->{SNPSTRAND} != -1) {
+      print STDERR "Got non 1 or -1 strand for " . $hashref->{ID_SNP} . "\n";
+    }
 
     my $start;
     my $end;
@@ -101,6 +107,11 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
     } else {
       $start = $hashref->{SNPPOS};
       $end = $hashref->{SNPENDPOS};
+    }
+
+    if (exists($ids{$hashref->{ID_SNP} . ":" .$start})) {
+      print STDERR "Warning: Skipping duplicate for " . $hashref->{ID_SNP} . " at $start\n";
+      next;
     }
 
     my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
@@ -115,7 +126,8 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
         'source'            => 'SangerSNP',
       });
 
-    $varfeat->slice($self->ensembl_db->get_SliceAdaptor->fetch_by_region('chromosome',$hashref->{CHRNAME}));
+    $varfeat->slice($self->ensembl_db->get_SliceAdaptor->fetch_by_region('chromosome',
+                                                                         $hashref->{CHRNAME}));
 
     # add minimal Variation object
     my $var = Bio::EnsEMBL::Variation::Variation->new(
@@ -134,22 +146,13 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
 #      $snp_hash{_gsf_start} = $hashref->{SNPPOS};
 #      $snp_hash{_gsf_end} = $hashref->{SNPENDPOS};
 #    }
-#    $snp_hash{_snp_strand} = $snp_hash{_gsf_strand} = $hashref->{SNPSTRAND};
-#
 #    if ($hashref->{SNPSTRAND} != 1 && $hashref->{SNPSTRAND} != -1) {
 #      print STDERR "Got non 1 or -1 strand\n";
 #    }
-#    $snp_hash{dbID} = $hashref->{ID_SNP};
-#    $snp_hash{_snpid} = $hashref->{DEFAULT_NAME};
-#    $snp_hash{_gsf_sub_array} = [];
-#
-#    $snp = Bio::EnsEMBL::SNP->new_fast(\%snp_hash);
-#
-#
-#    $snp->alleles($hashref->{ALLELES});
 
     push @snps,$varfeat;
-    $ids{$hashref->{ID_SNP}} = 1;
+
+    $ids{$hashref->{ID_SNP} . ":" .$start} = 1;
   }
 
   return \@snps;

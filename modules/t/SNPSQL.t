@@ -38,7 +38,9 @@ print "ok 1\n";    # 1st test passes.
 
 #creating the object
 $snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::Obj->new( -dbname=>'tsc', 
-						       -user=>'root'
+						       -user=>'ensro',
+						       -host=>'ensrv3.sanger.ac.uk'
+
 						       );
 print "ok 2\n"; 
 

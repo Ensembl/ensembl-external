@@ -378,7 +378,8 @@ sub diseases_on_chromosome
     $chromosome_no || $self->throw("I need a chromosome");
     
     # If we've got limits, then do a limited query, otherwise, do a full query
-    if ($offset||$offset == 0){
+    # There was a bug, $offset||$offset == 0, fixed.
+    if (defined $offset){
         $offset='limit '.$offset;
         if($count){$count=','.$count;}
     

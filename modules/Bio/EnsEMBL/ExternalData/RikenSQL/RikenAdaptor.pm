@@ -124,7 +124,7 @@ sub get_Ensembl_SeqFeatures_contig {
 	   	# is a paired feature
 		   # build EnsEMBL features and make the FeaturePair
 
-		   $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+	           $out = Bio::EnsEMBL::FeaturePair->new;
 
 		   # hacky temporary fix for web
 		   $name = 'riken';
@@ -251,7 +251,7 @@ sub get_Ensembl_SeqFeatures_contig_list{
        
        # is a paired feature
        # build EnsEMBL features and make the FeaturePair
-       $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+       $out = Bio::EnsEMBL::FeaturePair->new();
        $out->set_all_fields($start,$end,$strand,$f_score,$name,'similarity',$int_ext{$contig},
 			    $hstart,$hend,1,$f_score,$name,'similarity',$hid);
        
@@ -393,7 +393,7 @@ sub get_Ensembl_SeqFeatures_exon {
 	    next;
 	}
 	
-	my $f = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+	my $f = Bio::EnsEMBL::FeaturePair->new();
 	$f->set_all_fields($rowhash->{'seq_start'},
 			   $rowhash->{'seq_end'},
 			   $rowhash->{'strand'},

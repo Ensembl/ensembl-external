@@ -601,6 +601,7 @@ sub get_Ensembl_SeqFeatures_clone {
 
        #snp info not valid
        next SNP if $type ne 'notwithdrawn';
+       next SNP if $mapweight > 2;
 
        #exclude SNPs outside the given $start-$end range
        if (defined $start) {

@@ -11,7 +11,8 @@ all: mcl markov
 
 mcl:
 	@cd mcl; ${MAKE} binaries; 
-	$(CP) -f mcl/bin/* ../bin
+	$(CP) -f mcl/bin/* ../bin || true;  
+# the '|| true' avoids make stopping due to cp trying to copy CVS/ subdirs.
 
 markov:
 	@cd markov; ${MAKE}; ${MAKE} install

@@ -10,20 +10,25 @@ use strict;
 
 use vars qw($opt_h $opt_r $opt_U $opt_H $opt_D $opt_C $opt_r $release 
             $opt_C $ddl $max_desc_len 
-            $enspep_dbname $ensgene_dbname $sp_dbname
-            $fam_id_format);
+            $ens_pep_dbname $ens_gene_dbname $sp_dbname
+            @word_order);
 
 use Getopt::Std;
 
 $max_desc_len = 255;                    # max length of description
-$enspep_dbname = 'ENSEMBLPEP';          # name of EnsEMBL peptides database
-$ensgene_dbname = 'ENSEMBLGENE';        # name of EnsEMBL peptides database
+$ens_pep_dbname = 'ENSEMBLPEP';          # name of EnsEMBL peptides database
+$ens_gene_dbname = 'ENSEMBLGENE';        # name of EnsEMBL peptides database
 $sp_dbname = 'SWISSPROT';               # name of SWISSPROT database
-my $add_ens_pep =1;                     # should ens_peptides be added
-my $add_ens_gene =1;                    # should ens_genes be added
-my $add_sp =1;                          # should swissprot entries be added
+my $add_ens_pep =1;                     # should ens_peptides be added?
+my $add_ens_gene =1;                    # should ens_genes be added?
+my $add_swissprot =1;                   # should swissprot entries be added?
 
-$fam_id_format= 'ENSF%011d';
+## list of regexps tested, in order of increasing desirability, when
+## deciding which family to assign a gene to in case of conflicts (used in
+## compare_desc):
+@word_order = qw(UNKNOWN HYPOTHETICAL FRAGMENT CDNA);
+
+# $fam_id_format= 'ENSF%011d'; 
 
 my $usage = 
 "Usage:\n\n\tfamily-parse.pl [-h(elp) ] -r release [-U user] [-H host] [ -D database-name ] [ -C DDL-file (to create database)] [< ] FILENAME ]\n";
@@ -76,17 +81,11 @@ sub get_max_id {
     $id;
 }
 
-# create id for format
-sub format_fam_id {
-    my $num = shift;
-    sprintf $fam_id_format, $num;
-}
-
 sub open_ensembl { 
 warn "using hardcoded host, db and user here";
-     my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
+#     my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
+     my ($host, $user, $db) = ('ecs1b', 'ensro', 'ens075');
 #     my ($host, $user, $db) = ('ecs1b', 'ensro', 'arne_ensembl_main');
-#     my ($host, $user, $db) = ('ecs1b', 'ensro', 'ens075');
 
     my $dbh=DBI->connect("DBI:mysql:database=$db;host=$host", $user) ||
       die "couldn't connect to $db at $host as $user:" . $DBI::errstr;
@@ -118,7 +117,36 @@ sub ens_find {
     $id;
 }
 
+sub delete_prev_assign {
+    my ($q) = @_; 
+    $q->execute($q);
+    die $q->errstr if $q->err;
+}
+
+# return -1 if description a worse than b, 0 if equal, 1 if better
+# (this function could be used in a sort(compare_desc, @descriptions)
+sub compare_desc {
+    my ($a, $b) = @_; 
+
+    my ($am, $bm);
+    foreach my $w (@word_order) {
+        $am = ($a =~ /$w/)?1:0;
+        $bm = ($b =~ /$w/)?1:0;
+
+        if ($am  != $bm ) {             # ie, one matches, other doesn't
+            if ( $am == 1 ) {           # first one worse than second 
+                return -1;
+            } else { 
+                return 1; 
+            }
+        }
+    }
+    # still look same; base result on length: longer is better
+    return length($a) <=> length($b);
+}                                       # compare_desc
+
 sub main {
+    # god this function is hairy
     warn "checking for /^COBP/ too ...";
 
     my $fam_count = 0;
@@ -150,10 +178,11 @@ sub main {
     $dbh->{autocommit}++;
 
 
-    # separate handle for looking up translation from enspep to ensgene:
+    # separate handle for looking up translation from ens_pep to ens_gene:
     my $ensdb = open_ensembl();
 
     $internal_id = get_max_id($dbh) +1;
+### queries:
     my $fam_q = 
       "INSERT INTO family(internal_id, id, description, release, 
                          annotation_confidence_score)
@@ -181,14 +210,20 @@ sub main {
 
     $gene_q = $ensdb->prepare($gene_q) || die $ensdb->errstr;
 
-                                              
+    my $del_q = 
+      "DELETE FROM family_members
+       WHERE db_name = '$ens_gene_dbname'
+         AND db_id = ?";
+    $del_q = $dbh->prepare($del_q) || die $dbh->errstr;
+### end of queries
+
     my %gene_fam = undef;
     my %fam_desc = undef;
 
     while(<>) {
         next if /^#/;
         chomp;
-        my ($fam_id, $descr, $score, $mems, $dummy, $mems2)= split '\t';
+        my ($fam_id, $desc, $score, $mems, $dummy, $mems2)= split '\t';
 
         ### work around bug in format:
         if ( $mems !~ /^:/) {
@@ -201,25 +236,25 @@ sub main {
 
         die "didn't find members for family $fam_id, line $.:\n$_\n" if (@mems < 1);
 
-        if (length($descr) > $max_desc_len) {
+        if (length($desc) > $max_desc_len) {
             warn "Description longer than $max_desc_len; truncating it\n";
-            $descr = substr($descr, 0, $max_desc_len);
+            $desc = substr($desc, 0, $max_desc_len);
         }
         
-        $fam_desc{$fam_id} = $descr;
+        $fam_desc{$fam_id} = $desc;
         
         # my $fam_id = format_fam_id $num; now in file.
         
-        $fam_q->execute($internal_id, $fam_id, $descr, $release, $score)
+        $fam_q->execute($internal_id, $fam_id, $desc, $release, $score)
           || die "couldn't insert line $.:\n$_\n " . $fam_q->errstr;
 
         my %seen_gene = undef;          # just for filtering transcripts
       MEM:
         foreach my $mem (@mems) {
             if ($mem =~ /^ENSP/ || $mem =~ /^COBP/ ) {
-
+                
                 if ($add_ens_pep)  {
-                    $mem_q->execute($internal_id, $enspep_dbname, $mem)
+                    $mem_q->execute($internal_id, $ens_pep_dbname, $mem)
                       || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
                     $mem_count++;
                 }
@@ -229,40 +264,58 @@ sub main {
                         warn "couldn't find peptide $mem - database mismatch? Can't find gene, continuing\n";
                         next MEM;
                     }
-
+                    
                     my $ens_gene_id = ens_find($gene_q, $mem);
-
+                    
                     if ( ! $ens_gene_id ) {
                         warn "### did not find gene of $mem; continuing\n";
                         next MEM;
-                    } elsif ( defined $seen_gene{$ens_gene_id}) {
-                        ;
-                    } else { 
-                        
-                        ### check to see if this gene was previously assigned
-                        ### to another family; if so, try to correct
-                        if ( defined( $gene_fam{$ens_gene_id} )
-                             &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
-                            warn "### assigning gene $ens_gene_id (peptide: $mem) to $fam_id; already assigned to: $gene_fam{$ens_gene_id}; continuing\n";
-                            next MEM;
-                        } else { 
-                            $gene_fam{$ens_gene_id} = $fam_id;
-                        }
-                        
-                        $seen_gene{$ens_gene_id}=$mem;
-                        
-                        
-                        $mem_q->execute($internal_id, $ensgene_dbname, 
-                                        $ens_gene_id)
-                          || die "couldn't insert line $.:\n$_\n " 
-                            . $mem_q->errstr;
-                        $mem_count++;
+                    } 
+                    
+                    if ( defined $seen_gene{$ens_gene_id}) {
+                        # different transcripts into same family; OK
+                        next MEM;
                     }
+
+                    ### check to see if this gene was previously assigned
+                    ### to another family; if so, try to correct
+                    if ( defined( $gene_fam{$ens_gene_id} )
+                         &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
+                        warn "### assigning gene $ens_gene_id (peptide: $mem) to $fam_id; already assigned to: $gene_fam{$ens_gene_id}\n";
+                        
+                        my $prev_fam = $gene_fam{$ens_gene_id};
+                        my $prev_desc = $fam_desc{$prev_fam};
+                        
+                        # see if new description is better than previous:
+                        my $cmp = compare_desc($prev_desc, $desc);
+                        if ( $cmp >= 0 ) { # not really better
+                            warn "### leaving as is; desc: $prev_desc\n";
+                            warn "### alternative would be: $desc\n" 
+                               unless $desc eq $prev_desc;
+                            warn "\n";
+                            next MEM;
+                        }
+                        # new one is better; delete old one
+                        warn "### replacing previous $prev_fam, desc: $prev_desc\n";
+                        warn "### with $fam_id, desc: $desc\n\n";
+                        $del_q->execute($ens_gene_id);
+                        die $del_q->errstr if $del_q->err;
+                    }
+                    $gene_fam{$ens_gene_id} = $fam_id;
+                    $seen_gene{$ens_gene_id}=$mem;
+                    
+                    $mem_q->execute($internal_id, $ens_gene_dbname, 
+                                    $ens_gene_id)
+                      || die "couldn't insert line $.:\n$_\n " 
+                        . $mem_q->errstr;
+                    $mem_count++;
+                }                       # if add_ens_gene
+            } else {                    # this must be swissprot
+                if ($add_swissprot) { 
+                    $mem_q->execute($internal_id, $sp_dbname, $mem)
+                      || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
+                    $mem_count++;
                 }
-            } else {                    # swissprot entry
-                $mem_q->execute($internal_id, $sp_dbname, $mem)
-                  || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
-                $mem_count++;
             }
         }                               # foreach mem
         $internal_id++;

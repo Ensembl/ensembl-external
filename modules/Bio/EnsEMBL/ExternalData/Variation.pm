@@ -362,7 +362,7 @@ sub status {
 		 'proven' => 1
 		 );
 
-   if( 0 && defined $value) {
+   if(defined $value) {
        $value = lc $value;
        if ($status{$value}) {
 	   $obj->{'status'} = $value;

@@ -124,20 +124,26 @@ if ($obj->dnStreamSeq eq 'tgctacgtacgatcgatcga' ) {
     print "not ok 13\n";
 }
 
-$link1 = new Bio::Annotation::DBLink( -database => 'TSC',
-                                      -primary_id => 'TSC0000030'
-                                     );                                              
-
-print   "ok 14\n";  
+$link1 = new Bio::Annotation::DBLink;
+print   "ok 14\n";
+$link1->database('TSC');
+print   "ok 15\n";
+$link1->primary_id('TSC0000030');
+print   "ok 16\n";  
 
 
 $obj->add_DBLink($link1);
 
-print   "ok 15\n";  
+print   "ok 17\n";  
 
 foreach $link ( $obj->each_DBLink ) {
-    $link->database();
-    $link->primary_id();
+    $link->database;
+    $link->primary_id;
 }
-print  "ok 16\n";       
+print  "ok 18\n";       
 
+if ($obj->id eq 'TSC::TSC0000030') {
+    print "ok 19\n"; 
+} else {
+    print "not ok 19\n"; 
+}

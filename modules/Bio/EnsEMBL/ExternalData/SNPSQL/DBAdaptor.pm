@@ -534,7 +534,7 @@ sub get_Ensembl_SeqFeatures_clone {
  Function:
  Example :
  Returns : 
- Args    : scalar in nucleotides (should defaults to 50)
+ Args    : scalar in nucleotides (should default to 50)
            array of accession.version numbers
 
 =cut
@@ -561,20 +561,20 @@ sub get_Ensembl_SeqFeatures_clone_web{
     $string =~ s/,$//;
     my $inlist = "($string)";
     
-    # db query to return all variation information ; confidence attribute is gone!!
-    
+    # db query to return all variation information in current GoldenPath; confidence attribute is gone!!
+    # data are preprocessed to contain only relevent information (RefSNP.mapweight  is not needed)
+    # denormalized SubSNP in
+
     my $query = qq{
-        SELECT  p1.start, p1.end, p1.strand,
-                p1.acc, p1.version, p2.id,
-                p2.snptype, p2.mapweight, 
-                p3.handle, p3.altid 
-        FROM   	Hit as p1, RefSNP as p2, SubSNP as p3
-        WHERE  	p1.acc in $inlist
-          AND 	p1.refsnpid = p2.id
-          AND   p3.refsnpid = p1.refsnpid
+
+        SELECT   start, end, strand,
+                 acc, version, refsnpid,
+                 tcsid, hgbaseid
+        FROM   	 GPHit
+        WHERE  	 acc in $inlist
+	ORDER BY acc,start    
+
               };
-    #        ORDER BY start    
-    ## removing this allows mySQL to use indexes, including it forces filesort
     
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
@@ -583,18 +583,13 @@ sub get_Ensembl_SeqFeatures_clone_web{
   SNP:
     while( (my $arr = $sth->fetchrow_arrayref()) ) {
         
-        my ($begin, $end,$strand,
-            $acc,$ver,$snpuid,$type,$mapweight, 
-            $handle, $altid
+        my ($begin, $end, $strand,
+            $acc, $ver, $snpuid,
+            $tscid, $hgbaseid
            ) = @{$arr};
         
         my $acc_version="$acc.$ver";
-        
-        #snp info not valid
-        next SNP if $type ne 'notwithdrawn';
-        next SNP if $mapweight > 2;
-        
-        if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
+	if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
             #ignore snp within glob area
             next SNP;
         }
@@ -627,7 +622,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
                -end => $end,
                -strand => $strand,
                -original_strand => $strand,
-               -score => $mapweight,
+               -score => 1,
                -source_tag => 'dbSNP',
               );
             
@@ -637,20 +632,28 @@ sub get_Ensembl_SeqFeatures_clone_web{
             $link->optional_id($acc_version);
             #add dbXref to Variation
             $snp->add_DBLink($link);
-            
+	    if ($hgbaseid) {
+	      my $link2 = new Bio::Annotation::DBLink;
+	      $link2->database('HGBASE');
+	      $link2->primary_id($hgbaseid);
+	      $link2->optional_id($acc_version);
+	      $snp->add_DBLink($link2);
+	    }
+	    if ($tscid) {
+	      my $link3 = new Bio::Annotation::DBLink;
+	      $link3->database('TSC-CSHL');
+	      $link3->primary_id($tscid);
+	      $link3->optional_id($acc_version);
+	      #add dbXref to Variation
+	      $snp->add_DBLink($link3);
+	    }
             $cl=$acc_version;
             # set for compatibility to Virtual Contigs
             $snp->seqname($acc_version);
             #add SNP to the list
             push(@variations, $snp);
         }                               # if ! $seen{$key}
-        
-        my $link = new Bio::Annotation::DBLink;
-        $link->database($handle);
-        $link->primary_id($altid);
-        #add dbXref to Variation
-        $snp->add_DBLink($link);
-    }                                    # while a row from select statement
+      }                                    # while a row from select statement
     
     return @variations;
 }

@@ -73,7 +73,7 @@ my ($sync_dir,$database)= &file_parts($arg);
 warn "``$sync_dir''is not an absolute filename;
 expecting something like /data/sync/stuff\n" if $sync_dir !~ /\//;
 
-my $parse = "$ENV{FAMPATH}/parse";
+my $parse = "$ENV{FAMPATH}/scripts/parse";
 
 my @chunks = `(ls $chunks_dir/*.[0-9]*;)`;
 

@@ -151,17 +151,14 @@ sub fetch_all_by_clone_accession {
         warn "WARNING: private STS!" if $row->{'PRIVATE'};
 
         ## calculate coords depending on clone orientation
-        # NOTE:
-        # these calculations try to correct for ipcress errors, but don't
-        # fully succeed; adapt once database has been fixed
         my ($start, $end);
         $row->{'STS_END'} ||= $row->{'STS_START'};
         if ($clone_strand == 1) {
-            $start = $row->{'STS_START'} - $clone_start + 2;
-            $end = $row->{'STS_END'} + $row->{'SEN_LEN'} - $clone_start + 1;
+            $start = $row->{'STS_START'} - $clone_start + 1;
+            $end = $row->{'STS_END'} - $clone_start + 1;
         } else {
-            $start = $clone_end - ($row->{'STS_END'} + $row->{'SEN_LEN'} - 1);
-            $end = $clone_end - $row->{'STS_START'};
+            $start = $clone_end - $row->{'STS_END'} + 1;
+            $end = $clone_end - $row->{'STS_START'} + 1;
         }
         my $strand = (1 - 2 * $row->{'STS_STRAND'}) * $clone_strand;
 

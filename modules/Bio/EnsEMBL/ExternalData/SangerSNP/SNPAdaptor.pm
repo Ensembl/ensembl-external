@@ -29,7 +29,7 @@ package Bio::EnsEMBL::ExternalData::SangerSNP::SNPAdaptor;
 
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::SNP;
-use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
+use Bio::EnsEMBL::Analysis;
 use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
@@ -41,50 +41,114 @@ use vars qw(@ISA);
 sub fetch_all_by_chr_start_end {
   my ($self,$chr,$start,$end) = @_;
 
-  #my $assembly = $self->assembly_type;
-
-  my $assembly_name = 'NCBI';
-  my $assembly_version = 31;
+  my $assembly = $self->db->assembly_type;
+  
+  (my $assembly_name = $assembly) =~ s/[0-9]*$//;
+  (my $assembly_version = $assembly) =~ s/[A-Z,a-z]*([0-9]*)$/$1/;
 
   my $query = qq {
-    SELECT distinct
-           chrom_seq.DATABASE_SEQNAME,
-           snp_sequence.DATABASE_SEQNNAME,
-           snp_name.SNP_NAME,
-           (mapped_snp.position + seq_seq_map.START_COORDINATE -1) as snppos
-    FROM chrom_seq,
-         seq_seq_map,
-         snp_sequence,
-         mapped_snp,
-         snp_name,
-         database_dict
-    WHERE chrom_seq.DATABASE_SEQNAME='$chr'
-    AND   chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
-    AND   snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE
-    AND   mapped_snp.ID_SEQUENCE =snp_sequence.ID_SEQUENCE
-    AND   snp_name.id_snp = mapped_snp.id_snp
-    AND   snp_name.snp_name_type = 1
-    AND   (mapped_snp.position + seq_seq_map.START_COORDINATE -1) >= $start 
-    AND   (mapped_snp.position + seq_seq_map.START_COORDINATE -1) <= $end
-    AND   chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT
-    AND   database_dict.DATABASE_NAME = '$assembly_name'
-    AND   database_dict.DATABASE_VERSION = $assembly_version
-    ORDER BY SNPPOS
+SELECT DISTINCT MAPPED_SNP.ID_SNP,  
+          (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snppos,
+          (MAPPED_SNP.IS_REVCOMP * SEQ_SEQ_MAP.CONTIG_ORIENTATION) AS snpstrand,
+           SNP_SUMMARY.ALLELES,
+           SNP_SUMMARY.DEFAULT_NAME
+FROM     DATABASE_DICT,
+         CHROM_SEQ,
+         SEQ_SEQ_MAP,
+         MAPPED_SNP,
+         SNP_SUMMARY
+WHERE     DATABASE_DICT.DATABASE_NAME = '$assembly_name'
+    AND   DATABASE_DICT.DATABASE_VERSION = '$assembly_version'
+    AND   CHROM_SEQ.DATABASE_SOURCE = DATABASE_DICT.ID_DICT
+    AND   CHROM_SEQ.IS_CURRENT = 1
+    AND   CHROM_SEQ.DATABASE_SEQNAME='$chr'
+    AND   CHROM_SEQ.ID_CHROMSEQ = SEQ_SEQ_MAP.ID_CHROMSEQ
+    AND   MAPPED_SNP.ID_SEQUENCE =SEQ_SEQ_MAP.SUB_SEQUENCE
+    AND   SNP_SUMMARY.ID_SNP = MAPPED_SNP.ID_SNP
+    AND   MAPPED_SNP.IS_REVCOMP IS NOT NULL
+    AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) BETWEEN $start AND $end
+ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
   };
+#    AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) <= $end
+
+#Used to have this in query
+#    AND   snp_name.snp_name_type = 1
+#Put back in until snp_name table fixed
+    # SNP_SEQUENCE.DATABASE_SEQNNAME,
+           #SNPNAMETYPEDICT.ID_DICT,
+    #AND   SNPNAMETYPEDICT.ID_DICT = SNP_NAME.SNP_NAME_TYPE
+    #ORDER BY SNP_NAME.ID_SNP, SNPNAMETYPEDICT.ID_DICT, snppos
+    #AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) <= $end
+#    SELECT distinct
+
+# Tweaked query
+#  my $query = qq {
+#    SELECT 
+#           CHROM_SEQ.DATABASE_SEQNAME,
+#           SNP_NAME.SNP_NAME,
+#           SNP_NAME.ID_SNP,
+#           SNPNAMETYPEDICT.DESCRIPTION,
+#           (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) as snppos,
+#           MAPPED_SNP.IS_REVCOMP,
+#           SEQ_SEQ_MAP.CONTIG_ORIENTATION,
+#           SNP_VARIATION.VAR_STRING
+#    FROM CHROM_SEQ,
+#         SEQ_SEQ_MAP,
+#         SNP_SEQUENCE,
+#         MAPPED_SNP,
+#         SNP_NAME,
+#         SNP_VARIATION,
+#         SNPNAMETYPEDICT,
+#         DATABASE_DICT
+#    WHERE CHROM_SEQ.DATABASE_SEQNAME='$chr'
+#    AND   CHROM_SEQ.ID_CHROMSEQ = SEQ_SEQ_MAP.ID_CHROMSEQ
+#    AND   SNP_SEQUENCE.ID_SEQUENCE = SEQ_SEQ_MAP.SUB_SEQUENCE
+#    AND   MAPPED_SNP.ID_SEQUENCE = SNP_SEQUENCE.ID_SEQUENCE
+#    AND   SNP_NAME.ID_SNP = MAPPED_SNP.ID_SNP
+#    AND   SNP_VARIATION.ID_SNP = SNP_NAME.ID_SNP
+#    AND   SNPNAMETYPEDICT.ID_DICT = SNP_NAME.SNP_NAME_TYPE
+#    AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) BETWEEN $start AND $end
+#    AND   SNP_NAME.SNP_NAME_TYPE = 1
+#    AND   CHROM_SEQ.DATABASE_SOURCE = DATABASE_DICT.ID_DICT
+#    AND   DATABASE_DICT.DATABASE_NAME = '$assembly_name'
+#    AND   DATABASE_DICT.DATABASE_VERSION = $assembly_version
+#    ORDER BY SNP_NAME.ID_SNP,snppos
+#  };
 
   my $sth = $self->prepare($query);
 
+  print $sth->{Statement} . "\n";
   $sth->execute;
+  print "Query finished\n";
 
   my @snps;
-  while (my $hashref = $sth->fetchrow_hashref) {
-    my $snp = new Bio::EnsEMBL::ExternalData::Variation(-start => $hashref->{SNPPOS},
-                                                        -end   => $hashref->{SNPPOS},
-                                                        -snpid => $hashref->{SNP_NAME},
-                                                       );
-                
-    push @snps,$snp;
+
+# Naughty but should speed things up a bit
+  my $cur_snp_id = -1;
+  my $snp;
+  my %ids;
+  my $hashref;
+  while ($hashref = $sth->fetchrow_hashref) {
     
+    next if exists($ids{$hashref->{ID_SNP}});
+
+    my %snp_hash;
+    $snp_hash{_gsf_start} = $snp_hash{_gsf_end} = $hashref->{SNPPOS};
+    $snp_hash{_snp_strand} = $snp_hash{_gsf_strand} = $hashref->{SNPSTRAND};
+
+    if ($hashref->{SNPSTRAND} != 1 && $hashref->{SNPSTRAND} != -1) {
+      print STDERR "Got non 1 or -1 strand\n";
+    }
+    $snp_hash{dbID} = $hashref->{ID_SNP};
+    $snp_hash{_snpid} = $hashref->{DEFAULT_NAME};
+
+    $snp = Bio::EnsEMBL::SNP->new_fast(\%snp_hash);
+
+
+    $snp->alleles($hashref->{ALLELES});
+
+    push @snps,$snp;
+    $ids{$hashref->{ID_SNP}} = 1;
   }
 
   return \@snps;
@@ -93,7 +157,6 @@ sub fetch_all_by_chr_start_end {
 sub coordinate_systems {
   return ("ASSEMBLY");
 }
-
 
 sub _objFromHashref {
   my ($self,$info) = @_;

@@ -113,6 +113,7 @@ sub new {
   eval{
     my $userstr = $user . "\@" . $db;
     print "User str = " . $userstr . "\n";
+    print "DSN = $dsn UserStr = $userstr Password = $password\n";
 
     $dbh = DBI->connect($dsn,$userstr,$password,{RaiseError => 1});
   };

@@ -47,7 +47,7 @@ methods. Internal methods are usually preceded with a _
 
 package Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor;
 
-#use Bio::EnsEMBL::DBSQL::DBConnection;
+use Bio::EnsEMBL::DBSQL::DBConnection;
 use Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection;
 
 use strict;
@@ -55,6 +55,7 @@ use vars qw(@ISA);
 
 # Object preamble - inherits from Bio::Root:RootI
 @ISA = qw(Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection);
+#@ISA = qw(Bio::EnsEMBL::DBSQL::DBConnection);
 
 
 
@@ -75,6 +76,17 @@ sub get_SNPAdaptor {
 
   return $self->_get_adaptor("Bio::EnsEMBL::ExternalData::SangerSNP::SNPAdaptor");
 }
+
+sub assembly_type {
+  my ($self, $assembly_type) = @_;
+
+  if (defined($assembly_type)) {
+    $self->{_assembly_type} = $assembly_type;
+  }
+
+  return $self->{_assembly_type};
+}
+
 
 
 1;

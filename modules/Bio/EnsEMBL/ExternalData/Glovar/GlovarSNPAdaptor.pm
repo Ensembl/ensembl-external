@@ -64,13 +64,7 @@ sub XX_fetch_all_by_Slice {
       return([]);
   }
 
-  my @f = ();
-  if($is_light){
-    push @f, @{$self->fetch_Light_SNP_by_chr_start_end($slice)};
-  } else {
-    push @f, @{$self->fetch_SNP_by_chr_start_end($slice)};
-  } 
-  return(\@f); 
+  return $self->fetch_SNP_by_chr_start_end($slice);
 }
 
 =head2 fetch_SNP_by_chr_start_end
@@ -109,7 +103,7 @@ sub fetch_SNP_by_chr_start_end  {
                 svd.DESCRIPTION                 as SNPCLASS,
                 seq_seq_map.CONTIG_ORIENTATION  as CONTIG_ORI,
                 ss.IS_PRIVATE                   as PRIVATE
-        FROM    clone_seq cs,
+        FROM    chrom_seq,
                 database_dict,
                 seq_seq_map,
                 mapped_snp,
@@ -177,7 +171,7 @@ sub fetch_SNP_by_chr_start_end  {
 
         ## DBLinks and consequences
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
-        $self->_get_consequences($snp, $row->{'INTERNAL_ID'});
+        $self->_get_consequences($snp, $row->{'INTERNAL_ID'}, $self->consequences_exp);
         
         push (@snps, $snp); 
     }
@@ -205,6 +199,13 @@ sub fetch_all_by_clone_accession {
     my ($self, $internal_id, $embl_acc, $cl_start, $cl_end) = @_;
 
     &eprof_start('clone_sql');
+    
+    my $dnadb;
+    eval { $dnadb = $self->ensembl_db; };
+    if ($@) {
+        warn "ERROR: No dnadb attached to Glovar: $@";
+        return;
+    }
     
     ## get info on clone
     my $q1 = qq(
@@ -305,7 +306,7 @@ sub fetch_all_by_clone_accession {
 
         ## DBLinks and consequences
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
-        $self->_get_consequences($snp, $row->{'INTERNAL_ID'});
+        $self->_get_consequences($snp, $row->{'INTERNAL_ID'}, $self->consequence_exp);
         
         push (@snps, $snp); 
     }
@@ -433,9 +434,10 @@ sub fetch_SNP_by_id  {
                                 $dnadb->assembly_type);
             my $clone = $dnadb->get_CloneAdaptor->fetch_by_accession($embl_acc);
             my $contig = $clone->get_RawContig_by_position($start);
+            my $offset = $contig->embl_offset;
             @mapped = $mapper->map_coordinates_to_assembly($contig->dbID,
-                                $start,
-                                $end,
+                                $start - $offset + 1,
+                                $end - $offset + 1,
                                 $clone_strand);
 
             #if maps to multiple locations in assembly, skip feature
@@ -486,7 +488,7 @@ sub fetch_SNP_by_id  {
         
         ## DBLinks and consequences
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
-        $self->_get_consequences($snp, $row->{'INTERNAL_ID'});
+        $self->_get_consequences($snp, $row->{'INTERNAL_ID'}, $self->consequence_exp);
         
         push @snps, $snp;
     }
@@ -562,7 +564,8 @@ sub _get_DBLinks {
 
   Arg[1]      : Bio::EnsEMBL::SNP object
   Arg[2]      : glovar SNP ID (ID_SNP)
-  Example     : $glovar_adaptor->_get_consequences($snp, '104567');
+  Arg[3]      : name of the consequence experiment
+  Example     : $glovar_adaptor->_get_consequences($snp, '104567', 'ensembl_vega);
   Description : adds consequences (position type, consequence) to snp object;
                 these are stored as anonymous arrayrefs in snp->type and
                 snp->consequence
@@ -573,24 +576,27 @@ sub _get_DBLinks {
 =cut
 
 sub _get_consequences {
-    my ($self, $snp, $id) = @_;
+    my ($self, $snp, $id, $exp) = @_;
     my $q = qq(
         SELECT
-                ptd.DESCRIPTION         as POS_TYPE,
-                sgc_dict.DESCRIPTION    as CONSEQUENCE
+                distinct(sgc.id_snp)    as id_snp,
+                ptd.description         as pos_type,
+                sgc_dict.description    as consequence
         FROM    
+                coding_sequence cs,
                 snp_gene_consequence sgc
         LEFT JOIN
-                position_type_dict ptd on sgc.POSITION_DESCRIPTION = ptd.ID_DICT
+                position_type_dict ptd on sgc.position_description = ptd.id_dict
         LEFT JOIN
-                sgc_dict on sgc.CONSEQUENCE = sgc_dict.ID_DICT
-        WHERE   sgc.ID_SNP = ?
-        ORDER BY ptd.ID_DICT
+                sgc_dict on sgc.consequence = sgc_dict.id_dict
+        WHERE   sgc.id_snp = ?
+        AND     sgc.id_codingseq = cs.id_codingseq
+        AND     cs.design_entry = ?
     );
     my $sth;
     eval {
         $sth = $self->prepare($q);
-        $sth->execute($id);
+        $sth->execute($id, $exp);
     }; 
     if ($@){
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
@@ -599,15 +605,9 @@ sub _get_consequences {
 
     # this is a bit hacky, since it abuses Variation::type and
     # Variation::consequence to store an anonymous arrayref instead of a string
-    my ($t, $c, $i);
-    while (my $cons = $sth->fetchrow_hashref()) {
-        $i++;
-        push @{$t}, $self->_map_position_type($cons->{'POS_TYPE'});
-        push @{$c}, $cons->{'CONSEQUENCE'};
-    }
-    $snp->type($t || []);
-    $snp->consequence($c || []);
-    #warn $i if ($i > 1);
+    my (undef, $pos_type, $cons) = $sth->fetchrow_array;
+    $snp->type($self->_map_position_type($pos_type));
+    $snp->consequence($cons);
 }
 
 =head2 _map_position_type
@@ -630,6 +630,26 @@ sub _map_position_type {
         'Upstream' => 'local',
     );
     return $mapping{$type} || $type;
+}
+
+=head2 consequence_exp
+
+  Arg[1]      : (optional) consequence experiment id
+  Example     : $glovar_adaptor->consequence_ext(2046);
+  Description : getter/setter for the consequence experiment
+                (coding_sequence.design_entry in the glovar db)
+  Return type : String - consequence experiment id
+  Exceptions  : none
+  Caller      : general
+
+=cut
+
+sub consequence_exp {
+    my ($self, $exp) = @_;
+    if ($exp) {
+        $self->{'consequence_exp'} = $exp;
+    }
+    return $self->{'consequence_exp'};
 }
 
 =head2 coordinate_systems

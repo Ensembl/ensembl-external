@@ -72,7 +72,7 @@ sub new {
 =cut
 
 sub get_Ensembl_SeqFeatures_contig {
-   my ($self,$internal_id,$version,$dum,$length,$contig) = @_;
+   my ($self,$internal_id,$contig) = @_;
 
 	#print STDERR "Fetching ESTs for contig $internal_id...\n";
 
@@ -155,6 +155,72 @@ sub get_Ensembl_SeqFeatures_contig {
    return @array;
 
 
+}
+
+=head2 get_Ensembl_SeqFeatures_contig_list
+
+ Title   : get_Ensembl_SeqFeatures_contig_list
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+sub get_Ensembl_SeqFeatures_contig_list{
+   my ($self,$href,@idlist) = @_;
+
+   my %int_ext = %$href;
+   my $string;
+   foreach my $contig (@idlist) {
+       $string .= "$contig,";
+   }
+   $string =~ s/,$//;
+   my $inlist = "($string)";
+   
+   my @array;
+
+   my $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
+       "FROM  feature WHERE feature.contig in $inlist ";
+
+   my $sth = $self->db->prepare($statement);
+   my $res = $sth->execute;
+   
+   # bind the columns
+   $sth->bind_columns(undef,\$fid,\$contig,\$start,\$end,\$strand,\$f_score,\$analysisid,\$name,\$hstart,\$hend,\$hid,\$evalue,\$perc_id,\$phase,\$end_phase);
+   
+   while($sth->fetch) {
+
+       my $out;
+       my $analysis;
+       my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
+       if (!$analhash{$analysisid}) {
+	   $analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
+	   $analhash{$analysisid} = $analysis;
+       } else {
+	   $analysis = $analhash{$analysisid};
+       }
+              
+       if( !defined $name ) {
+	   $name = 'no_source';
+       }
+       
+       # is a paired feature
+       # build EnsEMBL features and make the FeaturePair
+       $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+       $out->set_all_fields($start,$end,$strand,$f_score,$name,'similarity',$int_ext{$contig},
+			    $hstart,$hend,1,$f_score,$name,'similarity',$hid);
+       
+       $out->percent_id  ($perc_id);
+       $out->analysis    ($analysis);
+       $out->id          ($hid);  
+       $out->validate();
+       
+       push(@array,$out);
+   }
+   return @array;
 }
 
 =head2 get_Ensembl_SeqFeatures_clone

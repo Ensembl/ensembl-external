@@ -317,6 +317,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_group_type($f->group_type());
         $CURRENT_FEATURE->das_target($f->target());
         $CURRENT_FEATURE->das_target_id($f->target_id);
+        $CURRENT_FEATURE->das_target_label($f->target_label);
         $CURRENT_FEATURE->das_target_start($f->target_start);
         $CURRENT_FEATURE->das_target_stop($f->target_stop);
         $CURRENT_FEATURE->das_type($f->type());

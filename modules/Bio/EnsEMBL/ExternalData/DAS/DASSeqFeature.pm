@@ -366,6 +366,13 @@ sub das_target {
    }
     return $self->{'das_target'};
 }
+sub das_target_label {
+   my ($self,$arg) = @_;
+   if( $arg) {
+      $self->{'das_target_label'} = $arg;
+   }
+    return $self->{'das_target_label'};
+}
 sub das_target_id {
    my ($self,$arg) = @_;
    if( $arg) {

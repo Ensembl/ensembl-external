@@ -178,7 +178,7 @@ sub _map_DASSeqFeature_to_chr {
         }
         return 0 unless $clone;
 	my @contigs = @{$clone->get_all_Contigs};
-	if(scalar(@contigs) == 1 && $contigs[0]->embl_offset == 1) {
+	if(scalar(@contigs) == 1 && ( $contigs[0]->embl_offset == 1 || $contigs[0]->embl_offset==0) ) {
 	    # sneaky. Finished clones have one contig - by setting this as the seqname
 	    # the contig remapping will work.
 	    $sf->seqname($contigs[0]->name);

@@ -294,17 +294,34 @@ sub das_note {
 
 sub das_link {
    my ($self,$arg) = @_;
-   if( $arg) {
+   if( $arg ) {
       $self->{'das_link'} = $arg;
    }
     return $self->{'das_link'};
 }
+
+sub das_link_label {
+   my ($self,$arg) = @_;
+   if( $arg ) {
+      $self->{'das_link_label'} = $arg;
+   }
+   return $self->{'das_link_label'};
+}
+
+## sub das_links {
+##    my ($self,$arg) = @_;
+##    if( $arg ) {
+##       $self->{'das_links'} = $arg;
+##    }
+##     return $self->{'das_links'};
+## }
+
 sub das_link_href {
    my ($self,$arg) = @_;
    if( $arg) {
       $self->{'das_link_href'} = $arg;
    }
-    return $self->{'das_link_href'};
+   return $self->{'das_link_href'};
 }
 
 # The <GROUP> tag

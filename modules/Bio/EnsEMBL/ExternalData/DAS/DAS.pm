@@ -148,8 +148,9 @@ sub get_Ensembl_SeqFeatures_DAS {
         #$CURRENT_FEATURE->das_type_superparts($attr{'superparts'});
         $CURRENT_FEATURE->das_name($f->id());
         $CURRENT_FEATURE->das_method_id($f->method());
-        $CURRENT_FEATURE->das_link($f->link());
-        #$CURRENT_FEATURE->das_link_href($f->link());
+        $CURRENT_FEATURE->das_link( $f->link() );
+        $CURRENT_FEATURE->das_link_label( $f->link_label() );
+#        $CURRENT_FEATURE->das_links( $f->links() );
         $CURRENT_FEATURE->das_group_id($f->group());
         #$CURRENT_FEATURE->das_group_label($f->group_label());
         #$CURRENT_FEATURE->das_group_type($attr{'type'});

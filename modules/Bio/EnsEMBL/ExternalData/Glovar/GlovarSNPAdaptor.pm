@@ -35,7 +35,7 @@ package Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor;
 
 use strict;
 
-use Bio::EnsEMBL::SNP;
+use Bio::EnsEMBL::ExternalData::Glovar::SNP;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);
@@ -196,7 +196,7 @@ sub fetch_SNP_by_chr_start_end  {
 =cut
 
 sub fetch_all_by_clone_accession {
-    my ($self, $internal_id, $embl_acc, $cl_start, $cl_end) = @_;
+    my ($self, $embl_acc, $embl_version, $cl_start, $cl_end) = @_;
 
     &eprof_start('clone_sql');
 
@@ -306,25 +306,24 @@ sub fetch_all_by_clone_accession {
             $end = $clone_end - $row->{'SNP_END'} + 1;
         }
         
-        my $snp = Bio::EnsEMBL::SNP->new_fast(
+        my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new_fast(
             {
-                '_snpid'        =>    $row->{'ID_DEFAULT'},
-                'dbID'          =>    $row->{'INTERNAL_ID'},
-                '_gsf_start'    =>    $start,
-                '_gsf_end'      =>    $end,
-                '_snp_strand'   =>    $row->{'SNP_STRAND'},
-                '_validated'    =>    $row->{'VALIDATED'},
-                '_raw_status'   =>    $row->{'VALIDATED'},
-                '_ambiguity_code' =>  $self->_ambiguity_code($row->{'ALLELES'}),
-                'alleles'       =>    $row->{'ALLELES'},
-                '_snpclass'     =>    $row->{'SNPCLASS'},
-                '_source'       =>    'Glovar',
-                '_source_tag'   =>    'glovar',
-                '_consequence'  =>    $row->{'CONSEQUENCE'},
-                '_type'         =>    $self->_map_position_type($row->{'POS_TYPE'}),
+                'dbID'          =>  $row->{'INTERNAL_ID'},
+                'display_id'    =>  $row->{'ID_DEFAULT'},
+                'start'         =>  $start,
+                'end'           =>  $end,
+                'strand'        =>  $row->{'SNP_STRAND'},
+                'raw_status'    =>  $row->{'VALIDATED'},
+                'ambiguity_code'=>  $self->_ambiguity_code($row->{'ALLELES'}),
+                'alleles'       =>  $row->{'ALLELES'},
+                'snpclass'      =>  $row->{'SNPCLASS'},
+                'source'        =>  'Glovar',
+                'source_tag'    =>  'glovar',
+                'consequence'   =>  $row->{'CONSEQUENCE'},
+                'type'          =>  $self->_map_position_type($row->{'POS_TYPE'}),
             });
 
-        ## DBLinks and consequences
+        ## DBLinks
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
         
         push (@snps, $snp); 
@@ -370,10 +369,7 @@ sub fetch_SNP_by_id  {
                 scd.description             as validated,
                 ss.alleles                  as alleles,
                 svd.description             as snpclass,
-                sseq.database_seqnname      as seqname,
-                sseq.database_seqversion    as seqversion,
                 sseq.chromosome             as chr_name,
-                ss.is_private               as private,
                 sseq.id_sequence            as nt_id,
                 ptd.description             as pos_type,
                 sgc_dict.description        as consequence
@@ -441,7 +437,7 @@ sub fetch_SNP_by_id  {
             warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
             return([]);
         }
-        my @mapped;
+        my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new;
         while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
             #warn join("|", $embl_acc, $clone_start, $clone_end, $clone_strand);
             
@@ -456,50 +452,18 @@ sub fetch_SNP_by_id  {
             }
             next if ($start < 0);
 
-            ## map to chromosomal coordinates
-            my $mapper = $dnadb->get_AssemblyMapperAdaptor->fetch_by_type(
-                                $dnadb->assembly_type);
-            my $clone;
-            eval { 
-                $clone = $dnadb->get_CloneAdaptor->fetch_by_accession($embl_acc);
-            };
-            if ($@) {
-                warn $@;
-                next;
-            }
-            my $contig = $clone->get_RawContig_by_position($start);
-            my $offset = $contig->embl_offset;
-            @mapped = $mapper->map_coordinates_to_assembly($contig->dbID,
-                                $start - $offset + 1,
-                                $end - $offset + 1,
-                                $clone_strand);
-
-            #if maps to multiple locations in assembly, skip feature
-            next if(@mapped > 1);
-
-            #warn join ("|", $clone_strand, $row->{'SNP_STRAND'});
-
-            #try next clone if mapped to gap
-            #warn $mapped[0]->start;
-            last unless($mapped[0]->isa('Bio::EnsEMBL::Mapper::Gap'));
+            my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
+            $snp->slice($clone);
+            $snp->start($start);
+            $snp->end($end);
+            $snp->strand($row->{'SNP_STRAND'});
+            $snp = $snp->transform('chromosome');
         }
-        ## hack: skip if we don't get clones from NT_contig
-        next unless @mapped;
-
-        my $snp = Bio::EnsEMBL::SNP->new;
-        $snp->start($mapped[0]->start);
-        $snp->end($mapped[0]->end);
-        $snp->strand($row->{'SNP_STRAND'});
-        $snp->original_strand($row->{'SNP_STRAND'});
         
         $snp->dbID($row->{'INTERNAL_ID'});
-        $snp->chr_name($row->{'CHR_NAME'});
-        
-        my $acc_version = '';
-        $acc_version = $row->{'SEQNAME'} if $row->{'SEQNAME'};
-        $acc_version .= "." . $row->{'SEQVERSION'} if $row->{'SEQVERSION'};
-        $snp->seqname($acc_version);
-        
+        $snp->display_id($id);
+        $snp->seq_region_name($row->{'CHR_NAME'});
+        $snp->original_strand($row->{'SNP_STRAND'});
         $snp->source_tag('Glovar');
         $snp->snpclass($row->{'SNPCLASS'});
         $snp->raw_status($row->{'VALIDATED'});
@@ -508,10 +472,11 @@ sub fetch_SNP_by_id  {
         $snp->consequence($row->{'CONSEQUENCE'});
 
         ## get flanking sequence from core
-        my $slice = $dnadb->get_SliceAdaptor->fetch_by_chr_start_end(
-           $row->{'CHR_NAME'},
-           $mapped[0]->start - 25,
-           $mapped[0]->end + 25,
+        my $slice = $dnadb->get_SliceAdaptor->fetch_by_region(
+            'chromosome',
+            $row->{'CHR_NAME'},
+            $snp->start - 25,
+            $snp->end + 25,
         );
         $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
         my $seq = $slice->seq;
@@ -519,7 +484,7 @@ sub fetch_SNP_by_id  {
         ## determine end of upstream sequence depending on range type (in-dels
         ## of type "between", i.e. start !== end, are actually inserts)
         my $up_end = 25;
-        $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($mapped[0]->start ne $mapped[0]->end));
+        $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($snp->start ne $snp->end));
         $snp->upStreamSeq(substr($seq, 0, $up_end));
         $snp->dnStreamSeq(substr($seq, 26));
         
@@ -594,9 +559,8 @@ sub _get_DBLinks {
     }
 
     while (my $xref = $sth->fetchrow_hashref()) {
-        my $link = new Bio::Annotation::DBLink;
-        $link->database($xref->{'TYPE'});
-        $link->primary_id($xref->{'NAME'});
+        my $link = new Bio::Annotation::DBLink(-database => $xref->{'TYPE'},
+                                               -primary_id => $xref->{'NAME'});
         $snp->add_DBLink($link);
     }
 }

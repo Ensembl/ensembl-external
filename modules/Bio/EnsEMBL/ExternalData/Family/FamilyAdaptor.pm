@@ -109,8 +109,9 @@ sub get_Family_by_id  {
     my ($self, $id) = @_; 
 
     my $q = 
-      "SELECT f.internal_id, f.id, f.description, f.release, 
-           f.annotation_confidence_score, f.num_ens_pepts
+      "SELECT
+            f.internal_id, f.id, f.description, f.release, 
+            f.annotation_confidence_score, f.num_ens_pepts
        FROM family f
        WHERE id = '$id'";
 
@@ -147,7 +148,6 @@ sub get_Family_of_Ensembl_pep_id {
 
 sub get_Family_of_Ensembl_gene_id {
     my ($self, $eid) = @_; 
-
     $self->get_Family_of_db_id('ENSEMBLGENE', $eid);  #PL: what db_name ???
 }
 
@@ -274,9 +274,8 @@ sub _get_members {
 # warn hard coding here !!!
     my $q = 
       "SELECT db_name, db_id
-       FROM family_members
-       WHERE family = $iid
-         AND db_name <> 'ENSMUSPEP'";
+         FROM family_members
+        WHERE family = $iid";
 
     $q = $self->prepare($q);
     $q->execute;
@@ -378,8 +377,6 @@ sub get_Alignment {
   }
   
   my $alignstr = $self->_get_alignment_string($fam);
-  print STDERR "Getting alignment $fam\n";
-  print STDERR "ALignmnet $alignstr\n";
   # Not sure that this is the best way to do this.
   open(ALN,"echo \'$alignstr\' |");
   my $alnfh     = Bio::AlignIO->newFh('-format' => "clustalw",-fh => \*ALN);
@@ -406,8 +403,7 @@ sub _get_families {
         $fam->id($rowhash->{id});
         $fam->description($rowhash->{description});
         $fam->release($rowhash->{release});
-        $fam->annotation_confidence_score(
-                                 $rowhash->{annotation_confidence_score});
+        $fam->annotation_confidence_score($rowhash->{annotation_confidence_score});
 
         $fam->num_ens_pepts($rowhash->{num_ens_pepts});
 

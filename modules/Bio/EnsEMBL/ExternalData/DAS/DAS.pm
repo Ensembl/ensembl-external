@@ -138,7 +138,7 @@ sub fetch_all_by_Slice {
     # them all to chromosome coordinates
     my @result_list = grep { $self->_map_DASSeqFeature_to_chr(
 	                     $mapper, \%contig_name_hash, 
-                             $offset,$length,$_ ) == 1
+                             $offset,$length,$db->get_CloneAdaptor, $_ ) == 1
     } @{ $self->get_Ensembl_SeqFeatures_DAS(
          $chr_name, $chr_start, $chr_end,
          \@fpc_contigs, \@clones, \@raw_contig_names,
@@ -149,29 +149,25 @@ sub fetch_all_by_Slice {
 
 
 sub _map_DASSeqFeature_to_chr {
-    my ($self,$mapper,$contig_hash_ref,$offset,$length,$sf) = @_;
+    my ($self,$mapper,$contig_hash_ref,$offset,$length,$clone_adaptor,$sf) = @_;
 
     my $type;
     
     ## Ensembl formac...BAC contigs...Celera Anopheles contigs...Rat contigs...Anopheles contigs...
-    if( $sf->seqname() =~ /(\w+\.\d+\.\d+.\d+|BAC.*_C)|CRA_.*|RNOR\d+|\w{4}\d+\_\d+/ ) {
+    my $seqname = $sf->seqname;
+    if( $seqname =~ /(scaffold_\d+|(1?[0-9]|X)\.\d+\-\d+|^\w+\.\d+\.\d+.\d+|c\d+\.\d+\.\d+|[23][LR]_\d+|[4XU]_\d+|BAC.*_C)|CRA_.*|RNOR\d+|\w{4}\d+\_\d+/iox ) {
 	$type = 'contig';
-    } elsif( $sf->seqname() =~ /chr[\d+|X|Y]/i) {
+    } elsif( $seqname =~ /chr(\d+|X|Y|I{1,3}|I?V|[23][LR]|_scaffold_\d+|_\w+\d+)/io || # Hs/Mm/Dm/Ag/Fr/Rn/Ce/Dr
+             $seqname =~ /^cb\d{2}\.fpc\d{4}$/io ||                            # Cb
+             $seqname =~ /^([0..2]?[0..9]|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
 	$type = 'chromosome';
-    } elsif( $sf->seqname() =~ /^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|X|Y|2L|2R|3L|3R)$/o) {  # breaks on mouse!
-	$type = 'chromosome';
-    } elsif( $sf->seqname() =~ /ctg\d+|NT_\d+/i) {
+    } elsif( $seqname =~ /ctg\d+|NT_\d+/i) {
 	$type = 'fpc';
 	# This next Regex is for ensembl mouse denormalised contigs
-    } elsif( $sf->seqname() =~ /^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|X)\.\d+\-\d+/i) {
-	$type = 'contig';
-    } elsif( $sf->seqname() =~ /\w{1,2}\d+/i) {
-	# Ouch. Chained function calls. To be optimised?
-	my $clone = $self->db->clone_adaptor->fetch_by_accession($sf->seqname);
-	
+    } elsif( $seqname =~ /\w{1,2}\d+/i) {
+	my $clone = $clone_adaptor->fetch_by_accession($seqname);
 	#we only use finished clones. finished means there is only
 	#one contig on the clone and it has an offset of 1
-	
 	# Could we have a method on clone saying "is_finished"?
 	my @contigs = @{$clone->get_all_Contigs};
 	if(scalar(@contigs) == 1 && $contigs[0]->embl_offset == 1) {
@@ -183,12 +179,12 @@ sub _map_DASSeqFeature_to_chr {
     } elsif( $sf->das_type_id() eq '__ERROR__') {
 #                    Always push errors even if they aren't wholly within the VC
 	$type = 'error';
-    } elsif( $sf->seqname() eq '') {
+    } elsif( $seqname eq '') {
 	#suspicious
 	warn ("Got a DAS feature with an empty seqname! (discarding it)\n");
 	return 0;
     } else {
-	warn ("Got a DAS feature with an unrecognized segment type: >", $sf->seqname(), "< >", $sf->das_type_id(), "<\n");
+	warn ("Got a DAS feature with an unrecognized segment type: >$seqname< >", $sf->das_type_id(), "<\n");
 	return 0;
     }
 

@@ -156,7 +156,7 @@ sub fetch_by_dbname_id {
              AND fm.external_member_id = '$extm_id'"; 
 
 #    return $self->_get_family($q);
-    return $self->_get_families($q);
+    return @{$self->_get_families($q)};
 }
 
 =head2 fetch_by_dbname_taxon_member
@@ -186,7 +186,7 @@ sub fetch_by_dbname_taxon_member {
              AND fm.taxon_id = $taxon_id"; 
 
 #    return $self->_get_family($q);
-    return $self->_get_families($q);
+    return @{$self->_get_families($q)};
 }
 
 =head2 fetch_by_description_with_wildcards
@@ -224,7 +224,7 @@ sub fetch_by_description_with_wildcards{
                FROM family f
               WHERE f.description = '$query'";
     }
-    return $self->_get_families($q);
+    return @{$self->_get_families($q)};
 }
 
 =head2 fetch_all
@@ -246,7 +246,7 @@ sub fetch_all {
       "SELECT f.family_id, f.stable_id, f.description, 
               f.release, f.annotation_confidence_score
        FROM family f";
-    $self->_get_families($q);
+    return @{$self->_get_families($q)};
 }
 
 =head2 known_databases
@@ -341,22 +341,22 @@ sub _get_families {
         push(@fams, $fam);
     }
     
-    return @fams;                         
+    return \@fams;                         
 }  
 
 # get one or no family, given some query
 sub _get_family {
     my ($self, $q) = @_;
     
-    my @fams = $self->_get_families($q);
+    my $fams = $self->_get_families($q);
     
-    if (scalar @fams > 1) {
+    if (scalar @{$fams} > 1) {
       $self->throw("Internal database error, expecting at most one Family.
 Check data coherence, e.g. have two families with different family_id have the same stable id.\n");
 # as family_id and stable_id are unique keys _get_families should sufficient;
     };
 
-    return $fams[0];  
+    return $fams->[0];  
 }              
 
 #internal method to build hash of total number of members per database name

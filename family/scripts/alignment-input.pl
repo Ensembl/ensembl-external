@@ -14,6 +14,11 @@ my $dbhost='ecs1c';
 my $dbname='family100';
 my $dbuser='ensadmin';
 my $dbpass='secret' ;
+my $tmpdir = `pwd`;                     # use absolute path, and no /tmp, 
+my $alignments_dir = './alignments';
+
+chomp($tmpdir);                         # otherwise mysql server uses
+                                        # local file
 
 &GetOptions( 
 	     'dbhost:s'     => \$dbhost,
@@ -21,10 +26,10 @@ my $dbpass='secret' ;
 	     'dbname:s'   => \$dbname, 
 	     'dbuser:s'   => \$dbuser,
 	     'dbpass:s'   => \$dbpass,
+             'tmpdir:s'  => \$tmpdir,
+             'dir:s' => \$alignments_dir, # where to read from
 	     );
 
-# my $alignments_dir = './alignments.mapped';
-my $alignments_dir = './test2';
 my @alignment_files  = `ls $alignments_dir`; 
 die $@ if $@;
 
@@ -32,11 +37,8 @@ my $dbh=db_connect("database=$dbname;host=$dbhost;user=$dbuser;pass=$dbpass");
 
 warn "Using internal id's for the families !\n";
 
-my $insertq = <<__ENDOFQUERY__;
-insert into alignments values(?, ?)
-__ENDOFQUERY__
-;
-$insertq = $dbh->prepare($insertq) || die  $DBI::errstr;
+$dbh->{AutoCommit}++;
+$dbh->{RaiseError}++;
 
 my $checkq = <<__ENDOFQUERY__;
 SELECT count(*) 
@@ -47,6 +49,9 @@ __ENDOFQUERY__
 ;
 $checkq = $dbh->prepare($checkq) || die  $DBI::errstr;
 
+my $all_alignments="$tmpdir/alignments-$$.dat";
+warn "Creating file $all_alignments ... \n";
+open(ALL, "> $all_alignments" ) || die "$all_alignments: $!";
 foreach my $file (@alignment_files)  {
     chomp($file);
     
@@ -61,17 +66,27 @@ foreach my $file (@alignment_files)  {
         if ( /^\S+/ && !/^CLUSTAL/ && $empty_lines == 2) { 
             my ($mem) = (/^(\S+)\b/);
             unless (isa_fam_member($famid, $mem)) {
-                warn "inserting $mem of $famid: not a family member";
+                warn "$mem not a member of $famid!";
             }
         }
-
+        s/\n/\\n/;
         $alignment .= $_;
     }
     close(FILE) || die "$f:$!";
-    
-    $insertq->execute($famid, $alignment ) || warn $DBI::errstr;
-    print STDERR "done $file, size: ",length($alignment),"\n";
+ 
+    print ALL "$famid\t$alignment\n";
+    warn "done $file, size: ",length($alignment),"\n";
 }                                       # foreach file
+close(ALL) || die "$all_alignments: $!";
+warn "Done creating file $all_alignments ... \n";
+
+warn "Importing $all_alignments ... \n";
+if ( $dbh->do("load data infile '$all_alignments' into table alignments") ) { 
+    warn "Done importing $all_alignments; this file now deleted\n";
+    unlink $all_alignments;
+} else {
+  warn "Something wrong: $DBI::errstr; file $all_alignments not deleted";
+}
 
 sub isa_fam_member {
     my($famid, $mem) = @_;

@@ -35,7 +35,7 @@ The rest of the documentation details each of the object methods. Internal metho
 
 # Let the code begin...
 
-package Bio::EnsEMBL::ExternalData::GeneSNP;
+package Bio::EnsEMBL::ExternalData::CodingSNP;
 use vars qw(@ISA );
 use strict;
 

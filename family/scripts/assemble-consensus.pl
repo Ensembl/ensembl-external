@@ -102,18 +102,32 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     
     foreach my $element (@array) {
         $_=$element;
-        if ((/^PROTEIN$/) || (/^FRAGMENT$/) ||(/^\d+$/) || (/^HSPC\d+/) || (/^FACTOR$/) || (/^HYPOTHETICAL$/) || (/^KIAA\d+/) || (/^PRECURSOR$/) || (/^EST$/) || (/\S+RIK/) || (/IMAGE:\d+/)) 
-          {
-              $discarded++;
-          }
+        if (
+            (/^PROTEIN$/) 
+            || (/^FRAGMENT$/) 
+            || (/^\d+$/) 
+            || (/^HSPC\d+/) 
+            || (/^FACTOR$/) 
+            || (/^HYPOTHETICAL$/) 
+            || (/^KIAA\d+/) 
+            || (/^PRECURSOR$/) 
+            || (/^EST$/) 
+            || (/\S+RIK/) 
+            || (/IMAGE:\d+/)
+           )  {              $discarded++;    }
     }
     
     $_=$annotation;
     #Global Fixes;
-    if (/CDNA/ && /FIS/ && /CLONE/ && !/WEAKLY SIMILAR/ && !/MODERATELY SIMILAR/) 
-      {
-          $total=0;
-      }
+    if (
+        /CDNA/ 
+        && /FIS/ 
+        && /CLONE/ 
+        && !/WEAKLY SIMILAR/ 
+        && !/MODERATELY SIMILAR/
+       ) {
+        $total=0;
+    }
     
     $_=$annotation;
     $annotation=~ s/EC (\d+) (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.$4/;

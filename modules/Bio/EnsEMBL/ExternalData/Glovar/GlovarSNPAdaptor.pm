@@ -111,7 +111,6 @@ sub fetch_Light_SNP_by_chr_start_end  {
     my $slice_strand = $slice->strand();
     my $ass_name     = $slice->assembly_name();
     my $ass_version  = $slice->assembly_version();
-    warn "$slice_chr, $ass_name, $ass_version, $slice_start, $slice_end";
 
     my $q = qq(
         SELECT

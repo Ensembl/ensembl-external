@@ -38,7 +38,6 @@ use strict;
 
 # Object preamble - inheriets from Bio::Root::Object
 use Bio::EnsEMBL::Root;
-use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 
 
@@ -165,10 +164,10 @@ sub taxon_id {
 =cut
 
 sub external_db_id {
-    my ($self,$value) = @_;
+    my ($self, $value) = @_;
 
-    unless (defined $value) {
-      $self->{'_external_db_id'} = $self->adaptor->get_external_db_id_by_dbname($self->database);
+    if (defined $value) {
+      $self->{'_external_db_id'} = $value;
     }
     return $self->{'_external_db_id'};
 }

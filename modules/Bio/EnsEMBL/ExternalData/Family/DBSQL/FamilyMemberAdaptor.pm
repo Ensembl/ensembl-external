@@ -52,10 +52,12 @@ use Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor;
 
 sub fetch_by_dbID {
   my ($self,$family_member_id) = @_;
-  
-  my $q = "SELECT fm.family_id,db.name as dbname,fm.external_member_id as id,fm.taxon_id
-           FROM family_members fm,external_db db
-           WHERE fm.external_db_id=db.external_db_id and family_member_id = ?";
+
+  $self->throw("Should give a defined family_member_id as argument\n") unless (defined $family_member_id);
+
+  my $q = "SELECT fm.family_id,fm.external_db_id,fm.external_member_id,fm.taxon_id,ex.name
+           FROM family_members fm, external_db ex
+           WHERE ex.external_db_id = fm.external_db_id and fm.family_member_id = ?";
 
   $q = $self->prepare($q);
   $q->execute($family_member_id);
@@ -66,8 +68,9 @@ sub fetch_by_dbID {
     $member->adaptor($self);
     $member->dbID($family_member_id);
     $member->family_id($rowhash->{family_id});
-    $member->database($rowhash->{dbname});
-    $member->stable_id($rowhash->{id});
+    $member->external_db_id($rowhash->{external_db_id});
+    $member->database($rowhash->{name});
+    $member->stable_id($rowhash->{external_member_id});
     $member->taxon_id($rowhash->{taxon_id});
     
     return $member;
@@ -89,20 +92,24 @@ sub fetch_by_dbID {
 sub fetch_by_stable_id  {
     my ($self, $stable_id) = @_; 
 
-    my $q = "SELECT family_member_id FROM family_members WHERE external_member_id = '$stable_id'";
+    $self->throw("Should give a defined member_stable_id as argument\n") unless (defined $stable_id);
+
+    my $q = "SELECT family_member_id FROM family_members WHERE external_member_id = ?";
     $q = $self->prepare($q);
-    $q->execute;
+    $q->execute($stable_id);
     my ($id) = $q->fetchrow_array;
     $id || $self->throw("Could not find family member for stable id $stable_id");
-    $self->fetch_by_dbID($id);
+    return $self->fetch_by_dbID($id);
 }           
 
 sub fetch_by_family_id {
   my ($self, $family_id) = @_;
 
-  my $q = "SELECT fm.family_member_id, db.name as dbname, fm.external_member_id as id, fm.taxon_id
-           FROM family_members fm, external_db db
-           WHERE db.external_db_id = fm.external_db_id and fm.family_id = ?";
+  $self->throw("Should give a defined family_id as argument\n") unless (defined $family_id);
+
+  my $q = "SELECT fm.family_member_id,fm.external_db_id,fm.external_member_id,fm.taxon_id,ex.name
+           FROM family_members fm, external_db ex
+           WHERE ex.external_db_id = fm.external_db_id and fm.family_id = ?";
 
   $q = $self->prepare($q);
   $q->execute($family_id);
@@ -115,8 +122,67 @@ sub fetch_by_family_id {
     $member->adaptor($self);
     $member->dbID($rowhash->{family_member_id});
     $member->family_id($family_id);
-    $member->database($rowhash->{dbname});
-    $member->stable_id($rowhash->{id});
+    $member->external_db_id($rowhash->{external_db_id});
+    $member->database($rowhash->{name});
+    $member->stable_id($rowhash->{external_member_id});
+    $member->taxon_id($rowhash->{taxon_id});
+    push @members, $member;
+  }
+  return @members;
+}
+
+sub fetch_by_family_dbname {
+  my ($self,$family_id,$dbname) = @_;
+
+  $self->throw("Should give defined family_id and databasename as arguments\n") unless (defined $family_id && defined $dbname);
+
+  my $q = "SELECT fm.family_member_id, fm.external_db_id, fm.external_member_id, fm.taxon_id, ex.name
+           FROM family_members fm, external_db ex
+           WHERE ex.external_db_id = fm.external_db_id and fm.family_id = ? and ex.name = ?";
+
+  $q = $self->prepare($q);
+  $q->execute($family_id,$dbname);
+  
+  my @members;
+
+  while (defined (my $rowhash = $q->fetchrow_hashref)) {
+    my $member = new Bio::EnsEMBL::ExternalData::Family::FamilyMember();
+
+    $member->adaptor($self);
+    $member->dbID($rowhash->{family_member_id});
+    $member->family_id($family_id);
+    $member->external_db_id($rowhash->{external_db_id});
+    $member->database($rowhash->{name});
+    $member->stable_id($rowhash->{external_member_id});
+    $member->taxon_id($rowhash->{taxon_id});
+    push @members, $member;
+  }
+  return @members;
+}
+
+sub fetch_by_family_dbname_taxon {
+  my ($self,$family_id,$dbname,$taxon_id) = @_;
+
+  $self->throw("Should give defined family_id and databasename and taxon_id as arguments\n") unless (defined $family_id && defined $dbname && defined $taxon_id);
+
+  my $q = "SELECT fm.family_member_id, fm.external_db_id, fm.external_member_id, fm.taxon_id, ex.name
+           FROM family_members fm, external_db ex
+           WHERE ex.external_db_id = fm.external_db_id and fm.family_id = ? and ex.name = ? and fm.taxon_id = ?";
+
+  $q = $self->prepare($q);
+  $q->execute($family_id,$dbname,$taxon_id);
+  
+  my @members;
+
+  while (defined (my $rowhash = $q->fetchrow_hashref)) {
+    my $member = new Bio::EnsEMBL::ExternalData::Family::FamilyMember();
+
+    $member->adaptor($self);
+    $member->dbID($rowhash->{family_member_id});
+    $member->family_id($family_id);
+    $member->external_db_id($rowhash->{external_db_id});
+    $member->database($rowhash->{name});
+    $member->stable_id($rowhash->{external_member_id});
     $member->taxon_id($rowhash->{taxon_id});
     push @members, $member;
   }
@@ -126,12 +192,27 @@ sub fetch_by_family_id {
 sub get_external_db_id_by_dbname {
   my ($self, $dbname) = @_;
 
+  $self->throw("Should give a defined databasename as argument\n") unless (defined $dbname);
+
   my $q = "SELECT external_db_id FROM external_db WHERE name = ?";
   $q = $self->prepare($q);
   $q->execute($dbname);
   my $rowhash = $q->fetchrow_hashref;
 
   return $rowhash->{external_db_id};
+}
+
+sub get_dbname_by_external_db_id {
+  my ($self, $external_db_id) = @_;
+
+  $self->throw("Should give a defined external_db_id as argument\n") unless (defined $external_db_id);
+
+  my $q = "SELECT name FROM external_db WHERE external_db_id = ?";
+  $q = $self->prepare($q);
+  $q->execute($external_db_id);
+  my $rowhash = $q->fetchrow_hashref;
+
+  return $rowhash->{name};
 }
 
 =head2 store

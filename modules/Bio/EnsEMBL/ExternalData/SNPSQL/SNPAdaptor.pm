@@ -672,9 +672,9 @@ sub fetch_between_internal_ids {
 sub  fetch_all_by_Slice{
   my ($self,$slice) = @_;
   my ($query, @var_objs, %var_objs);
-  my $chr_start = $slice->chr_start;
-  my $chr_end = $slice->chr_end;
-  my $chr_name = $slice->chr_name;
+  my $chr_start = $slice->start;
+  my $chr_end = $slice->end;
+  my $chr_name = $slice->seq_region_name;
   
     $query = qq{
       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3,

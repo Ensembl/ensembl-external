@@ -14,12 +14,12 @@ Bio::EnsEMBL::ExternalData::Disease::DBHandler
 
 
 my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( 
-						      -user => 'ensembl', 
-						      -dbname => 'disease',
-						      -host=>'sol28.ebi.ac.uk',
-						      -port=>'3307',
-						      -ensdb=>$ensembldb,
-						      -mapdb=>$mapdb);
+                              -user => 'ensembl', 
+                              -dbname => 'disease',
+                              -host=>'sol28.ebi.ac.uk',
+                              -port=>'3307',
+                              -ensdb=>$ensembldb,
+                              -mapdb=>$mapdb);
 
 
 
@@ -75,15 +75,15 @@ sub new
     
     my ($db,$host,$port,$driver,$user,$password,$debug,$ensdb,$mapdb) = 
       $self->_rearrange([qw(DBNAME
-			    HOST
-			    PORT
-			    DRIVER
-			    USER
-			    PASS
-			    DEBUG
-			    ENSDB
-			    MAPDB
-			    )],@args);
+                HOST
+                PORT
+                DRIVER
+                USER
+                PASS
+                DEBUG
+                ENSDB
+                MAPDB
+                )],@args);
     
 
     $driver || ( $driver = 'mysql' );
@@ -99,11 +99,11 @@ sub new
     
     my $dsn = "DBI:$driver:database=$db;host=$host;port=$port";
     if( $debug && $debug > 10 ) {
-	$self->_db_handle("dummy dbh handle in debug mode $debug");
+    $self->_db_handle("dummy dbh handle in debug mode $debug");
     } else {
-	my $dbh = DBI->connect("$dsn","$user",$password,{RaiseError => 1});
-	$dbh || $self->throw("Could not connect to database $db user $user using [$dsn] as a locator");
-	$self->_db_handle($dbh);
+    my $dbh = DBI->connect("$dsn","$user",$password,{RaiseError => 1});
+    $dbh || $self->throw("Could not connect to database $db user $user using [$dsn] as a locator");
+    $self->_db_handle($dbh);
     }
     
     
@@ -199,17 +199,17 @@ sub disease_name_by_ensembl_gene
     my $seen=0;
 
     if (!$gene->isa('Bio::EnsEMBL::Gene')) {
-	$self->throw("$gene is not a Bio::EnsEMBL::Gene object!");
+    $self->throw("$gene is not a Bio::EnsEMBL::Gene object!");
     }
     my $hugo='(';
 
     my $seen;
     foreach my $dblink ($gene->each_DBLink) {
-	if ($dblink->database eq 'HUGO') {
-	    $seen=1;
-	    $hugo.="'".$dblink->primary_id."',";
+    if ($dblink->database eq 'HUGO') {
+        $seen=1;
+        $hugo.="'".$dblink->primary_id."',";
 
-	}
+    }
     }
     
     chop($hugo);
@@ -218,7 +218,7 @@ sub disease_name_by_ensembl_gene
 
     #If no HUGO links found, return 0, i.e. no disease link!
     if (!$seen) {
-	return 0;
+    return 0;
     }
 
     my $query_string="select  d.disease from disease as d,gene as g where d.id = g.id and g.gene_symbol in $hugo";
@@ -246,54 +246,54 @@ sub disease_name_by_ensembl_gene
 sub all_diseases 
 {
     my ($self,$offset,$count)=@_;
-	
-	my $query_string='';
+    
+    my $query_string='';
 
-	if ($offset||$offset == 0){
-		$offset='limit '.$offset;
-    	if($count){$count=','.$count;}
-		my $get_disease_ids_sql="SELECT distinct d.id 
-						FROM disease AS d,gene AS g 
-						WHERE d.id = g.id $offset $count;";
-		my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
-		$sth->execute;
-	
-		my @ids;
-		while ( my $rowhash = $sth->fetchrow_hashref){
-			push @ids, $rowhash->{'id'};
-		}
-		if (scalar @ids){
-		my $id_string=join(',',@ids);
+    if ($offset||$offset == 0){
+        $offset='limit '.$offset;
+        if($count){$count=','.$count;}
+        my $get_disease_ids_sql="SELECT distinct d.id 
+                        FROM disease AS d,gene AS g 
+                        WHERE d.id = g.id $offset $count;";
+        my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
+        $sth->execute;
+    
+        my @ids;
+        while ( my $rowhash = $sth->fetchrow_hashref){
+            push @ids, $rowhash->{'id'};
+        }
+        if (scalar @ids){
+        my $id_string=join(',',@ids);
 
-		$query_string= "SELECT 	d.disease,
-									g.id,
-									g.gene_symbol,
-									g.omim_id,
-									g.start_cyto,
-									g.end_cyto, 
-									g.chromosome 
-							FROM disease AS d,gene AS g 
-							WHERE g.id=d.id 
-							AND d.id IN ($id_string)";
+        $query_string= "SELECT  d.disease,
+                                    g.id,
+                                    g.gene_symbol,
+                                    g.omim_id,
+                                    g.start_cyto,
+                                    g.end_cyto, 
+                                    g.chromosome 
+                            FROM disease AS d,gene AS g 
+                            WHERE g.id=d.id 
+                            AND d.id IN ($id_string)";
 
-    	}
-		else {
-			# no matches for this query, so:
-			return ();
-		}
-	}
-	else {
-		$query_string='SELECT 	d.disease,
-									g.id,
-									g.gene_symbol,
-									g.omim_id,
-									g.start_cyto,
-									g.end_cyto, 
-									g.chromosome 
-						FROM disease AS d,gene AS g 
-						WHERE d.id = g.id';
-	}
-	
+        }
+        else {
+            # no matches for this query, so:
+            return ();
+        }
+    }
+    else {
+        $query_string='SELECT   d.disease,
+                                    g.id,
+                                    g.gene_symbol,
+                                    g.omim_id,
+                                    g.start_cyto,
+                                    g.end_cyto, 
+                                    g.chromosome 
+                        FROM disease AS d,gene AS g 
+                        WHERE d.id = g.id';
+    }
+    
     return $self->_get_disease_objects($query_string);
 
 } 
@@ -375,62 +375,62 @@ sub all_disease_count
 sub diseases_on_chromosome 
 {                          
     my ($self,$chromosome_no,$offset,$count)=@_;
-	my $query_string='';
-	
+    my $query_string='';
+    
     $chromosome_no || $self->throw("I need a chromosome");
     
-	# If we've got limits, then do a limited query, otherwise, do a full query
-	
-	if ($offset||$offset == 0){
-		$offset='limit '.$offset;
-    	if($count){$count=','.$count;}
-	
-		my $get_disease_ids_sql="SELECT distinct d.id 
-								FROM disease AS d,gene AS g 
-								WHERE d.id = g.id 
-								AND g.chromosome='$chromosome_no' 
-								$offset $count;";
+    # If we've got limits, then do a limited query, otherwise, do a full query
+    
+    if ($offset||$offset == 0){
+        $offset='limit '.$offset;
+        if($count){$count=','.$count;}
+    
+        my $get_disease_ids_sql="SELECT distinct d.id 
+                                FROM disease AS d,gene AS g 
+                                WHERE d.id = g.id 
+                                AND g.chromosome='$chromosome_no' 
+                                $offset $count;";
 
-		my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
-		$sth->execute;
-	
-		my @ids;
-		while ( my $rowhash = $sth->fetchrow_hashref){
-			push @ids, $rowhash->{'id'};
-		}
+        my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
+        $sth->execute;
+    
+        my @ids;
+        while ( my $rowhash = $sth->fetchrow_hashref){
+            push @ids, $rowhash->{'id'};
+        }
 
-		if (scalar @ids){
-			my $id_string=join(',',@ids);
+        if (scalar @ids){
+            my $id_string=join(',',@ids);
 
-			$query_string= "SELECT 	d.disease,
-										g.id,
-										g.gene_symbol,
-										g.omim_id,
-										g.start_cyto,
-										g.end_cyto,
-										g.chromosome 
-								FROM disease AS d,gene AS g 
-								WHERE g.id=d.id 
-								AND d.id IN ($id_string)";
-		}
-		else {
-			return ();
-		}
-	}
-	else {
-		$query_string= "SELECT 	d.disease,
-									g.id,
-									g.gene_symbol,
-									g.omim_id,
-									g.start_cyto,
-									g.end_cyto,
-									g.chromosome 
-							FROM disease AS d,gene AS g 
-							WHERE g.id=d.id 
-							AND g.chromosome='$chromosome_no'";
-	}
-	
-	return $self->_get_disease_objects($query_string);
+            $query_string= "SELECT  d.disease,
+                                        g.id,
+                                        g.gene_symbol,
+                                        g.omim_id,
+                                        g.start_cyto,
+                                        g.end_cyto,
+                                        g.chromosome 
+                                FROM disease AS d,gene AS g 
+                                WHERE g.id=d.id 
+                                AND d.id IN ($id_string)";
+        }
+        else {
+            return ();
+        }
+    }
+    else {
+        $query_string= "SELECT  d.disease,
+                                    g.id,
+                                    g.gene_symbol,
+                                    g.omim_id,
+                                    g.start_cyto,
+                                    g.end_cyto,
+                                    g.chromosome 
+                            FROM disease AS d,gene AS g 
+                            WHERE g.id=d.id 
+                            AND g.chromosome='$chromosome_no'";
+    }
+    
+    return $self->_get_disease_objects($query_string);
        
 }
 
@@ -457,11 +457,11 @@ sub disease_names_on_chromosome
     if ($offset||$offset == 0){$offset='limit '.$offset;}
     if($count){$count=','.$count;}    
 
-	my $query_string="SELECT distinct g.id, d.disease 
-						FROM disease AS d,gene AS g 
-						WHERE d.id = g.id 
-						AND g.chromosome='$chromosome_no' $offset $count;";
-	
+    my $query_string="SELECT distinct g.id, d.disease 
+                        FROM disease AS d,gene AS g 
+                        WHERE d.id = g.id 
+                        AND g.chromosome='$chromosome_no' $offset $count;";
+    
     $self->_get_disease_names($query_string);
 
 } 
@@ -490,9 +490,9 @@ sub diseases_on_chromosome_count
     $chromosome || $self->throw("I need a chromosome");
 
     my $query_string= "SELECT distinct g.id, d.disease  
-						FROM disease AS d,gene AS g 
-						WHERE d.id = g.id 
-						AND g.chromosome='$chromosome'";
+                        FROM disease AS d,gene AS g 
+                        WHERE d.id = g.id 
+                        AND g.chromosome='$chromosome'";
 
     $self->_get_count($query_string);
 
@@ -784,18 +784,18 @@ my $disease;
 while ( my $rowhash = $sth->fetchrow_hashref) 
 {
     if ($id!=$rowhash->{'id'})
-    {	
-	$disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
-	$disease->name($rowhash->{'disease'});
-	push @diseases,$disease;
+    {   
+    $disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
+    $disease->name($rowhash->{'disease'});
+    push @diseases,$disease;
     }
 
     my $location=new Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation(
-							    -db_id=>$rowhash->{'omim_id'},
-							    -cyto_start=>$rowhash->{'start_cyto'},
-							    -cyto_end=>$rowhash->{'end_cyto'},
-							    -external_gene=>$rowhash->{'gene_symbol'},
-							    -chromosome=>$rowhash->{'chromosome'});
+                                -db_id=>$rowhash->{'omim_id'},
+                                -cyto_start=>$rowhash->{'start_cyto'},
+                                -cyto_end=>$rowhash->{'end_cyto'},
+                                -external_gene=>$rowhash->{'gene_symbol'},
+                                -chromosome=>$rowhash->{'chromosome'});
   
     if (defined $rowhash->{'gene_symbol'}){$location->has_gene(1);}
     $id=$rowhash->{'id'};
@@ -828,7 +828,7 @@ sub _get_disease_names
 
     while ( my $rowhash = $sth->fetchrow_hashref) 
     {
-	push @diseases,$rowhash->{'disease'};	
+    push @diseases,$rowhash->{'disease'};   
     }
 
     return @diseases;
@@ -849,7 +849,7 @@ sub _get_count
     
     while ( my $rowhash = $sth->fetchrow_hashref) 
     {
-	push @diseases,$rowhash->{'disease'};	
+    push @diseases,$rowhash->{'disease'};   
     } 
 
     scalar @diseases;
@@ -865,14 +865,16 @@ sub _link2ensembl
     my ($self,@diseases)=@_;
     
     foreach my $dis (@diseases){ 
-	foreach my $location($dis->each_Location){ 
+    foreach my $location($dis->each_Location){ 
 
-	    eval {
-	    my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
-	    $location->ensembl_gene($ensembl_gene);
-	};
-	    if ($@){print STDERR "problems with ensembl genes\n$@\n";}
-	}
+        eval {
+        #my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
+        
+        my $ensembl_gene=$self->_ensdb->get_GeneAdaptor->fetch_by_maximum_DBLink($location->external_gene);
+        $location->ensembl_gene($ensembl_gene);
+    };
+        if ($@){print STDERR "problems with ensembl genes\n$@\n";}
+    }
     }
     
     return @diseases;
@@ -886,11 +888,11 @@ sub _link2maps
     my ($self,@diseases)=@_;
 
     foreach my $dis (@diseases){ 
-	foreach my $location($dis->each_Location){
-	    
-	    # do sth with a map obj and set global coordinates	
-	    $location->global_position("555555 ");	    
-	}
+    foreach my $location($dis->each_Location){
+        
+        # do sth with a map obj and set global coordinates  
+        $location->global_position("555555 ");      
+    }
     }
     
     return @diseases;

@@ -397,4 +397,50 @@ sub id {
     return $self->{'_id'};
 }
 
+=head2 primary_tag
+
+ Title   : primary_tag
+ Usage   : $tag = $feat->primary_tag()
+           $feat->primary_tag('exon')
+ Function: get/set on the primary tag for a feature,
+           overriding SeqFeature's read-only method
+ Returns : a string 
+ Args    : none
+
+
+=cut
+
+sub primary_tag{
+    my ($self,$arg) = @_;
+
+    if (defined($arg)) {
+	$self->{'_primary_tag'} = $arg;
+   }
+   return $self->{'_primary_tag'};
+}
+
+=head2 source_tag
+
+ Title   : source_tag
+ Usage   : $tag = $feat->source_tag()
+           $feat->source_tag('genscan');
+ Function: get/set for the source tag for a feature,
+           overriding SeqFeature's read-only method
+ Returns : a string 
+ Args    : none
+
+
+=cut
+
+sub source_tag{
+    my ($self,$arg) = @_;
+
+    if (defined($arg)) {
+	$self->{'_source_tag'} = $arg;
+    }
+
+   return $self->{'_source_tag'};
+}
+
+
 1;

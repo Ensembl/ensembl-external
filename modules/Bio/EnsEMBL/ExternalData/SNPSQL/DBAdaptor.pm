@@ -86,28 +86,7 @@ use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use strict;
 use vars qw(@ISA);
 
-# Object preamble - inherits from Bio::Root:RootI
 @ISA = qw(Bio::EnsEMBL::DBSQL::DBAdaptor);
-
-
-
-#use the DBConnection superclass constructor
-
-# done in super now.
-#=head2 get_SNPAdaptor
-#
-#  Function  : Retrieves a SNPAdaptor from this database
-#  Returntype: Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor
-#  Exceptions: none
-#  Caller    : perl/default/snpview  Bio::EnsEMBL::DBSQL::ProxySNPAdaptor
-#
-#=cut
-#
-#sub get_SNPAdaptor {
-#  my $self = shift;
-#
-#  return $self->_get_adaptor("Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor");
-#}
 
 sub get_Hitcount {
     my ($self) = @_;
@@ -129,6 +108,10 @@ sub get_max_refsnpid {
     return $count;
 }
 
+sub get_available_adaptors{
+  my %pairs = ("SNP", "Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor");
+  return (\%pairs);
+}
 
 
 #######################################################################

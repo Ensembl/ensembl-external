@@ -193,7 +193,7 @@ sub fetch_all_by_DBLink_Container {
        $dsf->id                ( $ensembl_id );
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
-       $dsf->das_segment_id    ( $f->segment()->ref );
+       $dsf->das_segment       ( $f->segment );
        $dsf->das_segment_label ( $f->label() );
        $dsf->das_id            ( $f->id() );
        $dsf->das_dsn           ( $dsn );
@@ -233,7 +233,7 @@ sub fetch_all_by_DBLink_Container {
 
    my @result_list = grep 
      {
-       $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment_id}, $_ ) == 1 
+       $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment->ref}, $_ ) == 1 
      } @das_features;
 
    my $key = join( '_', $dsn, keys(%ids) );
@@ -318,7 +318,13 @@ sub _map_DASSeqFeature_to_pep{
   my $dsf    = shift || die( "Need a DASSeqFeature object" );
 
   # Check for 'global' feature - mapping not needed 
-  if( $dsf->das_feature_id eq $dsf->das_segment_id ){ return 1 }
+  if( $dsf->das_feature_id eq $dsf->das_segment->ref or
+      ! $dsf->das_start or
+      ! $dsf->das_end ){
+    $dsf->start = 0;
+    $dsf->end   = 0;
+    return 1
+  }
 
   # Check that dblink is map-able
   if( ! $dblink->can( 'get_mapper' ) ){ return 0 }
@@ -450,7 +456,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 
         $das_sf->das_feature_id($f->id());
         $das_sf->das_feature_label($f->label());
-        $das_sf->das_segment_id($f->segment());
+        $das_sf->das_segment($f->segment());
         $das_sf->das_segment_label($f->label());
         $das_sf->das_id($f->id());
         $das_sf->das_dsn($dsn);

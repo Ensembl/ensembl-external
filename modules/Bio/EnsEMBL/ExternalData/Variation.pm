@@ -89,7 +89,8 @@ use Bio::SeqFeature::Generic;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 
-@ISA = qw(Bio::Root::Object Bio::SeqFeature::Generic Bio::DBLinkContainerI);
+
+@ISA = qw(Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
 
 # new() is inherited from Bio::Root::Object
 
@@ -134,6 +135,8 @@ sub _initialize {
   $dnstreamseq  && $self->dnstreamseq($dnstreamseq);
 
   $self->{ 'link' } = [];
+
+ 
 
   # set stuff in self from @args
   return $make; # success - we hope!

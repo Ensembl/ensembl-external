@@ -253,8 +253,6 @@ sub fetch_all_by_DBLink_Container {
        $dsf->das_note          ( $note );
        $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
         push(@das_features, $dsf);
-#		 my $str = $dsf->das_feature_id.':'.$dsf->das_type.':'. $dsf->start.' : '.$dsf->end;
-#		 warn("BF: $str");
    };
 
 
@@ -526,7 +524,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $das_sf->das_orientation($f->orientation()||0);    
         $das_sf->das_phase($f->phase());
 	my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
-        $das_sf->das_note($f->note());
+        $das_sf->das_note($note);
 
 
         0 && warn("adding feature for $dsn.... @{[$f->id]}");

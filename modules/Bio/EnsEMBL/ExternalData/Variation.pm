@@ -152,8 +152,7 @@ sub strand {
     if( defined $value ) {
         $self->{'_snp_strand'} = $value;
     }
-
-    return $value;
+    return $self->{'_snp_strand'};
 }
 
 

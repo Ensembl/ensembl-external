@@ -20,10 +20,10 @@
     'port'          => '3306',
     
     # Password if needed
-    'password'      => undef,
+    'pass'      => undef,
     
     # File containing the datbase schema in SQL format - mandatory
-    'schema_sql'    => '../sql/table.sql',
+    'schema_sql'    => undef
     
     #EnsEMBL DBSQL::Obj module name - optional                   
     'module'        => 'Bio::EnsEMBL::Pipeline::DBSQL::Obj',

@@ -499,9 +499,10 @@ sub load_families {
                 if ($add_other) { 
                     my $dbname;         # which database name to use?
                     if ( $mem =~ /^ENSMUSP/ ) { 
-                        $dbname = 'ENSMUSPEP';
+                        $dbname = 'ENSMUSPEP'; # Boo! Hiss! Hardcoded
+                                               # stuff here ...
                     } elsif ( $mem =~ /^ENSMUSG/ ) { # (not there yet)
-                        $dbname = 'ENSMUSGENE';
+                        $dbname = 'ENSMUSGENE'; # likewise
                     } else {
                         $dbname = $sp_dbname;
                     }

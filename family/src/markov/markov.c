@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <malloc.h>
+#include <string.h>
 #include "markov.h"
 
 void dump_hits (int, struct hit_struct *);
@@ -12,6 +13,7 @@ int binary_search_routine (const void *s1, const void *s2);
 
 int main (int argc, char *argv[])
 {
+char *version;
 struct hit_struct *hits;
 FILE *fp;
 FILE *fpout;
@@ -42,6 +44,9 @@ char *key,**key1,*fptr;
 struct hit_struct *ptr;
 struct hit_struct searchkey;
 struct hit_struct *searchptr;
+
+ version = strdup("$Revision$");
+ version[strlen(version)-2]='\0';  version+= sizeof("$Revision: "); 
 
 if (argc == 1)
 	{
@@ -99,7 +104,7 @@ for (i=0;i < argc;i++)
                 }
 	}
 
-printf("\nMarkovMatrix v1.0 (c) EMBL-EBI\n");
+printf("\nMarkovMatrix v%s (c) EMBL-EBI\n", version);
 printf("------------------------------\n");
 printf("anton@ebi.ac.uk (2001)\n");
 printf("\n\n");
@@ -119,6 +124,7 @@ protein_index[total_proteins]=(char *)malloc(100*sizeof(char));
 if ((fp=fopen(argv[1],"r")) == NULL)
 	{
 	fprintf(stderr,"File cannot be opened\n");
+        perror(argv[1]);
 	exit(1);
 	}
 
@@ -175,7 +181,8 @@ fflush(stdout);
 
  printf("\n\nSymmetrification in Progress\n");
 #define STEPS 100
-#define PRINT_PROGRESS printf("%d/%d (%d%%)\n", i, total_hits, (i*STEPS)/total_hits);
+#define PRINT_PROGRESS \
+  printf("%d/%d -- %d%%\n", i, total_hits, (i*STEPS)/total_hits);
 for (i=0;i<total_hits;i++) {
 
   if ( (i % (total_hits/STEPS)) ==0 ) { 
@@ -221,7 +228,8 @@ fflush(stdout);
 
 if ((indexout=fopen(file1,"w")) == NULL)
 	{
-	printf("Error cannot create index file %s\n",file1);
+	fprintf(stderr,"Error cannot create index file");
+        perror(file1);
 	exit(1);
 	}
 
@@ -253,7 +261,8 @@ printf("\nCreating Markov Matrix file %s\n",file2);
 fflush(stdout);
 if ((fpout=fopen(file2,"w")) == NULL)
         {
-        fprintf(stderr,"File %s cannot be created\n",file2);
+        fprintf(stderr,"File %s cannot be created\n");
+        perror(file2);
         exit(1);
         } 
 

@@ -162,7 +162,8 @@ sub id {
 
     my @ids = $obj->each_DBLink;
     my $id = $ids[0];
-    return $id->database. "::". $id->primary_id;
+#    return $id->database. "::". $id->primary_id;
+    return  $id->primary_id;
 }
 
 
@@ -249,9 +250,9 @@ sub position_problem {
    if( defined $value) {
       $obj->{'position_problem'} = $value;
     }
-   if( ! exists $obj->{'position_problem'} ) {
-       return "$obj";
-   }
+#   if( ! exists $obj->{'position_problem'} ) {
+#       return "$obj";
+#   }
    return $obj->{'position_problem'};
 }
 

@@ -101,9 +101,9 @@ sub fetch_Haplotype_by_chr_start_end  {
         from 
 			block
         where
-        	chr_start>= $s
+        	chr_end>= $s
         and
-        	chr_end<= $e
+        	chr_start<= $e
         and
         	chr_name = $chr
         group by block_id

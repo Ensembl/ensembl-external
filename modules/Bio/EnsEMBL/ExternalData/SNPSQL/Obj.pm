@@ -267,7 +267,7 @@ sub get_SeqFeature_by_id {
         #snp info not valid
 	$self->throw("SNP withdrawn!") if $snp_withdrawn eq 'Y';
 
-	my ($seq_problem) = ''; 
+	my $seq_problem = ''; 
         #coordinate system change from clique -> clone
         if ($acc_version) {
            if ($q_start < $q_end) {
@@ -354,7 +354,7 @@ sub get_SeqFeature_by_id {
         my $sth3 = $self->prepare($query3);
         my $res3 = $sth3->execute();
         while( (my $arr3 = $sth3->fetchrow_arrayref()) ) {
-
+	    
 	    my ($seq, $is_left) = @{$arr3};
 	    if ($is_left eq 'Y') {
 		$leftFlank = substr($seq, -25, 25);
@@ -375,7 +375,7 @@ sub get_SeqFeature_by_id {
 		$snp->start($allele_pos);
 		$snp->end($allele_pos);
 		$snp->strand($strand);
-		$snp->position_problem($seq_problem) if $seq_problem;
+		$snp->position_problem($seq_problem);
 	}
 	$snp->source_tag('The SNP Consortium');
 	$snp->score($confidence);    
@@ -451,38 +451,36 @@ sub get_SeqFeature_by_id {
 =cut
 
 sub get_Ensembl_SeqFeatures_clone {
-   my($self) = shift;
-   my ($acc, $ver, $start, $stop) = @_;
+    my($self) = shift;
+    my ($acc, $ver, $start, $stop) = @_;
+    
+    #lists of variations to be returned
+    my @variations;
+    
+    #sanity checks
+    if ( ! defined $ver) {
+	$self->throw("Two arguments are requided: embl_accession number and version_number!");
+    }
+    
+    if (defined $start) {
+	$start = 1 if $start eq "";
+	if ( $start !~ /^\d+$/  and $start > 0) {
+	    $self->throw("$start is not a valid start");
+	}
+    }
+    if (defined $stop) {
+	$start = 1 if not defined $start; 
+	if ( $stop !~ /^\d+$/ and $stop > 0 ) {
+	    $self->throw("$stop is not a valid start");
+	}
+    }
+    if (defined $start and defined $stop) {
+	if ($stop < $start) {
+	    $self->throw("$stop is smaller than  $start not a valid start");
+	}
+    }
 
-   #my $dbh = DBI->connect('DBI:mysql:tsc',$user,$password);
-
-   #lists of variations to be returned
-   my @variations;
-
-   #sanity checks
-   if ( ! defined $ver) {
-       $self->throw("Two arguments are requided: embl_accession number and version_number!");
-   }
-   
-   if (defined $start) {
-       $start = 1 if $start eq "";
-       if ( $start !~ /^\d+$/  and $start > 0) {
-	   $self->throw("$start is not a valid start");
-       }
-   }
-   if (defined $stop) {
-       $start = 1 if not defined $start; 
-       if ( $stop !~ /^\d+$/ and $stop > 0 ) {
-	   $self->throw("$stop is not a valid start");
-       }
-   }
-   if (defined $start and defined $stop) {
-       if ($stop < $start) {
-	   $self->throw("$stop is smaller than  $start not a valid start");
-       }
-   }
-
-   my $embl_ver = uc "$acc.$ver";
+    my $embl_ver = uc "$acc.$ver";
 
 
    # db query to return all variation information except alleles
@@ -549,27 +547,27 @@ sub get_Ensembl_SeqFeatures_clone {
        # & put them in a string separated by '|'
        # 
        
-       my $query2 = qq{
-	   
-	   select p2.ALLELE
-	   from  TBL_ALLELE_INFO  as p2
-	   where p2.SNP_ID = "$snpid"
-		    
-	   };  
-
-       my $sth2 = $self->prepare($query2);
-       my $res2 = $sth2->execute();
-
-       my ($alleles) = ''; 
-       while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
-	   
-	   my ($allele) = @{$arr2};
-	   $alleles .= "$allele\|";
-	   
-       }
-       chop $alleles;
-       $alleles = lc $alleles;
-       
+#	my $query2 = qq{
+#	    
+#	    select p2.ALLELE
+#	    from  TBL_ALLELE_INFO  as p2
+#	    where p2.SNP_ID = "$snpid"
+#		     
+#	    };  
+#
+#	my $sth2 = $self->prepare($query2);
+#	my $res2 = $sth2->execute();
+#
+#	my ($alleles) = ''; 
+#	while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
+#	    
+#	    my ($allele) = @{$arr2};
+#	    $alleles .= "$allele\|";
+#	    
+#	}
+#	chop $alleles;
+#	$alleles = lc $alleles;
+#	
        #
        # prepare the output objects
        #
@@ -582,7 +580,7 @@ sub get_Ensembl_SeqFeatures_clone {
 	    -source_tag => 'The SNP Consortium', 
 	    -score  => $confidence,                
 	    -status => $confirmed,
-	    -alleles => $alleles   
+#	    -alleles => $alleles   
 	    );
        
        #DBLink

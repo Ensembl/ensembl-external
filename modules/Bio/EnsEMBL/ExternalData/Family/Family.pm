@@ -69,7 +69,7 @@ use vars qw(@ISA);
 use strict;
 
 # Object preamble - inheriets from Bio::Root::Object
-use Bio::Root::Root;
+use Bio::EnsEMBL::Root;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 

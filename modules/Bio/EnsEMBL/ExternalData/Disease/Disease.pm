@@ -1,3 +1,38 @@
+#
+# BioPerl module for Bio::EnsEMBL::ExternalData::Disease::Disease
+#
+# Written by Arek Kasprzyk <arek@ebi.ac.uk>
+#
+# You may distribute this module under the same terms as perl itself
+# POD documentation - main docs before the code
+
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::Disease::Disease
+
+=head1 SYNOPSIS
+
+$disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
+my @locations=$disease->each_Location;
+
+=head1 DESCRIPTION
+
+This object represents a disease, a container for DiseaseLocation objects
+
+=head1 AUTHOR - Arek Kasprzyk
+
+Email arek@ebi.ac.uk
+
+Describe contact details here
+
+=head1 APPENDIX
+
+The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
+
+=cut
+
+
+
 package Bio::EnsEMBL::ExternalData::Disease::Disease; 
 
 use strict;
@@ -21,6 +56,22 @@ sub new
 }
 
 
+
+=head2 name
+
+ Title   : name
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
+
 sub name
 {
     my ($self,$value)=@_;
@@ -29,6 +80,19 @@ sub name
   return $self->{'name'};
 }
 
+
+
+=head2 add_Location
+
+ Title   : add_Location
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
 
 
 
@@ -43,6 +107,26 @@ sub add_Location
    push(@{$self->{'_disease_location_array'}},$location);
 
 }
+
+
+
+=head2 each_Location
+
+ Title   : each_Location
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
+
+
+
 
 sub each_Location{
    my ($self) = @_;

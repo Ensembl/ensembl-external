@@ -1,3 +1,44 @@
+#
+# BioPerl module for Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation
+#
+# Written by Arek Kasprzyk <arek@ebi.ac.uk>
+#
+# You may distribute this module under the same terms as perl itself
+# POD documentation - main docs before the code
+
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::Disease::Disease
+
+=head1 SYNOPSIS
+
+ my $location=new Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation(
+							    -db_id=>$rowhash->{'omim_id'},
+							    -cyto_start=>$rowhash->{'start_cyto'},
+							    -cyto_end=>$rowhash->{'end_cyto'},
+							    -external_gene=>$rowhash->{'gene_symbol'},
+							    -chromosome=>$rowhash->{'chromosome'});
+
+=head1 DESCRIPTION
+
+This object holds info about genomic location of a disease phenotype
+
+=head1 AUTHOR - Arek Kasprzyk
+
+Email arek@ebi.ac.uk
+
+Describe contact details here
+
+=head1 APPENDIX
+
+The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
+
+=cut
+
+
+
+
+
 package Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation; 
 
 
@@ -40,6 +81,21 @@ sub new
 
 
 
+=head2 db_id
+
+ Title   : db_id
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
+
 sub db_id 
 {
   my ($self,$value) = @_;
@@ -47,6 +103,21 @@ sub db_id
   
   return $self->{'_db_id'};
 }
+
+
+
+=head2 has_gene
+
+ Title   : has_gene
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
 
 
 
@@ -60,6 +131,21 @@ sub has_gene
 
 
 
+=head2 external_gene
+
+ Title   : external_gene
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
+
 sub external_gene 
 {
   my ($self,$value) = @_;
@@ -67,6 +153,22 @@ sub external_gene
   
   return $self->{'_gene_id'};
 }
+
+
+
+=head2 ensembl_gene
+
+ Title   : ensembl_gene
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
 
 sub ensembl_gene 
 {
@@ -77,13 +179,24 @@ sub ensembl_gene
 }
 
 
-sub DB_link 
-{
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'DB_link'} = $value;}
-  
-  return $self->{'DB_link'};
-}
+
+
+
+=head2 cyto_start
+
+ Title   : cyto_start
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
+
 
 sub cyto_start 
 {
@@ -93,6 +206,22 @@ sub cyto_start
   return $self->{'_cyto_start'};
 }
 
+
+
+=head2 cyto_end
+
+ Title   : cyto_end
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
 sub cyto_end 
 {
   my ($self,$value) = @_;
@@ -100,6 +229,22 @@ sub cyto_end
   
   return $self->{'_cyto_end'};
 }
+
+
+
+=head2 chromosome
+
+ Title   : chromosome
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
 
 sub chromosome 
 {
@@ -110,6 +255,21 @@ sub chromosome
 }
 
 
+
+=head2 global_position
+
+ Title   : global_position
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+
+
 sub global_position 
 {
   my ($self,$value) = @_;
@@ -117,6 +277,17 @@ sub global_position
   
   return $self->{'global_position'};
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -65,7 +65,13 @@ sub das_segment_id {
    my ($self,$arg) = @_;
    if( $arg) {
       $self->{'das_segment_id'} = $arg;
-      $self->seqname($arg);
+      # we need to set the feature seqname here so that we can translate
+      # raw contig to VC coordinates later. So here we trim the segment name
+      # to give the contig ID:
+      my ($seqname) = $self->{'das_segment_id'} =~ /(.*?):(\d+)\,(\d+)/;
+      $self->seqname($seqname);
+      $self->das_segment_start($2);
+      $self->das_segment_stop($3);
    }
     return $self->{'das_segment_id'};
 }

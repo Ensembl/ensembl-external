@@ -48,7 +48,7 @@ package Bio::EnsEMBL::DBDAS::DASAdaptor;
 use vars qw(@ISA);
 use strict;
 
-# Object preamble - inherits from Bio::Root::Object
+# Object preamble - inherits from Bio::Root::RootI
 
 use Bio::Root::RootI;
 use Bio::Das;
@@ -61,20 +61,62 @@ sub new {
 
 	my $self = bless {}, $pkg;
 
-    my ( $url, $dsn, $ensdb ) = $self->_rearrange([qw( URL DSN )],@args);
+    my ( $url, $dsn, $ensdb, $proxy_url ) = $self->_rearrange([qw( URL DSN )],@args);
 
-    $url   || $self->throw("DAS database object must have a database url");
-    $dsn   || $self->throw("DAS database object must have a DSN (data source name)");
+    $url   || $self->throw("DAS database adaptor must be given a database url");
+    $dsn   || $self->throw("DAS database adaptor must be given a DSN (data source name)");
 
-    my $dbh = Bio::Das->new($url);
+    my $dbh = Bio::Das->new(30);
+    if (defined $proxy_url){
+        $dbh->proxy($proxy_url);
+        warn "Setting proxy URL to $proxy_url for $dsn\n";
+    }
     $self->_db_handle($dbh);
-	#$dbh->agent()->agent("Ensembl DAS requester (enquiries to: webmaster\@ensembl.org)");
-	#$dbh->agent()->agent("Mozilla/4.0 (compatible; MSIE 5.0; SunOS 5.6 sun4u; X11)");
-	$dbh->agent()->agent("Mozilla/3.01 (compatible;)");
-	$dbh->agent()->timeout(3);
-    $dbh->dsn($dsn);
+    $self->dsn($dsn);
+    $self->url($url);
+    $self->ensembldb($ensdb);
 
     return $self; # success - we hope!
+}
+
+
+=head2 ensembldb
+
+ Title   : ensembldb
+ Usage   : $obj->ensembldb($ensdb)
+ Function: store an Ensembl database handle
+ Returns : 
+ Args    : none
+
+
+=cut
+
+sub ensembldb {
+    my ($self,$value) = @_;
+    if( defined $value) {
+        $self->{'_ensembldb'} = $value;
+    }
+    return $self->{'_ensembldb'};
+}
+
+
+=head2 url
+
+ Title   : url
+ Usage   : $obj->url("http://www.there.co.uk/das")
+ Function: store a DAS data source URL
+ Returns : 
+ Args    : none
+
+
+=cut
+
+sub url {
+    my ($self,$value) = @_;
+    if( defined $value) {
+        $self->{'_url'} = $value;
+    }
+    return $self->{'_url'};
 }
 
 
@@ -92,9 +134,9 @@ sub new {
 sub dsn {
     my ($self,$value) = @_;
     if( defined $value) {
-        $self->{'_db_handle'}->dsn($value);
+        $self->{'_dsn'} = $value;
     }
-    return $self->{'_db_handle'}->dsn();
+    return $self->{'_dsn'};
 }
 
 
@@ -114,9 +156,7 @@ sub _db_handle{
    my ($self,$value) = @_;
    if( defined $value) {
       $self->{'_db_handle'} = $value;
-	  #print STDERR "Handle stored : ",$self->{'_db_handle'} ,"\n";
     }
-	#print STDERR "Handle returned : ",$self->{'_db_handle'} ,"\n";
     return $self->{'_db_handle'};
 
 }

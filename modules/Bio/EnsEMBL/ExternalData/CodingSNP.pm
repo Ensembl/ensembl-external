@@ -182,6 +182,7 @@ sub snp2gene {
     
     my @seqDiffs = ();
     foreach my $trans ($self->gene->each_Transcript) {
+	#print STDERR $trans->id,"\n";
 	#print STDERR $rna->dna_seq->seq, "\n";
 	my $aa = $trans->translation; #Bio::Ensembl::Translation object
 	#print $aa->id, ", ", $aa->start, ", ", $aa->end, "\n";
@@ -192,6 +193,33 @@ sub snp2gene {
 	$seqDiff && push @seqDiffs, $seqDiff;
     }
     return @seqDiffs;
+}
+
+
+=head2 snp2transcript
+
+ Title   : snp2transcript
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+sub snp2transcript{
+   my ($self,$snp) = @_;
+   my $seqDiff = undef;
+   $self->transcript || $self->throw("Set transcript to a Bio::EnsEMBL::Transcript object");
+   
+   my $trans = $self->transcript;
+
+   my $aa = $trans->translation; #Bio::Ensembl::Translation object
+      
+   my $aaseq = $trans->translate;
+   $seqDiff = $self->_calculate_gene_coordinates($snp, $trans, $aa, $aaseq);
+   return $seqDiff;
 }
 
 
@@ -248,19 +276,40 @@ sub _calculate_gene_coordinates {
     my @ex_array;
 
     foreach my $e(@ex_obj) {
-	#print STDERR $exons{$e->id}->{'rank'}."\n";
 	push(@ex_array,$exons{$e->id});
     }
+
+#Here we get the position of the SNP in what we could call DNA coordinates
+    my $start_pos = $snps{$snp->id}->{'start'};
+    
+    my $ex_st = $ex_array[0]->{'start'};
+
+    my $dna_pos = abs($start_pos - $ex_st);
+    
+#Lets get the position of the SNP in transcript coordinates
+    my $snp_ex = $snps{$snp->id}->{'exon'};
+    my $ex_rank = $exons{$snp_ex}->{'rank'};
+    my $ex_array = $ex_rank -1;
+    
+    
+    my $count = 0;
+    my $tr_length = 0;
+    while ($count < ($ex_rank-1)) {
+	my $length = abs($ex_array[$count]->{'end'} - $ex_array[$count]->{'start'});
+	$tr_length = $tr_length + $length;
+	$count++;
+    }
+    my $length1 =  abs($ex_array[$ex_array]->{'start'} - $start_pos);
+    $tr_length = $tr_length + $length1;
+    #print STDERR "TR POS: $tr_length\n";
 ####################################
     
     #
     # DNA level
     #
 
-    #my $dna_start =  $snp->start - $seqDiff->offset;
-    
-    my $dna_start = $snps{$snp->id}->{'start'} - $seqDiff->offset;
-
+    my $dna_start = $dna_pos - $seqDiff->offset;
+    #my $dna_start = $snps{$snp->id}->{'start'} - $seqDiff->offset;
     $dna_start < 1 && $dna_start--; # no 0 in the coordinate system!
 
     my $dnamut = Bio::Variation::DNAMutation->new
@@ -288,33 +337,14 @@ sub _calculate_gene_coordinates {
     foreach my $link ($snp->each_DBLink) {
 	$dnamut->add_DBLink;
     }
-
-    #my $start_pos = $snp->start;
     
-    my $start_pos = $snps{$snp->id}->{'start'};
-    #print STDERR "STARTSNP: $start_pos\n";
-
-    #Get the start in chromosome coordinates of the first exon of the transcript and
-    my $ex_st = $ex_array[0]->{'start'};
-
-    my $pos = abs($start_pos - $ex_st);
-    #print STDERR "POS: $pos\n";
-    
-    #print STDERR "STRAND: ".$ex_array[0]->{'strand'},"\n";
-
-    #print STDERR "STARTEX: $ex_st\n";
-
-    #my $snp_start = $start_pos - 
-    
-
+#Now it would be nice to get the postion of the SNP in transcript coordinates...joy of conversions...
 
     $dnamut->upStreamSeq
-	(lc substr($rna->seq, $pos -25, 25));
+	(lc substr($rna->dna_seq->seq, $tr_length -25, 25));
     $dnamut->dnStreamSeq
-	(lc substr($rna->seq, $pos +1, 25));
+	(lc substr($rna->dna_seq->seq, $tr_length +1, 25));
 
-
-    #print STDERR $rna->start, "\n";
 
     my $ref_allele;# = lc substr($self->contig->primary_seq->seq, $snp->start, 1 );
     $dnaA1->seq ne $ref_allele &&
@@ -326,6 +356,9 @@ sub _calculate_gene_coordinates {
 		
 	
     $dnamut->region('exon');
+
+#WHAT SHOULD I DO WITH THAT?????
+
     #$dnamut->region_value($exon->id. " ($exoncount)");
 		
 
@@ -336,20 +369,37 @@ sub _calculate_gene_coordinates {
     my $rnachange = undef;
     #if ($dnamut->region =~ /UTR/ or $dnamut->region eq 'exon' ) {
     if ($dnamut->region eq 'exon' ) { # mRNA affected
+
+#Check exactly what its doing...
 	$seqDiff->rna_offset($rna->start_exon->phase -1);
+
+	#print STDERR "OFFSET: ".$seqDiff->rna_offset."\n";
 	# new method into Bio::Ensembl::Transcript
-	my $rna_pos = $rna->rna_pos($snp->start); 
+	# we shouldn't need this method here
+	#my $rna_pos = $rna->rna_pos($snp->start); 
+	
+	my $rna_pos = $tr_length;
+	#print STDERR "RNA $rna_pos\n";
+	#print STDERR "RNAPOS: $pos\n";
+	#$rnachange = Bio::Variation::RNAChange->new
+	#    (-start => $rna_pos - $seqDiff->rna_offset, 
+	#     -end =>  $rna_pos - $seqDiff->rna_offset,
+	#     );
+	#print STDERR "HERE1\n";
 	$rnachange = Bio::Variation::RNAChange->new
 	    (-start => $rna_pos - $seqDiff->rna_offset, 
 	     -end =>  $rna_pos - $seqDiff->rna_offset,
 	     );
+	#print STDERR "HERE2\n";
 	$rnachange->length(1);
 	$rnachange->mut_number(1);
 	$seqDiff->add_Variant($rnachange);
 	$dnamut->RNAChange($rnachange);
 	$rnachange->DNAMutation($dnamut);
 	$rnachange->proof('computed');
+	$rnachange->region('coding');
 	
+
 	$rnachange->allele_ori($dnaA1);
 	foreach my $alleleseq (@alleles) {
 	    my $A2 = Bio::Variation::Allele->new;
@@ -372,7 +422,10 @@ sub _calculate_gene_coordinates {
 	my $ref_allele = lc substr($seqDiff->rna_ori, $rna_pos,1);
 	$dnaA1->seq ne  $ref_allele && 
 	    $self->warn("Found RNA ref allele: $ref_allele!");
-    }      
+    }    
+
+    #print STDERR $rnachange->upStreamSeq, "\n";
+
     #
     # Protein level
     #
@@ -382,6 +435,7 @@ sub _calculate_gene_coordinates {
 	my $aachange = Bio::Variation::AAChange->new
 	    (-start => (int($rnachange->start / 3 + 1))
 	     );
+	
 	$aachange->end($aachange->start);
 	$aachange->proof('computed');
 	$seqDiff->add_Variant($aachange);
@@ -391,6 +445,9 @@ sub _calculate_gene_coordinates {
 	
 	my $ct = new Bio::Tools::CodonTable;
 	my $aa_allele_ori = $ct->translate($rnachange->codon_ori);
+
+	print STDERR "ORI: ".$rnachange->codon_ori, "\n";
+
 	my $aa_o = Bio::Variation::Allele->new;
 	$aa_o->seq($aa_allele_ori) if $aa_allele_ori;
 	$aachange->allele_ori($aa_o);

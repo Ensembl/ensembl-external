@@ -7,7 +7,7 @@
 
 =head1 NAME
 
-Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPAdaptor
+Bio::EnsEMBL::ExternalData::SangerSNP::VariationAdaptor
 
 =head1 SYNOPSIS
 
@@ -25,7 +25,7 @@ Post questions to the EnsEMBL developer list: <ensembl-dev@ebi.ac.uk>
 
 use strict;
 
-package Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPAdaptor;
+package Bio::EnsEMBL::ExternalData::SangerSNP::VariationAdaptor;
 
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::SNP;

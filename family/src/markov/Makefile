@@ -4,16 +4,29 @@
 # CC = /usr/local/bin/gcc 
 CC = /bin/cc 
 
+ifeq ($(FAMPATH),)
+	INSTALL = echo "don't know where to install to; FAMPATH not set"; exit 2;
+else
+INSTALL = cp
+installdir =  $(FAMPATH)/bin
+endif
+
 opt = -O4
 
 CFLAGS = -c $(opt)
 
-.PHONY: all
+
+.PHONY: all install
 
 all: markov
+
+install:
+	$(INSTALL) markov $(installdir)
 
 markov: markov.o
 	$(CC) $^ -o $@ -lm
 
 markov.o: markov.c markov.h
 	$(CC) $(CFLAGS) $^
+
+

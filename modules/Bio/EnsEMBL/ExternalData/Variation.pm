@@ -570,7 +570,7 @@ sub hapmap_snp {
   if( ! exists $obj->{'hapmap_snp'} ) {
        return undef;
    }
-  return $obj->{'hapmap_snp};
+  return $obj->{'hapmap_snp'};
 }
 
 

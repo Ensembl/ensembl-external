@@ -67,7 +67,7 @@ sub fetch_attributes_only{
   my $sth = $self->prepare('
       SELECT refsnp.internal_id, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
-             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight, refsnp.hapmap_snp
+             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight, refsnp.hapmap_snp,
              ds.version
       FROM   RefSNP refsnp, DataSource ds
       WHERE  refsnp.id = ?

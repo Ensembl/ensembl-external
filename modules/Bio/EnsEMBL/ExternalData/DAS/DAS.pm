@@ -252,11 +252,14 @@ sub fetch_all_by_DBLink_Container {
        my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
        $dsf->das_note          ( $note );
        $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
+#		 my $str = $dsf->das_feature_id.':'.$dsf->das_type.':'. $dsf->start.' : '.$dsf->end;
+#		 warn("DF: $str");
+
         push(@das_features, $dsf);
    };
 
 
-   #$self->adaptor->_db_handle->debug(1);
+#   $self->adaptor->_db_handle->debug(1);
    $self->adaptor->_db_handle->features
      ( -dsn=>"$url/$dsn", 
        -segment=>[keys %ids], 
@@ -291,17 +294,26 @@ sub fetch_all_by_Slice {
 
   # Examine cache
   my $CACHE_KEY = $slice->name;
-#  if( $self->{$CACHE_KEY} ){
-#    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
-#  }
+  if( $self->{$CACHE_KEY} ){
+    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
+  }
 
   # Get all coord systems this Ensembl DB knows about
   my $csa = $slice->coord_system->adaptor;
+  my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
+
 # The following bit has been put to investigate why we get error messages in the error log saying that fetch_all can not be called on an undefined value
   if (! defined($csa)) {
-		my @ca = caller(2);
-		warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
-		return [];
+      my @ca = caller(2);
+      warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+
+      if (! defined($csa2)) {
+	  warn("CSA2 is empty");
+	  return [];
+      } else {
+	  $csa = $csa2;
+      }
+
   }
   my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 
@@ -329,9 +341,7 @@ sub fetch_all_by_Slice {
   }
 
   # Run the DAS query
-  my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS
-    ( [ @segments_to_request ] );
-
+  my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
 
   # Map the DAS results into the coord system of the original slice
   my @result_list;
@@ -439,7 +449,7 @@ sub _map_DASSeqFeature_to_slice {
   $das_sf->end   ( $slice_end );
   $das_sf->strand( $slice_strand );
 
-  #warn( "Ensembl:".$das_sf->seqname.":".$das_sf->start."-".$das_sf->end );
+#  warn( "Ensembl:".$das_sf->seqname.":".$das_sf->start."-".$das_sf->end );
   return 1;
 
 }
@@ -469,13 +479,13 @@ sub get_Ensembl_SeqFeatures_DAS {
     my $dsn 	   = $self->adaptor->dsn();
     my $types 	   = $self->adaptor->types() || [];
     my $url 	   = $self->adaptor->url();
+
     my $DAS_FEATURES = [];
     my $STYLES = [];
     #$dbh->debug(1); # Useful debug flag
 
     @$segments || $self->throw("Need some segment IDs to query against");
     my @seg_requests = @$segments;
-
     my $callback_stylesheet = sub {
       # return if $_[3] eq 'pending';
       push @$STYLES, {
@@ -526,12 +536,10 @@ sub get_Ensembl_SeqFeatures_DAS {
 	my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
         $das_sf->das_note($note);
 
-
         0 && warn("adding feature for $dsn.... @{[$f->id]}");
         push(@{$DAS_FEATURES}, $das_sf);
-
-#		   my $str = $das_sf->das_feature_id.':'.$das_sf->das_type.':'. $das_sf->start.' : '.$das_sf->end;
-#		  warn("CF: $str");
+#	my $str = $das_sf->das_feature_id.':'.$das_sf->das_type.':'. $das_sf->start.' : '.$das_sf->end;
+#	warn("CF: $str");
     };
 
     my $response;

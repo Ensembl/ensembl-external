@@ -78,40 +78,40 @@ sub das_move {
       $self->{'_gsf_strand'} = $strand;
 }
 
+sub das_segment{
+  my $self = shift;
+  if( @_ ){
+    my $segment = shift;
+    $segment->isa('Bio::Das::Segment') || 
+      $self->throw( "Need a Bio::Das::Segment" );
+    $self->{'das_segment'} = $segment;
+    $self->seqname( $segment->ref );
+  }
+  return $self->{'das_segment'};
+}
 sub das_segment_id {
-   my ($self,$arg) = @_;
-   if( $arg) {
-      $self->{'das_segment_id'} = $arg;
-      # we need to set the feature seqname here so that we can translate
-      # raw contig to VC coordinates later. So here we trim the segment name
-      # to give the contig ID:
-      my ($seqname) = $self->{'das_segment_id'} =~ /(.*?):(\d+)\,(\d+)/;
-      $self->seqname($seqname);
-      $self->das_segment_start($2);
-      $self->das_segment_stop($3);
-   }
-    return $self->{'das_segment_id'};
+  my $self = shift;
+  if( @_ and @_[0]->isa('Bio::Das::Segment') ){
+    $self->deprecated( "Use das_segment instead" ); # whs 25/03/2004
+    return $self->das_segment(@_);
+  }
+  $self->deprecated( "Use das_segment->ref instead" );
+  return $self->das_segment->ref(@_);
 }
 sub das_segment_start {
-   my ($self,$arg) = @_;
-   if( $arg) {
-      $self->{'das_segment_start'} = $arg;
-   }
-    return $self->{'das_segment_start'};
+  my $self = shift;
+  $self->deprecated( "Use das_segment->start instead" );# whs 25/03/2004
+  return $self->das_segment->start(@_);
 }
 sub das_segment_stop {
-   my ($self,$arg) = @_;
-   if( $arg) {
-      $self->{'das_segment_stop'} = $arg;
-   }
-    return $self->{'das_segment_stop'};
+  my $self = shift;
+  $self->deprecated( "Use das_segment->end instead" ); # whs 25/03/2004
+  return $self->das_segment->end(@_);
 }
 sub das_segment_version {
-   my ($self,$arg) = @_;
-   if( $arg) {
-      $self->{'das_segment_version'} = $arg;
-   }
-    return $self->{'das_segment_version'};
+  my $self = shift;
+  $self->deprecated( "Use das_segment->version instead" ); # whs 25/03/2004
+  return $self->das_segment->version(@_);
 }
 sub das_segment_label {
    my ($self,$arg) = @_;

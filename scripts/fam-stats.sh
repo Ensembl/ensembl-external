@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # $Id$
-### do statistics on the conflicts found when loading TRIBE families:
 
-usage="Usage: $0 file-with-log-output-from-family-input.pl"
-if [ $# -ne 1  ]; then
+# Some statistics on families
+
+usage="Usage: $0 host database user family-input.log"
+if [ $# -ne 4  ]; then
      echo $usage; exit 1;
 fi
 
-file=$1
+host=$1
+dbname=$2
+user=$3
+file=$4
 
 echo -n Totals:
 grep "^inserted" $file

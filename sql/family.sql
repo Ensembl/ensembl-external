@@ -1,7 +1,6 @@
 # $Id$
 
 # tables for Anton Enrights protein family clustering. 
-# this is preliminary  still!
 
 CREATE TABLE family (
    internal_id   int(10) NOT NULL,
@@ -10,7 +9,7 @@ CREATE TABLE family (
    release       varchar(10) NOT NULL,
    annotation_confidence_score double, 
 
-   num_ens_pepts int(10),
+   num_ens_pepts int(10) DEFAULT '0' NOT NULL,
     
    PRIMARY KEY(internal_id), 
    UNIQUE KEY(id)

@@ -202,7 +202,8 @@ sub _map_DASSeqFeature_to_chr {
 	    ($contig_hash_ref->{ $sf->seqname() }->dbID(), 
 	     $sf->das_start, 
 	     $sf->das_end, 
-	     $sf->das_strand );
+	     $sf->das_strand || 0
+            );
 
 	# if its not mappable than ignore the feature
 	

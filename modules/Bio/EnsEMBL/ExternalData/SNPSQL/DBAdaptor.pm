@@ -534,13 +534,13 @@ sub get_Ensembl_SeqFeatures_clone {
  Usage   :
  Function:
  Example :
- Returns : 
+ Returns : a list of lightweight Variation features.
  Args    : scalar in nucleotides (should default to 50)
            array of accession.version numbers
 
 =cut
 
-sub get_Ensembl_SeqFeatures_clone_web{
+sub get_Ensembl_SeqFeatures_clone_web {
     my ($self,$glob,@acc) = @_;
     
     if (! defined $glob) {

@@ -37,8 +37,8 @@ package Bio::EnsEMBL::ExternalData::ESTSQL::EstAdaptor;
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::FeaturePair;
 use Bio::EnsEMBL::SeqFeature;
-use Bio::EnsEMBL::DBSQL::Feature_Obj;
 use Bio::EnsEMBL::FeatureFactory;
+use Bio::EnsEMBL::DBSQL::AnalysisAdaptor;
 use Bio::Root::RootI;
 use vars qw(@ISA);
 
@@ -95,12 +95,10 @@ sub get_Ensembl_SeqFeatures_contig {
 
        my $out;
        my $analysis;
-              
+       my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
        if (!$analhash{$analysisid}) {
-	   
-	   my $feature_obj=Bio::EnsEMBL::DBSQL::Feature_Obj->new($self->db);
-	   $analysis = $feature_obj->get_Analysis($analysisid);
-	   $analhash{$analysisid} = $analysis;
+	 $analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
+	 $analhash{$analysisid} = $analysis;
 	   
        } else {
 	   $analysis = $analhash{$analysisid};

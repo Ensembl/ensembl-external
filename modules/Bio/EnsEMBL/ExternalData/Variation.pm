@@ -370,6 +370,7 @@ sub status {
 		 'proven by frequency' => 1,
 		 'proven by cluster' => 1,
                  'proven by 2hit-2allele' => 1,
+                 'proven by other-pop' => 1,
 		 'proven ' => 1,
 		 'proven' => 1
 		 );

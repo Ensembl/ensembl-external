@@ -365,6 +365,7 @@ sub _map_DASSeqFeature_to_slice {
   my $ma = $db->get_AssemblyMapperAdaptor;
 
   # Map
+  my( $slice_start, $slice_end, $slice_strand );
   unless( $fr_csystem->equals( $to_csystem ) ){
     my $mapper = $ma->fetch_by_CoordSystems( $fr_csystem, $to_csystem );
     my @coords = ();
@@ -376,17 +377,19 @@ sub _map_DASSeqFeature_to_slice {
     if( $@ ){ warn( $@ ) }
     @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
     scalar( @coords ) || return 0;
-    $das_sf->seqname( $usr_slice->seq_region_name );
-    $das_sf->start ( $coords[0]->start - $usr_slice->start + 1 );
-    $das_sf->end   ( $coords[-1]->end  - $usr_slice->start + 1 );
-    $das_sf->strand( $coords[0]->strand );
+    $slice_start = $coords[0]->start - $usr_slice->start + 1;
+    $slice_end   = $coords[-1]->end  - $usr_slice->start + 1;
+    $slice_strand= $coords[0]->strand;
   }
   else{ # No mapping needed
-    $das_sf->seqname( $usr_slice->seq_region_name );
-    $das_sf->start ( $das_sf->das_start - $usr_slice->start + 1 );
-    $das_sf->end   ( $das_sf->das_end   - $usr_slice->start + 1 );
-    $das_sf->strand( $das_sf->das_orientation );
+    $slice_start = $das_sf->das_start - $usr_slice->start + 1;
+    $slice_end   = $das_sf->das_end   - $usr_slice->start + 1;
+    $slice_strand= $das_sf->das_orientation;
   }
+  $das_sf->seqname( $usr_slice->seq_region_name );
+  $das_sf->start ( $slice_start );
+  $das_sf->end   ( $slice_end );
+  $das_sf->strand( $slice_strand );
 
   #warn( "Ensembl:".$das_sf->seqname.":".$das_sf->start."-".$das_sf->end );
   return 1;

@@ -24,7 +24,8 @@ my $famdb=Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor\
 my $fam, @fam;
 
 $fam = $famdb->get_Family_by_id('ENSF000013034');  # family id
-$fam = $famdb->get_Family_of_Ensembl_id('ENSP00000012304');
+$fam = $famdb->get_Family_of_Ensembl_pep_id('ENSP00000012304');
+$fam = $famdb->get_Family_of_Ensembl_gene_id('ENSG00000012304');
 $fam = $famdb->get_Family_of_db_id('SWISSPROT', 'P000123');
 @fam = $famdb->get_Family_described_as('interleukin');
 @fam = $famdb->all_Families();
@@ -151,20 +152,38 @@ sub get_Family_by_id  {
     $self->_get_family($q);
 }                                       # get_Family_by_id
 
-=head2 get_Family_of_Ensembl_id
+=head2 get_Family_of_Ensembl_pep_id
 
- Title   : get_Family_of_Ensembl_id
- Usage   : $fam = $db->get_Family_of_Ensembl_id('ENSP00000204233');
- Function: find the family to which the given Ensembl id belongs.
+ Title   : get_Family_of_Ensembl_pep_id
+ Usage   : $fam = $db->get_Family_of_Ensembl_pep_id('ENSP00000204233');
+ Function: find the family to which the given Ensembl peptide id belongs.
  Example :
  Returns : a Family or undef if not found 
  Args    : the ENSEMBLPEP identifier (display_id)
+
 =cut
 
-sub get_Family_of_Ensembl_id { # ('ENSP00000012304'); # family _of_ an entry
+sub get_Family_of_Ensembl_pep_id {
     my ($self, $eid) = @_; 
 
     $self->get_Family_of_db_id('ENSEMBLPEP', $eid);  #PL: what db_name ???
+}
+
+=head2 get_Family_of_Ensembl_gene_id
+
+ Title   : get_Family_of_Ensembl_gene_id
+ Usage   : $fam = $db->get_Family_of_Ensembl_gene_id('ENSP00000204233');
+ Function: find the family to which the given Ensembl peptide id belongs.
+ Example :
+ Returns : a Family or undef if not found 
+ Args    : the ENSEMBL gene identifier (display_id)
+
+=cut
+
+sub get_Family_of_Ensembl_gene_id {
+    my ($self, $eid) = @_; 
+
+    $self->get_Family_of_db_id('ENSEMBLGENE', $eid);  #PL: what db_name ???
 }
 
 =head2 get_Family_of_db_id
@@ -175,6 +194,7 @@ sub get_Family_of_Ensembl_id { # ('ENSP00000012304'); # family _of_ an entry
  Example :
  Returns : a Family or undef if not found 
  Args    : the ENSEMBLPEP identifier (display_id)
+
 =cut
 
 sub get_Family_of_db_id { 
@@ -201,6 +221,7 @@ sub get_Family_of_db_id {
            (The search is currently case-insensitive; this may change if
            SWISSPROT changes to case-preservation)
  Args    : search string.
+
 =cut
 
 sub get_Families_described_as{ 
@@ -223,6 +244,7 @@ sub get_Families_described_as{
  Example :
  Returns : 
  Args    : 
+
 =cut
 
 

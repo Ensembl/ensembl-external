@@ -202,7 +202,7 @@ sub all_disease_names
 {
     my ($self,$offset,$count)=@_;
 
-    if ($offset){$offset='limit '.$offset;}
+    if ($offset||$offset == 0){$offset='limit '.$offset;}
     if($count){$count=','.$count;}
   
 
@@ -306,7 +306,7 @@ sub disease_names_on_chromosome
     my ($self,$chromosome_no,$offset,$count)=@_;
 
     $chromosome_no || $self->throw("I need a chromosome");
-    if ($offset){$offset='limit '.$offset;}
+    if ($offset||$offset == 0){$offset='limit '.$offset;}
     if($count){$count=','.$count;}    
 
     my $query_string=" select d.disease from disease as d,gene as g where d.id = g.id 
@@ -407,7 +407,7 @@ sub disease_names_with_genes
    
   my ($self,$offset,$count)=@_;
 
-  if ($offset){$offset='limit '.$offset;}
+  if ($offset||$offset == 0){$offset='limit '.$offset;}
   if($count){$count=','.$count;}    
     
   my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
@@ -511,7 +511,7 @@ sub disease_names_without_genes
    
   my ($self,$offset,$count)=@_;
 
-  if ($offset){$offset='limit '.$offset;}
+  if ($offset||$offset == 0){$offset='limit '.$offset;}
   if($count){$count=','.$count;}    
   
   my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
@@ -611,7 +611,7 @@ sub disease_names_like
 
     $disease || $self->throw("I need disease name");    
 
-    if ($offset){$offset='limit '.$offset;}
+    if ($offset||$offset == 0){$offset='limit '.$offset;}
     if($count){$count=','.$count;}    
 
 

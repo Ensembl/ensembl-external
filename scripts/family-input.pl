@@ -20,6 +20,8 @@ my $add_ens_pep =1;                     # should ens_peptides be added?
 my $add_ens_gene =1;                    # should ens_genes be added?
 my $add_swissprot =1;                   # should swissprot entries be added?
 
+my @id_prefixes = qw(ENSP COBP PGBP);
+
 ## list of regexps tested, in order of increasing desirability, when
 ## deciding which family to assign a gene to in case of conflicts (used in
 ## compare_desc):
@@ -39,6 +41,7 @@ die $usage if $opt_h;
 
 my $famdb_connect_string = ($opt_F || 'database=family;host=localhost;user=root');
 my $ensdb_connect_string = ($opt_E || 'database=ens075;host=ecs1b;user=ensro');
+#     my ($host, $user, $db) = ('ensrv5', 'ensro', 'ensembl080');
 #     my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
 
 my $release = ($opt_r || die " need a release number\n");
@@ -177,8 +180,7 @@ sub compare_desc {
 
 sub main {
     # god this function is hairy
-    warn "checking for /^COBP/ too ...";
-
+    warn "checking for all id with prefixes " , join(' ', @id_prefixes), "\n";
     my $fam_count = 0;
     my $mem_count =0;
     my $famdb;
@@ -272,7 +274,7 @@ sub main {
         my %seen_gene = undef;          # just for filtering transcripts
       MEM:
         foreach my $mem (@mems) {
-            if ($mem =~ /^ENSP/ || $mem =~ /^COBP/ ) {
+            if ( grep $mem =~ /^$_/,@id_prefixes ) {
                 
                 if ($add_ens_pep)  {
                     $mem_q->execute($internal_id, $ens_pep_dbname, $mem)

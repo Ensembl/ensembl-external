@@ -15,7 +15,7 @@ open(MAP, "<$mapfile") || die $!;
 %mapping = ();
 while ( <MAP> ) {
     chomp;
-    ($old,$new)=split ':';
+    ($old,$new)=split ' ';
     die "wrong format: '$_' ; expecting old:new" unless $old and $new;
     $mapping{$old}=$new;
 }

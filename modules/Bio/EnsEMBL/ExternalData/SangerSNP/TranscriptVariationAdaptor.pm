@@ -97,9 +97,9 @@ sub fetch_all_by_VariationFeatures {
   my %trans_hash;
 
   # Mark all variation features as having had tvs added
-  #foreach my $vf (@$vf_ref) {
-  #  $vf->{transcriptVariations} = [];
-  #}
+  foreach my $vf (@$vf_ref) {
+    $vf->{transcriptVariations} = [];
+  }
 
   my @tvs;
   while (my $row = $sth->fetchrow_hashref) {

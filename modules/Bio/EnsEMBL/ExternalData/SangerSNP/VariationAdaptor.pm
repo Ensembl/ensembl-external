@@ -43,7 +43,7 @@ use vars qw(@ISA);
 sub fetch_all_by_chr_start_end {
   my ($self,$chr,$start,$end) = @_;
 
-  my $assembly = $self->ensembl_db->assembly_type;
+  my $assembly = $self->ensembl_db->get_CoordSystemAdaptor->fetch_all->[0]->version();
   
   (my $assembly_name = $assembly) =~ s/[0-9]*$//;
   (my $assembly_version = $assembly) =~ s/[A-Z,a-z]*([0-9]*)$/$1/;

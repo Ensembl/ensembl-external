@@ -191,7 +191,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
        SELECT  p1.start, p1.end, p1.strand,
   	       p1.acc,p1.version,p2.id,
                p2.snptype,p2.mapweight,   
-	       p2.observed, p2.seq5, p2.seq3 
+	       p2.observed, p2.seq5, p2.seq3,p2.het,p2.hetse  
 	FROM   Hit as p1, RefSNP as p2
   	WHERE  acc in $inlist
                AND p1.refsnpid = p2.id
@@ -207,7 +207,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
        
        my ($begin, $end,$strand,
 	   $acc,$ver,$snpuid,$type,$mapweight,
-	   $alleles,$seq5,$seq3   
+	   $alleles,$seq5,$seq3,$het,$hetse    
 	   ) = @{$arr};
        
        my $acc_version="$acc.$ver";
@@ -246,7 +246,8 @@ sub get_Ensembl_SeqFeatures_clone_web{
 
        $snp->upStreamSeq($seq5);
        $snp->dnStreamSeq($seq3);
-
+       $snp->het($het);
+       $snp->hetse($hetse); 
 
        my $link = new Bio::Annotation::DBLink;
        $link->database('dbSNP');

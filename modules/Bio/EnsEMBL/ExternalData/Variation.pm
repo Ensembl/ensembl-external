@@ -464,6 +464,42 @@ sub original_strand {
 }
 
 
+
+
+
+sub het {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'het'} = $value;
+  }
+   if( ! exists $obj->{'het'} ) {
+       return undef;
+   }
+   return $obj->{'het'};
+
+}
+
+sub hetse {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'hetse'} = $value;
+  }
+   if( ! exists $obj->{'hetse'} ) {
+       return undef;
+   }
+   return $obj->{'hetse'};
+
+}
+
+
+
+
+
+
+
+
+
+
 sub _reversed {
    my ($obj,$value) = @_;
    if( defined $value) {

@@ -139,6 +139,31 @@ sub _initialize {
 }
 
 
+
+=head2 id
+
+ Title   : id
+ Usage   : $obj->id
+ Function:
+           Read only method. Returns the id of the variation object.
+           The id is a string of form "dbname::id" derived from the 
+           first DBLink object attached to this object.
+
+ Example :
+ Returns : scalar
+ Args    : none
+
+=cut
+
+
+sub id {
+    my ($obj) = @_;
+
+    my $id = pop ($obj->each_DBLink);
+    return $id->database. "::". $id->primary_id;
+}
+
+
 =head2 status
 
  Title   : status

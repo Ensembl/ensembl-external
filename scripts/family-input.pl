@@ -176,12 +176,14 @@ warn "checking for /^COBP/ too ...";
 
     $gene_q = $ensdb->prepare($gene_q) || die $dbh->errstr;
 
+                                              
+    my %gene_fam = undef;
     while(<>) {
         chomp;
         my ($num, $descr, $dummy, $score, $mems)= split '\t';
         
         ## work around bug in format:
-        if ($score =~ /^ENSP/) {
+        if ($score =~ /^ENSP/ || $score =~ /^COBP/) {
             warn "correcting score for ENSEMBLPEP-only cluster\n";
             $mems = $score;
             $score = 0;
@@ -200,7 +202,7 @@ warn "checking for /^COBP/ too ...";
         $fam_q->execute($internal_id, $fam_id, $descr, $release, $score)
           || die "couldn't insert line $.:\n$_\n " . $fam_q->errstr;
 
-        my %seen_gene = undef;
+        my %seen_gene = undef;          # just for filtering transcripts
         foreach my $mem (@mems) {
             if ($mem =~ /^ENSP/ || $mem =~ /^COBP/ ) {
                 if ($add_ens_pep)  {
@@ -212,15 +214,36 @@ warn "checking for /^COBP/ too ...";
                 if ($add_ens_gene) {
                     my $ens_gene_id = ens_gene_of($gene_q, $mem);
 
-                    if ( ! $ens_gene_id 
-                         || defined $seen_gene{$ens_gene_id}) {
+                    if ( ! $ens_gene_id ) {
+                        warn '#' x 72, "\n";
+                        warn '#' x 72, "\n";
+                        warn "### did not find gene of $mem\n";
+                        warn '#' x 72, "\n";
+                        warn '#' x 72, "\n";
+                    } elsif ( defined $seen_gene{$ens_gene_id}) {
+                        warn "have seen $ens_gene_id already (first for: $seen_gene{$ens_gene_id}); probably OK.\n";
                     } else { 
-                        $seen_gene{$ens_gene_id}++;                        
+                        $seen_gene{$ens_gene_id}=$mem;
                         $mem_q->execute($internal_id, $ensgene_dbname, 
                                         $ens_gene_id)
                           || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
                         $mem_count++;
                     }
+
+                    ### check to see if this gene was previously assigned
+                    ### to another family; if so, that means trouble
+                    if ( defined( $gene_fam{$ens_gene_id} )
+                         &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
+                        warn '#' x 72, "\n";
+                        warn '#' x 72, "\n";
+                        warn "### gene $ens_gene_id was previously assigned to: $gene_fam{$ens_gene_id}\n";
+                        warn "### do different transcripts of gene end up in different protein families???\n";
+                        warn '#' x 72, "\n";
+                        warn '#' x 72, "\n";
+                     } else { 
+                        $gene_fam{$ens_gene_id} = $fam_id;
+                    }
+
                 }
             } else {                    # swissprot entry
                 $mem_q->execute($internal_id, $sp_dbname, $mem)

@@ -5,19 +5,18 @@
 
 use strict;
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
-use Bio::EnsEMBL::DBSQL::StaticGoldenPathAdaptor;
 
 my $db=Bio::EnsEMBL::DBSQL::DBAdaptor->new(-dbname=>"homo_sapiens_core_130",-user=>"ensro",-host=>"ecs1d"); 
-$db->static_golden_path_type('NCBI_26');
+$db->assembly_type('NCBI_26');
 
-my $stadaptor = $db->get_StaticGoldenPathAdaptor();
+my $stadaptor = $db->get_SliceAdaptor();
 my $file="/nfs/acari/lh1/work/sage/for_release/chr.dat";
 open (FH,$file) || die "cant open $file";
 while (<FH>){
         chomp;
     /^\#/ && next;
     print STDERR "chromosome ",$_,"\n";
-    my $contig=$stadaptor->fetch_VirtualContig_by_chr_name($_);
+    my $contig=$stadaptor->fetch_by_chr_name($_);
     print STDERR "fetched vc\n";
     my @transcripts=sort {$a->start <=> $b->start}$contig->get_all_VirtualTranscripts_startend();
     print STDERR "sorted transcripts ",$#transcripts,"\n";
@@ -69,3 +68,11 @@ my $u = 0;
       }
 }
 print STDERR "I have finished!\n";
+
+
+
+
+
+
+
+

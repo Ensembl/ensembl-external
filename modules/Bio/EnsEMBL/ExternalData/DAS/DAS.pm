@@ -173,6 +173,10 @@ sub get_Ensembl_SeqFeatures_DAS {
     
     unless ($response->success()){
         print STDERR "DAS fetch for $dsn failed\n";
+        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+        $CURRENT_FEATURE->das_type_id('__ERROR__');
+        $CURRENT_FEATURE->das_dsn($dsn);
+        unshift @{$DAS_FEATURES}, $CURRENT_FEATURE;
         return (@{$DAS_FEATURES});
     }
     

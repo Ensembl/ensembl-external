@@ -69,7 +69,6 @@ use vars qw(@ISA);
                The password to be used to connect to the database
   Arg [PORT] : int
                The port to use when connecting to the database
-               3306 by default.
   Arg [DRIVER] : (optional) string
                  The type of database driver to use to connect to the DB
                  mysql by default.

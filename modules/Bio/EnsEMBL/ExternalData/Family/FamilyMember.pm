@@ -196,13 +196,24 @@ sub external_db_id {
 =cut
 
 sub taxon {
-  my ($self) = @_;
+  my ($self, $taxon) = @_;
 
-  unless (defined $self->{'_taxon'}) {
-    my $taxon_adpator = $self->adaptor->db->get_TaxonAdaptor;
-    $self->{'_taxon'} = $taxon_adpator->fetch_by_taxon_id($self->taxon_id);
+  if (defined $taxon) {
+    unless($taxon->isa('Bio::EnsEMBL::ExternalData::Family::Taxon')) {
+      $self->throw(
+		   "taxon arg must be a [Bio::EnsEMBL::ExternalData::Family::Taxon".
+		   "not a [$taxon]");
+    }
+    $self->{'_taxon'} = $taxon;
+    $self->taxon_id($taxon->ncbi_taxid);
+  } else {
+    unless (defined $self->{'_taxon'}) {
+      my $taxon_adpator = $self->adaptor->db->get_TaxonAdaptor;
+      $self->{'_taxon'} = $taxon_adpator->fetch_by_taxon_id($self->taxon_id);
+      $self->taxon_id($self->{'_taxon'}->ncbi_taxid);
+    }
   }
-
+  
   return $self->{'_taxon'};
 }
 

@@ -256,7 +256,7 @@ sub fetch_fasta_by_id  {
 				 	name="$id"
 				);
     
-	warn ("SQL: $q\n");
+#	warn ("SQL: $q\n");
 	
     my $sth = $self->prepare($q);
     $sth->execute();
@@ -279,7 +279,7 @@ sub fetch_fasta_by_id  {
 				 WHERE 
 				 	description like "%$id%"
 				);
-	warn ("Second try for fasta for $q!\n");
+#	warn ("Second try for fasta for $q!\n");
     $sth = $self->prepare($q);
     $sth->execute();
 	$rowhash = $sth->fetchrow_hashref();

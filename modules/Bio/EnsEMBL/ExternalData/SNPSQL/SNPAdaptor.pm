@@ -150,7 +150,11 @@ my $snp = Bio::EnsEMBL::SNP->new;
 
   # Add Population and Frequency (allele frequency) objects to the SNP
   foreach my $pop (@{$self->fetch_pops_by_SNP_id($snp->id)}) {
-    my $freqs = $self->fetch_freqs_by_pop_SNP_id($pop->pop_id, $snp->id);
+    my $freqs = undef;
+    eval {
+      $freqs = $self->fetch_freqs_by_pop_SNP_id($pop->pop_id, $snp->id);
+    };
+    next if $@;
     next unless @$freqs;
 
     foreach my $freq (@$freqs) {

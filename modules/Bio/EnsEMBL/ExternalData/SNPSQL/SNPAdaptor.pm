@@ -89,7 +89,7 @@ sub fetch_by_SNP_id {
     
     #snp info not valid
     $self->throw("SNP withdrawn. Reason: $type ") 
-      if $type ne 'notwithdrawn';
+      if ($type && $type ne 'notwithdrawn');
     
     # use the right vocabulary for the SNP status
     if ($confirmed eq 'no-info') {
@@ -259,7 +259,7 @@ sub fetch_by_clone_accession_version {
 		) = @{$arr};
 
 		#snp info not valid
-		next if $type ne 'notwithdrawn';
+		next if ($type && $type ne 'notwithdrawn');
 		next if $mapweight > 2;
 
 

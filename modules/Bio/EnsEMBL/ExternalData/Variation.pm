@@ -112,7 +112,7 @@ sub new {
 
     my ($start, $end, $strand, $primary_tag, $source,
 	$frame, $score, $gff_string, $status, $alleles,
-	$upstreamseq, $dnstreamseq,$subsnpid,$handle,$original_strand) =
+	$upstreamseq, $dnstreamseq,$subsnpid,$handle,$original_strand, $type) =
 	    $self->_rearrange([qw(START
 				  END
 				  STRAND
@@ -128,19 +128,19 @@ sub new {
 				  SUBSNPID
 				  HANDLE
 				  ORIGINAL_STRAND
+				  TYPE
 				)],@args);
 
     $self->primary_tag("Variation");
-
-    $start && $self->SUPER::start($start);
-    $end   && $self->SUPER::end($end);
+    $start && $self->start($start);
+    $end   && $self->end($end);
     $start && $self->start_in_clone_coord($start);
     $end   && $self->end_in_clone_coord($end);
     if (defined $strand) {$self->strand($strand);}
-    $primary_tag && $self->SUPER::primary_tag($primary_tag);
-    $source  && $self->SUPER::source_tag($source);
-    $frame   && $self->SUPER::frame($frame);
-    $score   && $self->SUPER::score($score);
+    $primary_tag && $self->primary_tag($primary_tag);
+    $source  && $self->source_tag($source);
+    $frame   && $self->frame($frame);
+    $score   && $self->score($score);
     ##$gff_string && $self->SUPER::_from_gff_string($gff_string);
     $status  && $self->status($status);
     $alleles && $self->alleles($alleles);
@@ -150,6 +150,7 @@ sub new {
     $handle  && $self->handle($handle);
     if (defined $original_strand) {$self->original_strand($original_strand);}
     $self->{ 'link' } = [];
+    $type && $self->type($type);
 
     # set stuff in self from @args
     return $self; # success - we hope!
@@ -528,6 +529,27 @@ sub each_DBLink{
    my ($self) = @_;
 
    return @{$self->{'link'}} if defined $self->{'link'};
+}
+
+
+=head2 type
+
+ Title   : type
+ Usage   : my $type = $variation->type();
+ Function: Getter/Setter for the type of variation, e.g,: 'coding', 'utr' 
+ Returns : The type of this variation
+ Args    : (optional) The type of this variation
+
+=cut
+
+sub type{
+   my ($self, $type) = @_;
+
+   if(defined $type) {
+      $self->{'_type'} = $type;
+   }   
+
+   return $self->{'_type'};
 }
 
 =head2 to_FTHelper

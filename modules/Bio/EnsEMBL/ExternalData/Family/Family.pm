@@ -318,12 +318,10 @@ sub get_SimpleAlign {
   
   my $sa = Bio::SimpleAlign->new();
 
-
-
   #Hack to try to work with both bioperl 0.7 and 1.2:
-  #Check the symbol table to see if the method is called 'addSeq' or 'add_seq'
+  #Check to see if the method is called 'addSeq' or 'add_seq'
   my $bio07 = 0;
-  if(!defined(&{ref($sa) . '::add_seq'})) {
+  if(!$sa->can('add_seq')) {
     $bio07 = 1;
   }
   

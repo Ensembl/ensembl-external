@@ -1,32 +1,31 @@
-# -*- mode: Makefile; -*-
-# $Id$
 
-# CC = /usr/local/bin/gcc 
-CC = /bin/cc 
+CC = /bin/cc
 
-ifeq ($(FAMPATH),)
-	INSTALL = echo "don't know where to install to; FAMPATH not set"; exit 2;
-else
-INSTALL = cp
-installdir =  $(FAMPATH)/bin
-endif
+OPTS = -g3 -O
 
-opt = -g -O
+CFLAGS = -c $(OPTS)
 
-CFLAGS = -c $(opt)
-
-
-.PHONY: all install
+.PHONY: install clean
 
 all: markov
 
 install: markov
-	$(INSTALL) markov $(installdir)
+	if [ "$(FAMPATH)" = "" ]; then \
+	echo; \
+	echo "!!! WARNING !!! Don't know where to install to; FAMPATH not set."; \
+	echo;exit 2; \
+	else \
+	echo; \
+	cp markov $(FAMPATH)/bin; \
+	echo "Installation successfully completed."; \
+	fi; \
+	echo;
 
 markov: markov.o
-	$(CC) $^ -o $@ -lm
+	$(CC) markov.o -o $@ -lm
 
 markov.o: markov.c markov.h
-	$(CC) $(CFLAGS) $?
+	$(CC) $(CFLAGS) markov.c markov.h
 
-
+clean:
+	rm -f markov.o markov

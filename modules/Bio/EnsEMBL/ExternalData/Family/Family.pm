@@ -253,7 +253,7 @@ sub size {
   # even transcript. Then recode size as size_by_type or something like that.
   # size_by_type('peptide'),...
 
-  return scalar $self->get_all_members - $self->size_by_dbname('ENSEMBLGENE');
+  return scalar @{$self->get_all_members} - $self->size_by_dbname('ENSEMBLGENE');
 }
 
 =head2 size_by_dbname
@@ -272,7 +272,7 @@ sub size_by_dbname {
   
   $self->throw("Should give a defined databasename as argument\n") unless (defined $dbname);
   
-  return scalar $self->get_members_by_dbname($dbname);
+  return scalar @{$self->get_members_by_dbname($dbname)};
 }
 
 =head2 size_by_dbname_taxon
@@ -290,7 +290,7 @@ sub size_by_dbname_taxon {
   
   $self->throw("Should give defined databasename and taxon_id as arguments\n") unless (defined $dbname && defined $taxon_id);
 
-  return scalar $self->get_members_by_dbname_taxon($dbname,$taxon_id);
+  return scalar @{$self->get_members_by_dbname_taxon($dbname,$taxon_id)};
 }
 
 =head2 get_all_members
@@ -299,7 +299,7 @@ sub size_by_dbname_taxon {
  Usage   : foreach $member ($fam->get_all_members) {...
  Function: fetch all the members of the family
  Example :
- Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Returns : an array reference of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
  Args    : none
 
 =cut
@@ -310,15 +310,16 @@ sub get_all_members {
   unless (defined $self->{'_members'}) {
     my $family_id = $self->dbID;
     my $FamilyMemberAdaptor = $self->adaptor->db->get_FamilyMemberAdaptor();
-    my @members = $FamilyMemberAdaptor->fetch_by_family_id($family_id);
+    my $members = $FamilyMemberAdaptor->fetch_by_family_id($family_id);
     $self->{_members} = [];
     $self->{_members_by_dbname} = {};
     $self->{_members_by_dbname_taxon} = {};
-    foreach my $member (@members) {
+    foreach my $member (@{$members}) {
       $self->add_member($member);
     }
   }
-  return @{$self->{'_members'}};
+#  return @{$self->{'_members'}};
+  return $self->{'_members'};
 }
 
 =head2 get_members_by_dbname
@@ -326,7 +327,7 @@ sub get_all_members {
  Title   : get_members_by_dbname
  Usage   : $fam->get_members_by_dbname('SPTR')
  Function: fetch all the members that belong to a particular database
- Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Returns : an array reference of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
  Args    : a databasename
 
 =cut
@@ -339,12 +340,13 @@ sub get_members_by_dbname {
   unless (defined $self->{_members_by_dbname}->{$dbname}) {
     my $family_id = $self->dbID;
     my $FamilyMemberAdaptor = $self->adaptor->db->get_FamilyMemberAdaptor();
-    my @members = $FamilyMemberAdaptor->fetch_by_family_dbname($family_id,$dbname);
+    my $members = $FamilyMemberAdaptor->fetch_by_family_dbname($family_id,$dbname);
 
     $self->{_members_by_dbname}->{$dbname} = [];
-    push @{$self->{_members_by_dbname}->{$dbname}}, @members;
+    push @{$self->{_members_by_dbname}->{$dbname}}, @{$members};
   }
-  return @{$self->{_members_by_dbname}->{$dbname}};
+#  return @{$self->{_members_by_dbname}->{$dbname}};
+  return $self->{_members_by_dbname}->{$dbname};
 
 }
 
@@ -353,7 +355,7 @@ sub get_members_by_dbname {
  Title   : get_members_by_dbname_taxon
  Usage   : $obj->get_members_by_dbname_taxon('ENSEMBLGENE',9606)
  Function: fetch all the members that belong to a particular database and taxon_id
- Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Returns : an array reference of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
  Args    : a databasename and taxon_id
 
 =cut
@@ -366,12 +368,13 @@ sub get_members_by_dbname_taxon {
   unless (defined $self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}) {
     my $family_id = $self->dbID;
     my $FamilyMemberAdaptor = $self->adaptor->db->get_FamilyMemberAdaptor();
-    my @members = $FamilyMemberAdaptor->fetch_by_family_dbname_taxon($family_id,$dbname,$taxon_id);
+    my $members = $FamilyMemberAdaptor->fetch_by_family_dbname_taxon($family_id,$dbname,$taxon_id);
 
     $self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id} = [];
-    push @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}}, @members;
+    push @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}}, @{$members};
   }
-  return @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}};
+#  return @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}};
+  return $self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id};
 }
 
 =head2 get_Taxon_by_dbname

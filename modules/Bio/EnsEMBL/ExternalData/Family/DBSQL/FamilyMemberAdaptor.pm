@@ -126,7 +126,8 @@ sub fetch_by_family_id {
     $member->taxon_id($rowhash->{taxon_id});
     push @members, $member;
   }
-  return @members;
+#  return @members;
+  return \@members;
 }
 
 sub fetch_by_dbname {
@@ -155,7 +156,8 @@ sub fetch_by_dbname {
     $member->taxon_id($rowhash->{taxon_id});
     push @members, $member;
   }
-  return @members;
+#  return @members;
+  return \@members;
 }
 
 
@@ -185,7 +187,8 @@ sub fetch_by_dbname_taxon {
     $member->taxon_id($rowhash->{taxon_id});
     push @members, $member;
   }
-  return @members;
+#  return @members;
+  return \@members;
 }
 
 sub fetch_by_family_dbname {
@@ -214,7 +217,8 @@ sub fetch_by_family_dbname {
     $member->taxon_id($rowhash->{taxon_id});
     push @members, $member;
   }
-  return @members;
+#  return @members;
+  return \@members;
 }
 
 sub fetch_by_family_dbname_taxon {
@@ -243,7 +247,8 @@ sub fetch_by_family_dbname_taxon {
     $member->taxon_id($rowhash->{taxon_id});
     push @members, $member;
   }
-  return @members;
+#  return @members;
+  return \@members;
 }
 
 sub get_external_db_id_by_dbname {

@@ -156,7 +156,8 @@ sub fetch_by_dbname_id {
              AND fm.external_member_id = '$extm_id'"; 
 
 #    return $self->_get_family($q);
-    return @{$self->_get_families($q)};
+#    return @{$self->_get_families($q)};
+    return $self->_get_families($q);
 }
 
 =head2 fetch_by_dbname_taxon_member
@@ -186,7 +187,8 @@ sub fetch_by_dbname_taxon_member {
              AND fm.taxon_id = $taxon_id"; 
 
 #    return $self->_get_family($q);
-    return @{$self->_get_families($q)};
+#    return @{$self->_get_families($q)};
+    return $self->_get_families($q);
 }
 
 =head2 fetch_by_description_with_wildcards
@@ -224,7 +226,8 @@ sub fetch_by_description_with_wildcards{
                FROM family f
               WHERE f.description = '$query'";
     }
-    return @{$self->_get_families($q)};
+#    return @{$self->_get_families($q)};
+    return $self->_get_families($q);
 }
 
 =head2 fetch_all
@@ -246,7 +249,8 @@ sub fetch_all {
       "SELECT f.family_id, f.stable_id, f.description, 
               f.release, f.annotation_confidence_score
        FROM family f";
-    return @{$self->_get_families($q)};
+#    return @{$self->_get_families($q)};
+    return $self->_get_families($q);
 }
 
 
@@ -309,7 +313,8 @@ sub known_databases {
       $self->{_known_databases} = $self->_known_databases();
   }
   
-  return @{$self->{_known_databases}};
+#  return @{$self->{_known_databases}};
+  return $self->{_known_databases};
 }
        
 
@@ -472,7 +477,7 @@ sub store {
   $fam->dbID($q->{'mysql_insertid'});
 
   my $member_adaptor = $self->db->get_FamilyMemberAdaptor;
-  foreach my $member ($fam->get_all_members) {
+  foreach my $member (@{$fam->get_all_members}) {
     $self->_store_db_if_needed($member->database);
     $member_adaptor->store($fam->dbID,$member);
   }

@@ -98,11 +98,12 @@ foreach my $cluster (sort numeric(keys(%families))) {
         my $nmembers = int(@members);
 
         # If cluster too big, throw away non-SPTREMBLS, unless there
-        # are only SPTREMBL, in which case we take at most half,
-        # selected randomly.
         if ( $nmembers < 40 ) {
             @wanted =  @members;
         } else {
+            ### take all swissprots, then add (random) trembls up to a max
+            ### of  40 (swissprots + trembls). Then add the enses.
+            ### (should use some kind of weighing at some point)
             my @sps = grep( $sp_origin{$_}, @members);
             my @enses = grep( $ens_origin{$_}, @members);
             my @trembls = grep( !$ens_origin{$_} && !$sp_origin{$_}, @members); 

@@ -20,7 +20,6 @@ HaplotypeAdaptor - DESCRIPTION of Object
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::Haplotype;
-use Bio::AlignIO;
 
 $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
@@ -31,7 +30,6 @@ $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
 my $hap_adtor = Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor->new($hapdb);
 
 $hap  = $hap_adtor->get_Haplotype_by_id('B10045');  # Haplotype id
-@haps = $hap_adtor->all_Haplotypes();
 
 ### You can add the HaplotypeAdaptor as an 'external adaptor' to the 'main'
 ### Ensembl database object, then use it as:
@@ -74,11 +72,9 @@ use strict;
 # Object preamble - inheriets from Bio::Root::Object
 
 use Bio::Root::Object;
-use Bio::DBLinkContainerI;
-use Bio::Annotation::DBLink;
 
 
-@ISA = qw(Bio::Root::Object Bio::DBLinkContainerI);
+@ISA = qw(Bio::Root::Object);
 
 =head2 new
 

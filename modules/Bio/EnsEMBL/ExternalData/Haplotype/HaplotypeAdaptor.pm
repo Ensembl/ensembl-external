@@ -20,7 +20,6 @@ HaplotypeAdaptor - DESCRIPTION of Object
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::Haplotype;
-use Bio::AlignIO;
 
 $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
@@ -31,7 +30,6 @@ $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
 my $hap_adtor = Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor->new($hapdb);
 
 $hap  = $hap_adtor->get_Haplotype_by_id('B10045');  # Haplotype id
-@haps = $hap_adtor->all_Haplotypes();
 
 ### You can add the HaplotypeAdaptor as an 'external adaptor' to the 'main'
 ### Ensembl database object, then use it as:
@@ -95,7 +93,7 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 =cut
 
 sub fetch_Haplotype_by_chr_start_end  {
-    my ($self, $chr, $s, $e) = @_; 
+    my ($self, $chr, $s, $e, $is_lite) = @_; 
 
     # convert fpc_ctg start to global coords....
     # select fpcctg_name, (chr_start - fpcctg_start + 1) as fpc_start                                                              
@@ -125,18 +123,53 @@ sub fetch_Haplotype_by_chr_start_end  {
     my $rowhash = undef;
     my @haps = ();
     my @pats = ();
-    
+    my $hap;
     #first we get the high level haplotype block info....
     while ( $rowhash = $sth->fetchrow_hashref) {
         return() unless keys %{$rowhash};
-        my $hap = $self->fetch_Haplotype_by_id($rowhash->{'block_id'});
+		if($is_lite){
+	        $hap = $self->fetch_lite_Haplotype_by_id($rowhash->{'block_id'});
+		} else {
+	        $hap = $self->fetch_Haplotype_by_id($rowhash->{'block_id'});
+		}
         push (@haps,$hap); 
     }
     
     return(@haps);
 }                                       
 
+# get a "shallow" haplotype object from the database (just for drawing)
+sub fetch_lite_Haplotype_by_id {
+    my ($self, $id) = @_; 
 
+    my $q = qq(
+        select 
+            (first_reference_position+block.chr_start-1) as global_start, 
+            (last_reference_position+block.chr_start-1) as global_end, 
+            block.chr_name
+            from block,static_golden_path
+        where
+            block_id = "$id"
+        group by 
+            block_id
+    );
+
+    my $sth = $self->prepare($q);
+    $sth->execute();
+    my $rowhash = $sth->fetchrow_hashref;
+    return() unless keys %{$rowhash};
+    
+    my $hap = undef;
+    $hap = new Bio::EnsEMBL::ExternalData::Haplotype::Haplotype($self);
+    $hap->start($rowhash->{'global_start'});
+    $hap->end($rowhash->{'global_end'});
+    $hap->chr_name($rowhash->{'chr_name'});
+    $hap->id($id);
+	
+    return($hap);
+}
+
+# get a fully populated haplotype object from the database
 sub fetch_Haplotype_by_id {
     my ($self, $id) = @_; 
 

@@ -158,7 +158,6 @@ sub fetch_dsn_info {
 sub fetch_all_by_DBLink_Container {
    my $self       = shift;
    my $parent_obj = shift;
-   my $id_method  = shift || 'display_id';
 
    my $id_type    = $self->adaptor->type || 'swissprot';
    my $url        = $self->adaptor->url;
@@ -241,86 +240,6 @@ sub fetch_all_by_DBLink_Container {
    return( $key, [@result_list] );
 }
 
-=head2 fetch_all_by_DBLink_Container
-
-  Arg [1]   : Bio::Ensembl object that implements get_all_DBLinks method
-              (e.g. Bio::Ensembl::Protein, Bio::Ensembl::Gene)
-  Arg [2]   : DB name for DBLink (default - swissprot)
-  Function  : Basic GeneDAS/ProteinDAS adaptor.
-  Returntype: Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature (listref)
-  Exceptions: 
-  Caller    : 
-  Example   : 
-
-=cut
-
-sub fetch_all_by_DBLink_Container {
-   my $self       = shift;
-   my $parent_obj = shift;
-   my $id_type    = shift || 'swissprot';
-   my $url        = $self->_url;
-   my $dsn        = $self->_dsn;
-   $parent_obj->can('get_all_DBLinks') ||
-     $self->throw( "Need a Bio::EnsEMBL obj (eg Protein) that can ".
-		   "get_all_DBLinks" );
-
-   $id_type = lc( $id_type );
-
-   my %ids = ();
-   foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
-       lc( $xref->dbname ) ne $id_type and next;
-       my $id = $xref->display_id || $xref->primary_id;
-       $ids{ $id } ++;
-   }
-
-   my @das_features = ();
-   my $callback = sub{
-       my $f = shift;
-       $f->isa('Bio::Das::Feature') || return;
-       my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
-       $dsf->das_feature_id    ( $f->id() );
-       $dsf->das_feature_label ( $f->label() );
-       $dsf->das_segment_id    ( $f->segment() );
-       $dsf->das_segment_label ( $f->label() );
-       $dsf->das_id            ( $f->id() );
-       $dsf->das_dsn           ( $dsn );
-       $dsf->source_tag        ( $dsn );
-       $dsf->primary_tag       ( 'das');
-       $dsf->das_type_id       ( $f->type() );
-       $dsf->das_type_category ( $f->category() );
-       $dsf->das_type_reference( $f->reference() );
-       $dsf->das_name          ( $f->id() );
-       $dsf->das_method_id     ( $f->method() );
-       $dsf->das_link          ( $f->link() );
-       $dsf->das_link_label    ( $f->link_label() );
-       $dsf->das_group_id      ( $f->group() );
-       $dsf->das_group_label   ( $f->group_label() );
-       $dsf->das_group_type    ( $f->group_type() );
-       $dsf->das_target        ( $f->target() );
-       $dsf->das_target_id     ( $f->target_id );
-       $dsf->das_target_label  ( $f->target_label );
-       $dsf->das_target_start  ( $f->target_start );
-       $dsf->das_target_stop   ( $f->target_stop );
-       $dsf->das_type          ( $f->type() );
-       $dsf->das_method        ( $f->method() );
-       $dsf->das_start         ( $f->start() );
-       $dsf->das_end           ( $f->end() );
-       $dsf->das_score         ( $f->score() );
-       $dsf->das_orientation   ( $f->orientation() || 0 );
-       $dsf->das_phase         ( $f->phase() );
-       $dsf->das_note          ( $f->note() );
-        $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
-        push(@das_features, $dsf);
-   };
-
-   $self->_db_handle->features
-     ( -dsn=>"$url/$dsn", 
-       -segment=>[keys %ids], 
-       -feature_callback=>$callback );
-
-   my $key = join( '_', $dsn, keys(%ids) );
-   return( $key, [@das_features] );
-}
 
 =head2  fetch_all_by_Slice
 

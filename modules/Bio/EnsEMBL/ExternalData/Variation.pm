@@ -112,7 +112,9 @@ sub new {
 
     my ($acc, $version, $seqname, $snpid, $snpclass, $start, $end, $strand, $primary_tag, $source,
 	$frame, $score, $gff_string, $status, $alleles,
-	$upstreamseq, $dnstreamseq,$subsnpid,$handle,$original_strand, $type) =
+	$upstreamseq, $dnstreamseq,$subsnpid,$handle,$original_strand, $type,
+	$ssid, $strain_name, $strain_alleles, $sex, $gt_source, $gt_source_ind_id
+       ) =
 	    $self->_rearrange([qw(ACC
                                   VERSION
                                   SEQNAME
@@ -134,7 +136,13 @@ sub new {
 				  HANDLE
 				  ORIGINAL_STRAND
 				  TYPE
-				)],@args);
+				  SSID
+				  STRAIN_NAME
+				  STRAIN_ALLELES
+				  SEX
+				  GT_SOURCE
+				  GT_SOURCE_IND_ID
+				 )],@args);
 
     $self->primary_tag("Variation");
     $acc   && $self->acc($acc);
@@ -161,6 +169,12 @@ sub new {
     if (defined $original_strand) {$self->original_strand($original_strand);}
     $self->{ 'link' } = [];
     $type && $self->type($type);
+    $ssid && $self->ssid($ssid);
+    $strain_name && $self->strain_name($strain_name);
+    $strain_alleles && $self->strain_alleles($strain_alleles);
+    $sex && $self->sex($sex);
+    $gt_source && $self->gt_source($gt_source);
+    $gt_source_ind_id && $self->gt_source_ind_id($gt_source_ind_id);
 
     # set stuff in self from @args
     return $self; # success - we hope!
@@ -329,7 +343,7 @@ sub end_in_clone_coord {
    if( ! exists $obj->{'end_in_clone_coord'} ) {
        return undef;
    }
-   return $obj->{'end_in_clone_coord' };
+  return $obj->{'end_in_clone_coord' };
 
 }
 
@@ -655,6 +669,126 @@ sub type{
    }   
 
    return $self->{'_type'};
+}
+
+=head2 ssid
+
+ Title   : ssid (dbSNP accession number for submitted snp)
+ Usage   : my $ssid = $variation->ssid();
+ Function: Getter/Setter for the ssid of variation, e.g,: 'coding', 'utr' 
+ Returns : The ssid of this variation
+ Args    : (optional) The ssid of this variation
+
+=cut
+
+sub ssid{
+   my ($self, $ssid) = @_;
+
+   if(defined $ssid) {
+      $self->{'_ssid'} = $ssid;
+   }   
+
+   return $self->{'_ssid'};
+}
+
+=head2 strain_name
+
+ Title   : strain_name 
+ Usage   : my $strain_name = $variation->strain_name();
+ Function: Getter/Setter for the strain_name of variation, e.g,: 'coding', 'utr' 
+ Returns : The strain_name of this variation
+ Args    : (optional) The strain_name of this variation
+
+=cut
+
+sub strain_name{
+   my ($self, $strain_name) = @_;
+
+   if(defined $strain_name) {
+      $self->{'_strain_name'} = $strain_name;
+   }   
+
+   return $self->{'_strain_name'};
+}
+
+=head2 strain_alleles
+
+ Title   : strain_alleles
+ Usage   : my $strain_alleles = $variation->strain_alleles();
+ Function: Getter/Setter for the strain_alleles of variation, e.g,: 'coding', 'utr' 
+ Returns : The strain_alleles of this variation
+ Args    : (optional) The strain_alleles of this variation
+
+=cut
+
+sub strain_alleles{
+   my ($self, $strain_alleles) = @_;
+
+   if(defined $strain_alleles) {
+      $self->{'_strain_alleles'} = $strain_alleles;
+   }   
+
+   return $self->{'_strain_alleles'};
+}
+
+=head2 sex
+
+ Title   : sex
+ Usage   : my $sex = $variation->sex();
+ Function: Getter/Setter for the sex of variation, e.g,: 'coding', 'utr' 
+ Returns : The ssid of this variation
+ Args    : (optional) The sex of this variation
+
+=cut
+
+sub sex{
+   my ($self, $sex) = @_;
+
+   if(defined $sex) {
+      $self->{'_sex'} = $sex;
+   }   
+
+   return $self->{'_sex'};
+}
+
+=head2 gt_source
+
+ Title   : gt_source
+ Usage   : my $gt_source = $variation->gt_source();
+ Function: Getter/Setter for the gt_source of variation, e.g,: 'coding', 'utr' 
+ Returns : The gt_source of this variation
+ Args    : (optional) The gt_source of this variation
+
+=cut
+
+sub gt_source{
+   my ($self, $gt_source) = @_;
+
+   if(defined $gt_source) {
+      $self->{'_gt_source'} = $gt_source;
+   }   
+
+   return $self->{'_gt_source'};
+}
+
+=head2 gt_source_ind_id
+
+ Title   : gt_source_ind_id
+ Usage   : my $gt_source_ind_id = $variation->gt_source_ind_id();
+ Function: Getter/Setter for the gt_source_ind_id of variation, e.g,: 'coding', 'utr' 
+ Returns : The gt_source of this variation
+ Args    : (optional) The gt_source_ind_id of this variation
+
+=cut
+
+sub gt_source_ind_id{
+   my ($self, $gt_source_ind_id) = @_;
+
+   if(defined $gt_source_ind_id) {
+      $self->{'_gt_source_ind_id'} = $gt_source_ind_id;
+   }   
+
+   return $self->{'_gt_source_ind_id'};
 }
 
 =head2 to_FTHelper

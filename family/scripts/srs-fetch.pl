@@ -2,7 +2,7 @@
 # $Id$
 
 #
-# Pull all vertebrate seqs from an SRS server.
+# Pull all vertebrate seqs from an SRS server in swissprot format.
 #
 # Original by Anton Enright, adapted by Philip Lijnzaad
 # 

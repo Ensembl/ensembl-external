@@ -18,7 +18,7 @@
 
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..7\n"; 
+BEGIN { $| = 1; print "1..8\n"; 
 	use vars qw($loaded); }
 END {print "not ok 1\n" unless $loaded;}
 
@@ -84,14 +84,34 @@ if( $id eq $snp->id) {
 #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end);
 @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AB000381', '1' );
 if ( scalar @variations == 2 ) { 
-    print "ok 6\n"; 
+    print "ok 5\n"; 
 }  else {
-    print "not ok 6\n";
+    print "not ok 5\n";
 }
 
 $v = $variations[0];
 if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
+    print "ok 6\n"; 
+} else {
+    print "not ok 6\n"; 
+}
+
+# using the method get_SeqFeature_by_id 
+my $id = "TSC::TSC0000004"; 
+my $snp = $snpdb->get_SeqFeature_by_id($id);
+
+if( $id eq $snp->id) {
     print "ok 7\n"; 
 } else {
-    print "not ok 7\n"; 
+    print "not ok 7\n";
+}
+
+
+# using the method get_SeqFeature_by_id with dbSNP id
+my $id2 = "20409"; 
+my $snp = $snpdb->get_SeqFeature_by_id($id2); 
+if( $id eq $snp->id) {
+    print "ok 8\n"; 
+} else {
+    print "not ok 8\n";
 }

@@ -204,27 +204,48 @@ sub get_Ensembl_SeqFeatures_contig{
        
 sub get_SeqFeature_by_id {
     my($self) = shift;
-    my ($id) = @_;
-    
+    my ($id) =  @_;
+
     my $snp = new Bio::EnsEMBL::ExternalData::Variation;
+    my ($query);
 
-    #strip all decorations from the display id: TSC::TSC0000002 -> 2
-    ($id) = $id =~ /.*TSC0*(\d+)/;
+    $id = uc $id;
+    # if ID given is a TSC id
+    if ($id =~ /TSC/) {
+       #strip all decorations from the display id: TSC::TSC0000003 -> 3
+       ($id) = $id =~ /.*TSC0*(\d+)/;
 
-    # db query to return all variation information except alleles
-    my $query = qq{
+       # db query to return all variation information except alleles
+       $query = qq{
 
 	select p1.SNP_ID,  p1.SNP_USERID, p1.SNP_CONFIDENCE, 
  	       p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN,  p1.CLIQUE_POSITION,
 	       p1.DBSNP_ID,
                p2.Sub_Start, p2.Sub_END,
                p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
-        from   TBL_SNP_INFO as p1, 
-               TBL_INSILICO_RESULTS as p2
-	where  p1.SNP_ID = "$id" and
-               p1.CLIQUE_ID = p2.Clique_id
+        from   TBL_SNP_INFO as p1 
+        left join  TBL_INSILICO_RESULTS as p2
+	on      p1.CLIQUE_ID = p2.Clique_id
+        where   p1.SNP_ID = "$id" 
 		
 	    };  
+    # else it is a dbSNP id
+    } else { 
+
+       $query = qq{
+ 	        
+        select p1.SNP_ID, p1.SNP_USERID, p1.SNP_CONFIDENCE,
+               p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN, p1.CLIQUE_POSITION,
+               p1.DBSNP_ID,
+               p2.Sub_Start, p2.Sub_END,
+               p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
+        from TBL_SNP_INFO as p1
+        left join  TBL_INSILICO_RESULTS as p2
+        on       p1.CLIQUE_ID = p2.Clique_id
+        where  p1.DBSNP_ID = "$id" 
+
+              };
+   }
 
     my $sth = $self->prepare($query);
     my $res = $sth->execute();

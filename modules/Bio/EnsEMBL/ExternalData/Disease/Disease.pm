@@ -1,11 +1,10 @@
 package Bio::EnsEMBL::ExternalData::Disease::Disease; 
 
 use strict;
-use Bio::Root::Object;
-use DBI;
+use Bio::Root::RootI;
 use vars qw(@ISA);
 
-@ISA = qw( Bio::Root::RootI Bio::DBLinkContainerI);
+@ISA = qw(Bio::Root::RootI);
 
 
 

@@ -2,13 +2,13 @@ package Bio::EnsEMBL::ExternalData::Disease::DBHandler;
 
 
 use strict;
-use Bio::Root::Object;
 use DBI;
+use Bio::Root::RootI;
 use Bio::EnsEMBL::ExternalData::Disease::Disease;
 use Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation;
 use vars qw(@ISA);
 
-@ISA = qw( Bio::Root::RootI );
+@ISA = qw(Bio::Root::RootI);
 
 
 
@@ -148,8 +148,8 @@ my ($self,$query_string)=@_;
 
 
 my $sth=$self->_db_handle->prepare($query_string);
-
 $sth->execute;
+
 
 my $id;
 my @diseases;
@@ -172,10 +172,11 @@ while ( my $rowhash = $sth->fetchrow_hashref)
 							    -cyto_end=>$rowhash->{'end_cyto'},
 							    -external_gene=>$rowhash->{'gene_symbol'},
 							    -chromosome=>$rowhash->{'chromosome'});
-
-    $disease->add_Location($location);
-
+    if (defined $rowhash->{'gene_symbol'}){$location->has_gene(1);}
     $id=$rowhash->{'id'};
+
+
+    $disease->add_Location($location);   
 }
 
 unless (! defined $disease ){push @diseases,$disease;}
@@ -193,6 +194,50 @@ return @diseases;
 
                        
 
+sub _link2ensembl
+{
+    
+    my ($self,@diseases)=@_;
+    
+    foreach my $dis (@diseases){ 
+	foreach my $location($dis->each_Location){ 
+
+	    my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
+	    $location->ensembl_gene($ensembl_gene);
+	}
+    }
+    
+    return @diseases;
+}
+
+
+
+sub _link2maps
+{
+
+    my ($self,@diseases)=@_;
+
+    foreach my $dis (@diseases){ 
+	foreach my $location($dis->each_Location){
+	    
+	    # do sth with a map obj and set global coordinates	
+	    $location->global_position("555555 ");	    
+	}
+    }
+    
+    return @diseases;
+
+}
+
+
+sub _db_handle 
+{
+  my ($self,$value) = @_;
+  if( defined $value) {$self->{'_db_handle'} = $value;}
+  
+  return $self->{'_db_handle'};
+}
+
 
 sub _prepare
 {
@@ -205,15 +250,6 @@ sub _prepare
     $self->throw("Error preparing $string\n$@") if $@;
     return $sth;
     
-}
-
-
-sub _db_handle 
-{
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_db_handle'} = $value;}
-  
-  return $self->{'_db_handle'};
 }
 
 
@@ -233,49 +269,5 @@ sub _mapdb
   
   return $self->{'_mapdb'};
 }
-
-
-
-
-sub _link2ensembl
-{
-    
-    my ($self,@diseases)=@_;
-    
-    
-    foreach my $dis (@diseases){ 
-	foreach my $location($dis->each_Location){ 
- 	    
-	    my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
-	    $location->ensembl_gene($ensembl_gene);
-
-	}
-    }
-    
-    return @diseases;
-}
-
-
-
-sub _link2maps
-{
-
-    my ($self,@diseases)=@_;
-
-    foreach my $dis (@diseases){ 
-	foreach my $location($dis->each_Location){
-	    
-	    # set global coordinates	
-	    $location->global_position("555555 ");
-	    
-	}
-    }
-    
-    return @diseases;
-
-}
-
-
-
 
 

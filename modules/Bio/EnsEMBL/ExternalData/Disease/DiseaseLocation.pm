@@ -2,11 +2,10 @@ package Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation;
 
 
 use strict;
-use Bio::Root::Object;
-use DBI;
+use Bio::Root::RootI;
 use vars qw(@ISA);
 
-@ISA = qw( Bio::Root::RootI );
+@ISA = qw(Bio::Root::RootI);
 
 
 

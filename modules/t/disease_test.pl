@@ -27,17 +27,23 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'en
 #my @diseases=$diseasedb->diseases_without_genes;
 my @diseases=$diseasedb->all_diseases;
 #my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
-#my @diseases=$diseasedb->diseases_like("leukemia, acute lymphoblastic");
+#my @diseases=$diseasedb->diseases_like("corneal");
 
 foreach my $dis (@diseases)
 {
-   # print "\n",$dis->name, "\n";
+   print "\n",$dis->name, "\n";
     
     foreach my $location($dis->each_Location){
+
+	print "gene ",$location->external_gene," has gene ",$location->has_gene," chromosome ",
+	$location->chromosome,"\n";
+
 	if (defined $location->ensembl_gene){
-	print "gene ",$location->external_gene," chromosome ",
-	$location->chromosome," ENSGENE ",$location->ensembl_gene->id,"\n";
-}
+	    print " ENSGENE ",$location->ensembl_gene->id,"\n";
+
+	    foreach my $transcript ($location->ensembl_gene->each_Transcript){
+		print "TRANSCRIPT ",$transcript->id,"\n";}
+	}
     }
 
     print "\n";

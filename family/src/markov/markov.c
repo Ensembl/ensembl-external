@@ -46,7 +46,7 @@ struct hit_struct searchkey;
 struct hit_struct *searchptr;
 
  version = strdup("$Revision$");
- version[strlen(version)-2]='\0';  version+= sizeof("$Revision: "); 
+ version[strlen(version)-2]='\0';  version+= sizeof("$Revision:");
 
 if (argc == 1)
 	{
@@ -261,7 +261,7 @@ printf("\nCreating Markov Matrix file %s\n",file2);
 fflush(stdout);
 if ((fpout=fopen(file2,"w")) == NULL)
         {
-        fprintf(stderr,"File %s cannot be created\n");
+        fprintf(stderr,"File cannot be created\n");
         perror(file2);
         exit(1);
         } 

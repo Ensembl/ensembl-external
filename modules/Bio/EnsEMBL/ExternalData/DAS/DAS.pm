@@ -137,7 +137,7 @@ sub fetch_dsn_info {
   };
   my $dsn = $self->adaptor->url;
   my $das = $self->adaptor->_db_handle;
-  $das->dsn( -dsn=>$dsn, -callback=>$callback );
+  $das->dsn_js5( -dsn=>$dsn, -callback=>$callback );
   return [@sources];
 }
 

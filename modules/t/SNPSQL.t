@@ -24,7 +24,7 @@ END {print "not ok 1\n" unless $loaded;}
 
 #use lib '../';
 
-use Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter;
+use Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Variation;
 
 $loaded = 1;
@@ -38,12 +38,7 @@ print "ok 1\n";    # 1st test passes.
 ## total number of tests that will be run. 
 
 #creating the object
-#$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::Obj->new( -dbname=>'tsc', 
-#							-user=>'ensro',
-#							-host=>'ensrv3.sanger.ac.uk'
-#
-#							);
-$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter->new( -dbname=>'snp_chr22', 
+$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor->new( -dbname=>'snp_chr22', 
 						       -user=>'root',
 						       -host=>'localhost'
 

@@ -14,6 +14,7 @@ BEGIN { plan tests => 5 }
 use lib 't';
 use EnsTestDB;
 use Bio::EnsEMBL::ExternalData::GeneSNP;
+use Bio::EnsEMBL::DBSQL::Gene_Obj;
 ok(1);  # 1st test passes.
     
 my $ens_test = EnsTestDB->new();
@@ -25,7 +26,9 @@ $ens_test->do_sql_file("t/genetype.dump");
 my $db = $ens_test->get_DBSQL_Obj;
 ok($db);
 
-my $gene=$db->get_Gene('ENSG00000003941');
+my $gene_obj = new Bio::EnsEMBL::DBSQL::Gene_Obj($db);
+my $gene = $gene_obj->get('ENSG00000003941');  
+#my $gene=$db->get_Gene('ENSG00000003941');
 ok $gene;
 
 my $contig=$db->get_Contig('AB000381.00001');

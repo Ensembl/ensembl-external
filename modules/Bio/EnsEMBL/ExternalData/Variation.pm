@@ -426,34 +426,6 @@ sub dnStreamSeq {
 
 }
 
-#sub sub_snp_id {
-#   my ($obj,$value) = @_;
-#   if( defined $value) {
-#      $obj->{'subsnpid'} = $value;
-#  }
-#   if( ! exists $obj->{'subsnpid'} ) {
-#	return undef;
-#   }
-#   return $obj->{'subsnpid'};
-#
-#}
-#
-#
-#
-#
-#sub handle {
-#   my ($obj,$value) = @_;
-#   if( defined $value) {
-#      $obj->{'handle'} = $value;
-#  }
-#   if( ! exists $obj->{'handle'} ) {
-#	return undef;
-#   }
-#   return $obj->{'handle'};
-#
-#}
-
-
 sub original_strand {
    my ($obj,$value) = @_;
    if( defined $value) {

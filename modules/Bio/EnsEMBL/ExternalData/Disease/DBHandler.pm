@@ -85,14 +85,13 @@ sub new
                 )],@args);
     
 
-    $driver || ( $driver = 'mysql' );
-    $host   || ( $host = 'sol28.ebi.ac.uk' );
-    $port   || ( $port = 3306 );
-    $db     || ( $db = 'disease' );
-    $user   || ( $user = 'ensembl' );   
-    $ensdb  || $self->throw("I need ensembl db obj");
+    $driver ||= 'mysql';
+    $host   ||= 'localhost';
+    $port   ||= 3306;
+    $db     ||= 'disease';
+    $user   ||= 'ensembl';   
    
-    $self->_ensdb($ensdb); 
+    $ensdb && $self->_ensdb($ensdb); 
     
     my $dsn = "DBI:$driver:database=$db;host=$host;port=$port";
     if( $debug && $debug > 10 ) {
@@ -108,6 +107,24 @@ sub new
 }
 
 
+
+
+=head2 add_db_adaptor
+
+  Arg [1]   : Bio::EnsEMBL::DBSQL::DBAdaptor object
+  Function  : Registers core database with this adaptor
+  Returntype: Bio::EnsEMBL::DBSQL::DBAdaptor object
+  Exceptions: none
+  Caller    : EnsEMBL::DB::Core
+  Example   : 
+
+=cut
+
+sub add_db_adaptor {
+  my $self = shift;
+  my $ensdb = shift || $self->throw("Need an ensembl DB adaptor");
+  return $self->_ensdb($ensdb); 
+}
 
 
 

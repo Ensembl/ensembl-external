@@ -258,6 +258,46 @@ sub all_Families {
     $self->_get_families($q);
 }
 
+=head2 known_databases
+
+ Title   : known_databases
+ Usage   : 
+ Function: return all names of databases being cross-referenced by this db
+ Example :
+ Returns : list of strings
+ Args    : none
+
+=cut
+
+sub known_databases {
+  my ($self)= shift;
+  
+  if (not defined $self->{_known_databases}) {
+      $self->{_known_databases} = $self->_known_databases();
+  }
+  
+  return @{$self->{_known_databases}};
+}
+
+sub _known_databases {
+  my ($self)= shift;
+  
+  my $q = 
+    "SELECT distinct db_name 
+     FROM family_members";
+  $q = $self->_prepare($q);
+  $q->execute || $self->throw($q->errstr);
+
+  my @res= ();
+  while ( my ( @row ) = $q->fetchrow_array ) {
+    push @res, $row[0];
+  }
+  # $q->finish;
+  $self->throw("didn't find any database") if (int(@res) == 0);
+  return \@res;
+}
+
+
 # pull all fam's members from db
 sub _get_members {
     my ($self, $fam) = @_;

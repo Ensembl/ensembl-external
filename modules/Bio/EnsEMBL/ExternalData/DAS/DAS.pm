@@ -164,14 +164,9 @@ sub fetch_all_by_DBLink_Container {
    my $url        = $self->adaptor->url;
    my $dsn        = $self->adaptor->dsn;
 
-   $parent_obj->can('get_all_DBLinks') ||
-     $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can ".
-		   "get_all_DBLinks" );
+   $parent_obj->can('get_all_DBLinks') || $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can get_all_DBLinks" );
 
-   my $ensembl_id = '';
-   if( $parent_obj->can('stable_id') ){
-     $ensembl_id = $parent_obj->stable_id();
-   }
+   my $ensembl_id = $parent_obj->stable_id() ? $parent_obj->can('stable_id') : '';
 
    my %ids = ();
 
@@ -188,28 +183,23 @@ sub fetch_all_by_DBLink_Container {
          my $tran = $tscr->translation || next;
          push( @tran_ids, $tran->stable_id );
        }
-     }
-     elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
+     } elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
        push( @tscr_ids, $parent_obj->stable_id );
        my $tran = $parent_obj->translation || next;
        push( @tran_ids, $tran->stable_id );
-     }
-     elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
+     } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
        push( @tran_ids, $parent_obj->stable_id );
-     }     
-     else{ # Assume protein
+     } else{ # Assume protein
        warn( "??? - ", $parent_obj->transcript->translation->stable_id );
        push( @tran_ids, $parent_obj->transcript->translation->stable_id );
      }
-     if(   $type eq 'gene'       ){ map{$ids{$_}='gene'}       @gene_ids }
-     elsif($type eq 'transcript' ){ map{$ids{$_}='transcript'} @tscr_ids }
-     elsif($type eq 'peptide'    ){ map{$ids{$_}='peptide'}    @tran_ids }
-   }
-
-   # If no 'ensembl_' prefix, then DBLink ID
-   else{
-     # If $id_type is suffixed with '_acc', use primary_id call 
-     # rather than display_id
+     if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
+     elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
+     elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
+   } else { 
+       # If no 'ensembl_' prefix, then DBLink ID
+       # If $id_type is suffixed with '_acc', use primary_id call 
+       # rather than display_id
      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
      foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
        lc( $xref->dbname ) ne lc( $id_type ) and next;
@@ -218,6 +208,7 @@ sub fetch_all_by_DBLink_Container {
      }
    }
 
+   warn "DAS - $id_type - @{[keys %ids]}";
    # Return empty if no ids found
    if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 

@@ -108,12 +108,14 @@ sub new {
     $self = {};
     bless $self, $class;
 
-    my ($gene, $contig) =
+    my ($gene, $contig, $transcript) =
 	    $self->_rearrange([qw(GENE
 				  CONTIG
+				  TRANSCRIPT
 				)],@args);
     $gene && $self->gene($gene);
     $contig && $self->contig($contig);
+    $transcript && $self->transcript($transcript);
     return $self; # success - we hope!
 }
 
@@ -147,6 +149,36 @@ sub gene {
 }
 
 
+=head2 transcript
+
+ Title   : transcript
+ Usage   : $transcriptobj = $obj->transcript;
+ Function: Returns or sets the link-reference to a Transcript object.
+           If there is no link, it will return undef
+ Returns : an obj_ref or undef
+
+=cut
+
+
+sub transcript {
+  my ($self,$value) = @_;
+  if (defined $value) {
+      if( ! $value->isa('Bio::EnsEMBL::Transcript') ) {
+	  $self->throw("Is not a Bio::EnsEMBL::Transcript object but a [$value]");
+	  return (undef);
+      }
+      else {
+	  $self->{'transcript'} = $value;
+      }
+  }
+  unless (exists $self->{'transcript'}) {
+      return (undef);
+  } else {
+      return $self->{'transcript'};
+  }
+}
+
+
 =head2 contig
 
  Title   : contig
@@ -175,6 +207,26 @@ sub contig {
   }
 }
 
+
+
+sub snps2transcript {
+  my ($self, @snps) = @_;
+  my $seqDiff = undef;
+
+  #sanity checks
+  $self->transcript || $self->throw("Set transcript to a Bio::EnsEMBL::Transcript object");
+  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::DB::ContigI compliant object");
+
+  my @seqDiffs = ();
+  my $rna = $self->transcript;
+  my $aa = $rna->translation; #Bio::Ensembl::Translation object
+  my $aaseq = $rna->translate;
+  foreach my $snp (@snps) {
+      my $seqDiff = $self->_calculate_gene_coordinates($snp, $rna, $aa, $aaseq);
+      $seqDiff && push @seqDiffs, $seqDiff;
+  }
+  return @seqDiffs;
+}
 
 sub snps2gene {
   my ($self, @snps) = @_;

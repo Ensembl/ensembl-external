@@ -201,9 +201,9 @@ sub fetch_all_by_DBLink_Container {
        warn( "??? - ", $parent_obj->transcript->translation->stable_id );
        push( @tran_ids, $parent_obj->transcript->translation->stable_id );
      }
-     if(   $type eq 'gene'       ){ map{ $ids{$_} = 'gene' }       @gene_ids }
-     elsif($type eq 'transcript' ){ map{ $ids{$_} = 'transcript' } @tscr_ids }
-     elsif($type eq 'peptide'    ){ map{ $ids{$_} = 'peptide' }    @tran_ids }
+     if(   $type eq 'gene'       ){ map{$ids{$_}='gene'}       @gene_ids }
+     elsif($type eq 'transcript' ){ map{$ids{$_}='transcript'} @tscr_ids }
+     elsif($type eq 'peptide'    ){ map{$ids{$_}='peptide'}    @tran_ids }
    }
 
    # If no 'ensembl_' prefix, then DBLink ID
@@ -212,11 +212,14 @@ sub fetch_all_by_DBLink_Container {
      # rather than display_id
      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
      foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
-       lc( $xref->dbname ) ne $id_type and next;
+       lc( $xref->dbname ) ne lc( $id_type ) and next;
        my $id = $xref->$id_method || next;
        $ids{$id} = $xref;
      }
    }
+
+   # Return empty if no ids found
+   if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 
    my @das_features = ();
    my $callback = sub{
@@ -259,6 +262,7 @@ sub fetch_all_by_DBLink_Container {
         push(@das_features, $dsf);
    };
 
+   #$self->adaptor->_db_handle->debug(1);
    $self->adaptor->_db_handle->features
      ( -dsn=>"$url/$dsn", 
        -segment=>[keys %ids], 

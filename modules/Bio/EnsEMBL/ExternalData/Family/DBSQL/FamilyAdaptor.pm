@@ -249,6 +249,48 @@ sub fetch_all {
     return @{$self->_get_families($q)};
 }
 
+
+=head2 fetch_Taxon_by_dbname_dbID
+
+ Arg [1]    : string $dbname
+              Either "ENSEMBLGENE", "ENSEMBLPEP" or "SPTR" 
+ Arg [2]    : int dbID
+              a family_id
+ Example    : $FamilyAdaptor->fetch_Taxon_by_dbname('ENSEMBLGENE',1)
+ Description: get all the taxons that belong to a particular database and family_id
+ Returntype : an array reference of Bio::EnsEMBL::ExternalData::Family::Taxon objects
+              (which may be empty)
+ Exceptions : when missing argument
+ Caller     : general
+
+=cut
+
+sub fetch_Taxon_by_dbname_dbID {
+  my ($self,$dbname,$dbID) = @_;
+  
+  $self->throw("Should give defined databasename and family_id as arguments\n") unless (defined $dbname && defined $dbID);
+
+  my $q = "SELECT distinct(taxon_id) as taxon_id
+           FROM family f, family_members fm, external_db edb
+           WHERE f.family_id = fm.family_id
+           AND fm.external_db_id = edb.external_db_id 
+           AND f.family_id = $dbID
+           AND edb.name = '$dbname'"; 
+  $q = $self->prepare($q);
+  $q->execute;
+
+  my @taxons = ();
+
+  while (defined (my $rowhash = $q->fetchrow_hashref)) {
+    my $TaxonAdaptor = $self->db->get_TaxonAdaptor;
+    my $taxon = $TaxonAdaptor->fetch_by_taxon_id($rowhash->{taxon_id});
+    push @taxons, $taxon;
+  }
+    
+  return \@taxons;
+
+}
+
 =head2 known_databases
 
  Title   : known_databases

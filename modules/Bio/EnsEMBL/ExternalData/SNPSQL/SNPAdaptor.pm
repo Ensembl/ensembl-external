@@ -73,7 +73,7 @@ sub fetch_attributes_only{
 
   $sth->execute("$refsnp_id", $source);
 
-  $sth->rows || $self->throw("snp with refsnp_id/src [$refsnp_id/source]" .
+  $sth->rows || $self->throw("snp with refsnp_id/src [$refsnp_id/$source]" .
 			     "not found in database");
 
   my ($dbID, $snp_class, $snp_type, $alleles, $seq5, $seq3,

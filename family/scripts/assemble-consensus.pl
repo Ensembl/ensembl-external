@@ -50,8 +50,10 @@ my $word_splitter='[\/ \t,:]+';
 my @useless_words =  # and misspellings, that is
   qw( PROTEIN UNKNOWN FRAGMENT HYPOTHETICAL HYPOTETICAL 
       NOVEL PUTATIVE PREDICTED UNNAMED UNNMAED
-      PEPTIDE KDA ORF FIS RIKEN CLONE MRNA CDNA
-      KIAA\d+ EST \S+RIK FOR IMAGE:\d+ HSPC\d+
+      PEPTIDE KDA ORF CLONE MRNA CDNA FOR
+      EST
+      RIKEN FIS KIAA\d+ \S+RIK IMAGE HSPC\d+  # db-specific ID's
+      .*\d\d\d+.*                       # anything that looks like an ID
     );
 
 open (DISCARDED,">$discarded_file") || die "$discarded_file: $!";

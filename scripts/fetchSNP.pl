@@ -6,9 +6,9 @@ use Bio::EnsEMBL::ExternalData::Variation;
 
 #creating the object
 my $snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor
-    ->new( -dbname=>'snp110', 
-	   -user=>'ensro',
-	   -host=>'ecs1a.sanger.ac.uk'
+    ->new( -dbname=>'homo_sapiens_snp_120', 
+	   -user=>'anonymous',
+	   -host=>'kaka.sanger.ac.uk'
 	   );
 
 # using the method get_SeqFeature_by_id

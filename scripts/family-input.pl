@@ -240,7 +240,9 @@ sub do_stats {
 
     warn "filling in member counts ...\n";
     my $totn_enspepts = fill_in_member_count($dbh);
-
+    ### note: these are the number of EnsEMBL members only, not
+    ### totals.
+    
     ### temporary histogram (family_size, occurrences) for the
     ### distribution:
     my $distr_table= "tmp_distr_enspep_$$";

@@ -31,7 +31,7 @@ echo
 
 brackets="0-0 1-1 2-10 11-100 101-1000 1001-10000"
 
-echo "Histogram of family sizes:"
+echo "Histogram of family sizes (as far as ensembl peptides are concerned):"
 for b in $brackets; do
     echo -n "$b: "
     echo $b | awk -F'-' \

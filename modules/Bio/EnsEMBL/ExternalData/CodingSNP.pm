@@ -284,7 +284,7 @@ sub _calculate_gene_coordinates {
     
     my $ex_st = $ex_array[0]->{'start'};
 
-    my $dna_pos = abs($start_pos - $ex_st);
+    my $dna_pos = abs($start_pos - $ex_st + 1);
     
 #Lets get the position of the SNP in transcript coordinates
     my $snp_ex = $snps{$snp->id}->{'exon'};
@@ -295,11 +295,11 @@ sub _calculate_gene_coordinates {
     my $count = 0;
     my $tr_length = 0;
     while ($count < ($ex_rank-1)) {
-	my $length = abs($ex_array[$count]->{'end'} - $ex_array[$count]->{'start'});
+	my $length = abs($ex_array[$count]->{'end'} - $ex_array[$count]->{'start'} + 1);
 	$tr_length = $tr_length + $length;
 	$count++;
     }
-    my $length1 =  abs($ex_array[$ex_array]->{'start'} - $start_pos);
+    my $length1 =  abs($ex_array[$ex_array]->{'start'} - $start_pos + 1);
     $tr_length = $tr_length + $length1;
     #print STDERR "TR POS: $tr_length\n";
 ####################################

@@ -216,24 +216,43 @@ sub get_SeqFeature_by_id {
 
 	select p1.SNP_ID,  p1.SNP_USERID, p1.SNP_CONFIDENCE, 
  	       p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN,  p1.CLIQUE_POSITION,
-	       p1.DBSNP_ID
-        from   TBL_SNP_INFO as p1
-	where  p1.SNP_ID = "$id"
+	       p1.DBSNP_ID,
+               p2.Sub_Start, p2.Sub_END,
+               p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
+        from   TBL_SNP_INFO as p1, 
+               TBL_INSILICO_RESULTS as p2
+	where  p1.SNP_ID = "$id" and
+               p1.CLIQUE_ID = p2.Clique_id
 		
 	    };  
 
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
     my $rows = $sth->rows();
-    $rows || $self->throw("SNP not found!");
+    $rows || $self->throw("SNP not found or not mapped to a clone!");
 
 
   SNP:
     while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
+	my $allele_pos = 0; 
+	my $strand = 1;
+
 	my ($snpid,  $snpuid, $confidence, $confirmed, 
 	    $snp_withdrawn, $q_pos, $dbsnpid,
+	    $t_start, $t_end, $q_start, $q_end, $acc_version
 	    ) = @{$arr};
+
+        #snp info not valid
+	$self->throw("SNP withdrawn!") if $snp_withdrawn eq 'Y';
+
+        #coordinate system change from clique -> clone
+        if ($q_start < $q_end) {
+           $allele_pos = $t_start + $q_start + $q_pos - 2;
+           $strand = -1;
+        } else {
+           $allele_pos = $t_start + $q_start - $q_pos;
+	}
 
 	# use the right vocabulary for the SNP status
 	if ($confirmed eq 'N') {
@@ -270,16 +289,48 @@ sub get_SeqFeature_by_id {
 	$alleles = lc $alleles;
 	
 	#
+	# get the flanking sequences
+	#
+	my ($leftFlank) = '';
+	my ($rightFlank) = '';
+
+	my $query3 = qq{
+
+            select p3.FLANK_SEQ, p3.IS_LEFT
+	    from TBL_FLANK_INFO as p3
+	    where p3.SNP_ID = "$snpid"
+
+		};
+
+        my $sth3 = $self->prepare($query3);
+        my $res3 = $sth3->execute();
+        while( (my $arr3 = $sth3->fetchrow_arrayref()) ) {
+
+	    my ($seq, $is_left) = @{$arr3};
+	    if ($is_left eq 'Y') {
+		$leftFlank = substr($seq, -25, 25);
+	    } else {
+		$rightFlank = substr($seq, 0, 25);
+	    }
+		
+	}
+
+	#
 	# prepare the output objects
 	#
 
 	#Variation
 
+	$snp->start($allele_pos);
+	$snp->end($allele_pos);
+	$snp->strand($strand);
 	$snp->source_tag('The SNP Consortium');
 	$snp->score($confidence);    
 	$snp->status($confirmed);
 	$snp->alleles($alleles);
-	$snp->strand(1);
+	$snp->upStreamSeq($leftFlank);
+	$snp->dnStreamSeq($rightFlank);
+
 	
 	#DBLink
 	my $link = new Bio::Annotation::DBLink;
@@ -299,10 +350,13 @@ sub get_SeqFeature_by_id {
 	    $snp->add_DBLink($link2);
 	}
 	
-	print join (" ", $snpuid, $confidence, $confirmed, 
-	                    $dbsnpid, ":", 
-	                    $alleles,
-	                    "\n");
+#	print "---------\nID: ", $snpuid, "\nConfidence: ", $confidence, 
+# 	      "\nStatus: ", $confirmed, 
+#	      "\ndbSNP: ", $dbsnpid,  
+#	      "\nAlleles: ", $alleles, "\nAcc_version:", "$acc_version", 
+#              "\nAllelepos:", $allele_pos, 
+#    	      "\nFlanks: ", $snp->upStreamSeq, '/', $snp->dnStreamSeq,
+#	      "\n------------\n";
 
     }
     

@@ -156,20 +156,19 @@ sub _map_DASSeqFeature_to_chr {
     
     ## Ensembl formac...BAC contigs...Celera Anopheles contigs...Rat contigs...Anopheles contigs...
     my $seqname = $sf->seqname;
-    if( $seqname =~ /(scaffold_\d+|(1?[0-9]|X)\.\d+\-\d+|^\w+\.\d+\.\d+.\d+|c\d+\.\d+\.\d+|[23][LR]_\d+|[4XU]_\d+|BAC.*_C)|CRA_.*|RNOR\d+|\w{4}\d+\_\d+/iox ) {
-	$type = 'contig';
+    if( $contig_hash_ref->{ $seqname } ) { 
+      $type = 'contig';
     } elsif( $seqname =~ /chr(\d+|X|Y|I{1,3}|I?V|[23][LR]|_scaffold_\d+|_\w+\d+)/io || # Hs/Mm/Dm/Ag/Fr/Rn/Ce/Dr
+             $seqname =~ /^scaffold_\d+$/io ||                            # Pt
              $seqname =~ /^cb\d{2}\.fpc\d{4}$/io ||                            # Cb
              $seqname =~ /^(6_DR5[12]|[0-2]?[0-9]|Un_\w+|I{1,3}|I?V|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
 	$type = 'chromosome';
     } elsif( $seqname =~ /ctg\d+|NT_\d+/i) {
 	$type = 'fpc';
 	# This next Regex is for ensembl mouse denormalised contigs - (avc) do we need these any more?
-    } elsif( $seqname =~ /\w{1,2}\d+/i) {
+    } elsif( $seqname =~ /^(\w{1,2}\d+)(\.\d+)?$/i) {
 	my $clone;
-        eval {
-          $clone = $clone_adaptor->fetch_by_accession($seqname);
-        };
+        eval { $clone = $clone_adaptor->fetch_by_accession($1); };
 	#we only use finished clones. finished means there is only
 	#one contig on the clone and it has an offset of 1
 	# Could we have a method on clone saying "is_finished"?
@@ -181,8 +180,10 @@ sub _map_DASSeqFeature_to_chr {
 	if(scalar(@contigs) == 1 && ( $contigs[0]->embl_offset == 1 || $contigs[0]->embl_offset==0) ) {
 	    # sneaky. Finished clones have one contig - by setting this as the seqname
 	    # the contig remapping will work.
-	    $sf->seqname($contigs[0]->name);
-	    $type = 'contig';
+            if( $contig_hash_ref->{$contigs[0]->name} ) {
+	      $sf->seqname($contigs[0]->name);
+	      $type = 'contig';
+            }
 	}
     } elsif( $sf->das_type_id() eq '__ERROR__') {
 #                    Always push errors even if they aren't wholly within the VC
@@ -337,7 +338,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_note($f->note());
 
 
-        #print STDERR "adding feature for $dsn....\n";
+        print STDERR "adding feature for $dsn.... @{[$f->id]}\n";
         push(@{$DAS_FEATURES}, $CURRENT_FEATURE);
     };
 

@@ -90,6 +90,7 @@ sub parse_row {
       $self->{'tracks'}{ $current_key } = { 'features' => [], 'config' => \%config };
 	  $self->{'_current_key'} =  $current_key || 'default';
     } else {
+	  return unless $row =~ /\d+/g ;
       my @tab_delimited = split /(\t|  +)/, $row;
       my $current_key = $self->{'_current_key'} ;
 	  if( $tab_delimited[12] eq '.' || $tab_delimited[12] eq '+' || $tab_delimited[12] eq '-' ) {

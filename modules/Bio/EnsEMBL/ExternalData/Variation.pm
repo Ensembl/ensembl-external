@@ -357,12 +357,12 @@ sub status {
 		 'proven by submitter' => 1,
 		 'proven by frequency' => 1,
 		 'proven by cluster' => 1,
-     'proven by 2hit-2allele' => 1,
+                 'proven by 2hit-2allele' => 1,
 		 'proven ' => 1,
 		 'proven' => 1
 		 );
 
-   if( defined $value) {
+   if( 0 && defined $value) {
        $value = lc $value;
        if ($status{$value}) {
 	   $obj->{'status'} = $value;

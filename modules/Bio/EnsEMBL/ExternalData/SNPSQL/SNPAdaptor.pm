@@ -169,9 +169,8 @@ sub fetch_by_SNP_id {
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
              refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight,
              ds.datasource
-      FROM   RefSNP refsnp, Hit hit, DataSource ds
-      WHERE  hit.internal_id = refsnp.internal_id
-      AND    ds.id = refsnp.datasource
+      FROM   RefSNP refsnp, DataSource ds left join Hit hit on hit.internal_id = refsnp.internal_id
+     WHERE   ds.id = refsnp.datasource
       AND    refsnp.id = ? 
       AND    ds.datasource = ?');
 
@@ -337,7 +336,7 @@ sub fetch_by_clone_accession_version {
   	       p2.observed, p2.seq5, p2.seq3,
   	       p2.het, p2.hetse,
                p2.validated, p2.mapweight, p3.datasource, p2.internal_id
-  		FROM   Hit as p1, RefSNP as p2, DataSource as p3
+  		FROM  Hit as p1,  RefSNP as p2, DataSource as p3 
   		WHERE  p1.acc = "$acc" and p1.version = "$ver"
                AND p3.id = p2.datasource
   	       AND p1.internal_id = p2.internal_id
@@ -487,8 +486,8 @@ sub fetch_between_internal_ids {
     $query = qq{
       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3, 
       h.acc, h.version, h.start, h.end, h.strand
-	FROM   RefSNP as r, Hit as h
-	  WHERE  r.internal_id = h.internal_id and snptype = "notwithdrawn" 
+	FROM   RefSNP as r left join Hit as h on r.internal_id = h.internal_id
+	  WHERE snptype = "notwithdrawn" 
 	    and r.internal_id between $start_internal_id and $end_internal_id
 	  };
   
@@ -581,8 +580,8 @@ sub fetch_by_refsnpid {
     $query = qq{
       SELECT t1.id, t1.snpclass, t1.snptype, t1.observed, t1.seq5, t1.seq3, 
       t2.acc, t2.version, t2.start, t2.end, t2.strand
-	FROM   RefSNP as t1, Hit as t2 
-	  WHERE  t1.internal_id = t2.internal_id and t1.mapweight <=2 and t1.id = "$refsnpid"
+	FROM   RefSNP as t1 left join Hit as t2 on t1.internal_id = t2.internal_id
+	  WHERE t1.mapweight <=2 and t1.id = "$refsnpid"
 	};
   }
 		       

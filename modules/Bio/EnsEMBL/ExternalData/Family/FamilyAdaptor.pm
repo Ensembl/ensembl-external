@@ -19,6 +19,10 @@ FamilyAdaptor - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
+use Bio::EnsEMBL::ExternalData::Family::Family;
+
 $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
                                              -dbname => 'family102',
@@ -35,11 +39,12 @@ $fam = $fam_adtor->get_Family_of_db_id('SPTR', 'P000123');
 @fam = $fam_adtor->all_Families();
 
 ### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
-### Ensembl database object, then use it 
+### Ensembl database object, then use it as:
 
 $ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
 
 $ensdb->add_ExternalAdaptor('family', $fam_adtor);
+
 # then later on, elsewhere: 
 $fam_adtor = $ensdb->get_ExternalAdaptor('family');
 # also available:
@@ -317,6 +322,25 @@ sub _get_family {
     return $fams[0];                    # may be undef
 }                                       # _get_family
 
+# function for finding alignemnts. They are not cached because they are
+# too big. 
+sub _get_alignment {
+    my ($self, $fam) = @_; 
+
+    my $internal_id = $fam->internal_id();
+    my $q= "SELECT alignments
+            FROM alignments 
+            WHERE family = $internal_id";
+
+    $q = $self->prepare($q);
+    $q->execute();
+
+    my ( $row ) = $q->fetchrow_arrayref;
+    if ( int(@$row) == 0 ) {            # not found
+        return undef;
+    }  else { return $$row[0];}
+}
+
 # get 0 or more families
 sub _get_families {
     my ($self, $q) = @_;
@@ -329,7 +353,7 @@ sub _get_families {
     my @fams;
     while ( $rowhash = $q->fetchrow_hashref) {
         $fam = new Bio::EnsEMBL::ExternalData::Family::Family;
-
+        $fam->{'adaptor'}=$self;
         $fam->internal_id($rowhash->{internal_id});
         $fam->id($rowhash->{id});
         $fam->description($rowhash->{description});

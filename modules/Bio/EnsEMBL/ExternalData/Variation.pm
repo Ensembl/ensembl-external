@@ -545,7 +545,7 @@ sub to_FTHelper{
    my ($self) = @_;
 
    my @fths;
-   foreach my $allele (split /\|/, $self->alleles) {
+   #foreach my $allele (split /\|/, $self->alleles) {
 
        # Make new FTHelper, and fill in the key
        my $fth = Bio::SeqIO::FTHelper->new;
@@ -559,7 +559,7 @@ sub to_FTHelper{
        }
        $fth->loc($loc);
        #/replace="text" 
-       $fth->add_field('replace', $allele);
+       $fth->add_field('replace', $self->alleles);
        #/db_xref="<database>:<identifier>"
        foreach my $link ($self->each_DBLink) {
 	   if ($link->database eq 'dbSNP' or 
@@ -572,9 +572,12 @@ sub to_FTHelper{
        my $evidence = 'not_experimental';
        $evidence = 'experimental' if $self->status eq 'proven';
        $fth->add_field('evidence', $evidence);
-
+       if( $self->het ) { 
+	   $fth->add_field('note',"heterozygosity=".$self->het);
+	   $fth->add_field('note',"heterozygosity_std_error=".$self->hetse);
+       }
        push @fths, $fth;
-   }
+   #}
 
    return @fths;
 }

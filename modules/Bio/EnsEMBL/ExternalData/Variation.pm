@@ -126,7 +126,7 @@ sub _initialize {
     $end   && $self->SUPER::end($end);
     $start && $self->start_in_clone_coord($start);
     $end   && $self->end_in_clone_coord($end);
-    $strand && $self->strand($strand);
+    if (defined $strand) {$self->strand($strand);}
     $primary_tag && $self->SUPER::primary_tag($primary_tag);
     $source  && $self->SUPER::source_tag($source);
     $frame   && $self->SUPER::frame($frame);
@@ -138,7 +138,7 @@ sub _initialize {
     $dnstreamseq  && $self->dnStreamSeq($dnstreamseq);
     $subsnpid  && $self->sub_snp_id($subsnpid);
     $handle  && $self->handle($handle);
-    $original_strand && $self->original_strand($original_strand);
+    if (defined $original_strand) {$self->original_strand($original_strand);}
     $self->{ 'link' } = [];
 
     # set stuff in self from @args

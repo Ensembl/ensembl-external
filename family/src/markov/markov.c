@@ -173,9 +173,15 @@ qsort (hits,total_hits,sizeof(struct hit_struct),sort_alpha_routine);
 printf("--------------------\n");
 fflush(stdout);
 
-for (i=0;i<total_hits;i++)
-{
-printf("\n\nSymmetrification in Progress\n");
+ printf("\n\nSymmetrification in Progress\n");
+#define STEPS 100
+#define PRINT_PROGRESS printf("%d/%d (%d%%)\n", i, total_hits, (i*STEPS)/total_hits);
+for (i=0;i<total_hits;i++) {
+
+  if ( (i % (total_hits/STEPS)) ==0 ) { 
+    PRINT_PROGRESS;
+  };
+
 strcpy(searchkey.protein1,hits[i].protein2);
 strcpy(searchkey.protein2,hits[i].protein1);
 searchptr=&searchkey;
@@ -203,6 +209,7 @@ if (ptr==NULL)
 	new_hits++;
 	}
 }
+PRINT_PROGRESS;
 
 printf("Corrected %d Hits, Total Hits %d\n",new_hits,total_hits);
 printf("--------------------\n");

@@ -107,12 +107,19 @@ if (hits=(struct hit_struct *) malloc(allocatedchunk*sizeof(searchkey)))
 	{
 	printf("Allocated Initial %lf MB\n",floor(allocatedchunk*(sizeof(struct hit_struct))/1048576));
 	allocatedmem=allocatedchunk;
-	}
+	} else { 
+          fprintf(stderr, "Out of memory at %s:%d\n", __FILE__, __LINE__);
+          exit(2);
+        }
 
 printf("-------------------------------------------------------------\n");
 printf("Beginning Markov Matrix Procedure:\n");
 printf("-------------------------------------------------------------\n");
-protein_index[total_proteins]=(char *)malloc(100*sizeof(char));
+ if (! (protein_index[total_proteins]=(char *)malloc(100*sizeof(char)))) {
+   fprintf(stderr, "Out of memory at %s:%d\n", __FILE__, __LINE__);
+   exit(2);
+ }
+
 
 if ((fp=fopen(argv[1],"r")) == NULL)
 	{
@@ -157,8 +164,10 @@ while(!feof(fp))
 					{
         				printf("Allocated %lf MB\n",floor(allocatedchunk*(sizeof(struct hit_struct))/1048576));
 					
-					}
-
+					} else {
+                                          fprintf(stderr, "Out of memory at %s:%d\n", __FILE__, __LINE__);
+                                          exit(2);
+                                        }
 				}
 			}
 			}
@@ -197,6 +206,9 @@ if (ptr==NULL)
              if (hits=(struct hit_struct *) realloc(hits,allocatedmem*sizeof(searchkey)))
                  {
                  printf("Allocated %lf MB\n",floor(allocatedchunk*(sizeof(struct hit_struct))/1048576));
+                 }  else { 
+                   fprintf(stderr, "Out of memory at %s:%d\n", __FILE__, __LINE__);
+                   exit(2);
                  }
              }
 
@@ -232,7 +244,11 @@ for (i=0;i<total_hits;i++)
 		{
 		if (strcmp(hits[i].protein1,hits[i-1].protein1))
 			{
-			protein_index[total_proteins]=(char *)malloc(100*sizeof(char));
+                          if (!(protein_index[total_proteins]=(char *)malloc(100*sizeof(char)))) {
+                            fprintf(stderr, "Out of memory at %s:%d\n", __FILE__, __LINE__);
+                            exit(2);
+                          }
+
 			strcpy(protein_index[total_proteins],hits[i].protein1);
 			fprintf(indexout,"%d\t%s\n",total_proteins,hits[i].protein1);
 			/*printf("%d\t%s\n",total_proteins,hits[i].protein1);*/

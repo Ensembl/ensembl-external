@@ -1,92 +1,128 @@
-#$Id$
-#
-# BioPerl module for Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor
-#
-# Cared for by Steve Searle <searle@sanger.ac.uk
-#
-# Copyright EnsEMBL
-#
-# You may distribute this module under the same terms as perl itself
-
-# POD documentation - main docs before the code
+package Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor;
 
 =head1 NAME
 
-Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor - Class for the Sanger SNP
-database providing external features for EnsEMBL
+Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor - 
+Database adaptor for a SangerSNP database
 
 =head1 SYNOPSIS
 
-e "Bio::EnsEMBL::Extern
-    $snpdb = Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor->new( -dbname => 'snp'
-							  -user => 'root'
-							  );
-
-
+    $db_adaptor = Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor->new(
+        -user   => 'root',
+        -pass   => 'secret',
+        -dbname => 'pog',
+        -host   => 'caldy',
+        -driver => 'Oracle'
+        );
+    $snp_adaptor = $db_adaptor->get_GlovarSNPAdaptor;
+    
 =head1 DESCRIPTION
 
-This object is an abstraction over the Sanger SNP database.  Adaptors can
-be obtained for the database to allow for the storage or retrival of objects
-stored within the database.
+This object represents a SangerSNP database. Once created you can retrieve object
+adaptors that allow you to create objects from data in the SangerSNP database.
+It delegates its connection responsibilities to the DBConnection class (no
+longer inherited from) and its object adaptor retrieval to the static
+Bio::EnsEMBL::Registry.
 
+=head1 LICENCE
 
+This code is distributed under an Apache style licence:
+Please see http://www.ensembl.org/code_licence.html for details
 
-=head1 AUTHOR - Steve Searle
+=head1 AUTHORS
 
-  Email searle@sanger.ac.uk
+Tony Cox <avc@sanger.ac.uk>
+Patrick Meidl <pm2@sanger.ac.uk>
 
-=head1 APPENDIX
+=head1 CONTACT
 
-The rest of the documentation details each of the object
-methods. Internal methods are usually preceded with a _
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
 
 =cut
-
-
-# Let the code begin...
-
-package Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor;
-
-use Bio::EnsEMBL::DBSQL::DBConnection;
-use Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection;
 
 use strict;
+
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+use Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection;
+use Bio::EnsEMBL::Utils::Exception qw(throw warning deprecate);
+use Bio::EnsEMBL::Utils::Argument qw(rearrange);
+
 use vars qw(@ISA);
+@ISA = qw(Bio::EnsEMBL::DBSQL::DBAdaptor);
 
-# Object preamble - inherits from Bio::Root:RootI
-@ISA = qw(Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection);
-#@ISA = qw(Bio::EnsEMBL::DBSQL::DBConnection);
+=head2 new
 
-
-
-#use the DBConnection superclass constructor
-
-
-=head2 get_SNPAdaptor
-
-  Function  : Retrieves a SNPAdaptor from this database
-  Returntype: Bio::EnsEMBL::ExternalData::SangerSNP::SNPAdaptor
-  Exceptions: none
-  Caller    : 
+  Arg [-DNADB]: (optional) Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor DNADB 
+               All sequence, assembly, contig information etc, will be
+               retrieved from this database instead.
+  Arg [..]   : Other args are passed to
+               Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection
+  Exmaple    : $db = new Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor(
+                                                    -species => 'Homo_sapiens',
+                                                    -group   => 'glovar'
+						    -user    => 'root',
+						    -dbname  => 'pog',
+						    -host    => 'caldy',
+						    -driver  => 'Oracle');
+  Description: Constructor for DBAdaptor.
+  Returntype : Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor
+  Exceptions : none
+  Caller     : general
 
 =cut
 
-sub get_SNPAdaptor {
-  my $self = shift;
+sub new {
+    my($class, @args) = @_;
+    my $self ={};
+    bless $self,$class;
 
-  return $self->_get_adaptor("Bio::EnsEMBL::ExternalData::SangerSNP::SNPAdaptor");
+    $self->dbc(new Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection(@args));
+
+    my ($species, $group, $con, $dnadb) =
+        rearrange([qw(SPECIES GROUP DBCONN DNADB)], @args);
+
+    if(defined($con)){
+        $self->dbc($con);
+    }
+    else{
+        $self->dbc(new Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection(@args));
+    }
+
+    if(defined($species)){
+        $self->species($species);
+    }
+    else{
+        $self->species("DEFAULT");
+    }
+    if(defined($group)){
+        $self->group($group);
+    }
+
+    $self = Bio::EnsEMBL::Utils::ConfigRegistry::gen_load($self);
+
+    if(defined $dnadb) {
+        $self->dnadb($dnadb);
+    }
+
+    return $self;
 }
 
-sub assembly_type {
-  my ($self, $assembly_type) = @_;
+=head2 get_available_adaptors
 
-  if (defined($assembly_type)) {
-    $self->{_assembly_type} = $assembly_type;
-  }
+  Example     : my %object_adaptors = %{ $dbadaptor->get_available_adaptors };
+  Description : returns a lookup hash of object adaptors for this DBAdaptor
+  Return type : Hashref
+  Exceptions  : none
+  Caller      : Bio::EnsEMBL::Utils::ConfigRegistry
 
-  return $self->{_assembly_type};
+=cut
+
+sub get_available_adaptors{
+  my %pairs = (
+    "SangerSNPBase" => "Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPBaseAdaptor",
+    "SangerSNP"     => "Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPAdaptor",
+  );
+  return (\%pairs);
 }
-
-
 
 1;

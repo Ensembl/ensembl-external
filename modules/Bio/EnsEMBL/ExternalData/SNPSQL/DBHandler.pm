@@ -150,8 +150,6 @@ sub new {
       $host = 'localhost';
   }
 
-
-
   my $dsn = "DBI:$driver:database=$db;host=$host";
   my $dbh = DBI->connect("$dsn","$user",$password);
 

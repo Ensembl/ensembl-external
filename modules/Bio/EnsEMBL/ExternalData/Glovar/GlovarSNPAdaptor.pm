@@ -331,7 +331,7 @@ sub fetch_all_by_clone_accession {
     }
 
     &eprof_end('clone_sql');
-    &eprof_dump(\*STDERR);
+    #&eprof_dump(\*STDERR);
     
     return \@snps;
 }

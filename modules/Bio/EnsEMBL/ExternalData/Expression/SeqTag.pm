@@ -119,13 +119,13 @@ sub each_DBLink{
 
 
 
-=head2 seqtag_id
+=head2 id
 
- Title   : seqtag_id
- Usage   : $obj->tissue_type($newval)
+ Title   : id
+ Usage   : $obj->id($newval)
  Function: 
  Example : 
- Returns : value of tissue_type
+ Returns : value of tag id
  Args    : newvalue (optional)
 
 
@@ -137,11 +137,7 @@ sub id {
       $obj->{'_id'} = $value;
     }
     return $obj->{'_id'};
-
 }
-
-
-
 
 =head2 source
 

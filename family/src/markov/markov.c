@@ -128,9 +128,10 @@ int main (int argc, char **argv) {
   printf("--------------------\n");
 
   while(1) {
-    memset(BUFFER, '\0', 400 );
-    memset(protein1,'\0',100);
-    memset(protein2,'\0',100);
+    BUFFER[0]='\0';
+    protein1[0]='\0';
+    protein2[0]='\0';
+
     fgets(BUFFER, 400, fp);
     if (feof(fp)) 
       break;

@@ -568,7 +568,7 @@ sub get_Ensembl_SeqFeatures_clone {
    # db query to return all variation information ; confidence attribute is gone!!
    my $query = qq{
 
-       SELECT  p1.start, p1.end, p1.type,
+       SELECT  p1.start, p1.end, p1.type, p1.strand,
   	       p2.id, p2.snpclass,  p2.snptype,
   	       p2.observed, p2.seq5, p2.seq3,
   	       #p2.het, p2.hetse,
@@ -585,9 +585,9 @@ sub get_Ensembl_SeqFeatures_clone {
    while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
        my $allele_pos = 0;
-       my $strand = 1;
+       #my $strand = 1;
 
-       my ($begin, $end, $hittype,
+       my ($begin, $end, $hittype, $strand,
 	   $snpuid, $class, $type,
 	   $alleles, $seq5, $seq3, #$het, $hetse,
 	   $confirmed, $mapweight,

@@ -94,14 +94,47 @@ sub dbID {
 sub taxon_id {
   my ($self,$value) = @_;
   
-  if (defined $value) {
-#    $self->ncbi_taxid($value); # for bioperl-1-0-0 only
-    $self->{'_taxon_id'} = $value; # for bioperl -07 compliancy
-  }
-  
+#  $self->warn("Taxon->taxon_id is a deprecated method!
+#Calling Taxon->ncbi_taxid instead!");
 
-#  return $self->ncbi_taxid; # for bioperl-1-0-0 only
-  return $self->{'_taxon_id'}; # for bioperl -07 compliancy
+  if (defined $value) {
+    return $self->ncbi_taxid($value);
+  }
+
+  return $self->ncbi_taxid;
+}
+
+=head2 ncbi_taxid
+
+ Title   : ncbi_taxid
+ Usage   : 
+ Function: get/set the ncbi_taxid of the taxon
+ Example :
+ Returns : An integer 
+ Args    : 
+
+=cut
+
+sub ncbi_taxid {
+  my ($self,$value) = @_;
+  
+  # tricks for bioperl-07/bioperl-1-0-0 compliancy
+  
+  bless $self, "Bio::Species";
+  
+  if ($self->can("ncbi_taxid")) { # when using bioperl-1-0-0 and later
+    if (defined $value) {
+      $self->ncbi_taxid($value);
+      $self->{'_ncbi_taxid'} = $self->ncbi_taxid;
+    }
+  } else {  # when using bioperl-07
+    if (defined $value) {
+      $self->{'_ncbi_taxid'} = $value;
+    }
+  }
+
+  bless $self, "Bio::EnsEMBL::ExternalData::Family::Taxon";
+  return $self->{'_ncbi_taxid'};
 }
 
 1;

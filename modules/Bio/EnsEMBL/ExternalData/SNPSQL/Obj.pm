@@ -147,7 +147,7 @@ sub _initialize {
       $host = 'localhost';
   }
 
-# testing commit
+
 
   my $dsn = "DBI:$driver:database=$db;host=$host";
   my $dbh = DBI->connect("$dsn","$user",$password);

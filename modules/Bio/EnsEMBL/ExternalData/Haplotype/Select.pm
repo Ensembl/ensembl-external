@@ -308,7 +308,7 @@ sub _population_error{
 
     # The frequency shouldn't be greater than 1
     if ($frequency >1) {
-        die ("The frequency for this set is $frequency (greater than 1)\n");
+        warn ("The frequency for this set is $frequency (greater than 1)\n");
     }
 
     # the haplotype matix is not well formed
@@ -352,20 +352,19 @@ sub _do_it{
     my $self = shift;
 
     # first we are goinf to define here all variables we are going to use
-    $self -> {'w_hap'}          = []; 
-    $self -> {'w_pop_freq'}     = dclone ( $self ->{pop_freq} );
-    $self -> {'deg_fam'}        = {};
-    $self -> {'snp_type'}       = {};  # type of snp on the set. see below
-    $self -> {'alleles_number'} = 0;   # number of variations (biallelic,...)
-    $self -> {'snp_type_code'}  = [];
-    $self -> {'ht_type'}        = [];  # store the snp type used on the htSet
-    $self -> {'snp_info'}       = [];  # resume of all snp information
-    $self -> {'split_hap'}      = [];
-    $self -> {'snp_and_code'}   = [];
-
+    $self->{'w_hap'}          = []; 
+    $self->{'w_pop_freq'}     = dclone ( $self->{pop_freq}  );
+    $self->{'deg_fam'}        = {};
+    $self->{'snp_type'}       = {};  # type of snp on the set. see below
+    $self->{'alleles_number'} = 0;   # number of variations (biallelic,...)
+    $self->{'snp_type_code'}  = [];
+    $self->{'ht_type'}        = [];  # store the snp type used on the htSet
+    $self->{'snp_info'}       = [];  # resume of all snp information
+    $self->{'split_hap'}      = [];
+    $self->{'snp_and_code'}   = [];
 
     # we classify the SNP under snp_type
-    $self->{snp_type}->{useful_snp} = dclone ( $self ->{snp_ids} );
+    $self->{snp_type}->{useful_snp} = dclone ( $self->{snp_ids} );
     $self->{snp_type}->{deg_snp}    = []; # deg snp
     $self->{snp_type}->{silent_snp} = []; # not a real snp
 
@@ -374,7 +373,7 @@ sub _do_it{
 
     # first we convert to upper case the haplotype
     # to make A the same as a for comparison
-    _to_upper_case( $self -> {w_hap} );
+    _to_upper_case( $self->{w_hap} );
 
     #######################################################
     # check if any SNP has indetermination. If any SNP has
@@ -420,12 +419,12 @@ sub _do_it{
     # but if you need to do it. This is the place to do it!!!!
     #################################################################
 
-    my @tmp =keys %{$self -> {deg_fam}}; # just count the families
+    my @tmp =keys %{$self->{deg_fam}}; # just count the families
 
     # if the size of the list is different to the size of the degenerated
     # family. There is degeneration. And the redundancies will be
     # removed.
-    if($#tmp != $#{$self -> { w_hap } } ){
+    if($#tmp != $#{$self->{ w_hap } } ){
         _keep_these_fam($self->{w_hap}, \@tmp);
         _keep_these_fam($self->{w_pop_freq}, \@tmp);
     }
@@ -511,7 +510,7 @@ sub input_block{
 #------------------------
 
     my $self = shift;
-    return $self -> {input_block};
+    return $self->{input_block};
 }
 
 
@@ -532,7 +531,7 @@ sub snp_ids{
 #------------------------
 
     my $self = shift;
-    return $self -> {snp_ids};
+    return $self->{snp_ids};
 }
 
 =head2 hap_length 
@@ -552,7 +551,7 @@ sub hap_length{
 #------------------------
 
     my $self = shift;
-    return scalar @{$self -> {'snp_ids'}};
+    return scalar @{$self->{'snp_ids'}};
 }
 
 
@@ -574,7 +573,7 @@ sub pop_freq{
 #------------------------
 
     my $self = shift;
-    return $self -> {pop_freq}
+    return $self->{pop_freq}
 }
 
 
@@ -594,7 +593,7 @@ sub pop_freq{
 sub deg_snp{
 #------------------------
     my $self = shift;
-    return $self -> {snp_type} ->{deg_snp};
+    return $self->{snp_type}->{deg_snp};
 }
 
 
@@ -614,7 +613,7 @@ sub deg_snp{
 sub snp_type{
 #------------------------
     my $self = shift;
-    return $self -> {snp_type};
+    return $self->{snp_type};
 }
 
 
@@ -635,7 +634,7 @@ sub snp_type{
 sub silent_snp{
 #------------------------
     my $self = shift;
-    return $self -> {snp_type} ->{silent_snp};
+    return $self->{snp_type}->{silent_snp};
 }
 
 
@@ -657,7 +656,7 @@ sub silent_snp{
 sub useful_snp{
 #------------------------
     my $self = shift;
-    return $self -> {snp_type} ->{useful_snp};
+    return $self->{snp_type}->{useful_snp};
 }
 
 
@@ -679,7 +678,7 @@ sub useful_snp{
 sub ht_type{
 #------------------------
     my $self = shift;
-    return $self -> {ht_type};
+    return $self->{ht_type};
 }
 
 
@@ -702,7 +701,7 @@ sub ht_type{
 sub ht_set{
 #------------------------
     my $self = shift;
-    return $self -> {w_hap};
+    return $self->{w_hap};
 }
 
 
@@ -723,7 +722,7 @@ sub ht_set{
 sub snp_type_code{
 #------------------------
     my $self = shift;
-    return $self -> {snp_type_code};
+    return $self->{snp_type_code};
 }
 
 =head2 snp_and_code
@@ -745,7 +744,7 @@ sub snp_type_code{
 sub snp_and_code{
 #------------------------
     my $self = shift;
-    return $self -> {'snp_and_code'};
+    return $self->{'snp_and_code'};
 }
 
 =head2 deg_fam 
@@ -768,7 +767,7 @@ sub deg_fam{
 #------------------------
     my $self = shift;
 
-    return $self -> {'deg_fam'};
+    return $self->{'deg_fam'};
 }
 
 =head2 split_hap 
@@ -788,7 +787,7 @@ sub deg_fam{
 sub split_hap{
 #------------------------
     my $self = shift;
-    return $self -> {'split_hap'};
+    return $self->{'split_hap'};
 }
 
 =head2 _split_haplo 
@@ -810,15 +809,15 @@ sub _split_haplo {
 #------------------------
     my $self = shift;
 
-    my $in  = $self ->{'input_block'};
-    my $out = $self ->{'w_hap'};
+    my $in  = $self->{'input_block'};
+    my $out = $self->{'w_hap'};
 
     # split every haplotype and store the result into $out
     foreach (@$in){
         push @$out, [split (//,$_)];
     }
 
-    $self -> {'split_hap'} = dclone ($out);
+    $self->{'split_hap'} = dclone ($out);
 }
 
 # internal method to convert the haplotype to uppercase
@@ -1079,8 +1078,8 @@ sub _find_deg_fam{
 #------------------------
     my $self  = shift;
 
-    my $arr   = $self ->{w_hap};    # the working haplotype
-    my $list  = $self ->{'deg_fam'};  # degenerated families
+    my $arr   = $self->{w_hap};    # the working haplotype
+    my $list  = $self->{'deg_fam'};  # degenerated families
 
     # we have to check all elements
     foreach my $i(0..$#$arr){
@@ -1334,7 +1333,7 @@ sub _alleles_number{
 
     my $self = shift;
 
-    my $hap_ref = $self ->{w_hap};          # working haplotype
+    my $hap_ref = $self->{w_hap};          # working haplotype
 
     my $length = @{ @$hap_ref[0]};    # length of the haplotype
 

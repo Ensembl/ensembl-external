@@ -68,7 +68,9 @@ sub insert_fasta_record  {
 	
 	if($parser){
 		#print STDERR "BEFORE: $id ";
-		$seq->id(&$parser($seq->id()));
+		my $id = &$parser($seq->id());
+		return unless $id ;
+		$seq->id($id);
 		#print STDERR "AFTER: ",$seq->id(),"\n";
 	}
 	

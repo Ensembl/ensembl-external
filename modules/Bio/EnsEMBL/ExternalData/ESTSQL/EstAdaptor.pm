@@ -111,9 +111,11 @@ sub get_Ensembl_SeqFeatures_contig {
 	 
 	   $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
 
-
-	   $out->set_all_fields($start,$end,$strand,$f_score,$name,'similarity',$contig,
-				$hstart,$hend,1,$f_score,$name,'similarity',$hid);
+	   # hacky temporary fix for web
+	   $name = 'est';
+	   $source = 'est';
+	   $out->set_all_fields($start,$end,$strand,$f_score,$name,$source,$contig,
+				$hstart,$hend,1,$f_score,$name,$source,$hid);
 
 	   $out->analysis    ($analysis);
 	   $out->id          ($hid);              # MC This is for Arek - but I don't

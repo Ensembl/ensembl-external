@@ -70,7 +70,7 @@ sub new
 
     $self->db_id($db_id);
     $self->cyto_start($cyto_start);  
-    $self->cyto_start($cyto_end);
+    $self->cyto_end($cyto_end);
     if (defined $chromosome){$self->chromosome($chromosome);}
     if (defined $gene_id){$self->external_gene($gene_id);}
    	   

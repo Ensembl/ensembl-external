@@ -27,25 +27,26 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'en
 #my @diseases=$diseasedb->diseases_without_genes;
 #my @diseases=$diseasedb->all_diseases;
 #my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
-my @diseases=$diseasedb->diseases_like("corneal");
+my @diseases=$diseasedb->diseases_like("diabetes");
 
 foreach my $dis (@diseases)
 {
-   print "\n",$dis->name, "\n";
+    print "\n",$dis->name, "\n";
     
     foreach my $location($dis->each_Location){
-
-	print "gene ",$location->external_gene," has gene ",$location->has_gene," chromosome ",
-	$location->chromosome,"\n";
-
+	
+	print "has gene ",$location->external_gene," on chromosome ",
+	$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
+	
 	if (defined $location->ensembl_gene){
-	    print " ENSGENE ",$location->ensembl_gene->id,"\n";
+	    print "FOUND ensembl gene for ",$location->external_gene," = ",$location->ensembl_gene->id;
 
 	    foreach my $transcript ($location->ensembl_gene->each_Transcript){
-		print "TRANSCRIPT ",$transcript->id,"\n";}
+		print " transcripts: ",$transcript->id,"\n";}
 	}
+	else {print "no ensembl predictions for ", $location->external_gene,"\n";}
     }
-
+    
     print "\n";
 }
 

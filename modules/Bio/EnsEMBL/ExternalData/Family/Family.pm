@@ -374,6 +374,31 @@ sub get_members_by_dbname_taxon {
   return @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}};
 }
 
+=head2 get_Taxon_by_dbname
+
+ Arg [1]    : string $dbname
+              Either "ENSEMBLGENE", "ENSEMBLPEP" or "SPTR" 
+ Example    : $family->get_Taxon_by_dbname('ENSEMBLGENE')
+ Description: get all the taxons that belong to a particular database in the 
+              corresponding family
+ Returntype : an array reference of Bio::EnsEMBL::ExternalData::Family::Taxon objects
+              (which may be empty)
+ Exceptions : when missing argument
+ Caller     : general
+
+=cut
+
+sub get_Taxon_by_dbname {
+  my ($self, $dbname) = @_;
+  
+  $self->throw("Should give defined databasename as argument\n") unless (defined $dbname);
+
+  my $family_id = $self->dbID;
+  my $FamilyAdaptor = $self->adaptor;
+
+  return $FamilyAdaptor->fetch_Taxon_by_dbname_dbID($dbname,$family_id);
+}
+
 =head2 add_member
 
  Title   : add_member

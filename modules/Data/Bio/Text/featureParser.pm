@@ -139,7 +139,7 @@ sub filter {
 	my $filter_chr	  = $self->{'filter'}{'chr'};
 	my $filter_start = $self->{'filter'}{'start'};
 	my $filter_end   = $self->{'filter'}{'end'};
-	return 1 if ( $filter_chr && $chr ne $filter_chr );
+	return 1 if ( $filter_chr && $chr ne $filter_chr && $filter_chr ne 'ALL');
 	return 1 if ( $filter_start && $filter_start < $start  );
 	return 1 if ( $filter_end && $filter_end > $end  );
 	return 0;

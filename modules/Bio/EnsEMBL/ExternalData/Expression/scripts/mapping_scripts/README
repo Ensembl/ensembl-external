@@ -1,0 +1,36 @@
+How to perform SAGE mapping (via LocusLink for known genes and via
+UniGene for novel genes)
+
+a) extract UniGene LocusLink mapping from
+   an NCBI's file describing all UniGene clusters (Hs.data.Z from
+   ftp://ncbi.nlm.nih.gov/pub/schuler/unigene)
+
+- download and call unigene.dat
+- perl unigene_locuslink_extractor.pl > unigene_locuslink.dat
+
+b) join that with enst_locuslink.dat mapping (a table from Ensembl
+dumped by Arek) and SAGEmap_ug_tag-rel-Nla3-Hs.zip (download from NCBI's
+SAGE
+ftp://ncbi.nlm.nih.gov/pub/sage/map/Hs/Nla3/) using ELUSmapper.pl to
+produce
+ELUSmapper.dat
+
+c) Use perl ENSUmapper.pl for direct mapping
+   of Ensembl transcripts to UniGene clusters
+   (chromosome names in chr.dat)
+
+d) ENSUpostprocessor.pl     cut-off 300 bits, eliminate UniGenes mapping
+                            to more than 15 ENSTs
+e) ELUS_ENSUjoiner.pl       join ELUS and ENSU mapping - use ENSU mapping
+                            only if there is no ELUS mapping       
+
+Tests:
+ELUS_ENSUtester.pl - compare mapping for known genes (ELUS vs ENUS
+mapping)
+test_genes         - hand check for my favourite genes
+
+contact: Lukasz Huminiecki mobile 07980 376931
+         email lucash@ebi.ac.uk
+         or    lucash@molbiol.ox.ac.uk
+                                          
+         and Arek Kasprzyk

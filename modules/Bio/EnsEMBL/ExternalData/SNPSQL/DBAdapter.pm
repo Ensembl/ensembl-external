@@ -108,8 +108,8 @@ methods. Internal methods are usually preceded with a _
 
 package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter;
 
-#use Bio::Root::Object;
-#use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
+use Bio::Root::Object;
+use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use DBI;
 use vars qw(@ISA);
 use strict;
@@ -277,7 +277,7 @@ sub get_SeqFeature_by_id {
 	
 	#prune flank sequences to 25 nt
 	$seq5 = substr($seq5, -25, 25);
-	$seq5 = substr($seq5, 0, 25);
+	$seq3 = substr($seq5, 0, 25);
 
 	#
 	# prepare the output objects
@@ -302,13 +302,15 @@ sub get_SeqFeature_by_id {
 	$snp->score($hitcount); 
 	
 	#DBLink
-	my $link = new Bio::Annotation::DBLink;
-	$link->database('dbSNP');
-	$link->primary_id($id);
-
-	#add dbXref to Variation
-	$snp->add_DBLink($link);
-
+	my @dlinks = $snp->each_DBLink;
+	if ( scalar @dlinks == 0 ) {
+	    my $link = new Bio::Annotation::DBLink;
+	    $link->database('dbSNP');
+	    $link->primary_id($id);
+	    
+	    #add dbXref to Variation
+	    $snp->add_DBLink($link);
+	}
 #	 #dbSNP id is given
 #	 if ( $dbsnpid ) {
 #
@@ -545,6 +547,85 @@ sub _db_handle{
     return $self->{'_db_handle'};
 
 }
+
+=head2 _lock_tables
+
+ Title   : _lock_tables
+ Usage   :
+ Function:
+ Example :
+ Returns :
+ Args    :
+
+
+=cut
+
+sub _lock_tables{
+   my ($self,@tables) = @_;
+
+   my $state;
+   foreach my $table ( @tables ) {
+       if( $self->{'_lock_table_hash'}->{$table} == 1 ) {
+	   $self->warn("$table already locked. Relock request ignored");
+       } else {
+	   if( $state ) { $state .= ","; }
+	   $state .= "$table write";
+	   $self->{'_lock_table_hash'}->{$table} = 1;
+       }
+   }
+
+   my $sth = $self->prepare("lock tables $state");
+   my $rv = $sth->execute();
+   $self->throw("Failed to lock tables $state") unless $rv;
+
+}
+
+=head2 _unlock_tables
+
+ Title   : _unlock_tables
+ Usage   :
+ Function:
+ Example :
+ Returns :
+ Args    :
+
+
+=cut
+
+sub _unlock_tables{
+   my ($self,@tables) = @_;
+
+   my $sth = $self->prepare("unlock tables");
+   my $rv  = $sth->execute();
+   $self->throw("Failed to unlock tables") unless $rv;
+   %{$self->{'_lock_table_hash'}} = ();
+}
+
+
+=head2 DESTROY
+
+ Title   : DESTROY
+ Usage   :
+ Function:
+ Example :
+ Returns :
+ Args    :
+
+
+=cut
+
+sub DESTROY {
+   my ($obj) = @_;
+
+   $obj->_unlock_tables();
+
+   if( $obj->{'_db_handle'} ) {
+       $obj->{'_db_handle'}->disconnect;
+       $obj->{'_db_handle'} = undef;
+   }
+}
+
+
 
 1;
 

@@ -69,7 +69,7 @@ sub new {
     my $dbh = Bio::Das->new(30);
     if (defined $proxy_url){
         $dbh->proxy($proxy_url);
-    #    warn "Setting proxy URL to $proxy_url for $dsn\n";
+       # warn "Setting proxy URL to $proxy_url for $dsn\n";
     }
     $self->_db_handle($dbh);
     $self->dsn($dsn);

@@ -347,14 +347,17 @@ sub db {
 
 sub get_Ensembl_SeqFeatures_exon {
     my ( $self, $exon )  = @_;
-    
+   
+    my @features;
+ 
     # if exon is sticky, get supporting from components
     if( $exon->isa( 'Bio::EnsEMBL::StickyExon' )) {
 	# sticky storing. Sticky exons contain normal exons ...
 	
 	my @componentExons = $exon->each_component_Exon();
 	for my $componentExon ( @componentExons ) {
-	    $self->fetch_evidence_by_Exon( $componentExon );
+	    my @sticky_features = $self->get_Ensembl_SeqFeatures_exon( $componentExon );
+	    push(@features,@sticky_features);
 	}
 	return;
     }
@@ -370,7 +373,6 @@ sub get_Ensembl_SeqFeatures_exon {
     my $sth = $self->db->prepare($statement);
     $sth->execute || $self->throw("execute failed for supporting evidence get!");
 
-    my @features;
 
     my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);
     
@@ -412,6 +414,5 @@ sub get_Ensembl_SeqFeatures_exon {
     
     return @features;   
 }
-
 
 1;

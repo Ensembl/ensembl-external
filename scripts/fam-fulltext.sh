@@ -2,7 +2,6 @@
 # $Id$
 
 # script producing file suitable for Tony's AltaVista indexing
-# Used by wrapper script fam-fulltext.sh
 
 usage="Usage: $0 -h host -u user databasename >  file.txt"
 

@@ -11,7 +11,7 @@
 
 =head1 NAME
 
-Bio::EnsEMBL::DBDAS::DBAdaptor - Object representing an instance of a DAS DB connection
+Bio::EnsEMBL::DBDAS::DASAdaptor - Object representing an instance of a DAS DB connection
 
 =head1 SYNOPSIS
 

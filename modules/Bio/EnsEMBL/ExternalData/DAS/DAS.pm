@@ -167,7 +167,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_phase($f->phase());
         $CURRENT_FEATURE->das_note($f->note());
 
-        #print STDERR "adding feature for $dsn....\n";
+#        print STDERR "adding feature for $dsn.... ",$f->id(),"\n";
         push(@{$DAS_FEATURES}, $CURRENT_FEATURE);
     };
 
@@ -213,6 +213,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         foreach my $feature (@{$DAS_FEATURES}){
             print STDERR "SEG ID: ",            $feature->seqname(), "\t";
             print STDERR "DSN: ",               $feature->das_dsn(), "\t";
+            print STDERR "ID: ",                $feature->das_id(), "\t";
             print STDERR "FEATURE START: ",     $feature->das_start(), "\t";
             print STDERR "FEATURE END: ",       $feature->das_end(), "\t";
             print STDERR "FEATURE STRAND: ",    $feature->das_strand(), "\t";

@@ -236,7 +236,7 @@ sub get_SeqFeature_by_id {
  	        
         select p1.SNP_ID, p1.SNP_USERID, p1.SNP_CONFIDENCE,
                p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN, p1.CLIQUE_POSITION,
-               p1.CLIQUE_ID p1.DBSNP_ID,
+               p1.CLIQUE_ID, p1.DBSNP_ID,
                p2.Sub_Start, p2.Sub_END,
                p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
         from TBL_SNP_INFO as p1

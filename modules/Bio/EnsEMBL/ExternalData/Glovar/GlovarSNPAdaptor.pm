@@ -39,6 +39,7 @@ use Bio::EnsEMBL::ExternalData::Glovar::SNP;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);
+use Bio::EnsEMBL::Registry;
 
 use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
@@ -200,13 +201,6 @@ sub fetch_all_by_clone_accession {
 
     #&eprof_start('clone_sql');
 
-    my $dnadb;
-    eval { $dnadb = $self->ensembl_db; };
-    if ($@) {
-        warn "ERROR: No dnadb attached to Glovar: $@";
-        return;
-    }
-    
     ## get info on clone
     my $q1 = qq(
         SELECT
@@ -382,10 +376,9 @@ sub fetch_SNP_by_id  {
     
     #&eprof_start('fetch_snp_by_id');
     
-    my $dnadb;
-    eval { $dnadb = $self->ensembl_db; };
-    if ($@) {
-        warn "ERROR: No dnadb attached to Glovar: $@";
+    my $dnadb = Bio::EnsEMBL::Registry->get_DNAAdaptor($ENV{'ENSEMBL_SPECIES'}, 'glovar');
+    unless ($dnadb) {
+        warn "ERROR: No dnadb attached to Glovar.\n";
         return;
     }
     

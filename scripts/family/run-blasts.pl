@@ -189,22 +189,3 @@ sub file_parts {
     my $dir=join('/', @t);
     ($dir, $db);
 }
-    
-     
-
-# sub count_expected {
-#     my ($dir, $num)=@_;
-#     my $hash;
-#     open (PIPE,'grep -c "^>" $dir/*.pep.* |');
-#     while (<PIPE>) {
-#         chop($_);
-#         /\.(\d+)\:.*$/;
-#         my $id=$1;
-#         my $count=(split(":",$_))[-1];
-#         print "$id $count\n";
-#         $hash->{$id}=$count;
-#     }
-#     close PIPE || return undef;
-#     $hash;
-# }
-

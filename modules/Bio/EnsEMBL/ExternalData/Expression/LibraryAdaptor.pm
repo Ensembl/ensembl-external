@@ -21,7 +21,8 @@ Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor
     my $lib_ad=Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor->new($obj);
     $lib_ad->dbname($dbname);
 
-    my @libs=$lib_ad->fetch_by_SeqTag_Synonym("ENSG00000080561"); 
+    # pass in a list of synonyms
+    my @libs=$lib_ad->fetch_by_SeqTag_SynonymList("ENSG00000080561"); 
 
     my @tgs=("AAAAAAAAAA","AAAAAAAAAC");
     my @libs=$lib_ad->fetch_by_SeqTagList(@tgs);

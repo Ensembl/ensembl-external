@@ -1,6 +1,8 @@
 #!/usr/local/bin/perl 
 # $Id$
 
+# used inside run-blasts.pl
+
 $|=1;
 
 #

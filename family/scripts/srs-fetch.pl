@@ -22,6 +22,9 @@ my $ssh_dest = "$user$srs_host";
 my $getz = '/ebi/services/pkgs/srs/bin/osf_5/getz';
 my $organism = 'vertebrata*';
 
+### (alternatively, use srs on plato.sanger.ac.uk)
+
+
 open (FILEOUT,"> $pept_file") ||  die "$pept_file: $!";
 open (SEQTYPES,"> $types_file") || die "$types_file: $!";
 

@@ -3,3 +3,8 @@
 This directory contains sh and perl scripts. It used to be in
 ensembl-external/scripts/family, but has been moved to 
 ensembl-external/family/scripts.
+
+Also, most of the script originated from Anton. In order to keep his old
+file names visible, I have not cvs removed them, but instead have put a 
+die "superceded by suchandsuch"; message in.
+

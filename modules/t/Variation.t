@@ -1,3 +1,4 @@
+# -*-Perl-*-
 ## Bioperl Test Harness Script for Modules
 ## $Id$
 
@@ -16,149 +17,45 @@
 ## etc. etc. etc. (continue on for each tested function in the .t file)
 #-----------------------------------------------------------------------
 
+use Test;
+use strict;
 
-## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..21\n"; 
-	use vars qw($loaded); }
-END {print "not ok 1\n" unless $loaded;}
+BEGIN { plan tests => 24}
 
-#use lib '../';
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::Annotation::DBLink;
+ok 1;
 
-$loaded = 1;
-print "ok 1\n";    # 1st test passes.
+my ($obj, $link1);
+ok $obj = Bio::EnsEMBL::ExternalData::Variation -> new;
+ok ($obj->start(3) and $obj->start == 3 );
+ok ($obj->end(3) and $obj->end == 3 );
+ok ($obj->strand('1') and $obj->strand eq '1' );
+ok $obj->primary_tag, 'Variation' ;
+ok ($obj->source_tag('source') and $obj->source_tag eq 'source' );
+ok ($obj->frame(2) and $obj->frame ==2 );
+ok ($obj->score(2) and $obj->score ==2 );
+ok ($obj->status('proven') and $obj->status eq 'proven' );
+ok ($obj->alleles('a|t') and $obj->alleles eq 'a|t' );
+ok ($obj->upStreamSeq('tgctacgtacgatcgatcga') and 
+    $obj->upStreamSeq eq 'tgctacgtacgatcgatcga');
+ok ($obj->dnStreamSeq('tgctacgtacgatcgatcga') and 
+    $obj->dnStreamSeq eq 'tgctacgtacgatcgatcga' );
 
-
-## End of black magic.
-##
-## Insert additional test code below but remember to change
-## the print "1..x\n" in the BEGIN block to reflect the
-## total number of tests that will be run. 
-
-
-
-$obj = Bio::EnsEMBL::ExternalData::Variation -> new;
-
-print "ok 2\n";  
-
- 
-$obj->start(3);
-if ($obj->start == 3 ) {
-    print "ok 3\n";
-} else {
-    print "not ok 3\n";
+ok $link1 = new Bio::Annotation::DBLink;
+ok $link1->database('TSC-CSHL');
+ok $link1->primary_id('TSC0000030');
+ok $obj->add_DBLink($link1);
+foreach my $link ( $obj->each_DBLink ) {
+    ok $link->database;
+    ok $link->primary_id;
 }
- 
- 
-$obj->end(3);
-if ($obj->end == 3 ) {
-    print "ok 4\n";
-} else {
-    print "not ok 4\n";
-}                
+ok $obj->id, 'TSC0000030';
 
-$obj->strand('1');
-if ($obj->strand eq '1' ) {
-    print "ok 5\n";
-} else {
-    print "not ok 5\n";
-}
- 
-if ($obj->primary_tag eq 'Variation' ) {
-    print "ok 6\n";
-} else {
-    print "not ok 6\n";
-}              
+ok ($obj->seqname('seqname') and $obj->seqname eq 'seqname' );
+ok ($obj->position_problem('position_problem') and 
+    $obj->position_problem eq 'position_problem' );
 
-
-$obj->source_tag('source');
-if ($obj->source_tag eq 'source' ) {
-    print "ok 7\n";
-} else {
-    print "not ok 7\n";
-}
- 
-$obj->frame(2);
-if ($obj->frame ==2 ) {
-    print "ok 8\n";
-} else {
-    print "not ok 8\n";
-}
- 
-$obj->score(2);
-if ($obj->score ==2 ) {
-    print "ok 9\n";
-} else {
-    print "not ok 9\n";
-}
-                
-
-$obj->status('proven'); 
-if ($obj->status eq 'proven' ) {
-    print "ok 10\n";  
-} else {
-    print "not ok 10\n";
-} 
-
-
-$obj->alleles('alleles'); 
-if ($obj->alleles eq 'alleles' ) {
-    print "ok 11\n";  
-} else {
-    print "not ok 11\n";
-} 
-
-
-$obj->upStreamSeq('tgctacgtacgatcgatcga'); 
-if ($obj->upStreamSeq eq 'tgctacgtacgatcgatcga' ) {
-    print "ok 12\n";  
-} else {
-    print "not ok 12\n";
-} 
-
-$obj->dnStreamSeq('tgctacgtacgatcgatcga'); 
-if ($obj->dnStreamSeq eq 'tgctacgtacgatcgatcga' ) {
-    print "ok 13\n";  
-} else {
-    print "not ok 13\n";
-}
-
-$link1 = new Bio::Annotation::DBLink;
-print   "ok 14\n";
-$link1->database('TSC');
-print   "ok 15\n";
-$link1->primary_id('TSC0000030');
-print   "ok 16\n";  
-
-
-$obj->add_DBLink($link1);
-
-print   "ok 17\n";  
-
-foreach $link ( $obj->each_DBLink ) {
-    $link->database;
-    $link->primary_id;
-}
-print  "ok 18\n";       
-
-if ($obj->id eq 'TSC0000030') {
-    print "ok 19\n"; 
-} else {
-    print "not ok 19\n"; 
-}
-
-
-$obj->seqname('seqname');
-if ($obj->seqname eq 'seqname' ) {
-    print "ok 20\n"; 
-} else {
-    print "not ok 20\n"; 
-}
-
-$obj->position_problem('position_problem'); 
-if ($obj->position_problem eq 'position_problem' ) {
-    print "ok 21\n"; 
-} else {
-    print "not ok 21\n";
- }
+my @as = $obj->to_FTHelper;
+ok scalar @as, 2;
+ok $as[1]->isa('Bio::SeqIO::FTHelper');

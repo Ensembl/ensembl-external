@@ -6,27 +6,70 @@ use IO::File;
 use File::Basename;
 use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
 
-my ($family_stable_id,$family_id,$fasta_file,$fasta_index,$dir);
+my $usage = "
+Usage: $0 options
 
+i.e.
+
+$0 
+
+Options:
+-host 
+-dbname family dbname
+-dbuser
+-dbpass
+-family_stable_id|-family_id
+-fasta_file
+-fasta_index
+-dir
+-store
+
+\n";
+
+my ($family_stable_id,$family_id,$fasta_file,$fasta_index);
+
+my $dir = ".";
 my $store = 0;
+
+my $fastafetch_executable = "/nfs/acari/abel/bin/alpha-dec-osf4.0/fastafetch";
+
+if (-e "/proc/version") {
+  # it is a linux machine
+  $fastafetch_executable = "/nfs/acari/abel/bin/i386/fastafetch";
+}
 
 my $clustalw_executable = "/usr/local/ensembl/bin/clustalw1.82";
 
-GetOptions('family_stable_id=s' => \$family_stable_id,
-	   'family_id=s' => \$family_id,
+my $help = 0;
+my $host;
+my $dbname;
+my $dbuser;
+my $dbpass;
+
+GetOptions('help' => \$help,
+	   'host=s' => \$host,
+	   'dbname=s' => \$dbname,
+	   'dbuser=s' => \$dbuser,
+	   'dbpass=s' => \$dbpass,
+	   'family_stable_id=s' => \$family_stable_id,
+	   'family_id=i' => \$family_id,
 	   'fasta_file=s' => \$fasta_file,
 	   'fasta_index=s' => \$fasta_index,
 	   'dir=s' => \$dir,
 	   'store' => \$store);
 
+if ($help) {
+  print $usage;
+  exit 0;
+}
+
+
 my $rand = time().rand(1000);
 
-
-
-my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host   => 'ecs1b.internal.sanger.ac.uk',
-									 -user   => 'ensadmin',
-									 -pass   => 'ensembl',
-									 -dbname => 'ensembl_family_test');
+my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host   => $host,
+									 -user   => $dbuser,
+									 -pass   => $dbpass,
+									 -dbname => $dbname);
 
 my $FamilyAdaptor = $family_db->get_FamilyAdaptor;
 my $FamilyMemberAdaptor = $family_db->get_FamilyMemberAdaptor;
@@ -62,7 +105,7 @@ close S;
 
 my $sb_file = "/tmp/sb.$rand";
 
-unless (system("/nfs/acari/abel/bin/fastafetch $fasta_file $fasta_index $sb_id > $sb_file") == 0) {
+unless (system("$fastafetch_executable $fasta_file $fasta_index $sb_id > $sb_file") == 0) {
   unlink glob("/tmp/*$rand*");
   die "error in fastafetch $sb_id, $!\n";
 }

@@ -87,6 +87,7 @@ sub new {
 sub get_Ensembl_SeqFeatures_contig {
    my ($self,$internal_id,$contig) = @_;
 
+
    if (!defined($contig)) {
        $self->throw("No contig entered for get_Ensembl_SeqFeatures_contig");
    }
@@ -98,6 +99,7 @@ sub get_Ensembl_SeqFeatures_contig {
 
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;
+
 
    # bind the columns
    $sth->bind_columns(undef,\$fid,\$start,\$end,\$strand,\$f_score,\$analysisid,\$name,\$hstart,\$hend,\$hid,\$evalue,\$perc_id,\$phase,\$end_phase);
@@ -163,7 +165,6 @@ sub get_Ensembl_SeqFeatures_contig {
       push(@array,$out);
       
    }
-
    return @array;
 
 
@@ -182,7 +183,8 @@ sub get_Ensembl_SeqFeatures_contig {
 =cut
 
 sub get_Ensembl_SeqFeatures_contig_list{
-   my ($self,$href,@idlist) = @_;
+   my ($self,$href,$idlist,$start,$end) = @_;
+   my @idlist = @$idlist;
 
    my %int_ext = %$href;
    my $string;
@@ -194,13 +196,18 @@ sub get_Ensembl_SeqFeatures_contig_list{
    
    my @array;
 
-   #print STDERR "Getting ESTs by list from $inlist....\n";
-
    my $glob = 50;
 
-   my $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
+   my $statement;
+
+   if (defined $start && defined $end) {
+      $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
+       "FROM  feature WHERE feature.contig in $inlist and feature.seq_start >= $start and feature.seq_end <= $end order by hid,seq_start";
+   } else {
+      $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
        "FROM  feature WHERE feature.contig in $inlist order by hid,seq_start";
- 
+   }
+
    &eprof_start('est-sql');
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;
@@ -211,6 +218,8 @@ sub get_Ensembl_SeqFeatures_contig_list{
    
    &eprof_start('est-object');
    my $prev;
+   my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
+
    while($sth->fetch) {
 
        if( defined $prev && $prev->hseqname eq $hid && $prev->end+$glob > $start ) {
@@ -220,9 +229,8 @@ sub get_Ensembl_SeqFeatures_contig_list{
 
        my $out;
        my $analysis;
-       my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
+
        if (!$analhash{$analysisid}) {
-	 print STDERR "analysisid: $analysisid\n";
 	 $analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
 	 
 	 if(defined($analysis)){
@@ -230,7 +238,7 @@ sub get_Ensembl_SeqFeatures_contig_list{
 	   $analhash{$analysisid} = $analysis;
 	 }
 	 else{
-	   $self->throw("no analysis fectehd for $fid $hid\n");
+	   $self->throw("no analysis fetched for $fid $hid\n");
 	 }
        } else {
 	   $analysis = $analhash{$analysisid};
@@ -258,7 +266,6 @@ sub get_Ensembl_SeqFeatures_contig_list{
        push(@array,$out);
    }
    &eprof_end('est-object');
-	#print STDERR "No ESTs: ", scalar @array, "\n";
    return @array;
 }
 

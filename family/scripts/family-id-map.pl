@@ -73,7 +73,8 @@ my @unmapped_old=();
 my $current=0;
 
 #put header on log file so it's intelligeble:
-details_blurp('# new_id', 'old_id', 'percentage', 'database', 'new-description', 'new-score', 'new-n_ens_pepts', 'new-n_all', 
+details_blurp('# new_id', 'old_id', 'percentage', 'database', 
+              'new-description', 'new-score', 'new-n_ens_pepts', 'new-n_all', 
               'old-description', 'old-score', 'old-n_ens_pepts', 'old-n_all');
 
 while( my $old = shift @oldfams ) {
@@ -109,7 +110,9 @@ while( my $old = shift @oldfams ) {
            $old->annotation_confidence_score, 
            $old->num_ens_pepts, $old->size);
 
-        details_blurp($bestfam->id, "\t", $old->id, " $perc % ($bestdb) $newd [$news] $newne/$newna -> $oldd [$olds] $oldne/$oldna) \n");
+        details_blurp($bestfam->id, $old->id, $perc, $bestdb,
+                      $newd, $news, $newne, $newna,
+                      $oldd, $olds, $oldne, $oldna);
 
         # (this completes the line started at top of while loop)
     } else { 

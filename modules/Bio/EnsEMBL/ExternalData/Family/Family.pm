@@ -329,6 +329,7 @@ sub each_member_of_db {
 
   # might be slowish; do we need to change this, e.g., go to database? 
 
+  # see if we have it cached -- big win when doing family id mapping
   if ( defined($self->{mems_per_db}->{$db}) ) {
       return @{$self->{mems_per_db}->{$db}};
   }

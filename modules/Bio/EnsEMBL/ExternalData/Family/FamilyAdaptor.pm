@@ -336,7 +336,7 @@ sub _get_alignment {
     $q->execute();
 
     my ( $row ) = $q->fetchrow_arrayref;
-    if ( int(@$row) == 0 ) {            # not found
+    if ( !defined($row) || int(@$row) == 0 ) {            # not found
         return undef;
     }  else { return $$row[0];}
 }

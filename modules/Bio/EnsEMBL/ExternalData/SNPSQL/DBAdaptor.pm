@@ -674,9 +674,9 @@ sub get_Ensembl_SeqFeatures_clone_web {
     return @variations;
 }
 
-=head2 get_all_snp_info
+=head2 get_snp_info_between_two_refsnpids
 
- Title   : get_all_snp_info
+ Title   : get_snp_info_between_two_refsnpids
  Usage   :
  Function:
  Example :
@@ -685,7 +685,7 @@ sub get_Ensembl_SeqFeatures_clone_web {
            
 =cut
 
-sub get_all_snp_info {
+sub get_snp_info_between_two_refsnpids {
 
    my ($self,$start_refnum,$end_refnum) = @_;
    my @infos;

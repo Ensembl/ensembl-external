@@ -129,6 +129,11 @@ sub get_GlovarTraceAdaptor {
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor');
 
 }
+sub get_GlovarHaplotypeAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarHaplotypeAdaptor');
+
+}
 
 =head2 dnadb
 

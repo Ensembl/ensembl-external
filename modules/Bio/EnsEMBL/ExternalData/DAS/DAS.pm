@@ -85,7 +85,7 @@ sub new {
     $self->_dsn($adaptor->dsn()); 
     $self->_types($adaptor->types()); 
     $self->_url($adaptor->url()); 
-
+    
 	return $self; # success - we hope!
 }
 
@@ -164,7 +164,7 @@ sub _map_DASSeqFeature_to_chr {
 	$type = 'chromosome';
     } elsif( $seqname =~ /ctg\d+|NT_\d+/i) {
 	$type = 'fpc';
-	# This next Regex is for ensembl mouse denormalised contigs
+	# This next Regex is for ensembl mouse denormalised contigs - (avc) do we need these any more?
     } elsif( $seqname =~ /\w{1,2}\d+/i) {
 	my $clone;
         eval {
@@ -444,6 +444,26 @@ sub fetch_SeqFeature_by_contig_id {
 	$self->throw("fetch_SeqFeature_by_contig_id is unimplemented!");
  	my @features = ();
 	return(@features);
+}
+
+
+=head2 forwarded_for
+
+ Title   : forwarded_for
+ Usage   : $obj->forwarded_for($ENV{'HTTP_X_FORWARDED_FOR'})
+ Function: store a DAS data source URL
+ Returns : 
+ Args    : none
+
+
+=cut
+
+sub forwarded_for {
+    my ($self,$value) = @_;
+    if( defined $value) {
+        $self->{'_forwarded_for'} = $value;
+    }
+    return $self->{'_forwarded_for'};
 }
 
 

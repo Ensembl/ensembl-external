@@ -6,10 +6,10 @@
 #	begin user configurable options
 #
 
-USR_DEBUG			=	yes
-USR_INTEGRITY		=	no
-USR_PROFILE			=	no
-USR_ARCH				=	linux
+USR_DEBUG = yes
+USR_INTEGRITY =	no
+USR_PROFILE = no
+USR_ARCH = $(shell uname)
 
 #
 #	end user configurable options
@@ -19,45 +19,66 @@ USR_ARCH				=	linux
 #	begin non-configurable derived settings
 #
 
-ifeq '$(USR_ARCH)' 'sgi'
-	CC							=	gcc
-	COMPILE_SYS				=	-Wstrict-prototypes
-	LINK_SYS					=
-else
-ifeq '$(USR_ARCH)' 'sun4'
-	CC							=	gcc
-	COMPILE_SYS
-	LINK_SYS
-else
-#	CC							=	checker gcc
-	CC							=	gcc
-	COMPILE_SYS				=	-Wstrict-prototypes
-	LINK_SYS					=
-endif
-endif
+### default settings: use gcc
+### compiler:
+CC =  gcc
+### general system-specific compiler options (for gcc)
+COMPILE_SYS = \
+	-funsigned-char \
+	-finline-functions \
+	-fPIC \
+	-ansi \
+	-Wall \
+	-Wshadow \
+	-W \
+	-Wundef \
+	-Winline \
+	-Wmissing-prototypes \
+	-Wno-unused \
+	-Wno-comment \
+	-Wstrict-prototypes \
+	-Wwrite-strings
 
-
-#	Debug on
-#
-#	Need -O for inlines
-#
+### additional optimization/debugging options:
 ifeq '$(USR_DEBUG)' 'yes'
-	COMPILE_DEBUG		=	-g # -DDEBUG_ON
+	OPTIMIZE = -g -DEXTERN__INLINE__DEFINE="static " \
+		       -DEXTERN__INLINE__DECLARE="static "
 # following should work on any compiler
-	OPTIMIZATION		= -DEXTERN__INLINE__DEFINE="static " \
-				  -DEXTERN__INLINE__DECLARE="static "
 	STRIP			= chmod 755 $@
 else
-	COMPILE_DEBUG		=
 	LINK_DEBUG		=
-# following is GNU specific
-	OPTIMIZATION		= -DEXTERN__INLINE__DEFINE="extern __inline__ "\
+# following is GNU specific:
+	OPTIMIZE		= -DEXTERN__INLINE__DEFINE="extern __inline__ "\
 				  -DEXTERN__INLINE__DECLARE="" \
 	 			  -O3 -fomit-frame-pointer
 	STRIP			= chmod 755 $@; strip $@
 endif
 
+### override any of the above CC, COMPILE_SYS, OPTIMIZE assignments:
+ifeq '$(USR_ARCH)' 'sgi'
+# COMPILE_SYS  = <archicture/compiler specific options>
+    ifeq '$(USR_DEBUG)' 'yes'
+    # OPTIMIZE  = <archicture/compiler specific debugging options>
+    else
+    # OPTIMIZE  = <archicture/compiler specific optimization options>
+    endif
+endif
 
+ifeq '$(USR_ARCH)' 'OSF1'
+    CC = /bin/cc 
+    COMPILE_SYS = -D__inline__=""
+    LINK_SYS = 
+    ifeq '$(USR_DEBUG)' 'yes'
+    OPTIMIZE  =  -g -DEXTERN__INLINE__DEFINE="static " \
+                    -DEXTERN__INLINE__DECLARE="static "
+    else
+    # following not working/debugged yet:
+    OPTIMIZE  = -O4  -DEXTERN__INLINE__DEFINE="static " \
+                     -DEXTERN__INLINE__DECLARE="static "
+    endif
+endif
+
+### profiling flags:
 ifeq '$(USR_PROFILE)' 'yes'
 	COMPILE_PROFILE	=	-pg
 	LINK_PROFILE		=	-pg
@@ -66,31 +87,16 @@ else
 	LINK_PROFILE		=
 endif
 
-
+# additional check flags:
 ifeq '$(USR_INTEGRITY)' 'yes'
 	COMPILE_INTEGRITY =	-DRUNTIME_VECTOR_INTEGRITY
 else
 	COMPILE_INTEGRITY =
 endif
 
-
-CFLAGS	=	$(COMPILE_SYS) $(OPTIMIZATION) $(COMPILE_DEBUG) \
-					$(COMPILE_PROFILE)	$(COMPILE_INTEGRITY) \
-				-I.								\
-				-funsigned-char				\
-				-finline-functions			\
-				-fPIC								\
-				-ansi								\
-				-Wall								\
-				-Wshadow							\
-				-W									\
-				-Wundef							\
-				-Winline							\
-				-Wmissing-prototypes			\
-				-Wno-unused						\
-				-Wno-comment					\
-				-Wwrite-strings
-
+### with the above definitions, CFLAGS is (or should be) general:
+CFLAGS	= -I. $(COMPILE_SYS) $(OPTIMIZE) \
+	  $(COMPILE_PROFILE)	$(COMPILE_INTEGRITY) 
 LFLAGS		=	$(LINK_SYS) $(LINK_PROFILE) -lm -lpthread
 
 #
@@ -277,4 +283,7 @@ bin/yam: doc/yam.o doc/key.o util/txt.o lib/libutil.a
 #$(BINDIR)/ipret: shmcl/ipret.o lib/libmcl.a lib/libnonema.a lib/libutil.a 
 #	$(CC) -o $@ $^ $(LFLAGS) $(LINK_DEBUG)
 #	$(STRIP)
+
+testmake:
+	echo $(USR_ARCH) $(CC) $(OPTIMIZE) 
 

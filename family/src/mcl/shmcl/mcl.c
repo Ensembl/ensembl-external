@@ -14,6 +14,7 @@
 #include "util/buf.h"
 #include "util/types.h"
 #include "util/checkbounds.h"
+#include "util/minmax.h"
 
 #include "intalg/ilist.h"
 
@@ -829,7 +830,7 @@ mcxMatrix* mcxInitialize (int argc, char* const argv[])
       {  
          if (mclVectorProgression > 0)
          mclVectorProgression
-         =  MAX(1 + (mx->N_cols -1)/mclVectorProgression, 1)
+         =  int_MAX(1 + (mx->N_cols -1)/mclVectorProgression, 1)
 
       ;  else
          mclVectorProgression = -mclVectorProgression

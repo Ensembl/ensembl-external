@@ -47,7 +47,7 @@ void* mcxBufExtend
    ;  if (buf->n_alloc < buf->n + n_request)
       {
          int n_new    
-         =  MAX
+         =  int_MAX
             (  buf->n_alloc * buf->factor + 8
             ,  buf->n + n_request
             )

@@ -97,14 +97,14 @@ void mcxHashStats
          ;  entries    +=  j
          ;  ctr        +=  (float) j * j
          ;  cb         +=  (float) j * j * j
-         ;  max         =  MAX(max, j)
+         ;  max         =  int_MAX(max, j)
       ;  }
 
       ;  link++
    ;  }
 
-   ;  ctr               =  ctr / MAX(1, entries)
-   ;  cb                =  sqrt(cb  / MAX(1, entries))
+   ;  ctr               =  ctr / int_MAX(1, entries)
+   ;  cb                =  sqrt(cb  / int_MAX(1, entries))
 
    ;  fprintf
       (  stdout

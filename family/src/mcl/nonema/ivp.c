@@ -61,14 +61,16 @@ int mcxIvpIdxRevCmp
 int mcxIvpValCmp
 (  const void*             i1
 ,  const void*             i2
-)  {  int     s  =  SIGN(((mcxIvp*)i1)->val - ((mcxIvp*)i2)->val)
+)  { 
+     int     s  =  float_SIGN(((mcxIvp*)i1)->val - ((mcxIvp*)i2)->val)
    ;  return (s ? s : ((mcxIvp*)i1)->idx - ((mcxIvp*)i2)->idx)
 ;  }
 
 int mcxIvpValRevCmp
 (  const void*             i1
 ,  const void*             i2
-)  {  int     s  =  SIGN(((mcxIvp*)i2)->val - ((mcxIvp*)i1)->val)
+)  {  
+      int     s  =  float_SIGN(((mcxIvp*)i2)->val - ((mcxIvp*)i1)->val)
    ;  return (s ? s : ((mcxIvp*)i2)->idx - ((mcxIvp*)i1)->idx)
 ;  }
 

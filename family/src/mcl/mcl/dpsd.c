@@ -38,7 +38,7 @@ mcxMatrix* mcxDiagOrdering
       ;  float    center      =  mcxVectorPowSum(M->vectors+col, 2.0)
      /*  float    maxval      =  mcxVectorMaxValue(M->vectors+col)
       */
-      ;  float    bar         =  MAX(center, selfval) - dpsd_delta
+      ;  float    bar         =  float_MAX(center, selfval) - dpsd_delta
       ;  mcxIvp*  ivp         =  (*vecp_attr)->ivps+col
 
       ;  ivp->idx             =  col

@@ -270,8 +270,8 @@ mcxTxt* mcxTxtInsert
    ;  oldlen            =  txt->len
    ;  width             =  strlen(string)
    ;  offset            =  position >= 0 
-                           ? MIN(position ,  oldlen) 
-                           : MAX(0        ,  oldlen + position + 1)
+                           ? int_MIN(position ,  oldlen) 
+                           : int_MAX(0        ,  oldlen + position + 1)
 
    ;  mcxTxtEnsure(txt, oldlen + width)
 

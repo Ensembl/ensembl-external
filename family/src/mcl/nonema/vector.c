@@ -17,8 +17,6 @@
 #include "util/minmax.h"
 #include "util/sign.h"
 
-
-
 void mcxVectorAlert
 (  
    const char*          caller
@@ -899,10 +897,9 @@ int mcxVectorIdxCmp
    {  
       mcxIvp*   ivp1    =  ((mcxVector*)p1)->ivps
    ;  mcxIvp*   ivp2    =  ((mcxVector*)p2)->ivps
-   ;  int       n_ivps  =  MIN
-                           (  ((mcxVector*)p1)->n_ivps
-                           ,  ((mcxVector*)p2)->n_ivps
-                           )
+   ;  int       n_ivps  =  int_MIN(((mcxVector*)p1)->n_ivps
+                                   ,  ((mcxVector*)p2)->n_ivps
+                                   )
    ;  int       diff    =     ((mcxVector*)p1)->n_ivps
                            -  ((mcxVector*)p2)->n_ivps
 
@@ -933,7 +930,7 @@ int mcxVectorSumCmp
 ,  const void*          p2
 )  
    {  
-      return (int)   SIGN(mcxVectorSum(p1) - mcxVectorSum(p2))
+      return (int)   float_SIGN(mcxVectorSum(p1) - mcxVectorSum(p2))
 ;  }
 
 

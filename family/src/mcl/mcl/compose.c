@@ -269,7 +269,7 @@ float mcxNewFlowVector
                            *  center
                            *  pow(center/maxval,mclCutExp)
 
-      ;  cut               =  MAX(cut_adapt, mclPrecision)
+      ;  cut               =  float_MAX(cut_adapt, mclPrecision)
       ;  rg_mass_prune     =  mcxVectorSelectGqBar(vecd, cut)
       ;  rg_n_prune        =  vecd->n_ivps
    ;  }
@@ -557,6 +557,7 @@ mcxMatrix* mcxFlowExpand
          ;  for (x=0;x<reg.worstXfinal->n_inserted;x++)
             sumx_final += *(flp+x)
          ;  stats->mass_final_nx =  sumx_final/reg.worstXfinal->n_inserted
+                                        /* BUG: 0.0/0 here! */
       ;  }
 
          {

@@ -57,7 +57,7 @@ CREATE TABLE disease_index_wordlist (
 #
 CREATE TABLE gene (
   id int(10) DEFAULT '0' NOT NULL,
-  gene_symbol varchar(30),
+  gene_symbol varchar(30) DEFAULT '' NOT NULL,
   omim_id int(10),
   start_cyto varchar(20),
   end_cyto varchar(20),

@@ -97,7 +97,8 @@ sub get_Ensembl_SeqFeatures_contig {
        "FROM   feature WHERE " .
        "feature.contig = " . $internal_id;
 
-#   print STDERR "$statement\n\n";
+ #  print STDERR "$statement\n\n";
+
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;
 
@@ -209,7 +210,7 @@ sub get_Ensembl_SeqFeatures_contig_list{
        "FROM  feature WHERE feature.contig in $inlist order by hid,seq_start";
    }
 
-#   print STDERR "\n$statement\n\n";
+ #  print STDERR "\n$statement\n\n"
    &eprof_start('riken-sql');
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;

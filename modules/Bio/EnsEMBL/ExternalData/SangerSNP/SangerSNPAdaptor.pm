@@ -13,7 +13,7 @@ Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPAdaptor
 
 A SNP adaptor which sits over the Sanger SNP database.  Provides a means of 
 getting SNPs out of the Sanger SNP database as 
-Bio::EnsEMBL::ExternalData::Variation objects. 
+Bio::EnsEMBL::Variation::VariationFeature objects. 
 
 =head1 CONTACT
 

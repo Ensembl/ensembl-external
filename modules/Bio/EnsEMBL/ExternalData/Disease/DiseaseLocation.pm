@@ -36,9 +36,6 @@ The rest of the documentation details each of the object methods. Internal metho
 =cut
 
 
-
-
-
 package Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation; 
 
 
@@ -49,6 +46,12 @@ use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::Root);
 
 
+=head2 new
+
+  Title     : new
+  Usage     : see DBHandler's fetch methods
+
+=cut 
 
 sub new 
 {
@@ -85,15 +88,13 @@ sub new
 
  Title   : db_id
  Usage   :
- Function:
+ Function: Get/set the omim_id from NCBI, not the id in the disease table!
  Example :
  Returns : 
  Args    :
 
 
 =cut
-
-
 
 
 sub db_id 
@@ -103,8 +104,6 @@ sub db_id
   
   return $self->{'_db_id'};
 }
-
-
 
 =head2 has_gene
 
@@ -119,8 +118,6 @@ sub db_id
 =cut
 
 
-
-
 sub has_gene 
 {
   my ($self,$value) = @_;
@@ -130,21 +127,17 @@ sub has_gene
 }
 
 
-
 =head2 external_gene
 
  Title   : external_gene
  Usage   :
- Function:
+ Function: Get/Set the gene_symbol, same as in NCBI OMIM, for human.
  Example :
  Returns : 
  Args    :
 
 
 =cut
-
-
-
 
 sub external_gene 
 {
@@ -153,8 +146,6 @@ sub external_gene
   
   return $self->{'_gene_id'};
 }
-
-
 
 =head2 ensembl_gene
 
@@ -169,7 +160,6 @@ sub external_gene
 =cut
 
 
-
 sub ensembl_gene 
 {
   my ($self,$value) = @_;
@@ -177,9 +167,6 @@ sub ensembl_gene
   
   return $self->{'ensembl_gene'};
 }
-
-
-
 
 
 =head2 cyto_start
@@ -194,10 +181,6 @@ sub ensembl_gene
 
 =cut
 
-
-
-
-
 sub cyto_start 
 {
   my ($self,$value) = @_;
@@ -205,7 +188,6 @@ sub cyto_start
   
   return $self->{'_cyto_start'};
 }
-
 
 
 =head2 cyto_end
@@ -217,9 +199,7 @@ sub cyto_start
  Returns : 
  Args    :
 
-
 =cut
-
 
 
 sub cyto_end 
@@ -236,14 +216,12 @@ sub cyto_end
 
  Title   : chromosome
  Usage   :
- Function:
+ Function: Get/set the chromosome name. X is 'X', not 23!
  Example :
  Returns : 
  Args    :
 
-
 =cut
-
 
 
 sub chromosome 
@@ -255,7 +233,6 @@ sub chromosome
 }
 
 
-
 =head2 global_position
 
  Title   : global_position
@@ -265,9 +242,7 @@ sub chromosome
  Returns : 
  Args    :
 
-
 =cut
-
 
 
 sub global_position 
@@ -278,16 +253,4 @@ sub global_position
   return $self->{'global_position'};
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+1;

@@ -3,15 +3,16 @@
 
 # Some statistics on families
 
-usage="Usage: $0 host database user family-input.log"
-if [ $# -ne 4  ]; then
+usage="Usage: $0 family-input.log -h host -u user database "
+if [ $# -lt 4  ]; then
      echo $usage; exit 1;
 fi
 
-host=$1
-dbname=$2
-user=$3
-file=$4
+file=$1
+shift;
+# host=$1
+# dbname=$2
+# user=$3
 
 echo -n Totals:
 grep "^inserted" $file
@@ -36,12 +37,12 @@ for b in $brackets; do
     echo -n "$b: "
     echo $b | awk -F'-' \
      '{print "select sum(occurrences) from cumulative_distrib where family_size between ",$1," and ",$2}' |\
-        mysql -u $user -h $host $dbname | grep -v 'sum'
+        mysql "$@" | grep -v 'sum'
 done
 
 max=`echo 'select max(num_ens_pepts) from family' |\
-    mysql -N --batch -u $user -h $host $dbname `
+    mysql -N --batch "$@"`
 echo "Largest family has  $max ensembl members. Row is:"
 echo "select * from family where num_ens_pepts = $max;" |\
-    mysql -u $user -h $host $dbname
+    mysql "$@"
 

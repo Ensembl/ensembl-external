@@ -256,7 +256,7 @@ sub fetch_fasta_by_id  {
 				 	name="$id"
 				);
     
-	warn ("SQL: $q\n");
+##	warn ("SQL: $q\n");
 	
     my $sth = $self->prepare($q);
     $sth->execute();

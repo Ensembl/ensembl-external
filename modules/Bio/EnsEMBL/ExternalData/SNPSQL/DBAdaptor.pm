@@ -195,5 +195,9 @@ sub get_snp_info_by_refsnpid {
   return $self->get_SNPAdaptor()->fetch_by_refsnpid(@args);
 }
 
+sub get_available_adaptors{
+  my %pairs = ("SNP", "Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor");
+  return (\%pairs);
+}
 
 1;

@@ -4,6 +4,8 @@
 #include <math.h>
 #include <malloc.h>
 #include <string.h>
+#include <assert.h>
+
 #include "markov.h"
 
 void dump_hits (int, struct hit_struct *);
@@ -135,15 +137,19 @@ while(!feof(fp))
 	memset(BUFFER, '\0', 400 );
 	memset(protein1,'\0',100);
 	memset(protein2,'\0',100);
-        if (!feof(fp))
-	        {
-		memset(BUFFER, '\0', 400 );
-        	memset(protein1,'\0',100);
-        	memset(protein2,'\0',100);
-        	fgets(BUFFER, 400, fp);
-        	sscanf(BUFFER,"%s\t%s\t%d\t%d\n",protein1,protein2,&evalue1,&evalue2); 
+        if (!feof(fp)) {
+          memset(BUFFER, '\0', 400 );
+          memset(protein1,'\0',100);
+          memset(protein2,'\0',100);
+          fgets(BUFFER, 400, fp);
+          sscanf(BUFFER,"%s\t%s\t%d\t%d\n",protein1,protein2,&evalue1,&evalue2); 
+
+          assert ( strlen(protein1) <= MAX_ID_LENGTH);
+          assert ( strlen(protein2) <= MAX_ID_LENGTH);
+
 	if ((total_hits > 0) && (!strcmp(hits[total_hits-1].protein1,protein1)) && (!strcmp(hits[total_hits-1].protein2,protein2)) )
 			{
+                          fprintf(stderr, "?");
 			}
 		else
 			{

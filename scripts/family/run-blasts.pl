@@ -106,7 +106,7 @@ foreach my $chunk ( @chunks) {
 #                   "rm -f $tmp_name.*",
 # (nfs may get overloaded; rcp should be more robust
                    "gzip $tmp_file && ",
-                   "/usr/bin/rcp $tmp_file acari:$results_dir/$i.out.gz && ",
+                   "/usr/bin/rcp $tmp_file.gz acari:$results_dir/$i.out.gz && ",
                    "rm -f $tmp_name.*",
                    " \" ")
                  );

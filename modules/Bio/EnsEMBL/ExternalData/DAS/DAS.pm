@@ -89,6 +89,175 @@ sub new {
 }
 
 
+=head2  fetch_all_by_Slice
+
+  Arg[1]  : Slice 
+  Example : $features = $adaptor->fetch_all_by_Slice($slice);
+  Description : fetches DAS features for this DAS Adaptor and maps to 
+                slice coordinates
+  ReturnType: arrayref of Bio::Ensembl::External::DAS::DASSeqFeature
+  Exceptions: ?
+  Caller  : mainly Slice.pm
+
+=cut
+
+sub fetch_all_by_Slice {
+    my ($self,$slice) = @_;
+
+    #
+    # IGNORE Caching for now
+    #
+
+
+    my $chr_length = $slice->get_Chromosome()->length();
+    my $chr_start  = $slice->chr_start();
+    my $chr_name   = $slice->chr_name();
+    my $offset     = 1 - $chr_start;
+    my $chr_end    = $slice->chr_end();
+    my $chr_strand = $slice->strand();
+    my $length     = $chr_end + $offset;
+    my $clone_adaptor = $self->adaptor->db->get_CloneAdaptor();
+
+
+    my %genomic_features;
+    
+    my $mapper = $self->db->get_AssemblyMapperAdaptor()->fetch_by_type($slice->assembly_type());
+    
+    my @raw_contig_ids = $mapper->list_contig_ids( $chr_name,
+						   $chr_start,
+						   $chr_end );
+    
+    my @fpccontigs = (undef);
+    
+    my $rca = $self->db()->get_RawContigAdaptor();
+    my $raw_Contig_Hash = $rca->fetch_filled_by_dbIDs( @raw_contig_ids );
+    
+    # provide mapping from contig names to internal ids
+    my %contig_name_hash =
+     map { ( $_->name(), $_) } values %$raw_Contig_Hash;
+    my @raw_contig_names = keys %contig_name_hash;
+    
+    # retrieve all embl clone accessions
+    my %clone_hash  =
+	map {( $_->clone->embl_id(), 1 ) } values %$raw_Contig_Hash;
+    my @clones = keys %clone_hash;
+
+    my @result_list;
+
+    # As DAS features come back from a Call Back system, we need to loop
+    # again over the list of features, decide what to do with them and map
+    # them all to chromosome coordinates
+    foreach my $sf ( @{ $self->get_Ensembl_SeqFeatures_DAS
+	($chr_name,$chr_start,$chr_end,
+	 \@fpccontigs, \@clones,\@raw_contig_names, $chr_length)} ) {
+
+	if( $self->_map_DASSeqFeature_to_chr($mapper,\%contig_name_hash,$offset,$length,$sf) == 1 ) {
+	    push(@result_list,$sf);
+	}
+    }
+
+    return \@result_list;
+}
+
+
+sub _map_DASSeqFeature_to_chr {
+    my ($self,$mapper,$contig_hash_ref,$offset,$length,$sf) = @_;
+
+    my $type;
+    
+    if( $sf->seqname() =~ /(\w+\.\d+\.\d+.\d+|BAC.*_C)|CRA_.*/ ) {
+	$type = 'contig';
+    } elsif( $sf->seqname() =~ /chr[\d+|X|Y]/i) {
+	$type = 'chromosome';
+    } elsif( $sf->seqname() =~ /^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|X|Y|2L|2R|3L|3R)$/o) {  # breaks on mouse!
+	$type = 'chromosome';
+    } elsif( $sf->seqname() =~ /ctg\d+|NT_\d+/i) {
+	$type = 'fpc';
+	
+	# This next Regex is for ensembl mouse denormalised contigs
+    } elsif( $sf->seqname() =~ /^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|X)\.\d+\-\d+/i) {
+	$type = 'contig';
+    } elsif( $sf->seqname() =~ /\w{1,2}\d+/i) {
+	# Ouch. Chained function calls. To be optimised?
+	my $clone = $self->db->clone_adaptor->fetch_by_accession($sf->seqname);
+	
+	#we only use finished clones. finished means there is only
+	#one contig on the clone and it has an offset of 1
+	
+	# Could we have a method on clone saying "is_finished"?
+	my @contigs = @{$clone->get_all_Contigs};
+	if(scalar(@contigs) == 1 && $contigs[0]->embl_offset == 1) {
+	    # sneaky. Finished clones have one contig - by setting this as the seqname
+	    # the contig remapping will work.
+	    $sf->seqname($contigs[0]->name);
+	    $type = 'contig';
+	}
+    } elsif( $sf->das_type_id() eq '__ERROR__') {
+#                    Always push errors even if they aren't wholly within the VC
+	$type = 'error';
+#                     push(@{$genomic_features{$dsn}}, $sf);
+    } elsif( $sf->seqname() eq '') {
+	#suspicious
+	warn ("Got a DAS feature with an empty seqname! (discarding it)\n");
+	return 0;
+    } else {
+	warn ("Got a DAS feature with an unrecognized segment type: >", $sf->seqname(), "< >", $sf->das_type_id(), "<\n");
+	return 0;
+    }
+
+
+    # now switch on type
+
+    if( $type eq 'contig' ) {
+	my( $coord ) = $mapper->map_coordinates_to_assembly
+	    ($contig_name_hash->{ $sf->seqname() }->dbID(), 
+	     $sf->das_start, 
+	     $sf->das_end, 
+	     $sf->das_strand );
+
+	# if its not mappable than ignore the feature
+	
+	if( $coord->isa( "Bio::EnsEMBL::Mapper::Gap" ) ) {
+	    return 0;
+	}
+
+	$sf->das_move( $coord->{'start'}+$offset, $coord->{'end'}+$offset, $coord->{'strand'} );
+
+	if ( $sf->das_start > $length || $sf->das_end < 1 ) {
+	    return 0;
+	} else {
+	    return 1;
+	}
+
+	return 1;
+
+    } elsif( $type eq 'chromosome' ) {
+	$sf->das_shift( $offset );
+	# trim features off slice
+	if ( $sf->das_start > $length || $sf->das_end < 1 ) {
+	    return 0;
+	} else {
+	    return 1;
+	}
+    } elsif ( $type eq 'error' ) {
+	return 1;
+    } elsif ( $type eq 'fpc' ) {
+	# don't handle FPC's currently
+	return 0;
+    } else {
+	return 0;
+    }
+
+    # should not get here. Throw
+
+    $self->throw("Impossible statement reached. Bad DAS SeqFeature coordinate error");
+    
+}
+
+    
+
+
+
 =head2 get_Ensembl_SeqFeatures_DAS
 
  Title   : get_Ensembl_SeqFeatures_DAS ()
@@ -164,6 +333,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_orientation($f->orientation());    
         $CURRENT_FEATURE->das_phase($f->phase());
         $CURRENT_FEATURE->das_note($f->note());
+
 
         #print STDERR "adding feature for $dsn....\n";
         push(@{$DAS_FEATURES}, $CURRENT_FEATURE);

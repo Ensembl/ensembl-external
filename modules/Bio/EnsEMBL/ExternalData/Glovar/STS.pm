@@ -1,5 +1,42 @@
 package Bio::EnsEMBL::ExternalData::Glovar::STS;
 
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::Glovar::STS -
+Object representing a Glovar STS
+
+=head1 SYNOPSIS
+
+my $sts = new Bio::EnsEMBL::ExternalData::Glovar::STS(-start   => 100,
+                                                      -end     => 300,
+                                                      -strand  => 1,
+                                                      -slice   => $slice
+                                                     );
+$sts->sense_length(21);
+$sts->antisense_length(20);
+$sts->pass_status('PCR_pass');
+
+=head1 DESCRIPTION
+
+This object represents a Glovar STS. In addition to the usual attributes of
+a Bio::EnsEMBL::Feature, it holds information like sense and antisense primer
+length and test pass status.
+
+=head1 LICENCE
+
+This code is distributed under an Apache style licence:
+Please see http://www.ensembl.org/code_licence.html for details
+
+=head1 AUTHOR
+
+Patrick Meidl <pm2@sanger.ac.uk>
+
+=head1 CONTACT
+
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
+
+=cut
+
 use strict;
 use vars qw(@ISA);
 use Bio::EnsEMBL::Feature;

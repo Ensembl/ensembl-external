@@ -1,7 +1,7 @@
 =head1 NAME
 
 Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor -
-GlovarSTSAdaptor - DESCRIPTION of Object
+Database adaptor for Glovar STSs
 
 =head1 SYNOPSIS
 
@@ -13,7 +13,8 @@ $glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -driver => 'Oracle'
 );
 my $glovar_adaptor = $glodb->get_GlovarSTSAdaptor;
-$listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
+$var_listref  = $glovar_adaptor->fetch_all_by_clone_accession(
+                    'AL100005', 'AL100005', 1, 10000);
 
 =head1 DESCRIPTION
 

@@ -1,5 +1,42 @@
 package Bio::EnsEMBL::ExternalData::Glovar::Haplotype;
 
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::Glovar::Haplotype -
+Object representing a Glovar haplotype
+
+=head1 SYNOPSIS
+
+my $hap = new Bio::EnsEMBL::ExternalData::Glovar::Haplotype(-start   => 100,
+                                                            -end     => 300,
+                                                            -strand  => 1,
+                                                            -slice   => $slice
+                                                        );
+$hap->population('Caucasian');
+$hap->num_snps(10);
+$hap->add_tagSNP(50000, 50000);
+
+=head1 DESCRIPTION
+
+This object represents a Glovar haplotype. In addition to the usual attributes
+of a Bio::EnsEMBL::Feature, it holds information like sample population, number
+of tagSNPs on the haplotype and start/end positions of the tagSNPs.
+
+=head1 LICENCE
+
+This code is distributed under an Apache style licence:
+Please see http://www.ensembl.org/code_licence.html for details
+
+=head1 AUTHOR
+
+Patrick Meidl <pm2@sanger.ac.uk>
+
+=head1 CONTACT
+
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
+
+=cut
+
 use strict;
 use vars qw(@ISA);
 use Bio::EnsEMBL::Feature;
@@ -78,8 +115,8 @@ sub num_snps {
 
 =head2 add_tagSNP
 
-  Arg[1]      : String $start - SNP start
-  Arg[2]      : String $end - SNP end
+  Arg[1]      : String $start - SNP start in chromosomal coordinates
+  Arg[2]      : String $end - SNP end in chromosomal coordinates
   Example     : $haplotype->add_tagSNP(123, 123);
   Description : adds tag SNPs to haplotype
   Return type : none

@@ -310,7 +310,7 @@ sub get_Ensembl_SeqFeatures_clone {
 	
        #
        # get the alleles
-       # & put them in a string separated by '/'
+       # & put them in a string separated by '|'
        # 
        
        my $query2 = qq{
@@ -328,7 +328,7 @@ sub get_Ensembl_SeqFeatures_clone {
        while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
 	   
 	   my ($allele) = @{$arr2};
-	   $alleles .= "$allele\/";
+	   $alleles .= "$allele\|";
 	   
        }
        chop $alleles;

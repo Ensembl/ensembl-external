@@ -692,7 +692,7 @@ sub  fetch_all_by_Slice{
   while (my $info = $sth->fetchrow_hashref()) {
     if ($info) {
       my $physmapstr = $info->{end};
-      my ($start, $end) = split /\^|\.\./, $physmapstr if ($info->{start} != $info->{end});
+      my ($start, $end) = split /\^|\.\./, $physmapstr if ($info->{start} ne $info->{end});
       $info->{start} = $start-$chr_start+1 if ($start);
       $info->{end} = $end-$chr_start+1 if ($end);
       $info->{start} = $info->{start}-$chr_start+1 if (!$start);

@@ -61,7 +61,8 @@ int  parsekey
 )  ;
 
 
-void setkey
+void set_key                            
+/* This was 'setkey', but conflicts with setkey in OSF1's stdlib.h  */
 (  yamSlice*   slice
 )  ;
 
@@ -362,7 +363,7 @@ yamSlice*  expandkey
  
    ;  if (!strcmp(key_g->str, "\\set#3"))
       {  
-         setkey(slice)
+         set_key(slice)
       ;  return slice
    ;  }
       else
@@ -450,7 +451,7 @@ yamSlice*  yamSliceNew
 ;  }
 
 
-void setkey
+void set_key
 (
    yamSlice*   slice
 )
@@ -463,14 +464,14 @@ void setkey
    ;  char*    p        =  key->str
 
    ;  if (n_args_g != 3)
-         yamErr(slice, "setkey", "\\set takes three arguments\n")
+         yamErr(slice, "set_key", "\\set takes three arguments\n")
       ,  exit(1)
 
    ;  ok      =  (*p == '\\')
    ;  while (*++p && isalpha(*p))
       ;
    ;  if (!ok || *p)
-         yamErr(slice, "setkey", "")
+         yamErr(slice, "set_key", "")
       ,  fprintf
          (  stderr
          ,  "first argument (%s) must take form \\[a-zA-Z_]+\n"
@@ -480,7 +481,7 @@ void setkey
 
    ;  n_args  =  *(arg2_g->str) - '0'
    ;  if (n_args < 0 || n_args > 9)
-         yamErr(slice, "setkey", "")
+         yamErr(slice, "set_key", "")
       ,  fprintf(stderr, "second argument should be in range [0-9]\n")
       ,  exit(1)
 
@@ -493,13 +494,13 @@ void setkey
                      )
 
    ;  if (!kv)
-         fprintf(stderr, "[setkey panic & PBD] cannot insert key\n")
+         fprintf(stderr, "[set_key panic & PBD] cannot insert key\n")
       ,  exit(1)
 
    ;  else
       {
          if (kv->key != key)
-            fprintf(stderr, "[setkey warning] overwriting key <%s>\n",key->str)
+            fprintf(stderr, "[set_key warning] overwriting key <%s>\n",key->str)
          ,  mcxTxtFree(&key)
 
       ;  if (kv->val)
@@ -510,7 +511,7 @@ void setkey
 
 
    ;  if(0)printf
-      (  "[setkey] made key-val [%d]<%s><%s> in %p\n"
+      (  "[set_key] made key-val [%d]<%s><%s> in %p\n"
       ,  ((mcxTxt*) (kv->key))->len
       ,  ((mcxTxt*) (kv->key))->str
       ,  ((mcxTxt*) (kv->val))->str

@@ -32,8 +32,7 @@ void mcxMemDenied
 ,  int               n
 )  ;
 
-
-extern __inline__ void* rqAlloc
+EXTERN__INLINE__ void* rqAlloc
 (  int               size
 ,  mcxOnFail         ON_FAIL
 )  {  

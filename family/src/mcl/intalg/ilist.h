@@ -16,7 +16,6 @@ Ilist*   ilInit
 (  Ilist*   il
 )  ;
 
-
 Ilist*   ilInstantiate
 (  Ilist*   il
 ,  int      n
@@ -177,7 +176,6 @@ Ilist* ilLottery
 ,  int      times
 )  ;
 
-
 int ilSelectRltBar
 (  Ilist*   il
 ,  int      i1
@@ -195,7 +193,7 @@ int ilSelectGqBar
 )  ;
 
 
-extern __inline__ int ilSelectGqBar
+EXTERN__INLINE__ int ilSelectGqBar
 (  Ilist*   il
 ,  int      i
 )  {  return ilSelectRltBar(il, i,  0, intGq, NULL, 0)
@@ -208,7 +206,7 @@ int ilSelectLtBar
 )  ;
 
 
-extern __inline__ int ilSelectLtBar
+EXTERN__INLINE__ int ilSelectLtBar
 (  Ilist*   il
 ,  int      i
 )  {  return ilSelectRltBar(il, i,  0, intLt, NULL, 0)
@@ -221,7 +219,7 @@ int ilCountLtBar
 )  ;
 
 
-extern __inline__ int ilCountLtBar
+EXTERN__INLINE__ int ilCountLtBar
 (  Ilist*   il
 ,  int      i
 )  {  return ilSelectRltBar(il, i,  0, intLt, NULL, 1)
@@ -240,31 +238,31 @@ Ilist*     ilRandPartitionSizes
 )  ;
 
 
-extern __inline__ int   ilIsDescending
+EXTERN__INLINE__ int   ilIsDescending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, -1, 1)
 ;  }
 
 
-extern __inline__ int   ilIsNonAscending
+EXTERN__INLINE__ int   ilIsNonAscending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, -1, 0)
 ;  }
 
 
-extern __inline__ int   ilIsNonDescending
+EXTERN__INLINE__ int   ilIsNonDescending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, 1, 0)
 ;  }
 
 
-extern __inline__ int   ilIsAscending
+EXTERN__INLINE__ int   ilIsAscending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, 1, 1)
 ;  }
 
 
-extern __inline__ Ilist* ilNew
+EXTERN__INLINE__ Ilist* ilNew
 (  int   n
 ,  int*  ints
 ,  int   c

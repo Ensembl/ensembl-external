@@ -48,7 +48,7 @@ mcxMatrix* mcxMatrixMaskedRead
 )  ;
 
 
-extern __inline__ mcxMatrix* mcxMatrixRead
+EXTERN__INLINE__ mcxMatrix* mcxMatrixRead
 (  
    mcxIOstream*      xfIn
 ,  mcxOnFail         ON_FAIL
@@ -184,7 +184,7 @@ void mcxVectorDumpAscii
 )  ;
 
 
-extern __inline__ void mcxVectorWriteAscii
+EXTERN__INLINE__ void mcxVectorWriteAscii
 (  const mcxVector*  vec
 ,  FILE*             fp
 ,  int               valdigits

@@ -104,7 +104,7 @@ void        mcxArrayFree
 )  ;
 
 
-extern __inline__ void  mcxArrayFree
+EXTERN__INLINE__ void  mcxArrayFree
 (  
    mcxArray**  arpp
 ,  void        (*obRelease)(void *)

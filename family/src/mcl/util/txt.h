@@ -190,7 +190,7 @@ char*    mcxTxtChrcpy
 )  ;
 
 
-extern __inline__ mcxTxt* mcxTxtEmptyString
+EXTERN__INLINE__ mcxTxt* mcxTxtEmptyString
 (  mcxTxt*           txt
 )  {
       txt           =   mcxTxtEnsure(txt, 1)
@@ -200,7 +200,7 @@ extern __inline__ mcxTxt* mcxTxtEmptyString
 ;  }
 
 
-extern __inline__ mcxTxt* mcxTxtNWrite
+EXTERN__INLINE__ mcxTxt* mcxTxtNWrite
 (  mcxTxt*           txt
 ,  const char*       string
 ,  int               n
@@ -216,7 +216,7 @@ extern __inline__ mcxTxt* mcxTxtNWrite
 ;  }
 
 
-extern __inline__ mcxTxt* mcxTxtWrite
+EXTERN__INLINE__ mcxTxt* mcxTxtWrite
 (  mcxTxt*           txt
 ,  const char*       string
 )  {  
@@ -227,7 +227,7 @@ extern __inline__ mcxTxt* mcxTxtWrite
 ;  }
 
 
-extern __inline__ const char* mcxTxtGetStr
+EXTERN__INLINE__ const char* mcxTxtGetStr
 (  mcxTxt*           txt
 )  {  
       if (txt==NULL)
@@ -237,7 +237,7 @@ extern __inline__ const char* mcxTxtGetStr
 ;  }
 
 
-extern __inline__ mcxTxt* mcxTxtNew
+EXTERN__INLINE__ mcxTxt* mcxTxtNew
 (  const char* string
 )  {  return mcxTxtInstantiate(NULL, string)
 ;  }
@@ -248,7 +248,7 @@ extern __inline__ mcxTxt* mcxTxtNew
 #ifdef  SPLICE_WRAPPING
 
 
-extern __inline__ mcxTxt* mcxTxtAppend
+EXTERN__INLINE__ mcxTxt* mcxTxtAppend
 (  mcxTxt*              txt
 ,  const char*          string
 )  {  
@@ -263,7 +263,7 @@ extern __inline__ mcxTxt* mcxTxtAppend
 ;  }
 
 
-extern __inline__ mcxTxt* mcxTxtInsert
+EXTERN__INLINE__ mcxTxt* mcxTxtInsert
 (  mcxTxt*              txt
 ,  const char*          string
 ,  int                  offset
@@ -279,7 +279,7 @@ extern __inline__ mcxTxt* mcxTxtInsert
 ;  }
 
 
-extern __inline__ mcxTxt* mcxTxtDelete
+EXTERN__INLINE__ mcxTxt* mcxTxtDelete
 (  mcxTxt*           txt
 ,  int               offset
 ,  int               width
@@ -302,7 +302,7 @@ extern __inline__ mcxTxt* mcxTxtDelete
 
 #ifndef SPLICE_WRAPPING
 
-extern __inline__ mcxTxt* mcxTxtAppend
+EXTERN__INLINE__ mcxTxt* mcxTxtAppend
 (  mcxTxt*              txt
 ,  const char*       string
 )  {  return mcxTxtInsert(txt, string, -1)

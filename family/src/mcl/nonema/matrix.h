@@ -136,7 +136,7 @@ mcxMatrix* mcxMatrixDiag
 */
 
 
-extern __inline__ mcxMatrix* mcxMatrixIdentity
+EXTERN__INLINE__ mcxMatrix* mcxMatrixIdentity
 (  int                     n_rows
 )  
    {  
@@ -265,7 +265,7 @@ void mcxMatrixUnary
 */
 
 
-extern __inline__ void mcxMatrixMakeCharacteristic
+EXTERN__INLINE__ void mcxMatrixMakeCharacteristic
 (  mcxMatrix*              mx
 )  
    {
@@ -335,7 +335,7 @@ mcxMatrix* mcxMatrixBinary
 */
 
 
-extern __inline__ mcxMatrix* mcxMatrixMax
+EXTERN__INLINE__ mcxMatrix* mcxMatrixMax
 (  
    const mcxMatrix*        m1
 ,  const mcxMatrix*        m2
@@ -351,7 +351,7 @@ extern __inline__ mcxMatrix* mcxMatrixMax
 */
 
 
-extern __inline__ mcxMatrix* mcxMatrixAdd
+EXTERN__INLINE__ mcxMatrix* mcxMatrixAdd
 (  
    const mcxMatrix*        m1
 ,  const mcxMatrix*        m2
@@ -367,7 +367,7 @@ extern __inline__ mcxMatrix* mcxMatrixAdd
 */
 
 
-extern __inline__ mcxMatrix* mcxMatrixHadamard
+EXTERN__INLINE__ mcxMatrix* mcxMatrixHadamard
 (  
    const mcxMatrix*        m1
 ,  const mcxMatrix*        m2
@@ -408,7 +408,7 @@ float mcxMatrixMaxValue
 */
 
 
-extern __inline__ float mcxMatrixMaxValue
+EXTERN__INLINE__ float mcxMatrixMaxValue
 (  
    const mcxMatrix*        mx
 )  

@@ -52,7 +52,7 @@ void mcxIvpFree
 )  ;
 
 
-extern __inline__ mcxIvp* mcxIvpInit
+EXTERN__INLINE__ mcxIvp* mcxIvpInit
 (  
    mcxIvp*                 ivp
 )  
@@ -61,7 +61,7 @@ extern __inline__ mcxIvp* mcxIvpInit
 ;  }
 
 
-extern __inline__ mcxIvp* mcxIvpCreate
+EXTERN__INLINE__ mcxIvp* mcxIvpCreate
 (  
    int                     idx
 ,  float                   value
@@ -71,7 +71,7 @@ extern __inline__ mcxIvp* mcxIvpCreate
 ;  }
 
 
-extern __inline__ void mcxIvpFree
+EXTERN__INLINE__ void mcxIvpFree
 (  
    mcxIvp**                   p_ivp
 )  

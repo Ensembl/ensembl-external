@@ -6,7 +6,7 @@
 #	begin user configurable options
 #
 
-USR_DEBUG			=	no
+USR_DEBUG			=	yes
 USR_INTEGRITY		=	no
 USR_PROFILE			=	no
 USR_ARCH				=	linux
@@ -42,13 +42,15 @@ endif
 #	Need -O for inlines
 #
 ifeq '$(USR_DEBUG)' 'yes'
-	COMPILE_DEBUG		=	-g -DDEBUG_ON
-	OPTIMIZATION		=	-O
+	COMPILE_DEBUG		=	-g # -DDEBUG_ON
+# following should work on any compiler
+	OPTIMIZATION		=	 -DEXTERN__INLINE__="static "
 	STRIP					=	chmod 755 $@
 else
 	COMPILE_DEBUG		=
-	LINK_DEBUG			=
-	OPTIMIZATION		=	-O3 -fomit-frame-pointer
+	LINK_DEBUG		=
+# following is GNU specific
+	OPTIMIZATION		=	-DEXTERN__INLINE__="extern __inline__ " -O3 -fomit-frame-pointer
 	STRIP					=	chmod 755 $@; strip $@
 endif
 
@@ -233,7 +235,7 @@ $(BINDIR)/mcxsubs: shmx/mcxsubs.o lib/libmcl.a lib/libnonema.a lib/libintalg.a l
 	$(CC) -o $@ $^ $(LFLAGS) $(LINK_DEBUG)
 	$(STRIP)
 
-$(BINDIR)/clmproject: shcl/clmproject.o lib/libmcl.a lib/libnonema.a lib/libutil.a
+$(BINDIR)/clmproject: shcl/clmproject.o lib/libmcl.a lib/libnonema.a lib/libutil.a lib/libintalg.a
 	$(CC) -o $@ $^ $(LFLAGS) $(LINK_DEBUG)
 	$(STRIP)
 

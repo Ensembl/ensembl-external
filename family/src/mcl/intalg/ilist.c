@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdarg.h>
+#include <string.h>                     /* for memcpy */
 
 #include "util/buf.h"
 #include "util/alloc.h"

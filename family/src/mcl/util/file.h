@@ -112,7 +112,7 @@ void mcxIOstreamRewind
 )  ;
 
 
-extern __inline__ void     mcxIOstreamFree
+EXTERN__INLINE__ void     mcxIOstreamFree
 (  
    mcxIOstream**  xf
 )  

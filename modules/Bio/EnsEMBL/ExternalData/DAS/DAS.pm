@@ -88,6 +88,101 @@ sub new {
 
 }
 
+=head2 get_Ensembl_SeqFeatures_contig_list
+
+ Title   : get_Ensembl_SeqFeatures_contig_list ()
+ Usage   : get_Ensembl_SeqFeatures_contig_list($listref,
+ 											$sequence_version,
+					   						$start,
+					   						$end);
+ Function:
+ Example :
+ Returns :
+ Args    :
+ Notes   : This function sets the primary tag and source tag fields in the
+           features so that higher level code can filter them by their type
+           (das) and their data source name (dsn)
+
+=cut
+
+sub get_Ensembl_SeqFeatures_contig_list{
+    my ($self) = shift;
+    my ($listref) = @_;
+
+	my @contigs	= @$listref;
+	#my @contig_ids = map { "segment=". $_->id() } @contigs;
+	my @contig_ids = map { $_->id() } @contigs;
+
+	my $dbh 	= $self->_db_handle();
+	my $dsn 	= $dbh->dsn();
+
+	#my $request = join(";",@contig_ids); 
+	#print STDERR "============== DAS_REQUEST ====================\n";
+	#print STDERR "$request\n";
+	#print STDERR "============== DAS_REQUEST ====================\n";
+
+	my @xml_features = ();
+	my @features = ();
+	my $segment = undef;
+	my @segments = ();
+
+	foreach my $c (@contig_ids){
+		eval {
+			my $s =  $dbh->segment(-ref=>$c);
+			$s->{'_seqname'} = $c;
+			push(@segments, $s);
+		};
+	}
+	if ($@){
+		print STDERR "ERROR: Bad DAS segment request via DSN $dsn ($@)\n"; 
+		return(@features);
+	}
+
+	foreach my $s (@segments){
+		eval {
+			my @f = $s->features();
+			@f = map { $_->{'_seqname'} = $s->{'_seqname'}} @f;
+			push(@xml_features, @f);
+		};
+	}
+	if ($@){
+		print STDERR "ERROR: Bad DAS segment request via DSN $dsn ($@)\n"; 
+		return(@features);
+	}
+
+	foreach my $f (@xml_features){
+		next unless($f);	# sometimes get null features here: DAS bug?
+		unless (ref($f) && $f->isa("Bio::Das::Segment::Feature")){
+			warn qq(Got a bad DAS feature "$f" from DSN: $dsn ($f)\n);
+			next;
+		}
+		my $out = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+		$out->seqname($f->{'_seqname'});
+
+		$out->das_name($f->type());
+		$out->das_id($f->id());
+		$out->das_dsn($dsn);
+		$out->start($f->start());
+		$out->end($f->end());
+		$out->primary_tag('das');
+		$out->source_tag($dsn);
+		my $ori = $f->orientation();
+		if ($ori eq "+"){
+			$out->strand(1);
+		} elsif ($ori eq "-"){
+			$out->strand(-1);
+		} else {
+			$out->strand(0);	# help!
+		}
+		$out->phase($f->phase());   
+		push(@features,$out);
+	}
+
+	return(@features);
+}
+
+
+
 =head2 get_Ensembl_SeqFeatures_contig
 
  Title   : get_Ensembl_SeqFeatures_contig ()
@@ -113,6 +208,7 @@ sub get_Ensembl_SeqFeatures_contig{
     if ( ! defined $id) {
 		$self->throw("Contig ID required as argument to get_Ensembl_SeqFeatures_contig!");
     }
+	#print STDERR "$id: $start > $stop\n";
 
 	if ($start > $stop){
 		print STDERR "ERROR: Bad DAS request on contig $id -> st/ed: $start, $stop\n"; 
@@ -134,9 +230,9 @@ sub get_Ensembl_SeqFeatures_contig{
 	my @xml_features = ();
 	if($segment){
 		eval {
-			print STDERR "Getting segment features from $dsn...\n";
+			#print STDERR "Getting segment features from $dsn...\n";
 			@xml_features = $segment->features();
-			print STDERR "Done with $dsn\n";
+			#print STDERR "Done with $dsn\n";
 		};
 		if ($@){
 			print STDERR "ERROR: Bad DAS segment request via DSN $dsn (ignoring)\n"; 
@@ -144,34 +240,19 @@ sub get_Ensembl_SeqFeatures_contig{
 		}
 		foreach my $f (@xml_features){
 			next unless($f);	# sometimes get null features here: DAS bug?
-
-			## Should do clipping here!
-			#print STDERR "Got DAS feature $f\n";
-			#print STDERR "Got DAS start ", $f->start(), "\n";
-			#print STDERR "Got DAS end ", $f->stop(), "\n";
-			#print STDERR "Got DAS label ", $f->label, "\n";
-			#print STDERR "Got DAS id ", $f->id, "\n";
-			#print STDERR "Got DAS link ", $f->link, "\n";
-
-			my $type = $f->type();
-			my $s = $f->start();
-			my $e = $f->stop();
-			my $id = $f->id();
-			my $ori = $f->orientation();
-
-			#print STDERR "Got raw DAS $id at $s --> $e on strand $ori\n";
 			unless (ref($f) && $f->isa("Bio::Das::Segment::Feature")){
 				warn qq(Got a bad DAS feature "$f" from DSN: $dsn\n);
 				next;
 			}
 			my $out = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
-			$out->das_name($type);
-			$out->das_id($id);
+			$out->das_name($f->type());
+			$out->das_id($f->id());
 			$out->das_dsn($dsn);
-			$out->start($s);
-			$out->end($e);
+			$out->start($f->start());
+			$out->end($f->end());
 			$out->primary_tag('das');
 			$out->source_tag($dsn);
+			my $ori = $f->orientation();
 			if ($ori eq "+"){
 				$out->strand(1);
 			} elsif ($ori eq "-"){
@@ -179,7 +260,7 @@ sub get_Ensembl_SeqFeatures_contig{
 			} else {
 				$out->strand(0);	# help!
 			}
-			$out->phase($f->phase);   
+			$out->phase($f->phase());   
 			push(@features,$out);
 		}
 	}
@@ -187,6 +268,26 @@ sub get_Ensembl_SeqFeatures_contig{
 
 }
 
+
+
+
+=head2 get_Ensembl_SeqFeatures_clone_list
+
+ Title   : get_Ensembl_SeqFeatures_clone_list (not used)
+ Function:
+ Example :
+ Returns :
+ Args    :
+
+=cut
+
+sub get_Ensembl_SeqFeatures_clone_list {
+	my ($self) = @_;
+    #$self->warn("DAS external feature factories do not support fetches using clone IDs (use contig IDs)");
+	
+	my @tmp;
+	return @tmp;
+}
 
 
 
@@ -206,8 +307,6 @@ sub get_Ensembl_SeqFeatures_clone{
 	my @tmp;
 	return @tmp;
 }
-
-
 
 =head2 fetch_SeqFeature_by_contig_id
 

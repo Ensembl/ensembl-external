@@ -297,8 +297,10 @@ sub fetch_all_by_Slice {
   # Map the DAS results into the coord system of the original slice
   my @result_list;
   foreach my $das_sf( @$features ){
-    my $das_slice = $slice_by_segment{ $das_sf->seqname } ||
-      ( warn( "No Slice for ", $das_sf->seqname ) && next );
+    my $segment = $das_sf->seqname ||
+      ( warn( "No seqname for $das_sf" ) && next );
+    my $das_slice = $slice_by_segment{$segment} ||
+      ( warn( "No Slice for $segment" ) && next );
     $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) &&
       push @result_list, $das_sf;
   }

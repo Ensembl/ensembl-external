@@ -30,11 +30,11 @@ my @word_order = qw(UNKNOWN HYPOTHETICAL FRAGMENT CDNA);
 # $fam_id_format= 'ENSF%011d'; 
 
 my $usage = 
-"Usage:\n\tfamily-input.pl [-h(elp) ] -r release [ -C ] [ -F famdb ] [-E ensdb ]  [ FILE  ]
+"Usage:\n\tfamily-input.pl [-h(elp) ] -r release [ -C tables.sql ] [ -F famdb ] [-E ensdb ]  [ FILE  ]
   famdb, ensdb: string like 'database=foo;host=bar;user=jsmith;pass=secret'
 ";
 
-my $opts = 'hr:CF:E:';
+my $opts = 'hr:C:F:E:';
 
 getopts($opts) || die $usage; # bugger, getopt docu is wrong, use getopts.
 
@@ -47,9 +47,25 @@ my $ensdb_connect_string = ($opt_E || 'database=ens075;host=ecs1b;user=ensro');
 
 my $release = ($opt_r || die " need a release number\n");
 my $ddl = undef;
-$ddl = '../sql/family.sql' if $opt_C;
+$ddl = $opt_C;
 
-main;
+
+if ($ddl) {                         # create database
+    warn "creating...";
+    create_db($famdb_connect_string);
+}
+my $famdb = db_connect($famdb_connect_string);
+create_tables($famdb, $ddl) if $ddl;
+$famdb->{autocommit}++;
+my $ensdb = db_connect($ensdb_connect_string);
+
+warn "loading families";
+# &load_families($famdb, $ensdb);
+warn "doing statistics tables\n";
+&do_stats($famdb);
+warn "done with statistics\n";
+$famdb->disconnect;
+$ensdb->disconnect;
 exit 0;
 
 # just creates empty database, returns nothing.
@@ -83,7 +99,7 @@ sub create_tables {
     close SQL;
     #Modified split statement, only semicolumns before end of line,
     #so we can have them inside a string in the statement
-    foreach my $s (grep /\S/, split /;\n/, $sql) {
+    foreach my $s (grep /\S/, split /;\s*\n/, $sql) {
         $dbh->do($s) || die $DBI::errstr;
     }
 }                                       # create_tables
@@ -180,31 +196,74 @@ sub compare_desc {
     return length($a) <=> length($b);
 }                                       # compare_desc
 
-sub main {
+sub fill_in_member_count {
+    my ($dbh) = @_;
+
+    my $q= "SELECT internal_id from family";
+    $q = $dbh->prepare($q) || die $dbh->errstr;
+    $q->execute || die $dbh->errstr;
+
+    my $ids = $q->fetchall_arrayref;
+    die $dbh->errstr if $dbh->err;
+    die "no ids found" if @$ids == 0;
+
+    $q = "SELECT COUNT(*) 
+          FROM family_members 
+          WHERE family = ? 
+            AND db_name = '$ens_pep_dbname'";
+    $q = $dbh->prepare($q) || die $dbh->errstr;
+
+    my $u = "UPDATE family SET num_ens_pepts = ? WHERE internal_id = ?";
+    $u = $dbh->prepare($u) || die $dbh->errstr;
+
+    my $tot_n=0;
+    foreach my $row ( @$ids ) { 
+        my $famid= $$row[0];
+        
+        $q->execute($famid) || die $q->errstr;
+        my $n= $q->fetchrow_array();
+        $tot_n += $n;
+        die $q->errstr if $q->err;
+
+        $u->execute($n, $famid) || die $u->errstr;
+    }
+    return $tot_n;
+}
+
+## 
+sub do_stats { 
+    my ($dbh) = @_;
+
+    my $tot_n = fill_in_member_count($dbh);
+
+    ### temporary table for the distribution
+    my $distr_table= "tmp_distr_enspep_$$";
+    my $q = "CREATE TABLE $distr_table
+             SELECT num_ens_pepts as n, COUNT(id) as cnt
+             FROM  family
+             GROUP BY n";
+    $q   = $dbh->do($q) || die $dbh->errstr;
+
+    $q = "INSERT INTO cumulative_distrib
+          SELECT d1.n, d1.cnt, (SUM(d2.cnt*d2.n))/$tot_n
+          FROM $distr_table d1, $distr_table d2
+          WHERE d1.n >= d2.n
+          GROUP by d1.n, d1.cnt";
+    $q= $dbh->do($q) || die $dbh->errstr;
+
+    $q = "DROP TABLE $distr_table"; 
+    $q   = $dbh->do($q) || die $dbh->errstr;
+}                                       # do_stats
+
+sub load_families {
+    my ($famdb, $ensdb)=@_;
     # god this function is hairy
     warn "checking for all id with prefixes " , join(' ', @id_prefixes), "\n";
     my $fam_count = 0;
     my $mem_count =0;
-    my $famdb;
 
     my $internal_id;
 
-    if ($ddl) {                         # create database
-        warn "creating...";
-        create_db($famdb_connect_string);
-    }
-
-    $famdb = db_connect($famdb_connect_string);
-                                        # create tables
-    if ($ddl) { 
-        create_tables($famdb, $ddl);
-    }
-
-    $famdb->{autocommit}++;
-
-
-    # separate handle for looking up translation from ens_pep to ens_gene:
-    my $ensdb = db_connect($ensdb_connect_string);
 
     $internal_id = get_max_id($famdb) +1;
 ### queries:
@@ -358,13 +417,5 @@ sub main {
         $internal_id++;
         $fam_count++;
     }                                   # foreach fam
-
-    ###
-    warn "doing statistics tables\n";
-    do_stats($famdb);
-    warn "done with statistics\n";
-
-    $famdb->disconnect;
-    $ensdb->disconnect;
     warn "inserted $fam_count families, having a total of $mem_count members\n";
-}                                       # main
+}                                       # load_families

@@ -110,7 +110,7 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor;
 use strict;
 use vars qw(@ISA);
 use DBI;
-use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
+use Bio::EnsEMBL::DB::WebExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 

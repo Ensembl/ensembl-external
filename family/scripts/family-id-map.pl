@@ -72,8 +72,9 @@ while( my $old = shift @oldfams ) {
     my ($bestfam, $bestn, $perc)  = find_best($old, \@newfams);
     if ($perc > $minperc) {                   # overlap percentage
 
-        if ($perc < 20) {
-            warn "low overlap: $bestfam -> $old: $perc %\n";
+        if ($perc < $minperc + 10) {
+            my ($old, $new)=($old->id, $bestfam->id);
+            warn "low overlap: $new -> $old: $perc %\n";
         }
 
         my $removed = splice (@newfams, $bestn, 1);
@@ -98,7 +99,7 @@ while( my $old = shift @oldfams ) {
         # these are the loosers, won't map them, sniff.
         push @unmapped_old, $old->id;
     }
-}
+}                                       # end main loop
 # remainder is unmapped new:
 my @unmapped_new=grep($_ = $_->id, @newfams);
 

@@ -157,10 +157,10 @@ my ( $row ) = $q->fetchrow_arrayref;
 ok (defined($row) && int(@$row) == 1 && $$row[0] eq $expected),1,"Something wrong at SQL level";
 
 my $memberad = $db->get_FamilyMemberAdaptor;
-my $member = $memberad->fetch_by_stable_id("ENSG000001101002");
+my @member = @{$memberad->fetch_by_stable_id("ENSG000001101002")};
 
 #test 19
-ok $member->taxon->genus,"Homo","Should have get Homo";
+ok $member[0]->taxon->genus,"Homo","Should have get Homo";
 
 my $taxonad = $db->get_TaxonAdaptor;
 my $taxon = $taxonad->fetch_by_dbID(9606);

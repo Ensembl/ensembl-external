@@ -257,6 +257,7 @@ sub fetch_Haplotype_by_id {
 
 
     my $sth = $self->prepare($q);
+
     $sth->execute();
 
     my $rowhash = undef;
@@ -297,21 +298,21 @@ sub fetch_Haplotype_by_id {
     
     # ....next we get the consensus patterns for this haplotype block
     my $q2 = qq(
-        select pattern_id, sample_count, haplotype_pattern 
+        select pattern_id, sample_count, haplotype_pattern, pattern_frequency 
         from pattern 
         where block_id = "$bid");
 
     my $sth2 = $self->prepare($q2);
     $sth2->execute();
 
-    HOP: while (my($pattern_id, $count, $pattern) = $sth2->fetchrow_array) {
+    HOP: while (my($pattern_id, $count, $pattern, $pattern_frequency) = $sth2->fetchrow_array) {
 		
 		#if ($pattern =~ /\-/){
 		#	print STDERR "Skipping pattern: $pattern\n";
 		#	next HOP;
 		#}
 		
-        my $pat = new Bio::EnsEMBL::ExternalData::Haplotype::Pattern($self, $pattern_id, $count, $pattern);
+        my $pat = new Bio::EnsEMBL::ExternalData::Haplotype::Pattern($self, $pattern_id, $count, $pattern, $pattern_frequency);
         # ....next we get the classified  patterns for this consensus block
         $pat->block_id($bid);
         my $q3 = qq( select sample_id, pattern_id, haplotype_string 
@@ -355,11 +356,11 @@ sub fetch_Haplotype_by_id {
         $pat->unclassified_samples(\%unclassified_samples);
         $hap->unclassified_samples_count($unclassified_sample_count);
 
-
         push (@pats,$pat); 
     }
     
     $hap->patterns(\@pats);
+
     return($hap);
 }
 

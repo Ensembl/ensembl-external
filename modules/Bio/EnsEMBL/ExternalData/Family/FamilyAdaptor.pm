@@ -87,8 +87,6 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
 
-fetch_by_dbID
-
 =head2 fetch_by_dbID
 
  Title   : fetch_by_dbID

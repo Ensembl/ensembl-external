@@ -23,8 +23,8 @@
 #  After this, run fam-stats.sh ecs1b ensro fam100 fam.log
 #
 
-warn "WARNING: hacks ahead ... relying on translation id's matching 'COBP'";
-die "actually, don't use it for now ... ";
+warn "**** WARNING: hacks ahead ... relying on translation id's matching 'COBP'";
+# die "actually, don't use it for now ... ";
 
 use DBI;
 use strict;

@@ -1,5 +1,5 @@
 #
-# BioPerl module for DBDAS::DASAdaptor
+# BioPerl module for DASAdaptor
 #
 # Cared for by Tony Cox <avc@sanger.ac.uk>
 #
@@ -11,11 +11,11 @@
 
 =head1 NAME
 
-Bio::EnsEMBL::DBDAS::DBAdaptor - Object representing an instance of a DAS DB connection
+Bio::EnsEMBL::ExternalData::DAS::DASAdaptor - Object representing an instance of a DAS DB connection
 
 =head1 SYNOPSIS
 
-    $db = Bio::EnsEMBL::DBDAS::DASAdaptor->new(
+    $db Bio::EnsEMBL::ExternalData::DAS::DASAdaptor->new(
         -url   => 'http://servlet.sanger.ac.uk:8080/das',
         -dsn   => 'ensembl100',
         );
@@ -43,7 +43,7 @@ The rest of the documentation details each of the object methods. Internal metho
 
 # Let the code begin...
 
-package Bio::EnsEMBL::DBDAS::DASAdaptor;
+package Bio::EnsEMBL::ExternalData::DAS::DASAdaptor;
 
 use vars qw(@ISA);
 use strict;
@@ -51,9 +51,10 @@ use strict;
 # Object preamble
 
 use Bio::EnsEMBL::Root;
+use Bio::EnsEMBL::ExternalData::BaseAdaptor;
 use Bio::Das;
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::ExternalData::BaseAdaptor);
 
 sub new {
 	my($pkg, @args) = @_;

@@ -18,13 +18,13 @@
 
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..8\n"; 
+BEGIN { $| = 1; print "1..7\n"; 
 	use vars qw($loaded); }
 END {print "not ok 1\n" unless $loaded;}
 
 #use lib '../';
 
-use Bio::EnsEMBL::ExternalData::SNPSQL::Obj;
+use Bio::EnsEMBL::ExternalData::SNPSQL::DBHandler;
 use Bio::EnsEMBL::ExternalData::Variation;
 
 $loaded = 1;
@@ -38,11 +38,17 @@ print "ok 1\n";    # 1st test passes.
 ## total number of tests that will be run. 
 
 #creating the object
-$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::Obj->new( -dbname=>'tsc', 
-						       -user=>'ensro',
-						       -host=>'ensrv3.sanger.ac.uk'
+#$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::Obj->new( -dbname=>'tsc', 
+#							-user=>'ensro',
+#							-host=>'ensrv3.sanger.ac.uk'
+#
+#							);
+$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBHandler->new( -dbname=>'snp', 
+						       -user=>'root',
+						       -host=>'localhost'
 
 						       );
+
 print "ok 2\n"; 
 
 #doing a query
@@ -68,12 +74,13 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
 #using the method get_Ensembl_SeqFeatures_clone
 
-#AC025148.1 AB000381.1  AB012922.1
+#AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
 #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end);
-@variations = $snpdb->get_Ensembl_SeqFeatures_clone('AB000381', '1' );
+@variations = $snpdb->get_Ensembl_SeqFeatures_clone('AL136106', '2' );
 if ( scalar @variations == 2 ) { 
     print "ok 5\n"; 
 }  else {
+    print STDERR "Query reurned ",  scalar @variations, " variations\n";
     print "not ok 5\n";
 }
 
@@ -85,8 +92,9 @@ if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
 }
 
 # using the method get_SeqFeature_by_id 
-my $id = "TSC::TSC0000004"; 
-my $snp = $snpdb->get_SeqFeature_by_id($id);
+my $id = "18"; 
+my @snps = $snpdb->get_SeqFeature_by_id($id);
+my $snp = pop @snps;
 
 if( $id eq $snp->id) {
     print "ok 7\n"; 
@@ -96,10 +104,10 @@ if( $id eq $snp->id) {
 
 
 # using the method get_SeqFeature_by_id with dbSNP id
-my $id2 = "20409"; 
-my $snp = $snpdb->get_SeqFeature_by_id($id2); 
-if( $id eq $snp->id) {
-    print "ok 8\n"; 
-} else {
-    print "not ok 8\n";
-}
+#my $id2 = "20409"; 
+#my $snp = $snpdb->get_SeqFeature_by_id($id2); 
+#if( $id eq $snp->id) {
+#    print "ok 8\n"; 
+#} else {
+#    print "not ok 8\n";
+#}

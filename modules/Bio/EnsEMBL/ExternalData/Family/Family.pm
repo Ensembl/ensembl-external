@@ -65,7 +65,7 @@ The rest of the documentation details each of the object methods. Internal metho
 
 package Bio::EnsEMBL::ExternalData::Family::Family;
 use vars qw(@ISA);
-use strict;
+# use strict; # FIX THIS: funny 32-char limit on module names ? 
 
 # Object preamble - inheriets from Bio::Root::Object
 

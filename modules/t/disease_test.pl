@@ -7,24 +7,28 @@ use Bio::EnsEMBL::ExternalData::Disease::DBHandler;
 
 
 
-my $mapdb = new Bio::EnsEMBL::Map::DBSQL::Obj( -user => 'ensro', 
-					    -dbname => 'maps2_f15', 
-					    -host=>'ensrv4.sanger.ac.uk',
+my $mapdb = new Bio::EnsEMBL::Map::DBSQL::Obj( -user => 'root', 
+					    -dbname => 'maps2', 
+					    -host=>'ensrv3.sanger.ac.uk',
 					    -ensdb=>'f15');
 
-my $ensembldb = new Bio::EnsEMBL::DBSQL::Obj( -user => 'ensro', 
-					    -dbname => 'ensembl_freeze15_tim',
-					    -host=>'ensrv4.sanger.ac.uk');
+if ($mapdb){print "connected maps\n";}
 
-my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'ensembl', 
+
+my $ensembldb = new Bio::EnsEMBL::DBSQL::Obj( -user => 'ensro', 
+					    -dbname => 'f15',
+					    -host=>'ensrv3.sanger.ac.uk');
+if ($ensembldb){print "connected ensembl\n";}
+
+my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'root', 
 						      -dbname => 'disease',
-						      -host=>'sol28.ebi.ac.uk',
+						      -host=>'ensrv3.sanger.ac.uk',
 						      -ensdb=>$ensembldb,
 						      -mapdb=>$mapdb);
 
 
-if ($mapdb){print "connected maps\n";}
-if ($ensembldb){print "connected ensembl\n";}
+
+
 if ($diseasedb){print "connected diseases\n";}
 
 #my @diseases=$diseasedb->diseases_on_chromosome(22);
@@ -35,23 +39,26 @@ my @diseases=$diseasedb->all_diseases;
 
 foreach my $dis (@diseases)
 {
-    print "\n",$dis->name, "\n";
+  
     
     foreach my $location($dis->each_Location){
 	
-	print "has gene ",$location->external_gene," on chromosome ",
-	$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
+#	print "has gene ",$location->external_gene," on chromosome ",
+#	$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
 	
 	if (defined $location->ensembl_gene){
-	    print "FOUND ensembl gene for ",$location->external_gene," = ",$location->ensembl_gene->id;
 
+	   # print "\n",$dis->name, "\n";
+	    print "FOUND ensembl gene for ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
+	   # print "\n";
 	    foreach my $transcript ($location->ensembl_gene->each_Transcript){
-		print " transcripts: ",$transcript->id,"\n";}
+		#print " transcripts: ",$transcript->id,"\n";
+	    }
 	}
-	else {print "no ensembl predictions for ", $location->external_gene,"\n";}
+	#else {print "no ensembl predictions for ", $location->external_gene,"\n";}
     }
     
-    print "\n";
+   # print "\n";
 }
 
 

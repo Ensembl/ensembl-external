@@ -218,6 +218,11 @@ sub fetch_all_by_DBLink_Container {
        my $f = shift;
        $f->isa('Bio::Das::Feature') || return;
        my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
+       my ($fstart, $fend) = ($f->start, $f->end);
+       if ($f->type() =~ /^(INIT_MET|INIT_MET:)$/) {
+	   $fstart = $fend = 1;
+       }
+
        $dsf->id                ( $ensembl_id );
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
@@ -244,8 +249,8 @@ sub fetch_all_by_DBLink_Container {
        $dsf->das_target_stop   ( $f->target_stop );
        $dsf->das_type          ( $f->type() );
        $dsf->das_method        ( $f->method() );
-       $dsf->das_start         ( $f->start() );
-       $dsf->das_end           ( $f->end() );
+       $dsf->das_start         ( $fstart );
+       $dsf->das_end           ( $fend );
        $dsf->das_score         ( $f->score() );
        $dsf->das_orientation   ( $f->orientation() || 0 );
        $dsf->das_phase         ( $f->phase() );
@@ -365,6 +370,7 @@ sub _map_DASSeqFeature_to_pep{
   my $dblink = shift || die( "Need a DBLink object" ); 
   my $dsf    = shift || die( "Need a DASSeqFeature object" );
 
+
   if( ! ref( $dblink ) ){ return 1 } # Ensembl id_type - mapping not needed
 
   # Check for 'global' feature - mapping not needed 
@@ -384,11 +390,11 @@ sub _map_DASSeqFeature_to_pep{
   eval{ @coords = $dblink->map_feature( $dsf ) };
   if( $@ ){ warn( $@ ) }
 
-  @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
+  @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') || $_->isa('Bio::EnsEMBL::Mapper::Gap') } @coords;
   @coords || return 0;
   $dsf->start( $coords[0]->start );
   $dsf->end( $coords[-1]->end );
-  #warn( "Ensembl:".$dsf->start."-".$dsf->end );
+#  warn( "Ensembl:".$dsf->start."-".$dsf->end );
   return 1;
 }
 
@@ -827,6 +833,10 @@ sub fetch_all_by_ID {
        my $f = shift;
        $f->isa('Bio::Das::Feature') || return;
        my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
+       my ($fstart, $fend) = ($f->start, $f->end);
+       if ($f->type() =~ /^(INIT_MET|INIT_MET:)$/) {
+	   $fstart = $fend = 1;
+       }
        $dsf->id                ( $ensembl_id );
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
@@ -853,8 +863,8 @@ sub fetch_all_by_ID {
        $dsf->das_target_stop   ( $f->target_stop );
        $dsf->das_type          ( $f->type() );
        $dsf->das_method        ( $f->method() );
-       $dsf->das_start         ( $f->start() );
-       $dsf->das_end           ( $f->end() );
+       $dsf->das_start         ( $fstart );
+       $dsf->das_end           ( $fend );
        $dsf->das_score         ( $f->score() );
        $dsf->das_orientation   ( $f->orientation() || 0 );
        $dsf->das_phase         ( $f->phase() );
@@ -880,6 +890,7 @@ sub fetch_all_by_ID {
      } @das_features;
 
    my $key = join( '_', $dsn, keys(%ids) );
+   
    return( $key, [@result_list] );
 }
 

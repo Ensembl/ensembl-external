@@ -197,7 +197,15 @@ sub fetch_all_by_DBLink_Container {
      if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
      elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
      elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
-   } else { 
+  } elsif ($id_type eq 'mgi_id') { 
+       # MGI Accession IDs come from MarkerSymbol DB
+       my $id_method = 'primary_id';
+       foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
+	   my $id = $xref->primary_id || next;
+	   $id =~ s/\://g;
+	   $ids{$id} = $xref;
+       }
+  } else { 
        # If no 'ensembl_' prefix, then DBLink ID
        # If $id_type is suffixed with '_acc', use primary_id call 
        # rather than display_id
@@ -812,6 +820,14 @@ sub fetch_all_by_ID {
      if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
      elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
      elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
+   } elsif ($id_type eq 'mgi_id') { 
+       # MGI Accession IDs come from MarkerSymbol DB
+       my $id_method = 'primary_id';
+       foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
+	   my $id = $xref->primary_id || next;
+	   $id =~ s/\://g;
+	   $ids{$id} = $xref;
+       }
    } else { 
        # If no 'ensembl_' prefix, then DBLink ID
        # If $id_type is suffixed with '_acc', use primary_id call 
@@ -824,7 +840,7 @@ sub fetch_all_by_ID {
      }
    }
 
-#   warn "DAS - $id_type - @{[keys %ids]}";
+#   warn "DAS2 - $id_type - @{[keys %ids]}";
    # Return empty if no ids found
    if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 

@@ -68,7 +68,7 @@ if (defined($fam)){
     warn "didn't find family $id";
 };
 
-my $got = length($fam->get_alignment());
+my $got = length($fam->get_alignment_string());
 $expected = 1911;
 if ($got == $expected) {
     print "ok 5\n";
@@ -79,7 +79,7 @@ if ($got == $expected) {
 ## now same for one without an alignment; should fail gracefully
 $id= 'ENSF00000000005';
 eval {
-    $ali=$famadtor->get_Family_by_id($id)->get_alignment();
+    $ali=$famadtor->get_Family_by_id($id)->get_alignment_string();
 };
 
 if ($@ || defined($ali) ) {

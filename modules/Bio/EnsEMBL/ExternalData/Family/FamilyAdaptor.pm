@@ -22,6 +22,7 @@ FamilyAdaptor - DESCRIPTION of Object
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use Bio::EnsEMBL::ExternalData::Family::Family;
+use Bio::AlignIO;
 
 $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
@@ -98,6 +99,7 @@ sub _initialize {
   my $make = $self->SUPER::_initialize;
 
 # set stuff in self from @args
+
  return $make; # success - we hope!
 }
 
@@ -324,7 +326,7 @@ sub _get_family {
 
 # function for finding alignemnts. They are not cached because they are
 # too big. 
-sub _get_alignment {
+sub _get_alignment_string {
     my ($self, $fam) = @_; 
 
     my $internal_id = $fam->internal_id();
@@ -341,6 +343,27 @@ sub _get_alignment {
     }  else { return $$row[0];}
 }
 
+sub get_Alignment {
+  my ($self,$fam) = @_;
+
+  if (!defined($fam)) {
+    $self->throw("No family entered for _get_alignment");
+  } elsif (! $fam->isa("Bio::EnsEMBL::ExternalData::Family::Family")) {
+    $self->throw("[$fam] is not a Bio::EnsEBML::ExtnernalData::Family::Family");
+  }
+  
+  my $alignstr = $self->_get_alignment_string($fam);
+  print STDERR "Getting alignment $fam\n";
+  print STDERR "ALignmnet $alignstr\n";
+  # Not sure that this is the best way to do this.
+  open(ALN,"echo \'$alignstr\' |");
+  my $alnfh     = Bio::AlignIO->newFh(-format => "clustalw",-fh => \*ALN);
+
+  my ($align) = <$alnfh>;
+
+  return $align;
+}
+  
 # get 0 or more families
 sub _get_families {
     my ($self, $q) = @_;

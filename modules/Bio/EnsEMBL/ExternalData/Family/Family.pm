@@ -405,13 +405,29 @@ sub add_member {
     undef;
 }
 
+=head2 get_alignment_string
+
+ Title   : get_alignment_string
+ Usage   : $obj->get_alignment_string
+ Function: returns a complete clustal alignment as a string
+ Example : 
+ Returns : complete clustal alignment as a string, or undef if not found
+ Args    : none
+
+=cut
+
+sub get_alignment_string {
+    my ($self) = @_;
+    $self->adaptor->_get_alignment_string($self);
+}
+
 =head2 get_alignment
 
  Title   : get_alignment
  Usage   : $obj->get_alignment
- Function: returns a complete clustal alignment as a string
+ Function: returns a complete clustal alignment as a Bio::SimpleAlign
  Example : 
- Returns : complete clustal alignment as a string, or undef if not found
+ Returns : complete clustal alignment or undef if not found
  Args    : none
 
 =cut
@@ -420,7 +436,6 @@ sub get_alignment {
     my ($self) = @_;
     $self->adaptor->_get_alignment($self);
 }
-
 =head2 _debug
 
  Title   : _debug

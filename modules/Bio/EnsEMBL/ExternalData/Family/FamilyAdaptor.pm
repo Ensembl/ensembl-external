@@ -144,7 +144,6 @@ sub get_Family_of_Ensembl_pep_id {
 
 sub get_Family_of_Ensembl_gene_id {
     my ($self, $eid) = @_; 
-
     $self->get_Family_of_db_id('ENSEMBLGENE', $eid);  #PL: what db_name ???
 }
 
@@ -344,8 +343,6 @@ sub get_Alignment {
   }
   
   my $alignstr = $self->_get_alignment_string($fam);
-  print STDERR "Getting alignment $fam\n";
-  print STDERR "ALignmnet $alignstr\n";
   # Not sure that this is the best way to do this.
   open(ALN,"echo \'$alignstr\' |");
   my $alnfh     = Bio::AlignIO->newFh('-format' => "clustalw",-fh => \*ALN);

@@ -59,7 +59,7 @@ my $db = new Bio::EnsEMBL::DBSQL::DBAdaptor(
 $db->assembly_type($path);
 
 my $ChromosomeAdaptor = $db->get_ChromosomeAdaptor;
-my @chromosomes;
+my $chromosomes;
 
 my $taxon_id = $db->get_MetaContainer->get_taxonomy_id;
 my %TaxonConf = %Bio::EnsEMBL::ExternalData::Family::FamilyConf::TaxonConf;
@@ -67,10 +67,10 @@ my %TaxonConf = %Bio::EnsEMBL::ExternalData::Family::FamilyConf::TaxonConf;
 if (defined $chr_names and $chr_names ne "all") {
   my @chr_names = split /,/, $chr_names;
   foreach my $chr_name (@chr_names) {
-    push @chromosomes, $ChromosomeAdaptor->fetch_by_chr_name($chr_name);
+    push @{$chromosomes}, $ChromosomeAdaptor->fetch_by_chr_name($chr_name);
   }
 } else {
-  @chromosomes = @{$ChromosomeAdaptor->fetch_all}
+  $chromosomes = $ChromosomeAdaptor->fetch_all;
 }
 
 if (defined $file) {
@@ -91,7 +91,8 @@ my $slice_length = 5000000;
 
 my $SliceAdaptor = $db->get_SliceAdaptor;
 
-foreach my $chr (reverse sort  bychrnum @chromosomes) {
+#foreach my $chr (reverse sort  bychrnum @{$chromosomes}) {
+foreach my $chr (@{$chromosomes}) {
   print "Chr ",$chr->chr_name,"\n";
 
   my $chrstart = 1;

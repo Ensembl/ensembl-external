@@ -5,6 +5,8 @@ use Getopt::Long;
 use Bio::EnsEMBL::ExternalData::Family::FamilyMember;
 use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
 
+$| = 1;
+
 my $usage = "
 Usage: $0 options
 
@@ -27,14 +29,14 @@ my $host;
 my $dbname;
 my $dbuser;
 my $dbpass;
+my $conf_file;
 
 GetOptions('help' => \$help,
 	   'host=s' => \$host,
 	   'dbname=s' => \$dbname,
 	   'dbuser=s' => \$dbuser,
 	   'dbpass=s' => \$dbpass,
-	   'conf_file' => \$conf_file,
-	   'store' => \$store);
+	   'conf_file=s' => \$conf_file);
 
 if ($help) {
   print $usage;
@@ -46,6 +48,7 @@ my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host  
 									 -pass   => $dbpass,
 									 -dbname => $dbname,
 									 -conf_file => $conf_file);
+
 my $external_name = "ENSEMBLGENE";
 
 my $sth = $family_db->prepare("select external_db_id from external_db where name = ?");
@@ -63,25 +66,26 @@ my $FamilyAdaptor = $family_db->get_FamilyAdaptor;
 my $FamilyMemberAdaptor = $family_db->get_FamilyMemberAdaptor;
 my $GenomeDBAdaptor = $family_db->get_GenomeDBAdaptor;
 
-my @family_ids = $FamilyAdaptor->list_familyIds;
+my $family_ids = $FamilyAdaptor->list_familyIds;
 
-foreach my $family_id (@family_ids) {
+foreach my $family_id (@{$family_ids}) {
   my %gene_already_stored;
   my $family = $FamilyAdaptor->fetch_by_dbID($family_id);
-  my @members = $family->get_members_by_dbname('ENSEMBLPEP');
-  foreach my $member (@members) {
+  my $members = $family->get_members_by_dbname('ENSEMBLPEP');
+  next unless (scalar @{$members});
+  foreach my $member (@{$members}) {
     my $ga = fetch_GeneAdaptor_by_taxon($member->taxon_id);
-    my $gene = $ga->fetch_by_Peptide_id($self->stable_id);
+    my $gene = $ga->fetch_by_Peptide_id($member->stable_id);
 
     next if (defined $gene_already_stored{$gene->stable_id});
     
     my $fm = new Bio::EnsEMBL::ExternalData::Family::FamilyMember;
-    $fm->family_id($family_id);
     $fm->stable_id($gene->stable_id);
     $fm->taxon_id($member->taxon_id);
     $fm->external_db_id($external_db_id);
-    $fm->store;
+    $FamilyMemberAdaptor->store($family_id,$fm);
     $gene_already_stored{$gene->stable_id} = 1;
+    print STDERR "Stored ",$gene->stable_id," in family $family_id\n";
   }
 }
 

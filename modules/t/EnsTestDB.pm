@@ -39,11 +39,14 @@ B<EnsTestDB.conf.example> for an example.
 package EnsTestDB;
 BEGIN { warn "This file is depracated because it duplicates ensembl/modules/t/EnsTestDB.pm";}
 
+use vars qw(@ISA);
 use strict;
 use Sys::Hostname 'hostname';
 use Bio::EnsEMBL::DBLoader;
 use DBI;
 use Carp;
+
+@ISA = qw(Bio::EnsEMBL::DBSQL::DBAdaptor);
 
 #Package variable for unique database name
 my $counter=0;

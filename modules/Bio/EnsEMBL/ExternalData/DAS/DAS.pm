@@ -110,43 +110,56 @@ sub new {
 
 sub get_Ensembl_SeqFeatures_contig_list{
     my ($self) = shift;
-    my ($listref) = @_;
+    my ($contig_listref) = @_;
 
 	## TC
 	## This is a temporary fast DAS fetcher tuned for fetching features for a set of contigs
-	## It does not use the DAS perl modules or the XML parser becasue (1) the Das perl API cannot handle 
+	## It does not use the request part of the DAS perl modules or the XML parser becasue (1) the Das perl API cannot handle 
 	## multi-segment feature requests and (2) the XML parser can be slow and (3) [most important] we now
 	## only have to do a single DAS request per source, per virtual contig.
 	## It should be replaced when the DAS perl modules can handle it.
 
-	my @contigs	= @$listref;
-	my @contig_ids = map { "segment=". $_->id() } @contigs;
+	my $URL_MAXLEN = 256;	# The longest GET string our DAS servers can handle.....?
 
 	my $dbh 	= $self->_db_handle();
 	my $dsn 	= $dbh->dsn();
 
-	#print STDERR "Fetching features for $dsn...\n";
+	my @contig_ids = map { "segment=". $_->id() } @{$contig_listref};
+ 
+	my @urls = ();
 
+	DAS: while(@contig_ids){
+		my $url = "features?";
+		DAS2: while(@contig_ids){
+			my $c = shift (@contig_ids);
+			if ( length($url . ";" . $c) < $URL_MAXLEN){
+				$url = $url . ";" . $c;
+				#print STDERR "Current URL: ",$url, " \n"; 
+				next DAS2;
+			} else {
+				#print STDERR "Saving URL: ",$url, " \n"; 
+				push(@urls, $url);
+				next DAS;
+			}
+		}
+	push(@urls, $url);
+	}
 
-	my $url = "features?" . join(";",@contig_ids) ;
 	my $ua = $dbh->agent;
 	my $base = URI::URL->new(join '/',$dbh->base());
-	my $url = $base . "/" . $url;
-	my $request = HTTP::Request->new(GET => "$url");
 
-    #$ua->request(POST 'http://somewhere/foo', [foo => bar, bar => foo]);
-    #$ua->request(GET 'http://www.sn.no/');
+	my $xml = "";
 
-	#my @contig_ids = map { $_->id() } @contigs;
-	#print STDERR "@contig_ids\n";
-	#$request = HTTP::Request->new(POST 'http://servlet.sanger.ac.uk:8080?features',
-	#					[segment => \@contig_ids]);
-	#print STDERR $request->as_string() , "\n";
-
+	foreach my $u (@urls){
+		#print STDERR "URLs: ",$u, " \n"; 
+		my $url = $base . "/" . $u;
+		my $request = HTTP::Request->new(GET => "$url");
+		my $reply = $ua->request($request);
+		$xml = $xml . "\n" . $reply->content();
+	}
 
 
-	my $reply = $ua->request($request);
-	my @lines = split ("\n", $reply->content);
+	my @lines = split ("\n", $xml);
 	
 	my $out = undef;
 	my $seqname = undef;

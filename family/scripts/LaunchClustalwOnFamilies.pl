@@ -2,6 +2,7 @@
 
 use strict;
 use Getopt::Long;
+use IO::File;
 use File::Basename;
 use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
 
@@ -46,9 +47,6 @@ my @members;
 push @members,@{$family->get_members_by_dbname('ENSEMBLPEP')};
 push @members,@{$family->get_members_by_dbname('SWISSPROT')};
 push @members,@{$family->get_members_by_dbname('SPTREMBL')};
-print STDERR scalar @members ,"\n";
-
-exit 0 if (scalar @members == 1);
 
 my $sb_id = "/tmp/sb_id.$rand";
 
@@ -67,6 +65,51 @@ my $sb_file = "/tmp/sb.$rand";
 unless (system("/nfs/acari/abel/bin/fastafetch $fasta_file $fasta_index $sb_id > $sb_file") == 0) {
   unlink glob("/tmp/*$rand*");
   die "error in fastafetch $sb_id, $!\n";
+}
+
+# If only one member no need for a multiple alignment.
+# Just load the sequence as it is in the family db
+
+if (scalar @members == 1) {
+  my $FH = IO::File->new();
+  $FH->open($sb_file) || die "Could not open fasta file [$sb_file], $!\n;";
+  
+  my $member_stable_id;
+  my $member_seq;
+  
+  my $number_of_sequence = 0;
+  
+  while (<$FH>) {
+    if (/^>(\S+)\s*.*$/) {
+      $member_stable_id = $1;
+      $number_of_sequence++;
+    } elsif (/^[a-zA-Z\*]+$/) { ####### add * for protein with stop in it!!!!
+      chomp;
+      $member_seq .= $_;
+    }
+  }
+  
+  if ($number_of_sequence != 1) {
+    warn "For family " . $family->stable_id . " we get $number_of_sequence sequence instead of 1
+EXIT 1\n";
+    exit 1;
+  }
+  
+  $FH->close;
+  
+  if (defined $member_stable_id && defined $member_seq) {
+    my $member = $FamilyMemberAdaptor->fetch_by_stable_id($member_stable_id)->[0];
+    $member->alignment_string($member_seq);
+    $FamilyMemberAdaptor->update($member);
+    undef $member_stable_id;
+    undef $member_seq;
+  } else {
+    warn "For family " . $family->stable_id . " member_stable_id or sequence are not defined
+EXIT 2\n";
+    exit 2;
+  }
+  
+  exit 0;
 }
 
 my $clustal_file = "/tmp/clustalw.$rand";

@@ -8,13 +8,13 @@ use Bio::EnsEMBL::ExternalData::Disease::DBHandler;
 
 
 my $mapdb = new Bio::EnsEMBL::Map::DBSQL::Obj( -user => 'ensro', 
-					    -dbname => 'maps2', 
-					    -host=>'ensrv3.sanger.ac.uk',
-					    -ensdb=>'ensembl081');
+					    -dbname => 'maps2_f15', 
+					    -host=>'ensrv4.sanger.ac.uk',
+					    -ensdb=>'f15');
 
 my $ensembldb = new Bio::EnsEMBL::DBSQL::Obj( -user => 'ensro', 
-					    -dbname => 'ensembl081',
-					    -host=>'ensrv3.sanger.ac.uk');
+					    -dbname => 'ensembl_freeze15_tim',
+					    -host=>'ensrv4.sanger.ac.uk');
 
 my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'ensembl', 
 						      -dbname => 'disease',
@@ -23,10 +23,14 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'en
 						      -mapdb=>$mapdb);
 
 
+if ($mapdb){print "connected maps\n";}
+if ($ensembldb){print "connected ensembl\n";}
+if ($diseasedb){print "connected diseases\n";}
+
 #my @diseases=$diseasedb->diseases_on_chromosome(22);
 #my @diseases=$diseasedb->diseases_without_genes;
-#my @diseases=$diseasedb->all_diseases;
-my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+my @diseases=$diseasedb->all_diseases;
+#my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
 #my @diseases=$diseasedb->diseases_like("diabetes");
 
 foreach my $dis (@diseases)

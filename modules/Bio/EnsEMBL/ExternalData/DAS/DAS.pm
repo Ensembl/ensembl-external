@@ -14,6 +14,7 @@ DAS - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
+use Data::Dumper;
 use Bio::EnsEMBL::ExternalData::DAS::DASAdaptor;
 use Bio::EnsEMBL::ExternalData::DAS::DAS;
 
@@ -112,7 +113,7 @@ sub fetch_all_by_Slice {
     my $chr_start  = $slice->chr_start();
     my $chr_end    = $slice->chr_end();
     my $KEY = "_slice_cache_${chr_name}_${chr_start}_${chr_end}";
-    return $self->{$KEY} if defined $self->{$KEY};
+    return ( $self->{$KEY}, $self->{"_stylesheet_".$KEY} ) if defined $self->{$KEY};
 
     my $chr_length = $slice->get_Chromosome()->length();
     my $offset     = 1 - $chr_start;
@@ -136,15 +137,15 @@ sub fetch_all_by_Slice {
     # As DAS features come back from a Call Back system, we need to loop
     # again over the list of features, decide what to do with them and map
     # them all to chromosome coordinates
+    my( $features, $style ) =  $self->get_Ensembl_SeqFeatures_DAS(
+         $chr_name, $chr_start, $chr_end,
+         \@fpc_contigs, \@clones, \@raw_contig_names,
+         $chr_length );
     my @result_list = grep { $self->_map_DASSeqFeature_to_chr(
 	                     $mapper, \%contig_name_hash, 
                              $offset,$length,$db->get_CloneAdaptor, $_ ) == 1
-    } @{ $self->get_Ensembl_SeqFeatures_DAS(
-         $chr_name, $chr_start, $chr_end,
-         \@fpc_contigs, \@clones, \@raw_contig_names,
-         $chr_length )
-    };
-    return $self->{$KEY} = \@result_list;
+    } @$features;
+    return ( ($self->{$KEY} = \@result_list), ($self->{"_stylesheet_".$KEY} = $style) );
 }
 
 
@@ -186,7 +187,6 @@ sub _map_DASSeqFeature_to_chr {
 	warn ("Got a DAS feature with an unrecognized segment type: >$seqname< >", $sf->das_type_id(), "<\n");
 	return 0;
     }
-    #warn( "$type: $seqname" );
 
     # now switch on type
 
@@ -262,6 +262,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 	my $url 	   = $self->_url();
 
     my $DAS_FEATURES = [];
+    my $STYLES = [];
     
     $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, global start, global end and other essential stuff. You didn't.")
         unless ( scalar(@_) == 8);
@@ -278,6 +279,16 @@ sub get_Ensembl_SeqFeatures_DAS {
         unshift @seg_requests, "$chr_name:$global_start,$global_end";  # support both types of chr ID
     }
 
+    my $callback_stylesheet =  sub {
+     # return if $_[3] eq 'pending';
+      push @$STYLES, {
+         'category' => $_[0],
+         'type'     => $_[1],
+         'zoom'     => $_[2],
+         'glyph'    => $_[3],
+         'attrs'    => $_[4]
+      };
+    };
     my $callback =  sub {
         my $f = shift;
         return unless $f->isa('Bio::Das::Feature'); ## Bug in call back code means this is called for wrong DAS types
@@ -344,6 +355,12 @@ sub get_Ensembl_SeqFeatures_DAS {
 #        return ($DAS_FEATURES);
 #    }
 
+     $response = $dbh->stylesheet(
+       -dsn => "$url/$dsn",
+       -callback => $callback_stylesheet
+     );
+    # warn $response;
+    # warn( Data::Dumper->Dump( [$STYLES] ) );
      if(@$types) {
         $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",
@@ -358,6 +375,7 @@ sub get_Ensembl_SeqFeatures_DAS {
                     -callback   =>  $callback,
         );
      }
+    # warn $response;
     
     unless ($response->success()){
         print STDERR "DAS fetch for $dsn failed\n";
@@ -366,7 +384,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_type_id('__ERROR__'); 
         $CURRENT_FEATURE->das_dsn($dsn); 
         unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
-        return ($DAS_FEATURES);
+        return ($DAS_FEATURES,$STYLES);
     }
     
     if(0){
@@ -380,8 +398,7 @@ sub get_Ensembl_SeqFeatures_DAS {
             print STDERR "FEATURE ID: ",        $feature->das_feature_id(), "\n";
         }
     }
-    
-	return($DAS_FEATURES);  # _MUST_ return a list here or StaticContig breaks!
+    return ($DAS_FEATURES,$STYLES);  # _MUST_ return a list here or StaticContig breaks!
 }
 
 

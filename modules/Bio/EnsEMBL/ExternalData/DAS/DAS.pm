@@ -107,21 +107,25 @@ sub new {
 =cut
 
 sub get_Ensembl_SeqFeatures_DAS {
-    my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref) = @_;
+    my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref, $chr_length) = @_;
 	my $dbh 	   = $self->_db_handle();
 	my $dsn 	   = $self->_dsn();
 	my $url 	   = $self->_url();
     my $DAS_FEATURES = [];
     
     $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, global start, global end and other essential stuff. You didn't.")
-        unless ( scalar(@_) == 7);
+        unless ( scalar(@_) == 8);
 
     my @seg_requests = (
-                        "chr$chr_name:$global_start,$global_end", 
                         @$fpccontig_list_ref,
                         @$clone_list_ref, 
                         @$contig_list_ref
                         );
+    if($global_end>0 && $global_start<=$chr_length) { # Make sure that we are grabbing a valid section of chromosome...
+        $global_start = 1           if $global_start<1;           # Convert start to 1 if non +ve
+        $global_end   = $chr_length if $global_end  >$chr_length; # Convert end to chr_length if fallen off end
+        unshift @seg_requests, "chr$chr_name:$global_start,$global_end"; 
+    }
 
     my $callback =  sub {
         my $f = shift;

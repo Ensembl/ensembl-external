@@ -242,16 +242,13 @@ sub _link2ensembl
     
     my ($self,@diseases)=@_;
     
+    
     foreach my $dis (@diseases){ 
-	foreach my $location($dis->each_Location){  
-#	    foreach my $gene ($self->_ensdb->each_Gene){
-#		foreach my $link ($gene->each_DBLink){
-#		    if ($link->primary_id eq $location->external_gene)
-#		    {
-#			$location->ensembl_gene("ENSG ");
-#		    }			    
-#		}
-#	    }
+	foreach my $location($dis->each_Location){ 
+ 	    
+	    my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
+	    $location->ensembl_gene($ensembl_gene);
+
 	}
     }
     

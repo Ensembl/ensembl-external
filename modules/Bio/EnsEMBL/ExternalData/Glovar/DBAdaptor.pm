@@ -115,10 +115,43 @@ sub get_GlovarSNPAdaptor {
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor');
 
 }
+sub get_GlovarSTSAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor');
+
+}
 sub get_GlovarTraceAdaptor {
   my $self = shift;
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor');
 
 }
 
+=head2 dnadb
 
+  Args        : Bio::EnsEMBL::DBSQL::DBAdaptor
+  Example     : my $dnadb = $db->dnadb;
+  Description : getter/setter for the database adaptor where the dna lives
+                Useful if you only want to keep one copy of the dna on disk but
+                have other databases with genes and features in
+  Return type : Bio::EnsEMBL::DBSQL::DBAdaptor
+
+=cut
+
+sub dnadb {
+  my ($self,$arg) = @_;
+
+  if ($arg) {
+    if(ref $arg && (($arg->isa('Bio::EnsEMBL::Container') && 
+		     $arg->_obj == $self) || $arg == $self)) {
+      #we don't want to store a circular reference to our self
+      return;
+    }
+
+    #if this a container, we don't care, hang onto it
+    $self->{'dnadb'} = $arg;
+  }
+
+  return $self->{'dnadb'} || $self;
+}
+
+1;

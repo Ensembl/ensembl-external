@@ -107,8 +107,17 @@ sub new {
 
 sub get_GlovarAdaptor {
   my $self = shift;
-
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor');
+
+}
+sub get_GlovarSNPAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor');
+
+}
+sub get_GlovarTraceAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor');
 
 }
 

@@ -52,7 +52,9 @@ use Data::Dumper;
 
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
+use Bio::EnsEMBL::SeqFeature;
 use Bio::EnsEMBL::SNP;
+use Bio::Annotation::DBLink;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor);
 
@@ -66,248 +68,23 @@ use Bio::EnsEMBL::SNP;
   Description: Retrieves a list of variations on a slice in slice coordinates 
   Returntype : Listref of Bio::EnsEMBL::Variation objects
   Exceptions : none
-  Caller     : Bio::EnsEMBL::Slice::get_all_Glovar_variations
+  Caller     : external feature factory system
 
 =cut
 
 sub fetch_all_by_Slice {
   my ($self, $slice, $is_light) = @_;
 
-  my $vars;
-  if($is_light){
-    return $vars = $self->fetch_Light_Variations_by_chr_start_end($slice);
-  } else {
-    return $vars = $self->fetch_Variations_by_chr_start_end($slice);
-  }  
+  die("ERROR: fetch_all_by_Slice called on Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor!\n
+        It should be implemented by a derived class!\n");
+
+  return([]);
 }
-
-
-=head2 fetch_Light_Variations_by_chr_start_end
-
- Title   : fetch_Light_Variations_by_chr_start_end
- Usage   : $db->fetch_Light_Variations_by_chr_start_end($slice);
- Function: find lightweight variations by chromosomal location.
- Example :
- Returns : a list ref of very light SNP objects - designed for drawing only.
- Args    : slice
-
-=cut
-
-sub fetch_Light_Variations_by_chr_start_end  {
-    my ($self,$slice) = @_; 
-
-    my $slice_chr    = $slice->chr_name();
-    my $slice_start  = $slice->chr_start();
-    my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();
-    my $ass_name     = $slice->assembly_name();
-    my $ass_version  = $slice->assembly_version();
-
-    unless($ass_name && $ass_version){
-        self->throw("Cannot determine assembly name and version!\n");
-    }
-
-    my $q = qq(
-        SELECT                                                                                                                                  
-                mapped_snp.position + seq_seq_map.START_COORDINATE -1                                                                       
-                                                as chr_start,                                                                                
-                mapped_snp.id_snp               as internal_id,                                                                              
-                seq_seq_map.contig_orientation  as chr_strand,                                                                               
-                snp_name.snp_name               as id_refsnp,                                                                                
-                'glovar'                        as source,                                                                                   
-                'snp'                           as snpclass,                                                                                 
-                svd.description                 as type,                                                                                     
-                snp.is_private                  as private,                                                                                     
-                snpf.allele_txt(snp.id_snp)     as alleles,                                                                                  
-                scd.description                 as validated                                                                                 
-        FROM    chrom_seq,                                                                                                                   
-                seq_seq_map,                                                                                                                 
-                snp_sequence,                                                                                                                
-                mapped_snp,                                                                                                                  
-                snp_name,                                                                                                                    
-                snp,                                                                                                                         
-                snpvartypedict svd,                                                                                                          
-                snp_confirmation_dict scd,                                                                                                   
-                database_dict                                                                                                                
-        WHERE   chrom_seq.DATABASE_SEQNAME= '$slice_chr'                                                                                             
-        AND     chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ                                                                              
-        AND     snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE                                                                          
-        AND     mapped_snp.ID_SEQUENCE = snp_sequence.ID_SEQUENCE                                                                            
-        AND     snp_name.id_snp = mapped_snp.id_snp                                                                                          
-        AND     snp.id_snp = snp_name.id_snp                                                                                                 
-        AND     snp.var_type = svd.id_dict                                                                                                   
-        AND     snp.is_confirmed = scd.id_dict                                                                                               
-        AND     snp_name.snp_name_type = 1                                                                                                   
-        AND     chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT                                                                            
-        AND     database_dict.DATABASE_NAME = '$ass_name'                                                                                         
-        AND     database_dict.DATABASE_VERSION = '$ass_version'                                                                                        
-        AND     (mapped_snp.position + seq_seq_map.START_COORDINATE -1) BETWEEN                                                              
-                '$slice_start' AND '$slice_end'                                                                                                              
-        ORDER BY 
-                chr_start                                                                                                                   
-        );
-
-        my $q1 = qq(SELECT distinct
-               (mapped_snp.position + seq_seq_map.START_COORDINATE -1) as snppos,
-               snp_name.snp_name as snp_name,
-               snp.is_confirmed as confirmed,
-               snp.is_private as private
-        FROM chrom_seq,
-             seq_seq_map,
-             snp_sequence,
-             mapped_snp,
-             snp_name,
-             snp,
-             database_dict
-        WHERE chrom_seq.DATABASE_SEQNAME='$slice_chr'
-        AND chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
-        AND snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE
-        AND mapped_snp.ID_SEQUENCE = snp_sequence.ID_SEQUENCE
-        AND snp_name.id_snp = mapped_snp.id_snp
-        AND snp.id_snp = snp_name.id_snp
-        AND snp_name.snp_name_type = 1
-        AND chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT
-        AND database_dict.DATABASE_NAME = '$ass_name'
-        AND database_dict.DATABASE_VERSION = '$ass_version'
-        AND (mapped_snp.position + seq_seq_map.START_COORDINATE -1) BETWEEN '$slice_start' AND '$slice_end'
-        ORDER BY SNPPOS
-        );
-    
-    my $sth = $self->prepare($q1);
-    $sth->execute();
-
-    my @vars = ();
-    while (my $rowhash = $sth->fetchrow_hashref()) {
-        return([]) unless keys %{$rowhash};
-        if ($rowhash->{'PRIVATE'}){
-            print Dumper($rowhash);
-            next;
-        }
-        #print Dumper($rowhash);
-        my $var = Bio::EnsEMBL::SNP->new_fast(
-            {
-                'dbID'          =>    $rowhash->{'SNP_NAME'},
-                '_gsf_start'    =>    $rowhash->{'SNPPOS'} - $slice_start + 1,#convert assembly coords to slice coords
-                '_gsf_end'      =>    $rowhash->{'SNPPOS'} - $slice_start + 1,
-#                'dbID'          =>    $rowhash->{'ID_REFSNP'},
-#                '_gsf_start'    =>    $rowhash->{'CHR_START'} - $slice_start + 1,#convert assembly coords to slice coords
-#                '_gsf_end'      =>    $rowhash->{'CHR_START'} - $slice_start + 1,
-                '_snp_strand'   =>    $rowhash->{'CHR_STRAND'},
-                '_gsf_score'    =>    -1,
-                '_type'         =>    $rowhash->{'TYPE'},
-                '_validated'    =>    $rowhash->{'VALIDATED'},
-                'alleles'       =>    $rowhash->{'ALLELES'} =~ s/\\\\/|/g,
-                '_snpclass'     =>    $rowhash->{'SNPCLASS'},
-                '_source_tag'   =>    $rowhash->{'SOURCE'},
-            });
-
-        push (@vars,$var); 
-        
-    }
-    
-    return(\@vars);
-}                                       
-
-=head2 fetch_Variations_by_chr_start_end
-
- Title   : fetch_Variations_by_chr_start_end
- Usage   : $db->fetch_Variations_by_chr_start_end($slice);
- Function: find full variations by chromosomal location.
- Example :
- Returns : a list ref SNP objects.
- Args    : slice
-
-=cut
-
-sub fetch_Variations_by_chr_start_end  {
-    my ($self,$slice) = @_; 
-
-    my $slice_chr    = $slice->chr_name();
-    my $slice_start  = $slice->chr_start();
-    my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();    
-    my $ass_name     = $slice->assembly_name();
-    my $ass_version  = $slice->assembly_version();
-
-    unless($ass_name && $ass_version){
-        self->throw("Cannot determine assembly name and version!\n");
-    }
-
-    my $q = qq(SELECT distinct
-           (mapped_snp.position + seq_seq_map.START_COORDINATE -1) as snppos,
-           mapped_snp.id_snp as snp_id,
-           snp_name.snp_name as snp_name,
-           snp.is_confirmed as status,
-           snp.is_private as private,
-           snpvartypedict.description as description,
-           snpnametypedict.description as nametype,
-           snp_variation.var_string as variation,
-           allele_frequency.frequency as frequency
-    FROM chrom_seq,
-         seq_seq_map,
-         snp_sequence,
-         mapped_snp,
-         snp_name,
-         snp,
-         snpvartypedict,
-         snpnametypedict,
-         snp_variation,
-         allele_frequency,
-         database_dict
-    WHERE chrom_seq.DATABASE_SEQNAME='$slice_chr'
-    AND chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
-    AND snp_sequence.ID_SEQUENCE = seq_seq_map.SUB_SEQUENCE
-    AND mapped_snp.ID_SEQUENCE = snp_sequence.ID_SEQUENCE
-    AND snp_name.id_snp = mapped_snp.id_snp
-    AND snp.id_snp = snp_name.id_snp
-    AND snp.id_snp = snp_variation.id_snp
-    AND snp_name.snp_name_type = 1
-    AND snp_variation.id_var = allele_frequency.id_var
-    AND snp.var_type = snpvartypedict.ID_DICT
-    AND snp_name.snp_name_type = snpnametypedict.ID_DICT
-    AND chrom_seq.DATABASE_SOURCE = database_dict.ID_DICT
-    AND database_dict.DATABASE_NAME = '$ass_name'
-    AND database_dict.DATABASE_VERSION = '$ass_version'
-    AND (mapped_snp.position + seq_seq_map.START_COORDINATE -1) BETWEEN '$slice_start' AND '$slice_end'
-    ORDER BY SNPPOS
-    );
-    
-    my $sth = $self->prepare($q);
-    $sth->execute();
-
-    my @vars = ();
-    while (my $rowhash = $sth->fetchrow_hashref()) {
-        return([]) unless keys %{$rowhash};
-        if ($rowhash->{'PRIVATE'}){
-            print Dumper($rowhash);
-            next;
-        }
-        my $var = Bio::EnsEMBL::SNP->new_fast(
-            {
-                'dbID'          =>    $rowhash->{'SNP_NAME'},
-                '_gsf_start'    =>    $rowhash->{'SNPPOS'} - $slice_start + 1,#convert assembly coords to slice coords
-                '_gsf_end'      =>    $rowhash->{'SNPPOS'} - $slice_start + 1,
-                '_snp_strand'   =>    -1,
-            });
-
-        push (@vars,$var); 
-        
-    }
-    
-    return(\@vars);
-}                                       
-sub fetch_Variation_by_id  {
-    my ($self, $id) = @_;
-
-    return(1);
-}
-
 
 sub track_name {
-    my ($self) = @_;
-    
-    return("Glovar");
-    
+    my ($self) = @_;    
+    die("ERROR: track_name called on Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor!\n
+        It should be implemented by a derived class!\n");
 }
 
 

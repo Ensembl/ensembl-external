@@ -75,6 +75,22 @@ sub display_id {
     return $self->{'display_id'};
 }
 
+=head2 display_name
+
+  Arg[1]      : (optional) String - Id to set
+  Example     : $self->display_name('rs303');
+  Description : alias for display_id
+  Return type : String
+  Exceptions  : none
+  Caller      : general
+
+=cut
+
+sub display_name {
+    my $self = shift;
+    return $self->display_id(@_);
+}
+
 =head2 alleles
 
   Arg[1]      : (optional) String - Alleles
@@ -138,14 +154,14 @@ sub each_DBLink{
 
 =head2 AUTOLOAD
 
-  Arg[1]      : (optional) String/Object - value to set
-  Example     : # setting a value
-                $self->somevalue($val);
-                # getting the value
-                $self->somevalue;
+  Arg[1]      : (optional) String/Object - attribute to set
+  Example     : # setting a attribute
+                $self->attr($val);
+                # getting the attribute
+                $self->attr;
+                # undefining an attribute
+                $self->attr(undef);
   Description : lazy function generator for getters/setters
-                LIMITATIONS: this implementation doesn't allow you to undef a
-                value you have set before!
   Return type : String/Object
   Exceptions  : none
   Caller      : general
@@ -159,7 +175,7 @@ sub AUTOLOAD {
     return unless $attr =~ /[^A-Z]/;
     no strict 'refs';
     *{$AUTOLOAD} = sub {
-        $_[0]->{$attr} = $_[1] if defined $_[1];
+        $_[0]->{$attr} = $_[1] if (@_ > 1);
         return $_[0]->{$attr};
     };
     $self->{$attr} = shift if (@_);

@@ -15,17 +15,18 @@
 Bio::EnsEMBL::ExternalData
 
 =head1 SYNOPSIS
-my $gene1 = Bio::EnsEMBL::ExternalData::Locus->new (-GDB => 'GDB:119655'); 
-my $gene2 = Bio::EnsEMBL::ExternalData::Locus->new (-NAME => 'ADSL');
-my $gene3 = Bio::EnsEMBL::ExternalData::Locus->new (-ACC => 'AF067853');
 
-$gene1->web_fetch();    #fetch ftp and search for gene
-$gene2->web_fetch();
-$gene3->web_fetch();
+ my $gene1 = Bio::EnsEMBL::ExternalData::Locus->new (-GDB => 'GDB:119655');
+ my $gene2 = Bio::EnsEMBL::ExternalData::Locus->new (-NAME => 'ADSL');
+ my $gene3 = Bio::EnsEMBL::ExternalData::Locus->new (-ACC => 'AF067853');
 
-$gene1->printace();     #print locus object in ace format
-$gene2->printace();
-$gene3->printace();
+ $gene1->web_fetch();    #fetch ftp and search for gene
+ $gene2->web_fetch();
+ $gene3->web_fetch();
+
+ $gene1->printace();     #print locus object in ace format
+ $gene2->printace();
+ $gene3->printace();
     
 =head1 DESCRIPTION
 
@@ -33,6 +34,7 @@ Object to store the details of external OMIM and gdbid numbers taken from
 Locuslink
 
 =head2 Methods:
+
     new,
     name           (e.g. ADSL)
     full_name      (e.g. adenylosuccinate lyase)
@@ -73,6 +75,7 @@ use Data::Dumper;
 @ISA = qw(Bio::Root::Object);
 
 =head2 new
+
     Title   :   new
     Usage   :   my obj = Bio::EnsEMBL::ExternalData::Locus->new (-GDB => 'GDB:119655');
     Function:   Initialises Locus object
@@ -80,6 +83,7 @@ use Data::Dumper;
     Args    :   A GDB id (-GDB), Name (-NAME) or Accession number (-ACC)
 
 =cut
+
 sub _initialize {
     my ($self,@args) = @_;
     my $make = $self->SUPER::_initialize(@_);
@@ -136,7 +140,9 @@ sub path {
     }
     return $self->{_path};        
 }
+
 =head2 accession
+
     Title   :   accession
     Usage   :   my obj->accession()
     Function:   get/set method for accession
@@ -144,6 +150,7 @@ sub path {
     Args    :   accession (optional)
 
 =cut
+
 sub accession {
     my ($self, $accession) = @_;
     if ($accession)
@@ -172,6 +179,7 @@ sub locuslink_file {
 }
 
 =head2 gdbid
+
     Title   :   gdbid
     Usage   :   my obj->gdbid()
     Function:   get/set method for gdbid
@@ -179,6 +187,7 @@ sub locuslink_file {
     Args    :   gdbid (optional)
 
 =cut
+
 sub gdbid {
     my ($self, $gdbid) = @_;
     if ($gdbid)
@@ -189,6 +198,7 @@ sub gdbid {
 }
 
 =head2 name
+
     Title   :   name
     Usage   :   my obj->name()
     Function:   get/set method for name
@@ -196,6 +206,7 @@ sub gdbid {
     Args    :   name (optional)
 
 =cut
+
 sub name {
     my ($self, $name) = @_;
     if ($name)
@@ -343,7 +354,9 @@ sub search_embl {
 #####################
 # public output/fetch functions
 #####################
+
 =head2 web_fetch
+
     Title   :   web_fetch
     Usage   :   my obj->web_fetch()
     Function:   Searches LL.out using data provided during initialisation
@@ -394,6 +407,7 @@ sub web_fetch {
 }
 
 =head2 printace
+
     Title   :   printace
     Usage   :   my obj->printace()
     Function:   Prints member variables of Locus object in ace format. 
@@ -402,6 +416,7 @@ sub web_fetch {
     Args    :   none
 
 =cut
+
 sub printace {
 my ($self, $name) = @_;
     if ($self->matched)

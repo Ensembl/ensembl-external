@@ -1,43 +1,31 @@
-# 
-# BioPerl module for Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor
-# 
-# Cared for by Patrick Meidl <pm2@sanger.ac.uk>
-#
-# Copyright EnsEMBL
-#
-# You may distribute this module under the same terms as perl itself
-
-# POD documentation - main docs before the code
-
 =head1 NAME
 
-GlovarTraceAdaptor - Database adaptor for Glovar traces
+Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor -
+Database adaptor for Glovar traces
 
 =head1 SYNOPSIS
 
 $glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -user   => 'ensro',
+                                         -pass   => 'secret',
                                          -dbname => 'snp',
                                          -host   => 'go_host',
                                          -driver => 'Oracle');
 my $glovar_adaptor = $glodb->get_GlovarTraceAdaptor;
-$var_listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
+$listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
 
 =head1 DESCRIPTION
 
-This module is an entry point into a glovar database,
+This module is an entry point into a glovar database. It allows you to retrieve
+traces from Glovar
 
-Objects can only be read from the database, not written. (They are loaded using
-a separate system).
+=head1 AUTHOR
+
+Patrick Meidl <pm2@sanger.ac.uk>
 
 =head1 CONTACT
 
- Patrick Meidl <pm2@sanger.ac.uk>
-
-=head1 APPENDIX
-
-The rest of the documentation details each of the object methods. Internal
-methods are usually preceded with a _
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
 
 =cut
 
@@ -55,10 +43,10 @@ use vars qw(@ISA);
 
 =head2 fetch_all_by_Slice
 
-  Arg [1]    : Bio::EnsEMBL::Slice $slice
+  Arg [1]    : Bio::EnsEMBL::Slice
   Arg [2]    : (optional) boolean $is_lite
                Flag indicating if 'light weight' variations should be obtained
-  Example    : svars = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
+  Example    : @list = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
   Description: Retrieves a list of traces on a slice in chromosomal coordinates 
   Returntype : Listref of Bio::EnsEMBL::MapFrag objects
   Exceptions : none
@@ -86,12 +74,13 @@ sub fetch_all_by_Slice {
 
 =head2 fetch_Light_Trace_by_chr_start_end
 
- Title   : fetch_Light_Trace_by_chr_start_end
- Usage   : $db->fetch_Light_Trace_by_chr_start_end($slice);
- Function: find lightweight traces by chromosomal location.
- Example :
- Returns : a listref of Bio::EnsEMBL::MapFrag objects
- Args    : slice
+  Arg [1]    : Bio::EnsEMBL::Slice
+  Example    : @list = @{$glovar_adaptor->fetch_Light_Trace_by_chr_start_end($slice)};
+  Description: Retrieves a list of traces on a slice in chromosomal coordinates.
+               Returns lightweight objects for drawing purposes.
+  Returntype : Listref of Bio::EnsEMBL::MapFrag objects
+  Exceptions : none
+  Caller     : $self->fetch_all_by_slice
 
 =cut
 
@@ -201,16 +190,52 @@ sub fetch_Light_Trace_by_chr_start_end  {
     return $self->{'_cache'}->{$key};
 }                                       
 
+=head2 fetch_Trace_by_chr_start_end
+
+  Arg [1]    : Bio::EnsEMBL::Slice
+  Example    : @list = @{$glovar_adaptor->fetch_Trace_by_chr_start_end($slice)};
+  Description: Retrieves a list of traces on a slice in chromosomal coordinates.
+  Returntype : Listref of Bio::EnsEMBL::MapFrag objects
+  Exceptions : none
+  Caller     : $self->fetch_all_by_slice
+
+=cut
 
 sub fetch_Trace_by_chr_start_end  {
     my ($self, $slice) = @_;
+
+    ## to be implemented
+    
     return(1);
 }
+
+=head2 fetch_Trace_by_id
+
+  Arg[1]      : String - trace ID
+  Example     : my $trace = $glovar_adaptor->fetch_Trace_by_id($id);
+  Description : retrieve traces from Glovar by ID
+  Return type : Listref of Bio::EnsEMBL::MapFrag objects
+  Exceptions  : none
+  Caller      : $self
+
+=cut
 
 sub fetch_Trace_by_id  {
     my ($self, $id) = @_;
     return(1);
 }
+
+=head2 track_name
+
+  Arg[1]      : none
+  Example     : my $track_name = $trace_adaptor->track_name;
+  Description : returns the track name
+  Return type : String - track name
+  Exceptions  : none
+  Caller      : Bio::EnsEMBL::Slice,
+                Bio::EnsEMBL::ExternalData::ExternalFeatureAdaptor
+
+=cut
 
 sub track_name {
     my ($self) = @_;    

@@ -1,50 +1,37 @@
-# 
-# BioPerl module for Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor
-# 
-# Cared for by Jody Clements <jc3@sanger.ac.uk>
-#
-# Copyright EnsEMBL
-#
-# You may distribute this module under the same terms as perl itself
-
-# POD documentation - main docs before the code
-
 =head1 NAME
 
-GlovarAdaptor - DESCRIPTION of Object
-
-  This object represents the Glovar database.
+Bio::EnsEMBL::ExternalData::Glovar::GlovarBaseCompAdaptor -
+Object adaptor for Glovar base composition
 
 =head1 SYNOPSIS
 
-$glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
+$db_adaptor = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -user   => 'ensro',
+                                         -pass   => 'secret',
                                          -dbname => 'snp',
                                          -host   => 'go_host',
-                                         -driver => 'Oracle');
-
-my $glovar_adaptor = $glodb->get_GlovarAdaptor;
-
-$var_listref  = $glovar_adaptor->fetch_all_by_Slice($slice);  # grab the lot!
-
+                                         -driver => 'Oracle'
+);
+my $basecomp_adaptor = $db_adaptor->get_GlovarBaseCompAdaptor;
+my $listref  = $basecomp_adaptor->fetch_all_by_Slice($slice);
 
 =head1 DESCRIPTION
 
-This module is an entry point into a glovar database,
+This module is an entry point into a Glovar database. It allows you to retrieve
+base composition data from the database.
 
-Objects can only be read from the database, not written. (They are
-loaded using a separate system).
+=head1 LICENCE
 
+This code is distributed under an Apache style licence:
+Please see http://www.ensembl.org/code_licence.html for details
 
-
-=head1 CONTACT
+=head1 AUTHOR
 
 Jody Clements <jc3@sanger.ac.uk>
 
-=head1 APPENDIX
+=head1 CONTACT
 
-The rest of the documentation details each of the object methods. Internal
-methods are usually preceded with a _
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
 
 =cut
 
@@ -61,14 +48,16 @@ use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);
 
 =head2 fetch_all_by_Slice
 
-  Arg [1]    : Bio::EnsEMBL::Slice $slice
+  Arg [1]    : Bio::EnsEMBL::Slice
   Arg [2]    : (optional) boolean $is_lite
-               Flag indicating if 'light weight' variations should be obtained
-  Example    : svars = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
-  Description: Retrieves a list of variations on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::Variation objects
+               Flag indicating if 'light weight' objects should be obtained
+  Example    : @list = @{$basecomp_adaptor->fetch_all_by_Slice($slice)};
+  Description: Retrieves a list of base composition objects on a slice in
+               slice coordinates 
+  Returntype : Listref of Bio::EnsEMBL::External::Glovar::BaseComposition
+               objects
   Exceptions : none
-  Caller     : Bio::EnsEMBL::Slice::get_all_Glovar_variations
+  Caller     : Bio::EnsEMBL::Slice::get_all_ExternalFeatures
 
 =cut
 
@@ -91,17 +80,19 @@ sub fetch_all_by_Slice {
 
 =head2 fetch_Light_Base_Comp_by_chr_start_end
 
- Title   : fetch_Light_Base_Comp_by_chr_start_end
- Usage   : $db->fetch_Light_Base_Comp_by_chr_start_end($slice);
- Function: find lightweight variations by chromosomal location.
- Example :
- Returns : a list ref of very light base composition objects - designed for drawing.
- Args    : slice
+  Arg [1]    : Bio::EnsEMBL::Slice
+  Example    : @list = @{$basecomp_adaptor->fetch_Light_Base_Comp_by_chr_start_end($slice)};
+  Description: Retrieves a list of base composition objects on a slice in
+               slice coordinates 
+  Returntype : Listref of Bio::EnsEMBL::External::Glovar::BaseComposition
+               objects. Returns lightweight objects for drawing purposes
+  Exceptions : none
+  Caller     : $self->fetch_all_by_Slice
 
 =cut
 
 sub fetch_Light_Base_Comp_by_chr_start_end {
-    my ($self,$slice) = @_;
+    my ($self, $slice) = @_;
     my $slice_chr    = $slice->chr_name();
     my $slice_start  = $slice->chr_start();
     my $slice_end    = $slice->chr_end();
@@ -223,39 +214,37 @@ sub fetch_Light_Base_Comp_by_chr_start_end {
 
 =head2 fetch_Base_Comp_by_chr_start_end
 
- Title   : fetch_Base_Comp_by_chr_start_end
- Usage   : $db->fetch_Base_Comp_by_chr_start_end($slice);
- Function: find full variations by chromosomal location.
- Example :
- Returns : a list ref of Base Composition objects.
- Args    : slice
+  Arg [1]    : Bio::EnsEMBL::Slice
+  Example    : @list = @{$basecomp_adaptor->fetch_Base_Comp_by_chr_start_end($slice)};
+  Description: Retrieves a list of base composition objects on a slice in
+               slice coordinates 
+  Returntype : Listref of Bio::EnsEMBL::External::Glovar::BaseComposition
+               objects
+  Exceptions : none
+  Caller     : $self->fetch_all_by_Slice
 
 =cut
 
 sub fetch_Base_Comp_by_chr_start_end  {
     my ($self,$slice) = @_;
-
     my @vars = ();
+
+    ## to be implemented
+    
     return(\@vars);
 }
 
+=head2 track_name
 
-=head2 fetch_Base_Comp_by_id
-
-  Arg[1]      : String - Position ID
-  Example     : my $composition = $glovar_adaptor->fetch_Base_Comp_by_id($id);
-  Description : retrieve base composition from Glovar by ID
-  Return type : List of Base composition Objects
+  Arg[1]      : none
+  Example     : my $track_name = $basecomp_adaptor->track_name;
+  Description : returns the track name
+  Return type : String - track name
+  Exceptions  : none
+  Caller      : Bio::EnsEMBL::Slice,
+                Bio::EnsEMBL::ExternalData::ExternalFeatureAdaptor
 
 =cut
-
-sub fetch_Base_Comp_by_id  {
-    my ($self,$slice) = @_;
-
-    my @vars = ();
-    return(\@vars);
-}
-
 
 sub track_name {
     my ($self) = @_;

@@ -292,7 +292,7 @@ sub fetch_all_by_clone_accession {
         return([]) unless keys %{$row};
         warn "WARNING: private data!" if $row->{'PRIVATE'};
 
-        ## hack for SNPs without strand -> remove once db has been fixed
+        ## filter SNPs without strand (this is gruft in mapped_snp)
         next unless $row->{'SNP_STRAND'};
 
         ## calculate coords depending on clone orientation
@@ -459,7 +459,14 @@ sub fetch_SNP_by_id  {
             ## map to chromosomal coordinates
             my $mapper = $dnadb->get_AssemblyMapperAdaptor->fetch_by_type(
                                 $dnadb->assembly_type);
-            my $clone = $dnadb->get_CloneAdaptor->fetch_by_accession($embl_acc);
+            my $clone;
+            eval { 
+                $clone = $dnadb->get_CloneAdaptor->fetch_by_accession($embl_acc);
+            };
+            if ($@) {
+                warn $@;
+                next;
+            }
             my $contig = $clone->get_RawContig_by_position($start);
             my $offset = $contig->embl_offset;
             @mapped = $mapper->map_coordinates_to_assembly($contig->dbID,

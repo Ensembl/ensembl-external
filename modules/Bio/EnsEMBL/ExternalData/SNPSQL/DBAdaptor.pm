@@ -796,6 +796,16 @@ sub get_Hitcount {
     return $count;
 }
 
+sub get_max_refsnpid {
+    my ($self) = @_;
+    my $sth=$self->prepare("select max(id) from RefSNP");
+    my $res=$sth->execute();
+
+    my ($count) = $sth->fetchrow_array();
+   
+    return $count;
+}
+
 =head2 _lock_tables
 
  Title   : _lock_tables

@@ -3,6 +3,7 @@
 use strict;
 
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
+use Bio::EnsEMBL::ExternalData::Family::Conf;
 
 use Getopt::Long;
 
@@ -15,6 +16,7 @@ $0 [-help]
    -chr_names \"20,21,22\" (default = \"all\")
    -path assembly_type (e.g. NCBI_30)
    -file fasta_file_name
+   -taxon_file taxon_file_name
 
 ";
 
@@ -23,7 +25,8 @@ my $user = 'ensro';
 my $port = "";
 my $dbname;
 my $chr_names = "all"; # usage -chr_names "21,22"
-my $file = 'stdout';
+my $file;
+my $taxon_file;
 my $path;
 my $help = 0;
 
@@ -37,7 +40,8 @@ $| = 1;
   'dbname=s' => \$dbname,
   'path=s'   => \$path,
   'chr_names=s' => \$chr_names,
-  'file=s' => \$file
+  'file=s' => \$file,
+  'taxon_file=s' => \$taxon_file
 );
 
 if ($help) {
@@ -57,6 +61,9 @@ $db->assembly_type($path);
 my $ChromosomeAdaptor = $db->get_ChromosomeAdaptor;
 my @chromosomes;
 
+my $taxon_id = $db->get_MetaContainer->get_taxonomy_id;
+my %TaxonConf = %Bio::EnsEMBL::ExternalData::Family::Conf::TaxonConf;
+
 if (defined $chr_names and $chr_names ne "all") {
   my @chr_names = split /,/, $chr_names;
   foreach my $chr_name (@chr_names) {
@@ -66,10 +73,16 @@ if (defined $chr_names and $chr_names ne "all") {
   @chromosomes = @{$ChromosomeAdaptor->fetch_all}
 }
 
-if ($file ne "stdout") {
+if (defined $file) {
   open FP,">$file";
 } else {
-  open FP,">-";
+  open FP,">$dbname.pep";
+}
+
+if (defined $taxon_file) {
+  open TX,">$taxon_file";
+} else {
+  open TX,">$dbname.tax";
 }
 
 my %failedgenes;
@@ -123,10 +136,12 @@ foreach my $chr (reverse sort  bychrnum @chromosomes) {
 	  }
 	  
 	  if (defined $trans->translation->stable_id) {
+	    print TX "ensemblpep\t" . $trans->translation->stable_id . "\t\t" .$TaxonConf{$taxon_id} ."\n";
 	    print FP ">" . $trans->translation->stable_id . 
               " Transcript:" . $trans->stable_id . 
 	      " Gene:" . $gene->stable_id;
 	  } else {
+	    print TX "ensemblpep\t" . $trans->translation->dbID . "\t\t" .$TaxonConf{$taxon_id} ."\n";
 	    print FP ">" . $trans->translation->dbID .
               " Transcript:" . $trans->dbID .
               " Gene:" . $gene->dbID; 

@@ -231,7 +231,7 @@ sub all_diseases
     
     my $query_string='';
 
-    if ($offset||$offset == 0){
+    if (defined $offset){
         $offset='limit '.$offset;
         if($count){$count=','.$count;}
         my $get_disease_ids_sql="SELECT distinct d.id 
@@ -766,7 +766,7 @@ my $disease;
 
 while ( my $rowhash = $sth->fetchrow_hashref) 
 {
-    if ($id!=$rowhash->{'id'})
+    if (!defined($id) or $id != $rowhash->{'id'})
     {   
     $disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
     $disease->name($rowhash->{'disease'});

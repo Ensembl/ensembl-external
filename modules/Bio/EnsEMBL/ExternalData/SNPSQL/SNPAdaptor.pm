@@ -69,12 +69,12 @@ sub fetch_by_SNP_id {
              hit.end, hit.type, hit.strand, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
              refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight,
-             source.source
-      FROM   Hit as hit, RefSNP as refsnp, DataSource source
+             ds.datasource
+      FROM   Hit as hit, RefSNP as refsnp, DataSource ds
       WHERE  hit.internal_id = refsnp.internal_id
-      AND    source.id = refsnp.source
+      AND    ds.id = refsnp.datasource
       AND    refsnp.id = ? 
-      AND    source.source = ?');
+      AND    source.ds = ?');
 
   $sth->execute($refsnpid, $source);
 
@@ -238,10 +238,10 @@ sub fetch_by_clone_accession_version {
   	       p2.id, p2.snpclass,  p2.snptype,
   	       p2.observed, p2.seq5, p2.seq3,
   	       p2.het, p2.hetse,
-               p2.validated, p2.mapweight, p3.source, p2.internal_id
+               p2.validated, p2.mapweight, p3.datasource, p2.internal_id
   		FROM   Hit as p1, RefSNP as p2, DataSource as p3
   		WHERE  p1.acc = "$acc" and p1.version = "$ver"
-               AND p3.id = p2.source
+               AND p3.id = p2.datasource
   	       AND p1.internal_id = p2.internal_id
 	       };
 

@@ -144,6 +144,8 @@ sub each_DBLink{
                 # getting the value
                 $self->somevalue;
   Description : lazy function generator for getters/setters
+                LIMITATIONS: this implementation doesn't allow you to undef a
+                value you have set before!
   Return type : String/Object
   Exceptions  : none
   Caller      : general

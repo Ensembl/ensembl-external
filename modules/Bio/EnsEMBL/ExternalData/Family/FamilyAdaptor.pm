@@ -32,10 +32,10 @@ $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                             );
 my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
 
-$fam = $fam_adtor->get_Family_by_id('ENSF000013034');  # family id
-$fam = $fam_adtor->get_Family_of_db_id('SPTR', 'P000123');
-@fam = $fam_adtor->get_Family_described_as('interleukin');
-@fam = $fam_adtor->all_Families();
+$fam = $fam_adtor->fetch_by_stable_id('ENSF000013034');  # family id
+$fam = $fam_adtor->fetch_by_dbname_id('SPTR', 'P000123');
+@fam = $fam_adtor->fetch_by_description_with_wildcards('interleukin',1);
+@fam = $fam_adtor->fetch_all();
 
 ### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
 ### Ensembl database object, then use it as:
@@ -60,19 +60,19 @@ taken as the description of the whole family.
 The objects can only be read from the database, not written. (They are
 loaded ussing a separate perl script).
 
-For more info, see Family.pm
+For more info, see Bio::EnsEMBL::ExternalData::Family
 
 =head1 CONTACT
 
- Philip Lijnzaad <Lijnzaad@ebi.ac.uk>, Anton Enright <enright@ebi.ac.uk>
+ Philip Lijnzaad <Lijnzaad@ebi.ac.uk> [original perl modules]
+ Anton Enright <enright@ebi.ac.uk> [TRIBE algorithm]
+ Elia Stupka elia@fugu-sg.org [refactoring]
 
 =head1 APPENDIX
 
 The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
 
 =cut
-
-# '; pacify emacs
 
 package Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use vars qw(@ISA);
@@ -89,11 +89,11 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 =head2 fetch_by_stable_id
 
  Title   : fetch_by_stable_id
- Usage   : $db->fetch_by_stable_id('ENSF00000000009');
- Function: find Family, given its stable_id.
- Example :
+ Usage   : $db->fetch_by_stable_id($id);
+ Function: fetches a Family given its stable identifier
+ Example : $db->fetch_by_stable_id('ENSF00000000009');
  Returns : a Family object if found, undef otherwise
- Args    : an ENS Family STABLE_ID
+ Args    : an EnsEMBL Family stable id
 
 =cut
 
@@ -109,14 +109,14 @@ sub fetch_by_stable_id  {
     $self->_get_family($q);
 }                                       # fetch_by_stable_id
 
-=head2 fetch_by_db_id
+=head2 fetch_by_dbname_id
 
- Title   : fetch_of_db_id
- Usage   : $fam = $db->fetch_of_db_id('SPTR', 'P01235');
+ Title   : fetch_of_dbname_id
+ Usage   : $fam = $db->fetch_of_dbname_id($dbname,$dbid);
  Function: find the family to which the given database and id belong
- Example :
+ Example : $fam = $db->fetch_of_dbname_id('SPTR', 'P01235');
  Returns : a Family or undef if not found 
- Args    : the ENSEMBLPEP identifier (display_id)
+ Args    : a database name and a member identifier (display_id)
 
 =cut
 
@@ -135,22 +135,23 @@ sub fetch_by_dbname_id {
     $self->_get_family($q);
 }
 
-=head2 fetch_by_description
+=head2 fetch_by_description_with_wildcards
 
- Title   : fetch_by_description
- Usage   : my @fams = $db->fetch_by_description('REDUCTASE');
+ Title   : fetch_by_description_with_wildcards
+ Usage   : my @fams = $db->fetch_by_description_with_wildcards($desc);
  Function: simplistic substring searching on the description
- Example :
- Returns : a possibly empty list of Families that contain the string. 
+ Example : my @fams = $db->fetch_by_description_with_wildcards('REDUCTASE',1);
+ Returns : a (possibly empty) list of Families that either are named by the string,
+           or contain the string (depending on the optional wildcard argument) 
            (The search is currently case-insensitive; this may change if
            SPTR changes to case-preservation)
- Args    : search string, optional widldcard (is set to 1, wildcards are added and the 
-           search is a slower LIKE search
+ Args    : search string, optional wildcard (if set to 1, wildcards are added and the 
+           search is a slower LIKE search)
 
 =cut
 
-sub fetch_by_description{ 
-    my ($self, $desc,$wildcard) = @_; 
+sub fetch_by_description_with_wildcards{ 
+    my ($self,$desc,$wildcard) = @_; 
 
     my $query = $desc;
     my $q;
@@ -194,8 +195,6 @@ sub fetch_all {
     $self->_get_families($q);
 }
 
-#Add method to fetch by number of members
-
 =head2 known_databases
 
  Title   : known_databases
@@ -229,17 +228,14 @@ sub _known_databases {
   while ( my ( @row ) = $q->fetchrow_array ) {
         push @res, $row[0];
   }
-  # $q->finish;
   $self->throw("didn't find any database") if (int(@res) == 0);
   return \@res;
 }
 
-# pull all fam's members from db
 sub _get_members {
     my ($self, $fam) = @_;
 
     my $fid = $fam->dbID;
-# warn hard coding here !!!
     my $q = 
       "SELECT external_db_id, external_member_id
          FROM family_members
@@ -258,13 +254,7 @@ sub _get_members {
         $fam->add_member($link);
         $n++;
     }
-
-    if ($n < 1) {
-        #    $self->throw("internal error; expecting at least one member for id $iid") 
-        ; # can happen now that ENSMUS have been added but are filtered
-    }
-    undef;
-}                                       # _get_members
+}
 
 # set/get handle on ensembl database
 sub _ensdb 
@@ -283,6 +273,7 @@ sub _famdb
   
   return $self->{'_famdb'};
 }
+
 # get one or no family, given some query
 sub _get_family {
     my ($self, $q) = @_;
@@ -292,9 +283,8 @@ sub _get_family {
     if (@fams > 1) {
         $self->throw("internal error; expecting at most one Family");
     };
-    return $fams[0];                    # may be undef
-}                                       # _get_family
-
+    return $fams[0];  
+}                     
 
 =head2 get_max_id
 
@@ -339,6 +329,7 @@ sub _get_alignment_string {
     }  else { return $$row[0];}
 }
 
+#method to fetch alignments
 sub get_Alignment {
   my ($self,$fam) = @_;
 
@@ -357,8 +348,8 @@ sub get_Alignment {
 
   return $align;
 }
-  
-# get 0 or more families
+
+#internal method used in multiple calls above to build family objects from table data  
 sub _get_families {
     my ($self, $q) = @_;
 
@@ -377,14 +368,15 @@ sub _get_families {
         $fam->release($rowhash->{release});
         $fam->annotation_confidence_score($rowhash->{annotation_confidence_score});
 
-        $self->_get_members($fam);      # make more lazy ? 
+        $self->_get_members($fam); 
         $self->_get_totals($fam);
         push(@fams, $fam);
     }
     
-    @fams;                              # maybe empty
-}                                       # _get_families
+    @fams;                         
+}                                  
 
+#internal method to build hash of total number of members per database name
 =head2 _get_totals
 
  Title   : _get_totals
@@ -421,7 +413,7 @@ sub _get_totals{
 }
 
 
-
+#get-set for database handle
 sub _db_handle 
 {
   my ($self,$value) = @_;

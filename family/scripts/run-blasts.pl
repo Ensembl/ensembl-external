@@ -96,7 +96,8 @@ foreach my $chunk ( @chunks) {
     my $tmp_name="/tmp/fam-$ENV{USER}-$$-$i";
     my $tmp_file="$tmp_name.out";
     my $command=join(" ", 
-                  ("bsub -q $queue", 
+                  ("bsub -q $queue",
+		   "-C 0", # limit core dump to 0Ko
                    "-e $results_dir/$i.joberr", 
                    "-o $results_dir/$i.jobout",
                    "-E \" ls -al $sync_dir/$database.phr\" ",

@@ -5,7 +5,7 @@ package Bio::EnsEMBL::ExternalData::Haplotype::DBAdaptor;
 use vars qw(@ISA);
 use Bio::EnsEMBL::DBSQL::DBConnection;
 
-@ISA = qw(Bio::EnsEMBL::DBSQL::DBConnection);
+@ISA = qw(Bio::EnsEMBL::DBSQL::DBAdaptor);
 
 =head2 get_HaplotypeAdaptor
 

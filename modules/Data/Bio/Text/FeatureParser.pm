@@ -123,7 +123,7 @@ sub parse_row {
         $self->store_feature( $ws_delimited[4], Data::Bio::Text::Feature::generic->new( \@ws_delimited ) ) if
           $self->filter($ws_delimited[1],$ws_delimited[2],$ws_delimited[3]);
       } else {                                  ## default format ( BED )
-        $current_key ||= $ws_delimited[3];
+        $current_key = $ws_delimited[3] if $current_key eq 'default';
         $self->store_feature( $current_key, Data::Bio::Text::Feature::BED->new( \@ws_delimited ) ) if
         $self->filter($ws_delimited[0],$ws_delimited[1],$ws_delimited[2]);
       }

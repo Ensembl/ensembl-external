@@ -12,7 +12,15 @@ Bio::EnsEMBL::ExternalData::Disease::Disease
 
 =head1 SYNOPSIS
 
+# Instantiate an empty object.
 $disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
+$disease->name('...');
+$disease->add_Location($location); # add DiseaseLocation object.
+
+# Fetch objects by DBHandler.
+# See DBHandler docs.
+
+# Usage
 my @locations=$disease->each_Location;
 
 =head1 DESCRIPTION
@@ -30,8 +38,6 @@ Describe contact details here
 The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
 
 =cut
-
-
 
 package Bio::EnsEMBL::ExternalData::Disease::Disease; 
 
@@ -53,22 +59,17 @@ sub new
     return $self; 
 }
 
-
-
 =head2 name
 
  Title   : name
  Usage   :
- Function:
+ Function: Get/set for disease brief. Refer to NCBI OMIM records
  Example :
  Returns : 
  Args    :
 
 
 =cut
-
-
-
 
 sub name
 {
@@ -79,12 +80,11 @@ sub name
 }
 
 
-
 =head2 add_Location
 
  Title   : add_Location
  Usage   :
- Function:
+ Function: attach a DiseaseLocation object.
  Example :
  Returns : 
  Args    :
@@ -114,16 +114,11 @@ sub add_Location
  Usage   :
  Function:
  Example :
- Returns : 
- Args    :
+ Returns : An array of DiseaseLocation objects. 
+ Args    : [None]
 
 
 =cut
-
-
-
-
-
 
 
 sub each_Location{
@@ -133,9 +128,4 @@ sub each_Location{
 }
 
 
-
-
-
-
-
-
+1;

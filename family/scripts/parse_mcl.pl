@@ -4,40 +4,84 @@
 # Parse MCL output (numbers) back into real clusters (with protein names)
 
 use strict;
+use Getopt::Long;
 use IO::File;
 use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 use Bio::EnsEMBL::ExternalData::Family::FamilyMember;
 use Bio::EnsEMBL::ExternalData::Family::Taxon;
 
+$| = 1;
+
 my $usage = "
-Usage: $0 mcl_file index_file desc_file > mcl.clusters
+Usage: $0 options mcl_file index_file desc_file > mcl.clusters
+
+i.e.
+
+$0 
+
+Options:
+-host 
+-dbname family dbname
+-dbuser
+-dbpass
+-release release version i.e. 13_1
+-prefix family stable id prefix (default: ENSF)
+-offset family id numbering start (default:1)
+
 \n";
 
-die $usage unless (scalar @ARGV == 3);
-
-my ($mcl_file,$index_file,$desc_file) = @ARGV;
-
-my $release_number = "13_1";
+my $help = 0 ;
+my $release_number;
 my $family_prefix = "ENSF";
 my $family_offset = 1;
+my $host;
+my $dbname;
+my $dbuser;
+my $dbpass;
+
+GetOptions('help' => \$help,
+	   'host=s' => \$host,
+	   'dbname=s' => \$dbname,
+	   'dbuser=s' => \$dbuser,
+	   'dbpass=s' => \$dbpass,
+	   'release=s' => \$release_number,
+	   'prefix=s' => \$family_prefix,
+	   'offset=i' => \$family_offset);
+
+if ($help) {
+  print $usage;
+  exit 0;
+}
+
+unless (scalar @ARGV == 3) {
+  print "Need 3 arguments\n";
+  print $usage;
+  exit 0;
+}
+
+my ($mcl_file,$index_file,$desc_file) = @ARGV;
 
 my @clusters;
 my %seqinfo;
 my %member_index;
 
-my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host   => "ecs1b.sanger.ac.uk",
-									 -user   => "ensadmin",
-									 -dbname => "family_load_test",
-									 -pass => "ensembl");
+my $family_db = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-host   => $host,
+									 -user   => $dbuser,
+									 -dbname => $dbname,
+									 -pass => $dbpass);
 
 my $FamilyAdaptor = $family_db->get_FamilyAdaptor;
 
 print STDERR "Reading index file...";
 
-open INDEX, $index_file ||
-  die "$index_file: $!";
-
+if ($index_file =~ /\.gz/) {
+  open INDEX, "gunzip -c $index_file|" ||
+    die "$index_file: $!";
+} else {
+  open INDEX, $index_file ||
+    die "$index_file: $!";
+}
 my $max_member_index;
 
 while (<INDEX>) {
@@ -63,8 +107,13 @@ print STDERR "Done\n";
 
 print STDERR "Reading description file...";
 
-open DESC, $desc_file ||
-  die "$desc_file: $!";
+if ($desc_file =~ /\.gz/) {
+  open DESC, "gunzip -c $desc_file|" || 
+    die "$desc_file: $!"; 
+} else {
+  open DESC, $desc_file ||
+    die "$desc_file: $!";
+}
 
 while (<DESC>) {
   if (/^(.*)\t(.*)\t(.*)\t(.*)$/) {
@@ -90,9 +139,13 @@ close DESC
 print STDERR "Done\n";
 
 print STDERR "Reading mcl file...";
-
-open MCL, $mcl_file ||
-  die "$mcl_file: $!";
+if ($index_file =~ /\.gz/) {
+  open MCL, "gunzip -c $mcl_file|" ||
+    die "$mcl_file: $!";
+} else {
+  open MCL, $mcl_file ||
+    die "$mcl_file: $!";
+}
 
 my $headers_off = 0;
 my $one_line_members = "";

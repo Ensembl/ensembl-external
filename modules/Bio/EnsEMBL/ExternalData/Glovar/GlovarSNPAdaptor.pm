@@ -198,7 +198,7 @@ sub fetch_SNP_by_chr_start_end  {
 sub fetch_all_by_clone_accession {
     my ($self, $embl_acc, $embl_version, $cl_start, $cl_end) = @_;
 
-    &eprof_start('clone_sql');
+    #&eprof_start('clone_sql');
 
     my $dnadb;
     eval { $dnadb = $self->ensembl_db; };
@@ -210,14 +210,18 @@ sub fetch_all_by_clone_accession {
     ## get info on clone
     my $q1 = qq(
         SELECT
+                ss.database_seqnname,
                 csm.id_sequence,
                 csm.start_coordinate,
                 csm.end_coordinate,
                 csm.contig_orientation
         FROM    clone_seq cs,
-                clone_seq_map csm
+                clone_seq_map csm,
+                snp_sequence ss
         WHERE   cs.database_seqname = '$embl_acc'
         AND     cs.id_cloneseq = csm.id_cloneseq
+        AND     csm.id_sequence = ss.id_sequence
+        AND     ss.is_current = 1
     );
     my $sth;
     eval {
@@ -228,7 +232,21 @@ sub fetch_all_by_clone_accession {
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
-    my ($id_seq, $clone_start, $clone_end, $clone_strand) = $sth->fetchrow_array();
+    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
+    my $i;
+    while (my @res = $sth->fetchrow_array) {
+        ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @res;
+        $i++;
+    }
+    if ($i > 1) {
+        $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
+    }
+
+    ## temporary hack for SNP density script: skip vega-specific clones
+    #unless ($nt_name =~ /^NT/) {
+    #    warn "WARNING: Skipping vega-specific clone ($embl_acc).\n";
+    #    return ([]);
+    #}
 
     ## now get the SNPs on this clone
     # get only features in the desired region of the clone
@@ -342,8 +360,8 @@ sub fetch_all_by_clone_accession {
         }
     }
 
-    &eprof_end('clone_sql');
-    &eprof_dump(\*STDERR);
+    #&eprof_end('clone_sql');
+    #&eprof_dump(\*STDERR);
     
     return [values %snps];
 }                                       
@@ -362,7 +380,7 @@ sub fetch_all_by_clone_accession {
 sub fetch_SNP_by_id  {
     my ($self, $id) = @_;
     
-    &eprof_start('fetch_snp_by_id');
+    #&eprof_start('fetch_snp_by_id');
     
     my $dnadb;
     eval { $dnadb = $self->ensembl_db; };
@@ -383,7 +401,8 @@ sub fetch_SNP_by_id  {
                 ss.alleles                  as alleles,
                 svd.description             as snpclass,
                 sseq.chromosome             as chr_name,
-                sseq.id_sequence            as nt_id
+                sseq.id_sequence            as nt_id,
+                sseq.database_seqnname      as seq_name
         FROM    
                 snp_sequence sseq,
                 mapped_snp ms,
@@ -412,109 +431,121 @@ sub fetch_SNP_by_id  {
         return([]);
     }
 
-    ## loop over all SNPs
-    my $i;
-    while (my $row = $sth1->fetchrow_hashref()) {
-        return([]) unless keys %{$row};
-        $i++;
-
-        $row->{'SNP_END'} ||= $row->{'SNP_START'};
-        my $snp_start = $row->{'SNP_START'};
-        my $id_seq = $row->{'NT_ID'};
-
-        ## get clone the SNP is on
-        my $q2 = qq(
-            SELECT
-                    cs.database_seqname     as embl_acc,
-                    csm.start_coordinate    as clone_start,
-                    csm.end_coordinate      as clone_end,
-                    csm.contig_orientation  as clone_strand
-            FROM    clone_seq cs,
-                    clone_seq_map csm
-            WHERE   csm.id_sequence = '$id_seq'
-            AND     cs.id_cloneseq = csm.id_cloneseq
-            AND     (csm.start_coordinate < $snp_start)
-            AND     (csm.end_coordinate > $snp_start)
-        );
-        my $sth2;
-        eval {
-            $sth2 = $self->prepare($q2);
-            $sth2->execute();
-        }; 
-        if ($@){
-            warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
-            return([]);
+    ## loop over all SNP mappings found and pick one; mappings to clones
+    ## take preference over mappings to NT_contigs
+    my (@seq_nt, @seq_clone);
+    while (my $r = $sth1->fetchrow_hashref()) {
+        return([]) unless keys %{$r};
+        warn Data::Dumper::Dumper($r);
+        if ($r->{'SEQ_NAME'} =~ /^NT/) {
+            push @seq_nt, $r;
+        } else {
+            push @seq_clone, $r;
         }
-        my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new;
-        my $j;
-        while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
-            #warn join("|", $embl_acc, $clone_start, $clone_end, $clone_strand);
-            $j++;
-            
-            ## calculate clone coordinates for SNP
-            my ($start, $end);
-            if ($clone_strand == 1) {
-                $start = $row->{'SNP_START'} - $clone_start + 1;
-                $end = $row->{'SNP_END'} - $clone_start + 1;
-            } else {
-                $start = $clone_end - $row->{'SNP_END'} + 1;
-                $end = $clone_end - $row->{'SNP_START'} + 1;
-            }
-            next if ($start < 0);
-
-            ## map to chromosome
-            my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
-            $snp->slice($clone);
-            $snp->start($start);
-            $snp->end($end);
-            $snp->strand($row->{'SNP_STRAND'}*$clone_strand);
-            $snp = $snp->transform('chromosome');
-
-            ## try next clone if we couldn't map the SNP
-            #last if ($snp->start && $snp->end);
-        }
-        warn "WARNING: Multiple clones ($j) returned" if ($j > 1);
-        
-        $snp->dbID($row->{'INTERNAL_ID'});
-        $snp->display_id($id);
-        $snp->seq_region_name($row->{'CHR_NAME'});
-        $snp->original_strand($row->{'SNP_STRAND'});
-        $snp->source_tag('Glovar');
-        $snp->snpclass($row->{'SNPCLASS'});
-        $snp->raw_status($row->{'VALIDATED'});
-        $snp->alleles($row->{'ALLELES'});
-
-        ## get flanking sequence from core
-        my $slice = $dnadb->get_SliceAdaptor->fetch_by_region(
-            'chromosome',
-            $row->{'CHR_NAME'},
-            $snp->start - 25,
-            $snp->end + 25,
-        );
-        $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
-        my $seq = $slice->seq;
-
-        ## determine end of upstream sequence depending on range type (in-dels
-        ## of type "between", i.e. start !== end, are actually inserts)
-        my $up_end = 25;
-        $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($snp->start ne $snp->end));
-        $snp->upStreamSeq(substr($seq, 0, $up_end));
-        $snp->dnStreamSeq(substr($seq, 26));
-        
-        ## consequences and  DBLinks
-        $self->_get_consequences($snp);
-        $self->_get_DBLinks($snp);
-        
-        push @snps, $snp;
     }
+    # if more than one NT or clone mapping has been returned, something is
+    # wrong with snp_sequence.is_current, so print a warning
+    if (@seq_nt > 1 or @seq_clone > 1) {
+        $self->warn(
+            "More than one mapping of SNP to NT_contig ("
+            . join(", ", map { $_->{'SEQ_NAME'} } @seq_nt)
+            . ") or clone (" 
+            . join(", ", map { $_->{'SEQ_NAME'} } @seq_clone)
+            . ")."
+        );
+    }
+    my $row = $seq_clone[0] || $seq_nt[0];
 
-    ## if we get more than one results, then snp_sequence.is_current is wrong
-    warn "WARNING: Multiple SNP mappings ($i) returned" if ($i > 1);
+    $row->{'SNP_END'} ||= $row->{'SNP_START'};
+    my $snp_start = $row->{'SNP_START'};
+    my $id_seq = $row->{'NT_ID'};
 
-    &eprof_end('fetch_snp_by_id');
+    ## get clone the SNP is on
+    my $q2 = qq(
+        SELECT
+                cs.database_seqname     as embl_acc,
+                csm.start_coordinate    as clone_start,
+                csm.end_coordinate      as clone_end,
+                csm.contig_orientation  as clone_strand
+        FROM    clone_seq cs,
+                clone_seq_map csm
+        WHERE   csm.id_sequence = '$id_seq'
+        AND     cs.id_cloneseq = csm.id_cloneseq
+        AND     (csm.start_coordinate < $snp_start)
+        AND     (csm.end_coordinate > $snp_start)
+    );
+    my $sth2;
+    eval {
+        $sth2 = $self->prepare($q2);
+        $sth2->execute();
+    }; 
+    if ($@){
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        return([]);
+    }
+    my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new;
+    my $j;
+    while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
+        $j++;
+        
+        ## calculate clone coordinates for SNP
+        my ($start, $end);
+        if ($clone_strand == 1) {
+            $start = $row->{'SNP_START'} - $clone_start + 1;
+            $end = $row->{'SNP_END'} - $clone_start + 1;
+        } else {
+            $start = $clone_end - $row->{'SNP_END'} + 1;
+            $end = $clone_end - $row->{'SNP_START'} + 1;
+        }
+        next if ($start < 0);
+
+        ## map to chromosome
+        my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
+        $snp->slice($clone);
+        $snp->start($start);
+        $snp->end($end);
+        $snp->strand($row->{'SNP_STRAND'}*$clone_strand);
+        $snp = $snp->transform('chromosome');
+
+        ## try next clone if we couldn't map the SNP
+        #last if ($snp->start && $snp->end);
+    }
+    warn "WARNING: Multiple clones ($j) returned" if ($j > 1);
+    
+    $snp->dbID($row->{'INTERNAL_ID'});
+    $snp->display_id($id);
+    $snp->seq_region_name($row->{'CHR_NAME'});
+    $snp->original_strand($row->{'SNP_STRAND'});
+    $snp->source_tag('Glovar');
+    $snp->snpclass($row->{'SNPCLASS'});
+    $snp->raw_status($row->{'VALIDATED'});
+    $snp->alleles($row->{'ALLELES'});
+
+    ## get flanking sequence from core
+    my $slice = $dnadb->get_SliceAdaptor->fetch_by_region(
+        'chromosome',
+        $row->{'CHR_NAME'},
+        $snp->start - 25,
+        $snp->end + 25,
+    );
+    $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
+    my $seq = $slice->seq;
+
+    ## determine end of upstream sequence depending on range type (in-dels
+    ## of type "between", i.e. start !== end, are actually inserts)
+    my $up_end = 25;
+    $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($snp->start ne $snp->end));
+    $snp->upStreamSeq(substr($seq, 0, $up_end));
+    $snp->dnStreamSeq(substr($seq, 26));
+    
+    ## consequences and  DBLinks
+    $self->_get_consequences($snp);
+    $self->_get_DBLinks($snp);
+
+    #&eprof_end('fetch_snp_by_id');
     #&eprof_dump(\*STDERR);
 
-    return \@snps;
+    return [$snp];
 }
 
 =head2 _ambiguity_code

@@ -10,7 +10,6 @@ if [ $# -lt 5 ] ; then
     exit 1
 fi
 
-sql=./fam-fulltext.sql
 mysql=mysql
 mysql_extra_flags='--batch'
 

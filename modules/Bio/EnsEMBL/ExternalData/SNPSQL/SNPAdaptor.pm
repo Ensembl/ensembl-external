@@ -263,6 +263,56 @@ sub fetch_by_SNP_id {
   return \@variations;
 }
 
+=head2 fetch_genotype_by_SNP_id
+
+  Arg [1]    : int $refsnpid
+               The refsnp identifier of the snp to retrieve
+  Example    : @snps = @{$snp_adaptor->fetch_genotype_by_SNP_id($refsnpid)};
+  Description: Retreives a snp via its refsnp identifier 
+               One variation object is returned for genotype data
+               associated with that snp
+  Returntype : Bio::EnsEMBL::Variation 
+  Exceptions : none
+  Caller     : internal
+
+=cut
+
+fetch_genotype_by_SNP_id {
+
+  my ($self, $refsnpid) = @_;
+  
+  my $sth = $self->prepare('
+      SELECT refsnp.id, Strain.ssid, Strain.name, Strain.allele, 
+             GTInd.sex, GTInd.source, GTInd.source_ind_id
+      FROM   RefSNP refsnp, Strain Strain, GTInd GTInd
+     WHERE   refsnp.internal_id = Strain.internal_id and Strain.ind_id = GTInd.ind_id
+      AND    refsnp.id = ?');
+
+  $sth->execute("$refsnpid");
+
+  $sth->rows || $self->throw("$refsnpid not in database or don't have genotype data");
+
+  my $arr;
+  my @snps = ();
+  while ($arr = $sth->fetchrow_arrayref) { 
+    my ($refsnpid, $ssid, $strian_name, $strain_alleles, $sex, $gt_source, $gt_source_ind_id ) = @$arr;
+    
+    my $snp = new Bio::EnsEMBL::ExternalData::Variation;
+
+    $snp->snpid($refsnpid);
+    $snp->ssid($ssid);
+    $snp->strain_name($strian_name);
+    $snp->strain_alleles($alleles);
+    $snp->sex($sex);
+    $snp->gt_source($gt_source);
+    $snp->gt_source_ind_id($gt_source_ind_id);
+
+    push @snps, $snp;
+  }
+
+  return \@snps;
+}
+
 
 =head2 fetch_by_clone_accession_vesion
 

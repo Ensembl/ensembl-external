@@ -465,7 +465,7 @@ sub store {
   $q->execute($fam->stable_id);
   my $rowhash = $q->fetchrow_hashref;
   if ($rowhash->{family_id}) {
-    return $rowhash->{family_id};
+    return $rowhash->{family_id};
   }
 
   $q = "INSERT INTO family (stable_id, description, release, annotation_confidence_score) VALUES (?,?,?,?)";

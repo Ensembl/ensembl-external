@@ -202,7 +202,7 @@ sub _map_DASSeqFeature_to_chr {
 	    ($contig_hash_ref->{ $sf->seqname() }->dbID(), 
 	     $sf->das_start, 
 	     $sf->das_end, 
-	     $sf->das_strand );
+	     $sf->das_strand||0 );
 
 	# if its not mappable than ignore the feature
 	
@@ -332,7 +332,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_start($f->start());
         $CURRENT_FEATURE->das_end($f->end());
         $CURRENT_FEATURE->das_score($f->score());
-        $CURRENT_FEATURE->das_orientation($f->orientation());    
+        $CURRENT_FEATURE->das_orientation($f->orientation()||0);    
         $CURRENT_FEATURE->das_phase($f->phase());
         $CURRENT_FEATURE->das_note($f->note());
 

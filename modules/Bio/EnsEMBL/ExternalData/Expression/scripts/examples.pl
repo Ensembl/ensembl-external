@@ -35,8 +35,7 @@ foreach my $t(@tgs){
 
     foreach my $link ($t->each_DBLink){
     
- print $link->primary_id,"\n";
-
+ print $link->primary_id," ",$link->database,"\n";
 
     }
 

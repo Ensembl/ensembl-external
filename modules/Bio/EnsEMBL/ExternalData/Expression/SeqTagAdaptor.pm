@@ -257,9 +257,9 @@ sub fetch_by_Name_with_allAliases {
   #                 and    l.library_id=f.library_id and l.library_id=$lib_id and sa2.external_name='$synonym'";
 
 
-    my $statement="select s1.external_name,s2.db_name 
-                   from   seqtag_alias s1,seqtag_alias s2 
-                   where  s1.seqtag_id=s2.seqtag_id 
+    my $statement="select t.name,s1.external_name,s1.db_name 
+                   from   seqtag_alias s1,seqtag_alias s2,seqtag t  
+                   where  s1.seqtag_id=s2.seqtag_id and t.seqtag_id=s1.seqtag_id  
                    and    s2.external_name='$synonym'"; 
 
 
@@ -660,12 +660,12 @@ sub _fetch_aliases {
     my $sth = $self->prepare($statement);    
     $sth->execute();
     
-    my ($external_name,$db);
+    my ($name,$external_name,$db);
 
-    $sth->bind_columns(undef,\$external_name,\$db);
+    $sth->bind_columns(undef,\$name,\$external_name,\$db);
 
     while ($sth->fetch){	
-	my ($library_id,$source,$name,$frequency,$relative_frequency);
+	my ($library_id,$source,$frequency,$relative_frequency);
 	my @args=($library_id,$source,$name,$frequency,$relative_frequency);	
 	my $tg=Bio::EnsEMBL::ExternalData::Expression::SeqTag->new($self,@args);
 	push @tags,$tg;

@@ -29,6 +29,8 @@ package Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPAdaptor;
 
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::SNP;
+use Bio::EnsEMBL::Variation::VariationFeature;
+use Bio::EnsEMBL::Variation::Variation;
 use Bio::EnsEMBL::Analysis;
 use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
@@ -49,6 +51,7 @@ sub fetch_all_by_chr_start_end {
   my $query = qq {
 SELECT DISTINCT MAPPED_SNP.ID_SNP,  
           (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snppos,
+          (MAPPED_SNP.END_POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) AS snpendpos,
           (MAPPED_SNP.IS_REVCOMP * SEQ_SEQ_MAP.CONTIG_ORIENTATION) AS snpstrand,
            SNP_SUMMARY.ALLELES,
            SNP_SUMMARY.DEFAULT_NAME
@@ -69,51 +72,6 @@ WHERE     DATABASE_DICT.DATABASE_NAME = '$assembly_name'
     AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) BETWEEN $start AND $end
 ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
   };
-#    AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) <= $end
-
-#Used to have this in query
-#    AND   snp_name.snp_name_type = 1
-#Put back in until snp_name table fixed
-    # SNP_SEQUENCE.DATABASE_SEQNNAME,
-           #SNPNAMETYPEDICT.ID_DICT,
-    #AND   SNPNAMETYPEDICT.ID_DICT = SNP_NAME.SNP_NAME_TYPE
-    #ORDER BY SNP_NAME.ID_SNP, SNPNAMETYPEDICT.ID_DICT, snppos
-    #AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) <= $end
-#    SELECT distinct
-
-# Tweaked query
-#  my $query = qq {
-#    SELECT 
-#           CHROM_SEQ.DATABASE_SEQNAME,
-#           SNP_NAME.SNP_NAME,
-#           SNP_NAME.ID_SNP,
-#           SNPNAMETYPEDICT.DESCRIPTION,
-#           (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) as snppos,
-#           MAPPED_SNP.IS_REVCOMP,
-#           SEQ_SEQ_MAP.CONTIG_ORIENTATION,
-#           SNP_VARIATION.VAR_STRING
-#    FROM CHROM_SEQ,
-#         SEQ_SEQ_MAP,
-#         SNP_SEQUENCE,
-#         MAPPED_SNP,
-#         SNP_NAME,
-#         SNP_VARIATION,
-#         SNPNAMETYPEDICT,
-#         DATABASE_DICT
-#    WHERE CHROM_SEQ.DATABASE_SEQNAME='$chr'
-#    AND   CHROM_SEQ.ID_CHROMSEQ = SEQ_SEQ_MAP.ID_CHROMSEQ
-#    AND   SNP_SEQUENCE.ID_SEQUENCE = SEQ_SEQ_MAP.SUB_SEQUENCE
-#    AND   MAPPED_SNP.ID_SEQUENCE = SNP_SEQUENCE.ID_SEQUENCE
-#    AND   SNP_NAME.ID_SNP = MAPPED_SNP.ID_SNP
-#    AND   SNP_VARIATION.ID_SNP = SNP_NAME.ID_SNP
-#    AND   SNPNAMETYPEDICT.ID_DICT = SNP_NAME.SNP_NAME_TYPE
-#    AND   (MAPPED_SNP.POSITION + SEQ_SEQ_MAP.START_COORDINATE -1) BETWEEN $start AND $end
-#    AND   SNP_NAME.SNP_NAME_TYPE = 1
-#    AND   CHROM_SEQ.DATABASE_SOURCE = DATABASE_DICT.ID_DICT
-#    AND   DATABASE_DICT.DATABASE_NAME = '$assembly_name'
-#    AND   DATABASE_DICT.DATABASE_VERSION = $assembly_version
-#    ORDER BY SNP_NAME.ID_SNP,snppos
-#  };
 
   my $sth = $self->prepare($query);
 
@@ -132,23 +90,61 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
     
     next if exists($ids{$hashref->{ID_SNP}});
 
-    my %snp_hash;
-    $snp_hash{_gsf_start} = $snp_hash{_gsf_end} = $hashref->{SNPPOS};
-    $snp_hash{_snp_strand} = $snp_hash{_gsf_strand} = $hashref->{SNPSTRAND};
-
-    if ($hashref->{SNPSTRAND} != 1 && $hashref->{SNPSTRAND} != -1) {
-      print STDERR "Got non 1 or -1 strand\n";
+    my $start;
+    my $end;
+    if ($hashref->{SNPPOS} >= $hashref->{SNPENDPOS} ||
+       ($hashref->{ALLELES} =~ /-/ && abs($hashref->{SNPPOS}-$hashref->{SNPENDPOS})==1)) {
+      $start = $hashref->{SNPENDPOS};
+      $end = $hashref->{SNPPOS};
+    } else {
+      $start = $hashref->{SNPPOS};
+      $end = $hashref->{SNPENDPOS};
     }
-    $snp_hash{dbID} = $hashref->{ID_SNP};
-    $snp_hash{_snpid} = $hashref->{DEFAULT_NAME};
-    $snp_hash{_gsf_sub_array} = [];
 
-    $snp = Bio::EnsEMBL::SNP->new_fast(\%snp_hash);
+    my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
+      {
+        'dbID'              => $hashref->{ID_SNP},
+        'adaptor'           => $self,
+        'variation_name'    => $hashref->{DEFAULT_NAME},
+        'start'             => $start,
+        'end'               => $end,
+        'strand'            => $hashref->{SNPSTRAND},
+        'allele_string'     => $hashref->{ALLELES},
+        'source'            => 'SangerSNP',
+      });
 
+    # add minimal Variation object
+    my $var = Bio::EnsEMBL::Variation::Variation->new(
+        -dbID               => $hashref->{'ID_SNP'},
+        -ADAPTOR            => $self,
+        -NAME               => $hashref->{'DEFAULT_NAME'},
+        -SOURCE             => 'Glovar',
+      );
 
-    $snp->alleles($hashref->{ALLELES});
+#    my %snp_hash;
+#    if ($hashref->{SNPPOS} >= $hashref->{SNPENDPOS} ||
+#        ($hashref->{ALLELES} =~ /-/ && abs($hashref->{SNPPOS}-$hashref->{SNPENDPOS})==1)) {
+#      $snp_hash{_gsf_start} = $hashref->{SNPENDPOS};
+#      $snp_hash{_gsf_end} = $hashref->{SNPPOS};
+#    } else {
+#      $snp_hash{_gsf_start} = $hashref->{SNPPOS};
+#      $snp_hash{_gsf_end} = $hashref->{SNPENDPOS};
+#    }
+#    $snp_hash{_snp_strand} = $snp_hash{_gsf_strand} = $hashref->{SNPSTRAND};
+#
+#    if ($hashref->{SNPSTRAND} != 1 && $hashref->{SNPSTRAND} != -1) {
+#      print STDERR "Got non 1 or -1 strand\n";
+#    }
+#    $snp_hash{dbID} = $hashref->{ID_SNP};
+#    $snp_hash{_snpid} = $hashref->{DEFAULT_NAME};
+#    $snp_hash{_gsf_sub_array} = [];
+#
+#    $snp = Bio::EnsEMBL::SNP->new_fast(\%snp_hash);
+#
+#
+#    $snp->alleles($hashref->{ALLELES});
 
-    push @snps,$snp;
+    push @snps,$varfeat;
     $ids{$hashref->{ID_SNP}} = 1;
   }
 
@@ -201,7 +197,7 @@ sub get_consequences {
     }
 
     while (my $row = $sth->fetchrow_hashref) {
-        print "Consequence for " . $varfeat->snpid . " " . $row->{'POS_TYPE'} . " " . $row->{'CONSEQUENCE'} . "\n";
+        print "Consequence for " . $varfeat->variation_name . " " . $row->{'POS_TYPE'} . " " . $row->{'CONSEQUENCE'} . "\n";
         # add consequence
 #        my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}};
 #        $varfeat->add_consequence_type($consequence_type);

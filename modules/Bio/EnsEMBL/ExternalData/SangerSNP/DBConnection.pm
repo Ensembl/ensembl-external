@@ -9,11 +9,11 @@ Database connection object for a SangerSNP database
 
     $dbc = Bio::EnsEMBL::DBSQL::DBConnection->new(
         -user    => 'anonymous',
-        -dbname  => 'snpd',
+        -dbname  => 'snp',
         -host    => 'ocs4',
         -driver  => 'Oracle',
         -species => 'Homo Sapiens',
-        -group   => 'glovar'
+        -group   => 'sangersnp'
         );
 
    SQL statements should be created/executed through
@@ -38,7 +38,7 @@ Please see http://www.ensembl.org/code_licence.html for details
 
 =head1 AUTHOR
 
-Patrick Meidl <pm2@sanger.ac.uk>
+Steve Searle <searle@sanger.ac.uk>
 
 =head1 CONTACT
 
@@ -78,7 +78,7 @@ use vars qw(@ISA);
                  specified.
   Example    : $dbc = Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection->new
                   (-user   => 'anonymous',
-                   -dbname => 'snpd',
+                   -dbname => 'snp',
                    -host   => 'ocs4',
                    -driver => 'Oracle');
 

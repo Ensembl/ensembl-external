@@ -14,7 +14,7 @@ Database adaptor for a SangerSNP database
         -host   => 'caldy',
         -driver => 'Oracle'
         );
-    $snp_adaptor = $db_adaptor->get_GlovarSNPAdaptor;
+    $snp_adaptor = $db_adaptor->get_SangerSNPAdaptor;
     
 =head1 DESCRIPTION
 
@@ -31,8 +31,7 @@ Please see http://www.ensembl.org/code_licence.html for details
 
 =head1 AUTHORS
 
-Tony Cox <avc@sanger.ac.uk>
-Patrick Meidl <pm2@sanger.ac.uk>
+Steve Searle <searle@sanger.ac.uk>
 
 =head1 CONTACT
 
@@ -59,7 +58,7 @@ use vars qw(@ISA);
                Bio::EnsEMBL::ExternalData::SangerSNP::DBConnection
   Exmaple    : $db = new Bio::EnsEMBL::ExternalData::SangerSNP::DBAdaptor(
                                                     -species => 'Homo_sapiens',
-                                                    -group   => 'glovar'
+                                                    -group   => 'sangersnp'
 						    -user    => 'root',
 						    -dbname  => 'pog',
 						    -host    => 'caldy',

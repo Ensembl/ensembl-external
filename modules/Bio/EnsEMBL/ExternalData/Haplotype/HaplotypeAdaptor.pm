@@ -101,11 +101,11 @@ sub fetch_Haplotype_by_chr_start_end  {
         from 
 			block
         where
-        	chr_start>= $s
+        	chr_end>= $s
         and
-        	chr_end<= $e
+        	chr_start<= $e
         and
-        	chr_name = $chr
+        	chr_name = '$chr'
         group by block_id
     );
     
@@ -140,6 +140,28 @@ sub fetch_Haplotype_by_chr_start_end  {
  Args    : chr start, chr end
 
 =cut
+
+sub fetchSNPs {
+    my $self = shift;
+    my $bid  = shift;
+    my $q = qq(
+        select 
+            p.polymorphism_id, p.position
+        from 
+            polymorphism_block_map as pbm, polymorphism as p
+        where 
+            pbm.block_id = "$bid" and pbm.ld_status = "1" and
+            pbm.polymorphism_id = p.polymorphism_id
+        order by p.position asc
+    );
+    my $sth = $self->prepare($q);
+    $sth->execute();
+    my %snps = ();
+    while( my $rowhash = $sth->fetchrow_hashref ) {
+        $snps{ $rowhash->{'polymorphism_id'} } = $rowhash->{'position'};
+    }
+    return %snps;
+}
 
 sub fetch_lite_Haplotype_by_id {
     my ($self, $id) = @_; 

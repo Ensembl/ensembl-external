@@ -111,6 +111,62 @@ sub fetch_by_dbID{
    $self->_get_family($q);
 }    
 
+=head2 store
+
+ Title   : store
+ Usage   : $famad->store($fam)
+ Function: Stores a family object into the database
+ Example : $famas->store($fam)
+ Returns : dbID
+ Args    : Bio::EnsEMBL::ExternalData::Family object
+
+=cut
+
+sub store{
+   my ($self,$fam) = @_;
+
+   $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family') || $self->throw("You have to store a Bio::EnsEMBL::ExternalData::Family::Family object, not a $fam");
+
+   my $q = "SELECT family_id from family where stable_id ='".$fam->stable_id."'";
+   $q = $self->prepare($q);
+   $q->execute();
+   my $rowhash = $q->fetchrow_hashref;
+   if ($rowhash->{family_id}) {
+       #print STDERR "Family ".$fam->stable_id." already in the database with id ".$rowhash->{family_id}."\n";
+       return $rowhash->{family_id};
+   }
+
+   $q = "INSERT INTO family (family_id, stable_id, description, release, annotation_confidence_score) VALUES (NULL,'".$fam->stable_id."','".$fam->description."','".$fam->release."',".$fam->annotation_confidence_score.")";
+   $q = $self->prepare($q);
+   $q->execute();
+   my $fid = $self->get_last_id();
+   foreach my $member ($fam->each_DBLink) {
+       my $dbid = $self->_store_db_if_needed($member->database);
+       $q = "INSERT INTO family_members (family_id, external_db_id, external_member_id) 
+            VALUES (".$fid.",".$dbid.",'".$member->primary_id."')";
+       $q = $self->prepare($q);
+       $q->execute();
+   }
+   return $fid;
+}
+
+sub _store_db_if_needed {
+    my ($self,$db) = @_;
+
+    my $q = "select external_db_id from external_db where name='".$db."'";
+    $q = $self->prepare($q);
+    $q->execute();
+    my $rowhash = $q->fetchrow_hashref;
+    if ($rowhash->{external_db_id}) {
+	return $rowhash->{external_db_id};
+    }
+    else {
+	$q = "INSERT INTO external_db (external_db_id,name) VALUES(NULL,'".$db."')";
+	$q = $self->prepare($q);
+	$q->execute();
+	return $self->get_last_id();
+    }
+}
 
 =head2 fetch_by_stable_id
 
@@ -126,13 +182,12 @@ sub fetch_by_dbID{
 sub fetch_by_stable_id  {
     my ($self, $stable_id) = @_; 
 
-    my $q = 
-      "SELECT family_id, stable_id, description, release, 
-              annotation_confidence_score
-       FROM family f
-       WHERE stable_id = '$stable_id'";
-
-    $self->_get_family($q);
+    my $q = "SELECT family_id FROM family WHERE stable_id = '$stable_id'";
+    $q = $self->prepare($q);
+    $q->execute;
+    my ($id) = $q->fetchrow_array;
+    $id || $self->throw("Could not find family for stable id $stable_id");
+    $self->fetch_by_dbID($id);
 }                                       # fetch_by_stable_id
 
 =head2 fetch_by_dbname_id

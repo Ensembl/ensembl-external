@@ -116,7 +116,7 @@ sub new {
       $self->description($descr);
 
       $release && $self->release($release);
-      $score && $self->score($score);
+      $score && $self->annotation_confidence_score($score);
       $totalhash && $self->_totalhash($totalhash);
       $self->{_members} = []; 
       my @members = @$memb;

@@ -11,7 +11,7 @@ BEGIN {
     }
     use Test;
     use vars qw($NTESTS);
-    $NTESTS = 15;
+    $NTESTS = 16;
     plan tests => $NTESTS;
 }
 
@@ -52,7 +52,7 @@ $testdb->do_sql_file("t/family.dump");
 
 my $db = $testdb->get_DBSQL_Obj;
 
-my $famadtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($db);
+my $famad = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($db);
 ok(1);
 
 my @expected = qw(ENSEMBLPEP ENSEMBLGENE SPTR);
@@ -62,13 +62,13 @@ foreach my $ex (@expected) {
     $dbs{$ex}++;
 }
 
-my @found = $famadtor->known_databases;
+my @found = $famad->known_databases;
 ok $found[0],'ENSEMBLGENE',"Unexpected db in database";
 ok $found[1],'ENSEMBLPEP',"Unexpected db in database";
 ok $found[2],'SPTR',"Unexpected db in database";
 
 my $id= 'ENSF00000000002';
-my $fam = $famadtor->fetch_by_stable_id($id);
+my $fam = $famad->fetch_by_stable_id($id);
 ok $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Did not find family $id";
 ok $fam->size,15,"Got unexpected family size";
 ok $fam->size('ENSEMBLGENE'),5,"Unexpected family size by database name";
@@ -82,7 +82,7 @@ ok $got == $expected, 1, "expected alignment length $expected, got $got";
 $id= 'ENSF00000000005';
 my $ali;
 eval {
-    $ali=$famadtor->fetch_by_stable_id($id)->get_alignment_string();
+    $ali=$famad->fetch_by_stable_id($id)->get_alignment_string();
 };
 
 ok $@ || defined($ali),'',"got: $@ and/or $ali";
@@ -93,33 +93,40 @@ ok $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Could not fetch fa
 # not finding given family should fail gracefully:
 $id= 'all your base are belong to us';
 eval { 
-    $fam = $famadtor->fetch_by_stable_id($id);
+    $fam = $famad->fetch_by_stable_id($id);
 };
 $@ || $fam,'',"got: $@ and/or $fam\n";
 
 my @pair = ('SPTR', 'O15520');
-$fam = $famadtor->fetch_by_dbname_id(@pair);
+$fam = $famad->fetch_by_dbname_id(@pair);
 
 ok $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Could not fetch family for @pair";
 
+my $id = $famad->store($fam);
+ok $id,4,"Tried to store existing family, and did not get correct dbid back";
+$fam->stable_id('test');
+$famad->store($fam);
+#ok $@ =~ /already in database/,'',"Got $@";
+#,1,"adaptor did not throw exception $@ for family already in db";
+
 $id = 'growth factor';
-my @fams = $famadtor->fetch_by_description_with_wildcards($id,1);
-$expected = 5;
+my @fams = $famad->fetch_by_description_with_wildcards($id,1);
+$expected = 6;
 ok @fams == $expected,1,"expected $expected families, found ".int(@fams);
 
 $id='fgf 21';
-@fams = $famadtor->fetch_by_description_with_wildcards($id);
+@fams = $famad->fetch_by_description_with_wildcards($id);
 $expected = 1;
 
 ok @fams == $expected,1,"expected $expected families, found ".int(@fams);
 
 # Test general SQL stuff:
-$expected = 10;
-my $q=$famadtor->prepare("select count(*) from family");
+$expected = 11;
+my $q=$famad->prepare("select count(*) from family");
 $q->execute();
 my ( $row ) = $q->fetchrow_arrayref;
 
-ok (defined($row) &&int(@$row) == 1 && $$row[0] eq $expected),1,"Something wrong at SQL level";
+ok (defined($row) && int(@$row) == 1 && $$row[0] eq $expected),1,"Something wrong at SQL level";
 
 
 

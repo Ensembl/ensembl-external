@@ -1,5 +1,5 @@
 
-CC = /bin/cc
+CC = /usr/bin/cc
 
 OPTS = -g3 -O
 

@@ -3,7 +3,7 @@
 # tables for Anton Enrights protein family clustering. 
 
 CREATE TABLE family (
-   family_id   int(10) NOT NULL,
+   family_id   int(10) NOT NULL auto_increment,
    stable_id   varchar(40) NOT NULL, ##  e.g. ENSF0000012345
    description varchar(255) NOT NULL,
    release     varchar(10) NOT NULL,

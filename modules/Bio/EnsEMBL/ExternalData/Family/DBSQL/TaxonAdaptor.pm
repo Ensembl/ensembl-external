@@ -60,7 +60,8 @@ sub fetch_by_dbID {
   if (defined (my $rowhash = $q->fetchrow_hashref)) {
     my $taxon = new Bio::EnsEMBL::ExternalData::Family::Taxon;
     
-    $taxon->ncbi_taxid($taxon_id);
+#    $taxon->ncbi_taxid($taxon_id); for bioperl-1-0-0 only
+    $taxon->taxon_id($taxon_id); # for bioperl -07 compliancy
     $taxon->sub_species($rowhash->{sub_species});
     my @classification = split /\s+/,$rowhash->{classification};
     $taxon->classification(@classification);
@@ -110,9 +111,9 @@ sub store {
   my $q = "INSERT INTO taxon (taxon_id,genus,species,sub_species,common_name,classification) 
            VALUES (?,?,?,?,?,?)";
   my $sth = $self->prepare($q);
-  $sth->execute($taxon->ncbi_taxid,$taxon->genus,$taxon->species,$taxon->sub_species,$taxon->common_name,join " ",$taxon->classification);
+#  $sth->execute($taxon->ncbi_taxid,$taxon->genus,$taxon->species,$taxon->sub_species,$taxon->common_name,join " ",$taxon->classification); # for bioperl-1-0-0 only
+  $sth->execute($taxon->taxon_id,$taxon->genus,$taxon->species,$taxon->sub_species,$taxon->common_name,join " ",$taxon->classification); # for bioperl -07 compliancy
   
-  $taxon->dbID($sth->{'mysql_insertid'});
   $taxon->adaptor($self);
 
 

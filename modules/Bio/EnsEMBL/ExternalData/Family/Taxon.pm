@@ -92,13 +92,16 @@ sub dbID {
 =cut
 
 sub taxon_id {
-    my ($self,$value) = @_;
+  my ($self,$value) = @_;
+  
+  if (defined $value) {
+#    $self->ncbi_taxid($value); # for bioperl-1-0-0 only
+    $self->{'_taxon_id'} = $value; # for bioperl -07 compliancy
+  }
+  
 
-    if (defined $value) {
-	$self->ncbi_taxid($value);
-    }
-
-    return $self->ncbi_taxid;
+#  return $self->ncbi_taxid; # for bioperl-1-0-0 only
+  return $self->{'_taxon_id'}; # for bioperl -07 compliancy
 }
 
 1;

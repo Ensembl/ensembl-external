@@ -95,18 +95,53 @@ my @deletes = (( 'FOR\$',  'SIMILAR TO\$', 'SIMILAR TO PROTEIN\$',
     $_;
 }
 
+CLUSTER:
 foreach my $cluster (sort sort_num(keys(%hash))) {
+    my $best_annotation;
+
     print "$cluster\t";
 
     my @array=@{$hash{$cluster}};
-    
+
     my $total_members=scalar(@array);
-#    my $final_annotation = "AMBIGUOUS";
-    my $best_annotation;
+    my $total_members_with_desc=grep(/\S+/, @array);
+
+    ### OK, first a list of hacks:
+    if ( $total_members_with_desc ==0 )  { # truly unknown
+#        print ">>>UNKNOWN<<<\t100 # CASE 0\n";
+        print ">>>UNKNOWN<<<\t100\n";
+#        print "# ORIG desc:\n" , join( "\n#\t", @array), "\n";
+        next CLUSTER;
+    }
 
     if ($total_members==1) {
         $best_annotation= $ {hash{$cluster}}[0];
+        $best_annotation = "UNKNOWN" if $best_annotation eq '';
+#        print ">>>$best_annotation<<<\t100  # CASE 1\n";
+        print ">>>$best_annotation<<<\t100\n";
+        next CLUSTER;
     }
+
+    if ( $total_members_with_desc ==1 )  { # nearly unknown
+        ($best_annotation) = grep(/S+/, @array);
+        my $perc= int( 100*($total_members_with_desc/$total_members) );
+#        print ">>>$best_annotation<<<\t$perc # CASE 2\n";
+        print ">>>$best_annotation<<<\t$perc\n";
+        next CLUSTER;
+    }
+
+    # all same desc:
+    my %desc = undef;
+    foreach my $desc (@array) {        $desc{$desc}++;     }
+    if  ( (keys %desc) == 1 ) {
+        ($best_annotation,) = keys %desc;
+        my $n = grep($_ eq $best_annotation, @array);
+        my $perc= int( 100*($n/$total_members) );
+#        print ">>>$best_annotation<<<\t$perc # CASE 3\n";
+        print ">>>$best_annotation<<<\t$perc\n";
+        next CLUSTER;
+    }
+    # this should speed things up a bit as well 
 
     my %lcshash = undef;
     my %lcnext = undef;
@@ -134,7 +169,8 @@ foreach my $cluster (sort sort_num(keys(%hash))) {
     }
 
     my ($best_score, $best_perc)=(0, 0);
-    foreach my $candidate_consensus (sort sort_len_desc(keys(%lcshash))) {
+    my @all_cands=sort sort_len_desc keys %lcshash ;
+    foreach my $candidate_consensus (@all_cands) {
         my @temp=split(" ",$candidate_consensus);
         my $length=@temp;               # num of words in annotation
 
@@ -163,20 +199,34 @@ foreach my $cluster (sort sort_num(keys(%hash))) {
             }
         }	
         
+        my $perc_with_desc=($lcs_count/$total_members_with_desc)*100;
         my $perc=($lcs_count/$total_members)*100;
         my $score=$perc + ($length*14); # take length into account as well
-        if (($perc >= 40) && ($length >= 1)) {
+        $score = 0 if $length==0;
+        if (($perc_with_desc >= 40) && ($length >= 1)) {
             if ($score > $best_score) {
                 $best_score=$score;
                 $best_perc=$perc;
                 $best_annotation=$candidate_consensus;
             }
         }
-    }
+    }                                   # foreach $candidate_consensus
+
     if ($best_perc==0 || $best_perc >= 100 )  {
         $best_perc=100;
     }
+
+    if  ( $best_annotation eq  '')  {
+        $best_annotation = 'AMBIGUOUS';
+        #my @origs = @{$hash{$cluster}};
+        #print "# EMPTY desc; cands are:\n"
+        #  , join( "\n#\t", @all_cands), "\n# and ORIGs:\n# "
+        #    , join("\n#\t",@origs), "\n"
+        #      , "# and distinct:\n#\t", join("\n#\t", keys %desc), "\n";
+    }
+#    print ">>>$best_annotation<<<\t$best_perc # CASE N\n";
     print ">>>$best_annotation<<<\t$best_perc\n";
+
     $best_annotation="";
 }                                       # foreach cluster
 

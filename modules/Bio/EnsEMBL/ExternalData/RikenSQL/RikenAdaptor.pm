@@ -34,7 +34,6 @@ The rest of the documentation details each of the object methods. Internal metho
 
 package Bio::EnsEMBL::ExternalData::RikenSQL::RikenAdaptor;
 
-use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::FeaturePair;
 use Bio::EnsEMBL::SeqFeature;
 use Bio::EnsEMBL::FeatureFactory;
@@ -43,7 +42,7 @@ use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 use Bio::EnsEMBL::Root;
 use vars qw(@ISA);
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::EnsEMBL::Root);
 
 my $NO_EXTERNAL = 1;
 BEGIN {

@@ -35,13 +35,12 @@ The rest of the documentation details each of the object methods. Internal metho
 package Bio::EnsEMBL::ExternalData::RikenSQL::DBAdaptor;
 
 use Bio::EnsEMBL::ExternalData::RikenSQL::RikenAdaptor;
-use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::Root;
 use DBI;
 
 use vars qw(@ISA);
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::EnsEMBL::Root);
 
 
 

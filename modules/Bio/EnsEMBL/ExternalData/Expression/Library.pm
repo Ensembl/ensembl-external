@@ -16,8 +16,6 @@ Bio::EnsEMBL::ExternalData::Expression::Library
 
 =head1 SYNOPSIS
 
-    # $db is Bio::EnsEMBL::DB::Obj 
-
     my $dbname='expression';
     my $lib_ad=Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor->new($obj);
     $lib_ad->dbname($dbname);

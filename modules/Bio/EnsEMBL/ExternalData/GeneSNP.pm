@@ -193,13 +193,7 @@ sub transcript {
 sub contig {
   my ($self,$value) = @_;
   if (defined $value) {
-      if( ! $value->isa('Bio::EnsEMBL::DB::ContigI') ) {
-	  $self->throw("Is not a Bio::EnsEMBL::Contig object but a [$value]");
-	  return (undef);
-      }
-      else {
-	  $self->{'contig'} = $value;
-      }
+    $self->{'contig'} = $value;
   }
   unless (exists $self->{'contig'}) {
       return (undef);
@@ -216,7 +210,7 @@ sub snps2transcript {
 
   #sanity checks
   $self->transcript || $self->throw("Set transcript to a Bio::EnsEMBL::Transcript object");
-  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::DB::ContigI compliant object");
+  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::RawContig compliant object");
 
   my @seqDiffs = ();
   my $rna = $self->transcript;
@@ -235,7 +229,7 @@ sub snps2gene {
 
   #sanity checks
   $self->gene || $self->throw("Set gene to a Bio::EnsEMBL::Gene object");
-  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::DB::ContigI compliant object");
+  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::RawContig compliant object");
 
   my @seqDiffs = ();
   foreach my $rna ($self->gene->each_Transcript) {
@@ -258,7 +252,7 @@ sub snp2gene {
   #$snp->isa('Bio::EnsEMBL::ExternalData::Variation') ||
   #    $self->throw("Is not a Bio::EnsEMBL::ExternalData::Variation object but a [$snp]");
   $self->gene || $self->throw("Set gene to a Bio::EnsEMBL::Gene object");
-  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::DB::ContigI compliant object");
+  $self->contig || $self->throw("Set contig to a  Bio::EnsEMBL::RawContig compliant object");
 
   my @seqDiffs = ();
   foreach my $rna ($self->gene->each_Transcript) {

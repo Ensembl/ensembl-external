@@ -15,8 +15,6 @@ Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor
 
 =head1 SYNOPSIS
 
-    # $obj is Bio::EnsEMBL::DB::Obj 
-
     my $dbname='expression';
     my $tag_ad= Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($obj);
     $tag_ad->dbname($dbname);

@@ -15,8 +15,6 @@ Bio::EnsEMBL::ExternalData::Expression::SeqTag
 
 =head1 SYNOPSIS
 
-    # $db is Bio::EnsEMBL::DB::Obj 
-
     @contig = $db->get_Contigs();
 
     $clone = $db->get_Clone();

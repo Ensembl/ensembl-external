@@ -42,11 +42,8 @@ Method get_Ensembl_SeqFeatures_clone returns an empty list.
 Interface to an external DAS data source - lovelingly mangled into the Ensembl database
 adaptor scheme.
 
-This class implements L<Bio::EnsEMBL::DB::ExternalFeatureFactoryI>
 interface for creating L<Bio::EnsEMBL::ExternalData::DAS::DAS.pm>
-objects from an external DAS database. See
-L<Bio::EnsEMBL::DB::ExternalFeatureFactoryI> for more details on how
-to use this class.
+objects from an external DAS database. 
 
 The objects returned in a list are
 L<Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature> objects which might possibly contain
@@ -72,11 +69,10 @@ use vars qw(@ISA);
 use Bio::Das; 
 use Bio::EnsEMBL::Root;
 
-use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
 # Object preamble
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::EnsEMBL::Root);
 
 
 sub new {

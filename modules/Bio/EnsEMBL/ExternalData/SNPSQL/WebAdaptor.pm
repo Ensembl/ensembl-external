@@ -54,12 +54,11 @@ use vars qw(@ISA);
 use strict;
 
 use Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor;
-use Bio::EnsEMBL::DB::WebExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 
 
-@ISA = qw(Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor Bio::EnsEMBL::DB::WebExternalFeatureFactoryI);
+@ISA = qw(Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor);
 
 
 # new is inherieted from SNPSQL::DBAdaptor

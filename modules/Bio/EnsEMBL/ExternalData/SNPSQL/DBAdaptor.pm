@@ -17,8 +17,6 @@ variation database providing external features for EnsEMBL
 
 =head1 SYNOPSIS
 
-   # first make an Object which conforms to interface
-   # Bio::EnsEMBL::DB::ExternalFeatureFactoryI
 
     $snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor->new( -dbname => 'snp'
 							  -user => 'root'

@@ -208,7 +208,7 @@ sub get_SeqFeature_by_id {
     
     my $snp = new Bio::EnsEMBL::ExternalData::Variation;
 
-    #strip oll decorations from the display id: TSC::TSC0000002 -> 2
+    #strip all decorations from the display id: TSC::TSC0000002 -> 2
     ($id) = $id =~ /.*TSC0*(\d+)/;
 
     # db query to return all variation information except alleles
@@ -224,6 +224,8 @@ sub get_SeqFeature_by_id {
 
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
+    my $rows = $sth->rows();
+    $rows || $self->throw("SNP not found!");
 
 
   SNP:
@@ -297,10 +299,10 @@ sub get_SeqFeature_by_id {
 	    $snp->add_DBLink($link2);
 	}
 	
-	#print join (" ", $snpuid, $confidence, $confirmed, 
-	#                    $dbsnpid, ":", 
-	#                    $alleles,
-	#                    "\n");
+	print join (" ", $snpuid, $confidence, $confirmed, 
+	                    $dbsnpid, ":", 
+	                    $alleles,
+	                    "\n");
 
     }
     

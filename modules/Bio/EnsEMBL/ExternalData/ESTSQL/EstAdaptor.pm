@@ -37,7 +37,6 @@ package Bio::EnsEMBL::ExternalData::ESTSQL::EstAdaptor;
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::FeaturePair;
 use Bio::EnsEMBL::SeqFeature;
-use Bio::EnsEMBL::FeatureFactory;
 use Bio::EnsEMBL::DBSQL::AnalysisAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 use Bio::Root::RootI;
@@ -124,7 +123,9 @@ sub get_Ensembl_SeqFeatures_contig {
 	   	# is a paired feature
 		   # build EnsEMBL features and make the FeaturePair
 
-		   $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+                   my $f1 = Bio::EnsEMBL::SeqFeature->new();
+                   my $f2 = Bio::EnsEMBL::SeqFeature->new();
+		   $out = Bio::EnsEMBL::FeaturePair->new($f1, $f2);
 
 		   # hacky temporary fix for web
 		   $name = 'est';
@@ -250,7 +251,9 @@ sub get_Ensembl_SeqFeatures_contig_list{
        
        # is a paired feature
        # build EnsEMBL features and make the FeaturePair
-       $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+       my $f1 = Bio::EnsEMBL::SeqFeature->new();
+       my $f2 = Bio::EnsEMBL::SeqFeature->new();
+       $out = Bio::EnsEMBL::FeaturePair->new($f1, $f2);
        $out->set_featurepair_fields($start, $end, $strand, $f_score, $name,
 			    $hstart, $hend, 1, $f_score, $name, $analysis);
        
@@ -390,7 +393,9 @@ sub get_Ensembl_SeqFeatures_exon {
 	    next;
 	}
 	
-	my $f = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+        my $f1 = Bio::EnsEMBL::SeqFeature->new();
+        my $f2 = Bio::EnsEMBL::SeqFeature->new();
+        $out = Bio::EnsEMBL::FeaturePair->new($f1, $f2);
 	$f->set_featurepair_fields($rowhash->{'seq_start'},
 			           $rowhash->{'seq_end'},
 			           $rowhash->{'strand'},

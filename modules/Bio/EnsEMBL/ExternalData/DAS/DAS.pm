@@ -171,12 +171,13 @@ sub get_Ensembl_SeqFeatures_DAS {
     };
 
     # Test POST echo server to request debugging
-    #my $response = $dbh->features(
-    #                -dsn    =>  "http://ensrv3.sanger.ac.uk:9999",
-    #                -segment    =>  \@seg_requests,
-    #                -callback   =>  $callback,
-    #                #-category   =>  'all',
-    #                );
+    print STDERR "URL/DSN: $url/$dsn\n\n";
+    my $response = $dbh->features(
+                    -dsn    =>  "http://ensrv3.sanger.ac.uk:9999/das/$dsn",
+                    -segment    =>  \@seg_requests,
+                    -callback   =>  $callback,
+                    #-category   =>  'all',
+    );
     
     my $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",

@@ -336,7 +336,7 @@ sub fetch_all_by_clone_accession {
                     'display_id'    =>  $row->{'ID_DEFAULT'},
                     'start'         =>  $start,
                     'end'           =>  $end,
-                    'strand'        =>  $row->{'SNP_STRAND'}*$clone_strand,
+                    'strand'        =>  $strand,
                     'raw_status'    =>  $row->{'VALIDATED'},
                     '_ambiguity_code'=>  $self->_ambiguity_code($row->{'ALLELES'}),
                     'alleles'       =>  $row->{'ALLELES'},

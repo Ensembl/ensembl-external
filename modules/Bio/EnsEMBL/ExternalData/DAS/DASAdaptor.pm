@@ -75,6 +75,7 @@ sub new {
     my ( $url,
 	 $dsn,
 	 $ensdb,
+	 $timeout,
 	 $proxy_url,
 	 $protocol,
 	 $domain,
@@ -98,6 +99,7 @@ sub new {
 	 $fasta ) = $self->_rearrange([qw( URL
 					   DSN
 					   ENSDB
+					   TIMEOUT
 					   PROXY_URL
 					   PROTOCOL
 					   DOMAIN
@@ -121,14 +123,15 @@ sub new {
 					   FASTA)],@args);
 
 
-    $self->_db_handle( Bio::Das->new(30) );
-
     $url      && $self->url( $url );
     $protocol && $self->protocol( $protocol );
     $domain   && $self->domain( $domain );
 
     $self->url =~ m|\w+://\w+| || 
       $self->throw("Need a URL or protocol+domain");
+
+    $timeout ||= 30;
+    $self->_db_handle( Bio::Das->new($timeout) );
 
     $dsn       && $self->dsn( $dsn );
     $proxy_url && $self->proxy( $proxy_url );

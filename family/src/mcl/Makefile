@@ -132,8 +132,8 @@ binaries:		$(BINDIR)/mcl					\
 					$(BINDIR)/clminfo				\
 					$(BINDIR)/clmdist				\
 					$(BINDIR)/clmmeet				\
-					$(BINDIR)/clmproject
-
+					$(BINDIR)/clmproject \
+					$(BINDIR)/yam
 UTILOBJ		=	util/iomagic.o					\
 					util/alloc.o					\
 					util/buf.o						\

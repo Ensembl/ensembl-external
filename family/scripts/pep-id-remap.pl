@@ -24,7 +24,7 @@ die "no mappings !?!" unless %mapping;
 
 my @id_prefixes = qw(ENSP COBP PGBP);
 
-#warn "checking for all id with prefixes ", join(' ', @id_prefixes). "\n";
+warn "checking for all id with prefixes ", join(' ', @id_prefixes). "\n";
 
 # now process file
 while (<>) {

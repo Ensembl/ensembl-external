@@ -74,6 +74,8 @@ sub new {
 sub get_Ensembl_SeqFeatures_contig {
    my ($self,$internal_id,$version,$dum,$length,$contig) = @_;
 
+	#print STDERR "Fetching ESTs for contig $internal_id...\n";
+
    if (!defined($contig)) {
        $self->throw("No contig entered for get_Ensembl_SeqFeatures_contig");
    }
@@ -94,11 +96,10 @@ sub get_Ensembl_SeqFeatures_contig {
        my $analysis;
        my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
        if (!$analhash{$analysisid}) {
-	 $analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
-	 $analhash{$analysisid} = $analysis;
-	   
+	 		$analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
+	 		$analhash{$analysisid} = $analysis;
        } else {
-	   $analysis = $analhash{$analysisid};
+	   		$analysis = $analhash{$analysisid};
        }
        
        if( !defined $name ) {
@@ -106,45 +107,43 @@ sub get_Ensembl_SeqFeatures_contig {
        }
        
        if( $hid ne '__NONE__' ) {
-	   # is a paired feature
-	   # build EnsEMBL features and make the FeaturePair
-	 
-	   $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+	   	# is a paired feature
+		   # build EnsEMBL features and make the FeaturePair
 
-	   # hacky temporary fix for web
-	   $name = 'est';
-	   $source = 'est';
-	   $out->set_all_fields($start,$end,$strand,$f_score,$name,$source,$contig,
-				$hstart,$hend,1,$f_score,$name,$source,$hid);
+		   $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
 
-	   $out->analysis    ($analysis);
-	   $out->id          ($hid);              # MC This is for Arek - but I don't
-	                                          #    really know where this method has come from.
-	   $out->p_value    ($evalue)    if (defined $evalue);
-	   $out->percent_id ($perc_id)   if (defined $perc_id); 
-	   $out->phase      ($phase)     if (defined $phase);    
-	   $out->end_phase  ($end_phase) if (defined $end_phase);
+		   # hacky temporary fix for web
+		   $name = 'est';
+		   $source = 'est';
+		   $out->set_all_fields($start,$end,$strand,$f_score,$name,$source,$contig,
+					$hstart,$hend,1,$f_score,$name,$source,$hid);
+
+		   $out->analysis    ($analysis);
+		   $out->id          ($hid);              # MC This is for Arek - but I don't
+	                                        	  #    really know where this method has come from.
+		   $out->p_value    ($evalue)    if (defined $evalue);
+		   $out->percent_id ($perc_id)   if (defined $perc_id); 
+		   $out->phase      ($phase)     if (defined $phase);    
+		   $out->end_phase  ($end_phase) if (defined $end_phase);
 
        } else {
-	   $out = new Bio::EnsEMBL::SeqFeature;
-	   $out->seqname    ($self->id);
-	   $out->start      ($start);
-	   $out->end        ($end);
-	   $out->strand     ($strand);
-#	   $out->source_tag ($name);
-# temporary, for Tony
-	   $out->source_tag ('est');
-	   $out->primary_tag('est');
-	   $out->id         ($fid);
-	   $out->p_value    ($evalue)    if (defined $evalue);
-	   $out->percent_id ($perc_id)   if (defined $perc_id); 
-	   $out->phase      ($phase)     if (defined $phase);    
-	   $out->end_phase  ($end_phase) if (defined $end_phase);
+		   $out = new Bio::EnsEMBL::SeqFeature;
+		   $out->seqname    ($self->id);
+		   $out->start      ($start);
+		   $out->end        ($end);
+		   $out->strand     ($strand);
+		   $out->source_tag ('est');
+		   $out->primary_tag('est');
+		   $out->id         ($fid);
+		   $out->p_value    ($evalue)    if (defined $evalue);
+		   $out->percent_id ($perc_id)   if (defined $perc_id); 
+		   $out->phase      ($phase)     if (defined $phase);    
+		   $out->end_phase  ($end_phase) if (defined $end_phase);
 
-	   if( defined $f_score ) {
-	       $out->score($f_score);
-	   }
-	   $out->analysis($analysis);
+		   if( defined $f_score ) {
+	    	   $out->score($f_score);
+		   }
+		   $out->analysis($analysis);
        }
        # Final check that everything is ok.
        $out->validate();

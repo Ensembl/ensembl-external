@@ -30,7 +30,7 @@ my @word_order = qw(UNKNOWN HYPOTHETICAL FRAGMENT CDNA);
 # $fam_id_format= 'ENSF%011d'; 
 
 my $usage = 
-"Usage:\n\tfamily-parse.pl [-h(elp) ] -r release [ -C ] [ -F famdb ] [-E ensdb ]  [ FILE  ]
+"Usage:\n\tfamily-input.pl [-h(elp) ] -r release [ -C ] [ -F famdb ] [-E ensdb ]  [ FILE  ]
   famdb, ensdb: string like 'database=foo;host=bar;user=jsmith;pass=secret'
 ";
 
@@ -49,6 +49,9 @@ my $release = ($opt_r || die " need a release number\n");
 my $ddl = undef;
 $ddl = '../sql/family.sql' if $opt_C;
 
+main;
+exit 0;
+
 # just creates empty database, returns nothing.
 sub create_db {
     my ($conn) = @_;
@@ -63,7 +66,7 @@ sub create_db {
     warn "problem creating database: " . $DBI::errstr if $DBI::err;
     $conn->disconnect;
     undef;
-}
+}                                       # create_db
 
 sub create_tables { 
     my ($dbh, $ddl) = @_;
@@ -83,7 +86,7 @@ sub create_tables {
     foreach my $s (grep /\S/, split /;\n/, $sql) {
         $dbh->do($s) || die $DBI::errstr;
     }
-}
+}                                       # create_tables
  
 # from database
 sub get_max_id { 
@@ -100,7 +103,7 @@ sub get_max_id {
         $id = 0;
     }
     $id;
-}
+}                                       # get_max_id
 
 
 ## slightly more general function, which takes string that looks like
@@ -122,7 +125,7 @@ sub db_connect {
       die "couldn't connect using dsn $dsn, user $user, password $paw:" 
          . $DBI::errstr;
     $dbh;
-}
+}                                       # db_connect
 
 # find peptide or gene back in ensembl
 sub ens_find {
@@ -147,13 +150,13 @@ sub ens_find {
     }
     my $id =     $results[0];
     $id;
-}
+}                                       # ens_find
 
 sub delete_prev_assign {
     my ($q) = @_; 
     $q->execute($q);
     die $q->errstr if $q->err;
-}
+}                                       # delete_prev_assign
 
 # return -1 if description a worse than b, 0 if equal, 1 if better
 # (this function could be used in a sort(compare_desc, @descriptions)
@@ -241,6 +244,7 @@ sub main {
 
     my %gene_fam = undef;
     my %fam_desc = undef;
+    my %fam_score = undef;
 
     while(<>) {
         next if /^#/;
@@ -262,7 +266,8 @@ sub main {
             warn "Description longer than $max_desc_len; truncating it\n";
             $desc = substr($desc, 0, $max_desc_len);
         }
-        
+
+        $fam_score{$fam_id} = $score;
         $fam_desc{$fam_id} = $desc;
         
         # my $fam_id = format_fam_id $num; now in file.
@@ -282,11 +287,13 @@ sub main {
                 }
                 
                 if ($add_ens_gene) {
+                    # find the peptide back:
                     if ( ens_find($pep_q, $mem) eq '' ) {
                         warn "couldn't find peptide $mem - database mismatch? Can't find gene, continuing\n";
                         next MEM;
                     }
-                    
+
+                    #find ENSGxxx, given ENSPxxx:
                     my $ens_gene_id = ens_find($gene_q, $mem);
                     
                     if ( ! $ens_gene_id ) {
@@ -303,39 +310,47 @@ sub main {
                     ### to another family; if so, try to correct
                     if ( defined( $gene_fam{$ens_gene_id} )
                          &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
+
+                        ## we have a conflict: a previous peptide of the
+                        ## same gene was already 'assigned' to a family,
+                        ## but now a different transcript of the same gene
+                        ## is about to be assigned to a different family:
                         warn "### assigning gene $ens_gene_id (peptide: $mem) to $fam_id; already assigned to: $gene_fam{$ens_gene_id}\n";
                         
                         my $prev_fam = $gene_fam{$ens_gene_id};
+                        my $prev_score = $fam_score{$prev_fam};
                         my $prev_desc = $fam_desc{$prev_fam};
-                        
-                        # see if new description is better than previous:
-                        my $cmp = compare_desc($prev_desc, $desc);
-                        if ( $cmp >= 0 ) { # not really better
-                            warn "### leaving as is; desc: $prev_desc\n";
-                            warn "### alternative would be: $desc\n" 
+
+                        if (   ($score < $prev_score)
+                            || (($score == $prev_score) && compare_desc($prev_desc, $desc) >= 0)) {
+                            warn "### leaving as is; score: $prev_score; desc: $prev_desc\n";
+                            warn "### alternative would be: score $score; desc: $desc\n" 
                                unless $desc eq $prev_desc;
                             warn "\n";
                             next MEM;
                         }
+
                         # new one is better; delete old one
-                        warn "### replacing previous $prev_fam, desc: $prev_desc\n";
-                        warn "### with $fam_id, desc: $desc\n\n";
+                        warn "### replacing previous $prev_fam, score: $prev_score; desc: $prev_desc\n";
+                        warn "### with $fam_id, score: $score; desc: $desc\n\n";
                         $del_q->execute($ens_gene_id);
                         die $del_q->errstr if $del_q->err;
                     }
                     $gene_fam{$ens_gene_id} = $fam_id;
                     $seen_gene{$ens_gene_id}=$mem;
                     
-                    $mem_q->execute($internal_id, $ens_gene_dbname, 
-                                    $ens_gene_id)
-                      || die "couldn't insert line $.:\n$_\n " 
-                        . $mem_q->errstr;
+                    if ( ! $mem_q->execute($internal_id, $ens_gene_dbname, 
+                                         $ens_gene_id)) {
+                        # duplicate ensembl gene
+                        die "couldn't insert line $.:\n$_\n " . $mem_q->errstr; 
+                    }
                     $mem_count++;
                 }                       # if add_ens_gene
             } else {                    # this must be swissprot
                 if ($add_swissprot) { 
-                    $mem_q->execute($internal_id, $sp_dbname, $mem)
-                      || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
+                    if ( ! $mem_q->execute($internal_id, $sp_dbname, $mem) ) {
+                        warn "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
+                    }
                     $mem_count++;
                 }
             }
@@ -344,10 +359,12 @@ sub main {
         $fam_count++;
     }                                   # foreach fam
 
+    ###
+    warn "doing statistics tables\n";
+    do_stats($famdb);
+    warn "done with statistics\n";
+
     $famdb->disconnect;
     $ensdb->disconnect;
     warn "inserted $fam_count families, having a total of $mem_count members\n";
 }                                       # main
-
-main;
-exit 0;

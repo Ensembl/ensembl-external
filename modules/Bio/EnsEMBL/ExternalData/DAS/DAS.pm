@@ -183,10 +183,10 @@ sub fetch_all_by_DBLink_Container {
      my @tran_ids;
      if( $parent_obj->isa("Bio::EnsEMBL::Gene") ){
        push( @gene_ids, $parent_obj->stable_id );
-       foreach my $tscr( $parent_obj->get_all_transcripts ){
-	 push( @tscr_ids, $tscr->stable_id );
-	 my $tran = $tscr->translation || next;
-	 push( @tran_ids, $tran->stable_id );
+       foreach my $tscr( @{$parent_obj->get_all_transcripts} ){
+         push( @tscr_ids, $tscr->stable_id );
+         my $tran = $tscr->translation || next;
+         push( @tran_ids, $tran->stable_id );
        }
      }
      elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){

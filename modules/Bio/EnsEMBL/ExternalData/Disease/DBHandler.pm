@@ -137,7 +137,7 @@ sub disease_by_name
                     g.chromosome from disease as d,gene as g where d.id = g.id 
                     and d.disease='$disease_name'";
 
-    return $self->_get_diseases($query_string);
+    return $self->_get_disease_objects($query_string);
 
 }
 
@@ -172,7 +172,7 @@ sub all_diseases
     my $query_string='select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto, 
                       g.chromosome from disease as d,gene as g where d.id = g.id';
 
-    return $self->_get_diseases($query_string);
+    return $self->_get_disease_objects($query_string);
 
 } 
 
@@ -279,7 +279,7 @@ sub diseases_on_chromosome
                        g.chromosome from disease as d,gene as g where d.id = g.id 
                        and g.chromosome='$chromosome_no'";
 
-    return $self->_get_diseases($query_string);
+    return $self->_get_disease_objects($query_string);
        
 }
 
@@ -377,7 +377,7 @@ sub diseases_with_genes
                        g.chromosome from disease as d,gene as g where d.id = g.id 
                        and g.gene_symbol IS NOT NULL";
 
-    return $self->_get_diseases($query_string);
+    return $self->_get_disease_objects($query_string);
 
 
 } 
@@ -482,7 +482,7 @@ sub diseases_without_genes
                        and g.gene_symbol IS NULL";
 
 
-    return $self->_get_diseases($query_string);
+    return $self->_get_disease_objects($query_string);
 
 
 } 
@@ -582,7 +582,7 @@ sub diseases_like
     my $query_string="select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto, 
                       g.chromosome from disease as d,gene as g where d.id = g.id and d.disease like '%$disease%'";
 
-    return $self->_get_diseases($query_string);
+    return $self->_get_disease_objects($query_string);
 
 } 
                          
@@ -664,7 +664,7 @@ sub disease_names_like_count
 
 
 
-sub _get_diseases
+sub _get_disease_objects
 {
 
 my ($self,$query_string)=@_;
@@ -710,16 +710,6 @@ return @diseases;
 
 
 }
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -37,9 +37,9 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'ro
 
 #my @diseases_names=$diseasedb->disease_names_with_genes(90,3);
 #my @diseases_names=$diseasedb->disease_names_without_genes(4,3);
-#my @diseases=$diseasedb->diseases_like("diabetes");
+my @diseases=$diseasedb->diseases_like("leukemia");
 my @diseases_names=$diseasedb->disease_names_like("diabetes",4,5);
-my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+#my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
 #my @diseases=$diseasedb->disease_by_name("Albinism, rufous, 278400 (3)");
 
 
@@ -63,21 +63,30 @@ print "count ",$diseasedb->disease_names_like_count('diabetes'),"\n";
 
 foreach my $dis (@diseases)
 {
-#    print $dis->name,"\n";
+    print $dis->name,"\n";
 
 
     foreach my $location($dis->each_Location){
 	
-#		print "has gene ",$location->external_gene," on chromosome ",
-#		$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
+		print "has gene ",$location->external_gene," on chromosome ",
+		$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
 	
 	if (defined $location->ensembl_gene){
 
-#	    print $dis->name," ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
+	    print $dis->name," ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
 	}
-#	else {print "no ensembl predictions for ", $location->external_gene,"\n";}
+	else {print "no ensembl predictions for ", $location->external_gene,"\n";}
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 

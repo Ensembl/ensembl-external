@@ -90,14 +90,15 @@ use Bio::Root::Object;
 
 sub new {
 
-    my ($class, $adaptor, $pattern_id, $count, $pattern) = @_;
+    my ($class, $adaptor, $pattern_id, $count, $pattern, $pattern_frequency) = @_;
     my $self = {};
     bless $self,$class;
     
-    $self->{'_adaptor'}     = $adaptor;
-    $self->{'pattern_id'}   = $pattern_id;
-    $self->{'count'}        = $count;
-    $self->{'pattern'}      = uc($pattern);
+    $self->{'_adaptor'}          = $adaptor;
+    $self->{'pattern_id'}        = $pattern_id;
+    $self->{'count'}             = $count;
+    $self->{'pattern'}           = uc($pattern);
+    $self->{'pattern_frequency'} = $pattern_frequency;
 
     return($self);
 }
@@ -211,6 +212,25 @@ sub pattern {
     }
     return $self->{'pattern'};
 }
+
+=head2 pattern_frequency
+
+ Title   : pattern_frequency
+ Usage   :
+ Function: get/set the consensus pattern frequency for this pattern
+ Example :
+ Returns :
+ Args    :
+=cut
+
+sub pattern_frequency {
+    my ($self,$value) = @_;
+    if( defined $value) {
+        $self->{'pattern_frequency'} = $value;
+    }
+    return $self->{'pattern_frequency'};
+}
+
 
 =head2 samples
 

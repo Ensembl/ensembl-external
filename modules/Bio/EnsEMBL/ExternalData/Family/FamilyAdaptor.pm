@@ -92,6 +92,8 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
+warn "``WHERE ... db_name <> 'ENSMUSPEP' '' is hard-coded!";
+
 =head2 get_Family_by_id
 
  Title   : get_Family_by_id
@@ -107,8 +109,9 @@ sub get_Family_by_id  {
     my ($self, $id) = @_; 
 
     my $q = 
-      "SELECT internal_id, id, description, release, annotation_confidence_score
-       FROM family
+      "SELECT f.internal_id, f.id, f.description, f.release, 
+           f.annotation_confidence_score, f.num_ens_pepts
+       FROM family f
        WHERE id = '$id'";
 
     $self->_get_family($q);
@@ -164,7 +167,7 @@ sub get_Family_of_db_id {
 
     my $q = 
       "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score
+              f.release, f.annotation_confidence_score, f.num_ens_pepts
        FROM family f, family_members fm
        WHERE f.internal_id = fm.family
          AND fm.db_name = '$db_name' 
@@ -191,7 +194,7 @@ sub get_Families_described_as{
 
     my $q = 
       "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score
+              f.release, f.annotation_confidence_score, f.num_ens_pepts
        FROM family f
        WHERE f.description LIKE '%". "\U$desc" . "%'";
 
@@ -212,11 +215,15 @@ sub get_Families_described_as{
 
 sub all_Families { 
     my ($self) = @_; 
+
+# my $nnn = 10;
+# warn "@@@ DEBUG: limiting the number of families to those bigger than $nnn members";
     
     my $q = 
       "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score
+              f.release, f.annotation_confidence_score, f.num_ens_pepts
        FROM family f";
+#       FROM family f WHERE num_ens_pepts > $nnn";
     $self->_get_families($q);
 }
 
@@ -281,10 +288,12 @@ sub _get_members {
         $n++;
     }
 
-    $self->throw("internal error; expecting at least one member for id $iid") 
-      if ($n < 1);
+    if ($n < 1) {
+        #    $self->throw("internal error; expecting at least one member for id $iid") 
+        ; # can happen now that ENSMUS have been added but are filtered
+    }
     undef;
-}
+}                                       # _get_members
 
 # set/get handle on ensembl database
 sub _ensdb 
@@ -314,6 +323,31 @@ sub _get_family {
     };
     return $fams[0];                    # may be undef
 }                                       # _get_family
+
+
+=head2 get_max_id
+
+ Title   : get_max_id
+ Usage   : $new_id=$fam_adtor->get_max_id
+ Function: find the higest ENSF in this database (needed for mapping). 
+ Example : see Usage
+ Returns : an int
+ Args    : none
+
+=cut
+
+sub get_max_id {
+    my($self, $db)=@_;
+
+    my $q = "select max(id) from family";
+    
+    $q = $self->prepare($q);
+    $q->execute;
+
+    my ( @row ) = $q->fetchrow_array; 
+    return $row[0];
+}
+
 
 # function for finding alignemnts. They are not cached because they are
 # too big. 
@@ -374,7 +408,10 @@ sub _get_families {
         $fam->release($rowhash->{release});
         $fam->annotation_confidence_score(
                                  $rowhash->{annotation_confidence_score});
-        $self->_get_members($fam);
+
+        $fam->num_ens_pepts($rowhash->{num_ens_pepts});
+
+        $self->_get_members($fam);      # make more lazy ? 
         push(@fams, $fam);
     }
     

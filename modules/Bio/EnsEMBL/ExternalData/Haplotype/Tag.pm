@@ -93,18 +93,18 @@ sub new{
     my $class = shift;
     my $self ={};
 
-    $self ->{'input_block'} = $_[0];
+    $self->{'input_block'} = shift;
 
     # make the calculation
-    $self ->{'tag_list'} = _scan_snp( $self ->{'input_block'} );
+    $self->{'tag_list'} = _scan_snp( $self->{'input_block'} );
 
 
     if ( $self->{'tag_list'}){
 
-        $self ->{'tag_length'} = scalar @{ $self->{'tag_list'}->[0] };
+        $self->{'tag_length'} = scalar @{ $self->{'tag_list'}->[0] };
     }
     else {
-        $self ->{'tag_length'} = "NO TAGS FOUND!";
+        $self->{'tag_length'} = "NO TAGS FOUND!";
     }
 
     bless $self, $class;
@@ -165,7 +165,7 @@ sub tag_length{
 #------------------------
     my $self =shift;
 
-    return $self ->{tag_length};
+    return $self->{tag_length};
 }
 
 =head2 _scan_snp 

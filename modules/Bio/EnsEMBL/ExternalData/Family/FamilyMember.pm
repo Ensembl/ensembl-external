@@ -206,4 +206,114 @@ sub taxon {
   return $self->{'_taxon'};
 }
 
+
+
+=head2 alignment_string
+
+  Arg [1]    : (optional) string $align_str 
+  Example    : $align_str = $family_member->alignment_string();
+  Description: Getter/Setter for the portion of the familywide multiple 
+               protein alignment that corresponds with this family member.
+               The string returned will be the full peptide with alignment
+               gaps denoted as '-'s.
+  Returntype : string
+  Exceptions : none
+  Caller     : general
+
+=cut
+
+sub alignment_string {
+  my $self = shift;
+  
+  if(@_) {
+    $self->{'alignment_string'} = shift;
+  }
+
+  return $self->{'alignment_string'};
+}
+
+
+
+=head2 peptide_string
+
+  Arg [1]    : none
+  Example    : my $peptide = $family_member->peptide_string();
+  Description: Extracts the peptide string for this family member from the
+               alignment_string by removing gaps
+  Returntype : string
+  Exceptions : none
+  Caller     : general
+
+=cut
+
+sub peptide_string {
+  my $self = shift;
+
+  my $peptide = $self->{'alignment_string'};
+  $peptide =~ s/-//g;
+
+  return $peptide;
+}
+
+
+
+=head2 cdna_alignment_string
+
+  Arg [1]    : none
+  Example    : my $cdna_alignment = $family_member->cdna_alignment_string();
+  Description: Converts the peptide alignment string to a cdna alignment 
+               string.  This only works for EnsEMBL peptides whose cdna can
+               be retrieved from the attached EnsEMBL databse.
+               If the cdna cannot be retrieved undef is returned and a 
+               warning is thrown.
+  Returntype : string
+  Exceptions : none
+  Caller     : general
+
+=cut
+
+sub cdna_alignment_string {
+  my $self = shift;
+
+  my $dbname = $self->database;
+
+  if($dbname ne 'ENSEMBLPEP') {
+    $self->warn("Don't know how to retrieve cdna for database [$dbname]");
+    return undef;
+  }
+
+  my $taxon_id = $self->taxon_id;
+	
+  my $genome_db = 
+    $self->adaptor->db->get_GenomeDBAdaptor->fetch_by_taxon_id($taxon_id);
+
+  my $ta = $genome_db->db_adaptor->get_TranscriptAdaptor;
+  my $transcript = $ta->fetch_by_translation_stable_id($self->stable_id);
+
+  if(!$transcript) {
+    $self->warn("Could not retrieve transcript via peptide id [" . 
+		$self->stable_id . "] from database [" . 
+		$genome_db->db_adaptor->dbname . "]");
+    return undef;
+  }
+
+  my $cdna = $transcript->translateable_seq;
+  my $cdna_len = length($cdna);
+  my $start = 0;
+  my $cdna_align_string = '';
+  foreach my $pep (split(//,$self->alignment_string)) {
+    last if($start >= $cdna_len);
+	
+    if($pep eq '-') {
+      $cdna_align_string .= '--- ';
+    } else {
+      $cdna_align_string .= substr($cdna, $start, 3) .' ';
+    }
+    $start += 3;
+  }
+
+  return $cdna_align_string;
+}
+
+
 1;

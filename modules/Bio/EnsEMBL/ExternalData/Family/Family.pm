@@ -73,6 +73,7 @@ use strict;
 
 # Object preamble - inheriets from Bio::EnsEMBL::Root
 use Bio::EnsEMBL::Root;
+use IO::File;
 
 @ISA = qw(Bio::EnsEMBL::Root);
 
@@ -424,37 +425,63 @@ sub add_member {
     push @{$self->{_members_by_dbname_taxon}{$member->database."_".$member->taxon_id}}, $member;
 }
 
-=head2 get_alignment_string
 
- Title   : get_alignment_string
- Usage   : $obj->get_alignment_string
- Function: returns a complete clustal alignment as a string
- Example : 
- Returns : complete clustal alignment as a string, or undef if not found
- Args    : none
 
-=cut
 
-sub get_alignment_string {
-    my ($self) = @_;
-    $self->adaptor->_get_alignment_string($self);
-}
+=head2 read_clustalw
 
-=head2 get_alignment
-
- Title   : get_alignment
- Usage   : $obj->get_alignment
- Function: returns a complete clustal alignment as a Bio::SimpleAlign
- Example : 
- Returns : complete clustal alignment or undef if not found
- Args    : none
+  Arg [1]    : string $file 
+               The name of the file containing the clustalw output  
+  Example    : $family->read_clustalw('/tmp/clustalw.aln');
+  Description: Parses the output from clustalw and sets the alignment strings
+               of each of the memebers of this family
+  Returntype : none
+  Exceptions : thrown if file cannot be parsed
+               warning if alignment file contains identifiers for sequences
+               which are not members of this family
+  Caller     : general
 
 =cut
 
-sub get_alignment {
-    my ($self) = @_;
-    $self->adaptor->_get_alignment($self);
+sub read_clustalw {
+  my $self = shift;
+  my $file = shift;
+
+  my %align_hash;
+  my $FH = IO::File->new();
+  $FH->open($file) || $self->throw("Could not open alignment file [$file]");
+
+  <$FH>; #skip header
+  while(<$FH>) {
+    next if($_ =~ /^\s+/);  #skip lines that start with space
+    
+    my ($id, $align) = split;
+    $align_hash{$id} ||= '';
+    $align_hash{$id} .= $align;
+  }
+
+  $FH->close;
+
+  #place all family members in a hash on their names
+  my %member_hash;
+  foreach my $member (@{$self->get_all_members}) {
+    $member_hash{$member->stable_id} = $member;
+  }
+
+  #assign alignment strings to each of the members
+  foreach my $id (keys %align_hash) {
+    my $member = $member_hash{$id};
+    if($member) {
+      $member->alignment_string($align_hash{$id});
+    } else {
+      $self->warn("No member for alignment portion: [$id]");
+    }
+  }
 }
+
+
+
+
 
 ###########################################
 #

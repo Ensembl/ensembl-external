@@ -338,25 +338,42 @@ sub get_max_id {
 }
 
 
-#method to fetch alignments
-sub get_Alignment {
-  my ($self,$fam) = @_;
 
-  if (!defined($fam)) {
-    $self->throw("No family entered for _get_alignment");
-  } elsif (! $fam->isa("Bio::EnsEMBL::ExternalData::Family::Family")) {
-    $self->throw("[$fam] is not a Bio::EnsEBML::ExtnernalData::Family::Family");
+=head2 fetch_alignment
+
+  Arg [1]    : Bio::EnsEMBL::External::Family::Family $family
+  Example    : $family_adaptor->fetch_alignment($family);
+  Description: Retrieves the alignment strings for all the members of a 
+               family
+  Returntype : none
+  Exceptions : none
+  Caller     : FamilyMember::align_string
+
+=cut
+
+sub fetch_alignment {
+  my($self, $family) = @_;
+
+  my $members = $family->get_all_members;
+  return unless(@$members);
+
+  my $sth = $self->prepare("SELECT family_member_id, alignment 
+                            FROM family_members
+                            WHERE family_id = ?");
+  $sth->execute($family->dbID);
+
+  #move results of query into hash keyed on family member id
+  my %align_hash = map {$_->[0] => $_->[1]} (@{$sth->fetchall_arrayref});
+  $sth->finish;
+
+  #set the slign strings for each of the members
+  foreach my $member (@$members) {
+    $member->alignment_string($align_hash{$member->dbID()});
   }
-  
-  my $alignstr = $self->_get_alignment_string($fam);
-  # Not sure that this is the best way to do this.
-  open(ALN,"echo \'$alignstr\' |");
-  my $alnfh     = Bio::AlignIO->newFh('-format' => "clustalw",-fh => \*ALN);
 
-  my ($align) = <$alnfh>;
-
-  return $align;
+  return;
 }
+
 
 ##################
 # internal methods
@@ -402,26 +419,7 @@ Check data coherence, e.g. have two families with different family_id have the s
     return $fams->[0];  
 }              
 
-#internal method to build hash of total number of members per database name
  
-# function for finding alignemnts. They are not cached because they are
-# too big. 
-sub _get_alignment_string {
-    my ($self, $fam) = @_; 
-
-    my $fid = $fam->dbID();
-    my $q= "SELECT alignment
-            FROM alignments 
-            WHERE family_id = $fid";
-
-    $q = $self->prepare($q);
-    $q->execute();
-
-    my ( $row ) = $q->fetchrow_arrayref;
-    if ( !defined($row) || int(@$row) == 0 ) {            # not found
-        return undef;
-    }  else { return $$row[0];}
-}   
 
 sub _known_databases {
   my ($self) = @_;

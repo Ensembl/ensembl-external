@@ -122,7 +122,7 @@ sub parse_row {
       if( $ws_delimited[8] =~/^[-+][-+]?$/  ) { ## PSL format
         $self->store_feature( $current_key, Data::Bio::Text::Feature::PSL->new( \@ws_delimited ) ) if
           $self->filter($ws_delimited[13],$ws_delimited[15],$ws_delimited[16]);
-      } elsif ($ws_delimited[0] =~/^;/ ) {                             ## Simple format (chr/start/end/type
+      } elsif ($ws_delimited[0] =~/^>/ ) {                             ## Simple format (chr/start/end/type
         $self->store_feature( $ws_delimited[4], Data::Bio::Text::Feature::generic->new( \@ws_delimited ) ) if
           $self->filter($ws_delimited[1],$ws_delimited[2],$ws_delimited[3]);
       } else {                                  ## default format ( BED )

@@ -101,6 +101,39 @@ sub list_all_ids {
 
 
 
+=head2 list_by_alias
+
+ Title   : list_by_alias
+ Usage   : $obj->list_by_alias($alias)
+ Function: 
+ Example : 
+ Returns : array of seqtag db ids
+ Args    :
+
+
+=cut
+
+
+
+sub list_by_alias {
+    my ($self,$alias)=@_;
+
+   
+    my $statement="select s.name from seqtag s,seqtag_alias sa 
+                   where s.seqtag_id=sa.seqtag_id and sa.external_name='$alias'";
+
+    return $self->_list($statement);   
+
+}
+
+
+
+
+
+
+
+
+
 
 =head2 fetch_all
 
@@ -180,10 +213,10 @@ sub fetch_by_dbID {
 
 
 
-=head2 fetch_by_Name
+=head2 fetch_by_Synonym
 
- Title   : fetch_by_Name
- Usage   : $obj->fetch_by_Name
+ Title   : fetch_by_Synonym
+ Usage   : $obj->fetch_by_Synonym
  Function: 
  Example : 
  Returns :array of seqtag objects
@@ -196,7 +229,7 @@ sub fetch_by_dbID {
 
 
 
-sub fetch_by_Name {
+sub fetch_by_Synonym {
 
     my ($self,$lib_id,$synonym)=@_;
  
@@ -221,6 +254,47 @@ sub fetch_by_Name {
 }
 
 
+=head2 fetch_by_Name
+
+ Title   : fetch_by_Name
+ Usage   : $obj->fetch_by_Name
+ Function: 
+ Example : 
+ Returns :array of seqtag objects
+ Args    :seqtag name or alias
+
+
+=cut
+
+
+
+
+
+sub fetch_by_Name {
+
+    my ($self,$lib_id,$name)=@_;
+ 
+    $self->throw("need a library id") unless  $lib_id;
+    $self->throw("need a tag name") unless  $name;
+
+    
+    my $multiplier=$self->multiplier; 
+
+    my $statement="select s.seqtag_id,s.source,s.name,
+                          sa.db_name,sa.external_name,f.frequency,
+                          ceiling((f.frequency*$multiplier/l.total_seqtags) -1) as relative_frequency
+                   from   seqtag s,frequency f,seqtag_alias sa,
+                          library l 
+                   where  s.seqtag_id=f.seqtag_id and sa.seqtag_id=s.seqtag_id  
+                   and    l.library_id=f.library_id and l.library_id=$lib_id and s.name='$name' group by s.seqtag_id";
+
+
+    return $self->_fetch($statement);  
+    
+    
+}
+
+
 
 =head2 fetch_by_Name_with_allAliases
 
@@ -236,9 +310,27 @@ sub fetch_by_Name {
 
 
 
-
-
 sub fetch_by_Name_with_allAliases {
+
+    my ($self,$name)=@_;
+    
+    $self->throw("need a tag name") unless  $name;   
+
+    my $statement="select s.name,sa.external_name, sa.db_name 
+                   from   seqtag s,seqtag_alias sa  
+                   where  sa.seqtag_id=s.seqtag_id  and s.name='$name'";
+
+    return $self->_fetch_aliases($statement);  
+    
+    
+}
+
+
+
+
+
+
+sub fetch_by_Synonym_with_allAliases_1 {
 
     my ($self,$synonym)=@_;
  
@@ -257,14 +349,13 @@ sub fetch_by_Name_with_allAliases {
   #                 and    l.library_id=f.library_id and l.library_id=$lib_id and sa2.external_name='$synonym'";
 
 
-    my $statement="select t.name,s1.external_name,s1.db_name 
-                   from   seqtag_alias s1,seqtag_alias s2,seqtag t  
-                   where  s1.seqtag_id=s2.seqtag_id and t.seqtag_id=s1.seqtag_id  
-                   and    s2.external_name='$synonym'"; 
+#    my $statement="select t.name,s1.external_name,s1.db_name 
+#                   from   seqtag_alias s1,seqtag_alias s2,seqtag t  
+#                   where  s1.seqtag_id=s2.seqtag_id and t.seqtag_id=s1.seqtag_id  
+#                   and    s2.external_name='$synonym'"; 
 
-
-
-    return $self->_fetch_aliases($statement);  
+#    my $statement="select
+#    return $self->_fetch_aliases($statement);  
     
     
 }

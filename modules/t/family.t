@@ -163,7 +163,7 @@ ok $member->taxon->genus,"Homo","Should have get Homo";
 
 my $taxonad = $db->get_TaxonAdaptor;
 my $taxon = $taxonad->fetch_by_dbID(9606);
-$taxon->ncbi_taxid(3000);
+$taxon->taxon_id(3000);
 #test 20
 ok $taxonad->store($taxon),3000,"store species failed";
 

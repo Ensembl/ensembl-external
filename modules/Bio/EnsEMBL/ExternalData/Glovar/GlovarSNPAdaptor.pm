@@ -116,7 +116,6 @@ sub fetch_Light_SNP_by_chr_start_end  {
         SELECT
                 snp_summary.ID_SNP              as INTERNAL_ID,
                 snp_summary.DEFAULT_NAME        as ID_DEFAULT,
-                snp_name.SNP_NAME               as DB_ID,
                 (seq_seq_map.contig_orientation * mapped_snp.POSITION)
                     + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
@@ -126,7 +125,6 @@ sub fetch_Light_SNP_by_chr_start_end  {
                 seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
                 scd.DESCRIPTION                 as VALIDATED,
                 snp_summary.ALLELES             as ALLELES,
-                snd.DESCRIPTION                 as DB_TYPE,
                 svd.DESCRIPTION                 as SNPCLASS,
                 snp_summary.IS_PRIVATE          as PRIVATE
         FROM    chrom_seq,
@@ -135,10 +133,8 @@ sub fetch_Light_SNP_by_chr_start_end  {
                 snp_sequence,
                 mapped_snp,
                 snp_summary,
-                snp_name,
                 snp,
                 snpvartypedict svd,
-                snpnametypedict snd,
                 snp_confirmation_dict scd
         WHERE   chrom_seq.DATABASE_SEQNAME= '$slice_chr'
         AND     database_dict.DATABASE_NAME = '$ass_name'
@@ -148,8 +144,6 @@ sub fetch_Light_SNP_by_chr_start_end  {
         AND     seq_seq_map.SUB_SEQUENCE = snp_sequence.ID_SEQUENCE
         AND     snp_sequence.ID_SEQUENCE = mapped_snp.ID_SEQUENCE
         AND     mapped_snp.ID_SNP = snp_summary.ID_SNP
-        AND     snp_summary.ID_SNP = snp_name.ID_SNP
-        AND     snp_name.SNP_NAME_TYPE = snd.ID_DICT
         AND     snp_summary.ID_SNP = snp.ID_SNP
         AND     snp.VAR_TYPE = svd.ID_DICT
         AND     snp_summary.CONFIRMATION_STATUS = scd.ID_DICT
@@ -199,10 +193,35 @@ sub fetch_Light_SNP_by_chr_start_end  {
                 '_source_tag'   =>    'glovar',
             });
 
-        my $link = Bio::Annotation::DBLink->new();
-        $link->database($row->{'DB_TYPE'});
-        $link->primary_id($row->{'DB_ID'});
-        $snp->add_DBLink($link);
+        #DBLink
+        my $q2 = qq(
+            SELECT
+                    snp_name.SNP_NAME               as NAME,
+                    snpnametypedict.DESCRIPTION     as TYPE
+            FROM    
+                    snp_name,
+                    snpnametypedict
+            WHERE   snp_name.ID_SNP = ?
+            AND     snp_name.SNP_NAME_TYPE = snpnametypedict.ID_DICT
+        );
+        my $sth2;
+        eval {
+            $sth2 = $self->prepare($q2);
+            $sth2->execute($row->{'INTERNAL_ID'});
+        }; 
+        if ($@){
+            warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
+                \n$@");
+            return;
+        }
+
+        while (my $xref = $sth2->fetchrow_hashref()) {
+            my $link = new Bio::Annotation::DBLink;
+            $link->database($xref->{'TYPE'});
+            $link->primary_id($xref->{'NAME'});
+            $snp->add_DBLink($link);
+        }
+
         push (@snps, $snp); 
     }
 

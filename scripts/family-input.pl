@@ -4,6 +4,16 @@
 # 
 # format is like:
 # Cluster Number <TAB> Family Name <TAB> Annotation Score <TAB> Protein List (Colon Separated)
+#
+# Run as:
+#
+#  family-input.pl -r 2 -E 'host=ecs1b;user=ensro;database=ensembl100;' \
+#       -F 'host=ecs1b;user=root;database=fam100;' families.pep 2> fam.log
+# 
+#  Where families.pep is Anton's families file, remapped using pep-id-remap.pl
+#
+#  After this, run fam-stats.sh ecs1b ensro fam100 fam.log
+#
 
 use DBI;
 use strict;

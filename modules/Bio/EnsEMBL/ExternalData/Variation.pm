@@ -91,15 +91,18 @@ use Bio::SeqIO::FTHelper;
 
 @ISA = qw(Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
 
-sub new {
-    my($class,@args) = @_;
-    my $self;
-    $self = {};
-    bless $self, $class;
+sub _initialize {
+    my($self,@args) = @_;
+    
+ my $make = $self->SUPER::_initialize;
+
+    #my $self;
+    #$self = {};
+    #bless $self, $class;
 
     my ($start, $end, $strand, $primary_tag, $source,
 	$frame, $score, $gff_string, $status, $alleles,
-	$upstreamseq, $dnstreamseq) =
+	$upstreamseq, $dnstreamseq,$subsnpid,$handle,$original_strand) =
 	    $self->_rearrange([qw(START
 				  END
 				  STRAND
@@ -112,6 +115,9 @@ sub new {
 				  ALLELES
 				  UPSTREAMSEQ
 				  DNSTREAMSEQ
+				  SUBSNPID
+				  HANDLE
+				  ORIGINAL_STRAND
 				)],@args);
 
     $self->primary_tag("Variation");
@@ -130,11 +136,13 @@ sub new {
     $alleles && $self->alleles($alleles);
     $upstreamseq  && $self->upStreamSeq($upstreamseq);
     $dnstreamseq  && $self->dnStreamSeq($dnstreamseq);
-
+    $subsnpid  && $self->sub_snp_id($subsnpid);
+    $handle  && $self->handle($handle);
+    $original_strand && $self->original_strand($original_strand);
     $self->{ 'link' } = [];
 
     # set stuff in self from @args
-    return $self; # success - we hope!
+    return $make; # success - we hope!
 }
 
 
@@ -296,9 +304,17 @@ sub status {
 
 sub alleles {
    my ($obj,$value) = @_;
-   if( defined $value) {
+   if( defined $value) { 
       $obj->{'alleles'} = $value;
     }
+   if ($obj->original_strand==-1 && $obj->_reversed !=1)
+   {             
+       my $value=$obj->{'alleles'};
+       $value=~tr/ATGCatgc/TACGtagc/; 
+       $obj->{'alleles'} = $value;
+       $obj->_reversed(1);
+   }
+   
    if( ! exists $obj->{'alleles'} ) {
        return undef;
    }
@@ -388,6 +404,73 @@ sub dnStreamSeq {
    return $obj->{'dnstreamseq'};
 
 }
+
+
+
+
+
+sub sub_snp_id {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'subsnpid'} = $value;
+  }
+   if( ! exists $obj->{'subsnpid'} ) {
+       return undef;
+   }
+   return $obj->{'subsnpid'};
+
+}
+
+
+
+
+sub handle {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'handle'} = $value;
+  }
+   if( ! exists $obj->{'handle'} ) {
+       return undef;
+   }
+   return $obj->{'handle'};
+
+}
+
+
+sub original_strand {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'original_strand'} = $value;
+  }
+   if( ! exists $obj->{'original_strand'} ) {
+       return undef;
+   }
+   return $obj->{'original_strand'};
+
+}
+
+
+sub _reversed {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'reversed'} = $value;
+  }
+   if( ! exists $obj->{'reversed'} ) {
+       return undef;
+   }
+   return $obj->{'reversed'};
+
+}
+
+
+
+
+
+
+
+
+
+
 
 =head2 add_DBLink
 

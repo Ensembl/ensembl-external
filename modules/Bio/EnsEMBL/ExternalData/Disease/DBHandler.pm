@@ -102,7 +102,6 @@ sub new
 	$self->_db_handle($dbh);
     }
     
-    print STDERR "Connected to $db on $host.\n";
     
     return $self; 
 }
@@ -140,6 +139,8 @@ sub disease_by_name
     return $self->_get_disease_objects($query_string);
 
 }
+
+
 
 
 =head2 disease by ensembl gene
@@ -195,8 +196,8 @@ sub disease_name_by_ensembl_gene
 =head2 all diseases
 
  Title   : all_diseases
- Usage   : my @diseases=$diseasedb->all_diseases;
- Function: gets all diseases from the database
+ Usage   : my @diseases=$diseasedb->all_diseases[(30,10)];
+ Function: gets all diseases from the database, with optional offset,limit
  Example :
  Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
  Args    :
@@ -204,19 +205,57 @@ sub disease_name_by_ensembl_gene
 
 =cut
 
-
-
-
-
-
-
 sub all_diseases 
 {
-    my ($self)=@_;
+    my ($self,$offset,$count)=@_;
+	
+	my $query_string='';
 
-    my $query_string='select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto, 
-                      g.chromosome from disease as d,gene as g where d.id = g.id';
+	if ($offset||$offset == 0){
+		$offset='limit '.$offset;
+    	if($count){$count=','.$count;}
+		my $get_disease_ids_sql="SELECT distinct d.id 
+						FROM disease AS d,gene AS g 
+						WHERE d.id = g.id $offset $count;";
+		my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
+		$sth->execute;
+	
+		my @ids;
+		while ( my $rowhash = $sth->fetchrow_hashref){
+			push @ids, $rowhash->{'id'};
+		}
+		if (scalar @ids){
+		my $id_string=join(',',@ids);
 
+		$query_string= "SELECT 	d.disease,
+									g.id,
+									g.gene_symbol,
+									g.omim_id,
+									g.start_cyto,
+									g.end_cyto, 
+									g.chromosome 
+							FROM disease AS d,gene AS g 
+							WHERE g.id=d.id 
+							AND d.id IN ($id_string)";
+
+    	}
+		else {
+			# no matches for this query, so:
+			return ();
+		}
+	}
+	else {
+		$query_string='SELECT 	d.disease,
+									g.id,
+									g.gene_symbol,
+									g.omim_id,
+									g.start_cyto,
+									g.end_cyto, 
+									g.chromosome 
+						FROM disease AS d,gene AS g 
+						WHERE d.id = g.id';
+	}
+	
     return $self->_get_disease_objects($query_string);
 
 } 
@@ -236,12 +275,6 @@ sub all_diseases
 
 
 =cut
-
-
-
-
-
-
 
 sub all_disease_names 
 {
@@ -275,17 +308,11 @@ sub all_disease_names
 
 =cut
 
-
-
-
-
-
-
 sub all_disease_count
 {
     my ($self)=@_;
 
-    my $query_string="select  disease from disease;";
+    my $query_string="SELECT disease FROM disease;";
 
     $self->_get_count($query_string);
 
@@ -298,8 +325,8 @@ sub all_disease_count
 =head2 diseases on chromosome
 
  Title   : diseases_on_chromosome
- Usage   : my @diseases=$diseasedb->diseases_on_chromosome(22);
- Function: gets all diseases for a given chromosome
+ Usage   : my @diseases=$diseasedb->diseases_on_chromosome(22,90,30);
+ Function: gets all diseases for a given chromosome limited by offset and count
  Example :
  Returns : an array of Bio::EnsEMBL::ExternalData::Disease::Disease objects
  Args    :
@@ -307,24 +334,65 @@ sub all_disease_count
 
 =cut
 
-
-
-
-
-
-
-
 sub diseases_on_chromosome 
 {                          
-    my ($self,$chromosome_no)=@_;
-
-    $chromosome_no || $self->throw("I need chromosome number");
+    my ($self,$chromosome_no,$offset,$count)=@_;
+	my $query_string='';
+	
+    $chromosome_no || $self->throw("I need a chromosome");
     
-    my $query_string= "select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto, 
-                       g.chromosome from disease as d,gene as g where d.id = g.id 
-                       and g.chromosome='$chromosome_no'";
+	# If we've got limits, then do a limited query, otherwise, do a full query
+	
+	if ($offset||$offset == 0){
+		$offset='limit '.$offset;
+    	if($count){$count=','.$count;}
+	
+		my $get_disease_ids_sql="SELECT distinct d.id 
+								FROM disease AS d,gene AS g 
+								WHERE d.id = g.id 
+								AND g.chromosome='$chromosome_no' 
+								$offset $count;";
 
-    return $self->_get_disease_objects($query_string);
+		my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
+		$sth->execute;
+	
+		my @ids;
+		while ( my $rowhash = $sth->fetchrow_hashref){
+			push @ids, $rowhash->{'id'};
+		}
+
+		if (scalar @ids){
+			my $id_string=join(',',@ids);
+
+			$query_string= "SELECT 	d.disease,
+										g.id,
+										g.gene_symbol,
+										g.omim_id,
+										g.start_cyto,
+										g.end_cyto,
+										g.chromosome 
+								FROM disease AS d,gene AS g 
+								WHERE g.id=d.id 
+								AND d.id IN ($id_string)";
+		}
+		else {
+			return ();
+		}
+	}
+	else {
+		$query_string= "SELECT 	d.disease,
+									g.id,
+									g.gene_symbol,
+									g.omim_id,
+									g.start_cyto,
+									g.end_cyto,
+									g.chromosome 
+							FROM disease AS d,gene AS g 
+							WHERE g.id=d.id 
+							AND g.chromosome='$chromosome_no'";
+	}
+	
+	return $self->_get_disease_objects($query_string);
        
 }
 
@@ -343,9 +411,6 @@ sub diseases_on_chromosome
 
 =cut
 
-
-
-
 sub disease_names_on_chromosome 
 {
     my ($self,$chromosome_no,$offset,$count)=@_;
@@ -354,13 +419,17 @@ sub disease_names_on_chromosome
     if ($offset||$offset == 0){$offset='limit '.$offset;}
     if($count){$count=','.$count;}    
 
-    my $query_string=" select  d.disease from disease as d,gene as g where d.id = g.id 
-                       and g.chromosome='$chromosome_no' $offset $count;";
-
+	my $query_string="SELECT distinct g.id, d.disease 
+						FROM disease AS d,gene AS g 
+						WHERE d.id = g.id 
+						AND g.chromosome='$chromosome_no' $offset $count;";
+	
     $self->_get_disease_names($query_string);
 
 } 
                          
+
+
 
 
 
@@ -376,20 +445,16 @@ sub disease_names_on_chromosome
 
 =cut
 
-
-
-
-
-
-
 sub diseases_on_chromosome_count
 {
     my ($self,$chromosome)=@_;
 
     $chromosome || $self->throw("I need a chromosome");
 
-    my $query_string= "select  disease from disease as d,gene as g where d.id = g.id 
-                       and g.chromosome='$chromosome'";
+    my $query_string= "SELECT distinct g.id, d.disease  
+						FROM disease AS d,gene AS g 
+						WHERE d.id = g.id 
+						AND g.chromosome='$chromosome'";
 
     $self->_get_count($query_string);
 
@@ -409,9 +474,6 @@ sub diseases_on_chromosome_count
 
 
 =cut
-
-
-                          
 
 sub diseases_with_genes 
     
@@ -442,9 +504,6 @@ sub diseases_with_genes
 
 
 =cut
-
-
-                          
 
 sub disease_names_with_genes 
     
@@ -478,12 +537,6 @@ sub disease_names_with_genes
 
 =cut
 
-
-
-
-
-
-
 sub diseases_with_genes_count
 {
     my ($self)=@_;
@@ -498,10 +551,6 @@ sub diseases_with_genes_count
 
 
 
-
-
-
-
 =head2 diseases without genes
 
  Title   : diseases_without_genes
@@ -513,10 +562,6 @@ sub diseases_with_genes_count
 
 
 =cut
-
-
-
-
 
 sub diseases_without_genes 
 {
@@ -547,9 +592,6 @@ sub diseases_without_genes
 
 =cut
 
-
-                          
-
 sub disease_names_without_genes 
     
 {
@@ -559,7 +601,7 @@ sub disease_names_without_genes
   if ($offset||$offset == 0){$offset='limit '.$offset;}
   if($count){$count=','.$count;}    
   
-  my $query_string= "select  d.disease from disease as d,gene as g where d.id = g.id 
+  my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
                        and g.gene_symbol IS NULL  $offset,$count";
 
   $self->_get_disease_names($query_string);
@@ -581,12 +623,6 @@ sub disease_names_without_genes
 
 
 =cut
-
-
-
-
-
-
 
 sub diseases_without_genes_count
 {
@@ -613,10 +649,6 @@ sub diseases_without_genes_count
 
 
 =cut
-
-
-
-
 
 sub diseases_like 
 {
@@ -646,10 +678,6 @@ sub diseases_like
 
 =cut
 
-
-
-
-
 sub disease_names_like 
 {
     my ($self,$disease,$offset,$count)=@_;
@@ -673,7 +701,7 @@ sub disease_names_like
 
 
 
-=head2 disease name like count count
+=head2 disease name like count
 
  Title   : disease name like count
  Usage   : my $count=$diseasedb->disease_names_like_count(3);
@@ -684,12 +712,6 @@ sub disease_names_like
 
 
 =cut
-
-
-
-
-
-
 
 sub disease_names_like_count
 {
@@ -717,14 +739,12 @@ my ($self,$query_string)=@_;
 my $sth=$self->_db_handle->prepare($query_string);
 $sth->execute;
 
-
 my $id;
 my @diseases;
 my $disease;
 
 while ( my $rowhash = $sth->fetchrow_hashref) 
 {
- 
     if ($id!=$rowhash->{'id'})
     {	
 	$disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
@@ -741,7 +761,6 @@ while ( my $rowhash = $sth->fetchrow_hashref)
   
     if (defined $rowhash->{'gene_symbol'}){$location->has_gene(1);}
     $id=$rowhash->{'id'};
-
     $disease->add_Location($location);   
 }
 

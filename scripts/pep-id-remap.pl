@@ -15,11 +15,16 @@ open(MAP, "<$mapfile") || die $!;
 %mapping = ();
 while ( <MAP> ) {
     chomp;
-    ($old,$new)=split ' ';
-    die "wrong format: '$_' ; expecting old:new" unless $old and $new;
+    ($old,$new)=split "\t";
+#warn $old, ":", $new;
+    die "wrong format: '$_' ; expecting old<TAB>new" unless $old and $new;
     $mapping{$old}=$new;
 }
 die "no mappings !?!" unless %mapping;
+
+my @id_prefixes = qw(ENSP COBP PGBP);
+
+#warn "checking for all id with prefixes ", join(' ', @id_prefixes). "\n";
 
 # now process file
 while (<>) {
@@ -40,8 +45,11 @@ while (<>) {
     my @newmems=();
     my $new; 
     foreach $mem (@mems) {
-        if ($mem =~ /^ENSP/) { 
+#warn $mem;
+        if ( grep $mem =~ /^$_/,@id_prefixes ) {
+
             $new = $mapping{$mem};
+#warn $new;
             if (!$new) {
                 die "didn't find mapping for $mem\n$line";
             }
@@ -50,6 +58,8 @@ while (<>) {
         }
         push(@newmems, $new);
     }
+#warn "old: @mems";
+#warn "new: @newmems";
 
     print join("\t", $fam_id, $desc, $score, ":".join(":", @newmems)), "\n";
 }                                       # while

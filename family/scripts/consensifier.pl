@@ -2,7 +2,10 @@
 # $Id$
 # 
 # Derives consensus annotations from descriptions in a database, using a
-# longest common substring approach.
+# longest common substring approach. The final descriptions are
+# tweaked/cleaned up in assemble-consensus.pl, simply because
+# consensifier.pl takes so long. In other words, don't tweak too much
+# here. 
 #
 
 use strict;

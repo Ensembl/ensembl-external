@@ -11,6 +11,10 @@ int sort_alpha_routine (const void *s1,const void *s2);
 int sort_alpha2 (const void *s1,const void *s2);
 int binary_search_routine (const void *s1, const void *s2);
 
+#define INDEX_OUTFILE_DFLT "proteins.index"
+#define MATRIX_OUTFILE_DFLT "matrix.mci"
+#define CHUNK_SIZE_DFLT 200
+
 int main (int argc, char *argv[])
 {
 char *version;
@@ -20,8 +24,8 @@ FILE *fpout;
 FILE *indexout;
 char protein1[100];
 char protein2[100];
-char file1[100]="proteins.index";
-char file2[100]="matrix.mci";
+char file1[100]= INDEX_OUTFILE_DFLT;
+char file2[100]= MATRIX_OUTFILE_DFLT;
 int evalue1;
 int evalue2;
 double power;
@@ -36,7 +40,7 @@ int index1=0;
 int index2=0;
 int allocatedmem=0;
 int allocatedchunk=0;
-int chunksize=20;
+int chunksize= CHUNK_SIZE_DFLT;
 int linecount=0;
 int i=0;
 int j=0;
@@ -45,37 +49,30 @@ struct hit_struct *ptr;
 struct hit_struct searchkey;
 struct hit_struct *searchptr;
 
+#define USAGE "Usage: markov parsedfile [ options ]\n" \
+  "Options:\n" \
+  "  -ind somefile  Output Index to file 'somefile' (Default: %s)\n" \
+  "  -out somefile  Output MCL-Matrix to file \'somefile\' (Default: %s)\n" \
+  "  -chunk X       Use X (Megabyte) Chunks when allocating memory (Default: %d MB)\n\n"
+#define USAGE_EXIT fprintf(stderr,USAGE,file1,file2,chunksize),exit(1)
+
  version = strdup("$Revision$");
  version[strlen(version)-2]='\0';  version+= sizeof("$Revision:");
 
-if (argc == 1)
-	{
-	printf("\nMarkov Matrix Generation Tool\n");
-	printf("-----------------------------\n");
-	printf("Usage:\n");
-	printf("\nmarkov parsedfile\n");
-	printf("\nOr markov -h for help\n\n");
-	exit(1);
-	}
+ printf("\nMarkov Matrix Generation Tool v%s (c) EMBL-EBI\n\n", version);
+ printf("------------------------------\n");
+ printf("anton@ebi.ac.uk (2001)\n");
+ printf("\n\n");
+ 
+ if (argc == 1)	{
+   USAGE_EXIT;
+ }
 
 for (i=0;i < argc;i++)
         {
 	if ( (!strcmp(argv[i],"-h")) || (!strcmp(argv[i],"-help")) )	
 		{
-		printf("\nMarkov Matrix Generation Tool\n");
-		printf("-----------------------------\n");
-		printf("Usage:\n");
-		printf("\nmarkov parsedfile\n");
-		printf("\nOr markov -h for help\n\n");
-
-		printf("-----------------------------\n");
-		printf("Options:\n");
-		printf("\n-ind somefile		Output Index to file \'somefile\' (Default %s)\n",file1);
-		printf("-out somefile		Output MCL-Matrix to file \'somefile\' (Default %s)\n",file2);
-		printf("-chunk X		Use X (Megabyte) Chunks when allocating memory (Default %d MB)\n",chunksize);
-		printf("\n\n");
-
-		exit(1);
+                  USAGE_EXIT;
 		}
 
 	if ( !strcmp(argv[i],"-ind") && (i+1 < argc) )
@@ -104,10 +101,6 @@ for (i=0;i < argc;i++)
                 }
 	}
 
-printf("\nMarkovMatrix v%s (c) EMBL-EBI\n", version);
-printf("------------------------------\n");
-printf("anton@ebi.ac.uk (2001)\n");
-printf("\n\n");
 allocatedchunk=(int) ceil((1048576*chunksize)/sizeof(struct hit_struct));
 printf("Initial Chunksize is %d (Similarities) using %lf MB\n",allocatedchunk,floor(allocatedchunk*(sizeof(struct hit_struct))/1048576));
 if (hits=(struct hit_struct *) malloc(allocatedchunk*sizeof(searchkey)))

@@ -58,6 +58,8 @@ if (@ARGV!=3
     || $opt_h ) { 
     die $Usage; 
 }
+# remind us 
+warn "todo: replace UNKNOWN with AMBIGUOUS where appropriate\n";
 
 # sanity check on the words:
 foreach my $w (@useless_words) {
@@ -146,10 +148,10 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     $_=$annotation;
 
     #Apply some fixes to the annotation:
-    s/EC (\d+) (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.$4/;
-    s/EC (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.-/;
-    s/EC (\d+) (\d+) (\d+)/EC $1\.$2\.-\.-/;
-    s/(\d+) (\d+) KDA/$1\.$2 KDA/;
+    s/EC (\d+) (\d+) (\d+) (\d+)/EC $1.$2.$3.$4/;
+    s/EC (\d+) (\d+) (\d+)/EC $1.$2.$3.-/;
+    s/EC (\d+) (\d+)/EC $1\.$2.-.-/;
+    s/(\d+) (\d+) KDA/$1.$2 KDA/;
         
     my @members = @{$clusters{$cluster_id}};
     $final_total +=  int(@members);

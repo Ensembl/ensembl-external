@@ -159,7 +159,7 @@ sub _map_DASSeqFeature_to_chr {
 	$type = 'contig';
     } elsif( $seqname =~ /chr(\d+|X|Y|I{1,3}|I?V|[23][LR]|_scaffold_\d+|_\w+\d+)/io || # Hs/Mm/Dm/Ag/Fr/Rn/Ce/Dr
              $seqname =~ /^cb\d{2}\.fpc\d{4}$/io ||                            # Cb
-             $seqname =~ /^([0-2]?[0-9]|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
+             $seqname =~ /^([0-2]?[0-9]|I{1,3}|I?V|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
 	$type = 'chromosome';
     } elsif( $seqname =~ /ctg\d+|NT_\d+/i) {
 	$type = 'fpc';
@@ -187,7 +187,7 @@ sub _map_DASSeqFeature_to_chr {
 	warn ("Got a DAS feature with an unrecognized segment type: >$seqname< >", $sf->das_type_id(), "<\n");
 	return 0;
     }
-
+    #warn( "$type: $seqname" );
 
     # now switch on type
 

@@ -105,7 +105,7 @@ sub fetch_Haplotype_by_chr_start_end  {
         and
         	chr_start<= $e
         and
-        	chr_name = $chr
+        	chr_name = '$chr'
         group by block_id
     );
     

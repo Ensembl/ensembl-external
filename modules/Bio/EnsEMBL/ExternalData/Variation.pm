@@ -230,6 +230,31 @@ sub alleles {
 
 }
 
+=head2 position_problem
+
+ Title   : position_problem
+ Usage   : 
+ Function: 
+           Returns a value if the there are known problems in mapping
+	   the variation from internal coordinates to EMBL clone
+	   coordinates. 
+
+ Returns : A string
+ Args    : A string (optional, for setting)
+
+=cut
+
+sub position_problem {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'position_problem'} = $value;
+    }
+   if( ! exists $obj->{'position_problem'} ) {
+       return "$obj";
+   }
+   return $obj->{'position_problem'};
+}
+
 
 =head2 upStreamSeq
 

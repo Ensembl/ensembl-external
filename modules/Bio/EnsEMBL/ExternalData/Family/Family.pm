@@ -269,47 +269,15 @@ sub _totalhash{
 =cut
 
 sub size {
-    my ($self, $dbid) = @_; 
+    my ($self, $dbname) = @_; 
     
     my %tot = %{$self->_totalhash()};
-    if  ( defined $dbid) { 
-	return $tot{$dbid};
+    if  ( defined $dbname) { 
+	return $tot{$dbname};
     }
     else {
 	return $tot{'all'};
     }
-}
-
-=head2 each_ens_pep_member
-
- Title   : each_ens_pep_member
- Usage   : $obj->each_ens_pep_member
- Function: returns all the ENSEMBLPEP members of the family
- Returns : a list of DBLinks (which may be empty)
- Args    : none
-
-=cut
-
-sub each_ens_pep_member {
-    my ($self) = @_;
-    
-    return $self->each_member_of_db('ENSEMBLPEP');
-}
-
-=head2 each_ens_gene_member
-
- Title   : each_ens_gene_member
- Usage   : $obj->each_ens_gene_member
- Function: returns all the ENSEMBLGENE members of the family
- Returns : a list of DBLinks (which may be empty)
- Args   : none
-
-=cut
-
-sub each_ens_gene_member {
-    my ($self) = @_;
-    
-    return $self->each_member_of_db('ENSEMBLGENE');
 }
 
 =head2 each_member_of_db
@@ -331,18 +299,22 @@ sub each_member_of_db {
     if ( defined($self->{mems_per_db}->{$db}) ) {
 	return @{$self->{mems_per_db}->{$db}};
     }
-    my @mems = $self->_each_member_of_db($db);
-    $self->{mems_per_db}->{$db}= \@mems;
+    my @mems;
+    if ($self->adaptor) {
+	@mems = $self->adaptor->fetch_members_of_db($db);
+	$self->{mems_per_db}->{$db}= \@mems;
+    }
+    else {
+	@mems = $self->_each_member_of_db($db);
+	$self->{mems_per_db}->{$db}= \@mems;
+    }
     return @mems;
 }
 
 sub _each_member_of_db {
   my ($self, $db) = @_;
 
-  # might be slowish; do we need to change this, e.g., go to database? 
-
   my @mems = ();
-
   foreach my $mem ($self->each_DBLink()) {  
     if ($mem->database eq $db) { 
          push @mems, $mem;

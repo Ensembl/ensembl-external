@@ -33,8 +33,6 @@ $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
 my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
 
 $fam = $fam_adtor->get_Family_by_id('ENSF000013034');  # family id
-$fam = $fam_adtor->get_Family_of_Ensembl_pep_id('ENSP00000012304');
-$fam = $fam_adtor->get_Family_of_Ensembl_gene_id('ENSG00000012304');
 $fam = $fam_adtor->get_Family_of_db_id('SPTR', 'P000123');
 @fam = $fam_adtor->get_Family_described_as('interleukin');
 @fam = $fam_adtor->all_Families();
@@ -55,9 +53,9 @@ $ensdb->remove_ExternalAdaptor('family');
 =head1 DESCRIPTION
 
 This module is an entry point into a database of protein families,
-clustering SWISSPROT/TREMBL using Anton Enright's algorithm. The clustering
-neatly follows the SWISSPROT DE-lines, which are taken as the description
-of the whole family.
+clustering SWISSPROT/TREMBL and ensembl protein sets using the TRIBE algorithm by 
+Anton Enright. The clustering neatly follows the SWISSPROT DE-lines, which are 
+taken as the description of the whole family.
 
 The objects can only be read from the database, not written. (They are
 loaded ussing a separate perl script).
@@ -88,10 +86,10 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
-=head2 get_Family_by_stable_id
+=head2 fetch_by_stable_id
 
- Title   : get_Family_by_stable_id
- Usage   : $db->get_Family_by_stable_id('ENSF00000000009');
+ Title   : fetch_by_stable_id
+ Usage   : $db->fetch_by_stable_id('ENSF00000000009');
  Function: find Family, given its stable_id.
  Example :
  Returns : a Family object if found, undef otherwise
@@ -99,7 +97,7 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 =cut
 
-sub get_Family_by_stable_id  {
+sub fetch_by_stable_id  {
     my ($self, $stable_id) = @_; 
 
     my $q = 
@@ -109,45 +107,12 @@ sub get_Family_by_stable_id  {
        WHERE stable_id = '$stable_id'";
 
     $self->_get_family($q);
-}                                       # get_Family_by_stable_id
+}                                       # fetch_by_stable_id
 
-=head2 get_Family_of_Ensembl_pep_id
+=head2 fetch_by_db_id
 
- Title   : get_Family_of_Ensembl_pep_id
- Usage   : $fam = $db->get_Family_of_Ensembl_pep_id('ENSP00000204233');
- Function: find the family to which the given Ensembl peptide id belongs.
- Example :
- Returns : a Family or undef if not found 
- Args    : the ENSEMBLPEP identifier (display_id)
-
-=cut
-
-sub get_Family_of_Ensembl_pep_id {
-    my ($self, $eid) = @_; 
-
-    $self->get_Family_of_db_id(2, $eid);  #PL: what db_name ???
-}
-
-=head2 get_Family_of_Ensembl_gene_id
-
- Title   : get_Family_of_Ensembl_gene_id
- Usage   : $fam = $db->get_Family_of_Ensembl_gene_id('ENSP00000204233');
- Function: find the family to which the given Ensembl peptide id belongs.
- Example :
- Returns : a Family or undef if not found 
- Args    : the ENSEMBL gene identifier (display_id)
-
-=cut
-
-sub get_Family_of_Ensembl_gene_id {
-    my ($self, $eid) = @_; 
-    $self->get_Family_of_db_id(1, $eid);  #PL: what db_name ???
-}
-
-=head2 get_Family_of_db_id
-
- Title   : get_Family_of_db_id
- Usage   : $fam = $db->get_Family_of_db_id('SPTR', 'P01235');
+ Title   : fetch_of_db_id
+ Usage   : $fam = $db->fetch_of_db_id('SPTR', 'P01235');
  Function: find the family to which the given database and id belong
  Example :
  Returns : a Family or undef if not found 
@@ -155,48 +120,61 @@ sub get_Family_of_Ensembl_gene_id {
 
 =cut
 
-sub get_Family_of_db_id { 
-    my ($self, $extdbid, $extm_id) = @_; 
+sub fetch_by_dbname_id { 
+    my ($self, $dbname, $extm_id) = @_; 
 
     my $q = 
       "SELECT f.family_id, f.stable_id, f.description, 
               f.release, f.annotation_confidence_score
-       FROM family f, family_members fm
+       FROM family f, family_members fm, external_db edb
        WHERE f.family_id = fm.family_id
-         AND fm.external_db_id = $extdbid 
+         AND fm.external_db_id = edb.external_db_id
+         AND edb.name = '$dbname' 
          AND fm.external_member_id = '$extm_id'"; 
 
     $self->_get_family($q);
 }
 
-=head2 get_Families_described_as
+=head2 fetch_by_description
 
- Title   : get_Families_described_as
- Usage   : my @fams = $db->get_Families_described_as('REDUCTASE');
+ Title   : fetch_by_description
+ Usage   : my @fams = $db->fetch_by_description('REDUCTASE');
  Function: simplistic substring searching on the description
  Example :
  Returns : a possibly empty list of Families that contain the string. 
            (The search is currently case-insensitive; this may change if
            SPTR changes to case-preservation)
- Args    : search string.
+ Args    : search string, optional widldcard (is set to 1, wildcards are added and the 
+           search is a slower LIKE search
 
 =cut
 
-sub get_Families_described_as{ 
-    my ($self, $desc) = @_; 
+sub fetch_by_description{ 
+    my ($self, $desc,$wildcard) = @_; 
 
-    my $q = 
-      "SELECT f.family_id, f.stable_id, f.description, 
-              f.release, f.annotation_confidence_score
-       FROM family f
-       WHERE f.description LIKE '%". "\U$desc" . "%'";
-
+    my $query = $desc;
+    my $q;
+    if ($wildcard) {
+	$query = "%"."\U$desc"."%";
+        $q = 
+	    "SELECT f.family_id, f.stable_id, f.description, 
+                    f.release, f.annotation_confidence_score
+               FROM family f
+              WHERE f.description LIKE '$query'";
+    }
+    else {
+	$q = 
+	    "SELECT f.family_id, f.stable_id, f.description, 
+                    f.release, f.annotation_confidence_score
+               FROM family f
+              WHERE f.description = '$query'";
+    }
     $self->_get_families($q);
 }
 
-=head2 all_Families
+=head2 fetch_all
 
- Title   : all_Families
+ Title   : fetch_all
  Usage   : 
  Function: return all known families (use with care)
  Example :
@@ -206,7 +184,7 @@ sub get_Families_described_as{
 =cut
 
 
-sub all_Families { 
+sub fetch_all { 
     my ($self) = @_; 
 
     my $q = 
@@ -423,9 +401,10 @@ sub _get_totals{
    my ($self,$fam) = @_;
 
    my $fid = $fam->dbID;
-   my $q = "SELECT external_db_id, members_total
-             FROM family_totals
-             WHERE family_id = $fid";
+   my $q = "SELECT ed.name, ft.members_total
+             FROM family_totals ft, external_db ed
+             WHERE ft.family_id = $fid
+             AND ft.external_db_id = ed.external_db_id";
    
    $q = $self->prepare($q);
    $q->execute;
@@ -434,7 +413,7 @@ sub _get_totals{
    my %totals; 
    
    while ( my $rowhash = $q->fetchrow_hashref) {
-       $totals{$rowhash->{external_db_id}}=$rowhash->{members_total};
+       $totals{$rowhash->{name}}=$rowhash->{members_total};
        $all =+ $rowhash->{members_total};
    }
    $totals{'all'}=$all;
@@ -453,12 +432,7 @@ sub _db_handle
 
 sub DESTROY {
    my ($self) = @_;
-
-#    my $sth = $self->_prepare("unlock tables");
-#    my $rv  = $sth->execute();
-#    $self->throw("Failed to unlock tables") unless $rv;
-#    %{$self->{'_lock_table_hash'}} = ();
-
+   
    if( $self->{'_db_handle'} ) {
        $self->{'_db_handle'}->disconnect;
        $self->{'_db_handle'} = undef;

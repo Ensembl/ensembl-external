@@ -59,7 +59,7 @@ if ( grep($_ != 0, values %dbs)) {
 
 
 $id= 'ENSF00000000002';
-my $fam = $famadtor->get_Family_by_stable_id($id);
+my $fam = $famadtor->fetch_by_stable_id($id);
 if (defined($fam)){
     print "ok 4\n";
 } else  {
@@ -73,7 +73,7 @@ if ($fam->size == 15) {
 else {
     print "not ok 5\n";
 }
-if ($fam->size(1) == 5) {
+if ($fam->size('ENSEMBLGENE') == 5) {
     print "ok 6\n";
 }
 else {
@@ -91,7 +91,7 @@ if ($got == $expected) {
 ## now same for one without an alignment; should fail gracefully
 $id= 'ENSF00000000005';
 eval {
-    $ali=$famadtor->get_Family_by_stable_id($id)->get_alignment_string();
+    $ali=$famadtor->fetch_by_stable_id($id)->get_alignment_string();
 };
 
 if ($@ || defined($ali) ) {
@@ -111,7 +111,7 @@ if (defined($fam)){
 # not finding given family should fail gracefully:
 $id= 'all your base are belong to us';
 eval { 
-    $fam = $famadtor->get_Family_by_stable_id($id);
+    $fam = $famadtor->fetch_by_stable_id($id);
 };
 if ($@ || $fam) {
     print "not ok 10\n";
@@ -120,41 +120,32 @@ if ($@ || $fam) {
     print "ok 10\n";
 };
 
-
-$id='ENSP00000231624';
-$fam = $famadtor->get_Family_of_Ensembl_pep_id($id);
-if (defined($fam)) {
+@pair = ('SPTR', 'O15520');
+$fam = $famadtor->fetch_by_dbname_id(@pair);
+if (defined($fam)){
     print "ok 11\n";
 } else  {
     print "not ok 11\n";
-    warn "didn't find pepid $id\n";
-}
-
-$id='ENSG000001067592';
-$fam = $famadtor->get_Family_of_Ensembl_gene_id($id);
-if (defined($fam)){
-    print "ok 12\n";
-} else  {
-    print "not ok 12\n";
-    warn "didn't find family of gene id $id\n";
-}
-
-@pair = (3, 'O15520');
-$fam = $famadtor->get_Family_of_db_id(@pair);
-if (defined($fam)){
-    print "ok 13\n";
-} else  {
-    print "not ok 13\n";
     warn "didn't find a family for @pair";
 }
 $id = 'growth factor';
 
-@fams = $famadtor->get_Families_described_as($id);
+@fams = $famadtor->fetch_by_description($id,1);
 $expected = 5;
 if (@fams == $expected) {
-    print "ok 14\n";
+    print "ok 12\n";
 } else {
-    print "not ok 14\n";
+    print "not ok 12\n";
+    warn "expected $expected families, found ",int(@fams),"\n";
+}
+
+$id='fgf 21';
+@fams = $famadtor->fetch_by_description($id);
+$expected = 1;
+if (@fams == $expected) {
+    print "ok 13\n";
+} else {
+    print "not ok 13\n";
     warn "expected $expected families, found ",int(@fams),"\n";
 }
 
@@ -165,9 +156,9 @@ $q->execute();
 my ( $row ) = $q->fetchrow_arrayref;
 if ( defined($row) && int(@$row) == 1 
      && $$row[0] eq $expected) {
-    print "ok 15\n";
+    print "ok 14\n";
 } else { 
-    print "not ok 15\n";
+    print "not ok 14\n";
 }
 
 

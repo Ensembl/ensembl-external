@@ -11,7 +11,7 @@ INSTALL = cp
 installdir =  $(FAMPATH)/bin
 endif
 
-opt = -O4
+opt = -g -O
 
 CFLAGS = -c $(opt)
 
@@ -20,13 +20,13 @@ CFLAGS = -c $(opt)
 
 all: markov
 
-install:
+install: markov
 	$(INSTALL) markov $(installdir)
 
 markov: markov.o
 	$(CC) $^ -o $@ -lm
 
 markov.o: markov.c markov.h
-	$(CC) $(CFLAGS) $^
+	$(CC) $(CFLAGS) $?
 
 

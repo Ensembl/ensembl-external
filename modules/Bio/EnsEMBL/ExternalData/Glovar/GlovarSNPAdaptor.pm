@@ -181,7 +181,7 @@ sub fetch_all_by_clone_accession {
         my $strand = $row->{'SNP_STRAND'}*$clone_strand;
         my $key = join(":", $row->{'ID_DEFAULT'}, $start, $end, $strand);
         my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}} || '_';
-        my $cons_rank = $Bio::EnsEMBL::Variation::VariationFeature::CONSEQUENCE_TYPES{uc($consequence_type)};
+        my $cons_rank = $Bio::EnsEMBL::Variation::VariationFeature::CONSEQUENCE_TYPES{uc($consequence_type)} || 99;
         if (! $cons{$key} or $cons_rank le $cons{$key}) {
             # VariationFeature
             my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
@@ -405,7 +405,7 @@ sub fetch_SNP_by_id  {
     $var->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
 
     # population genotypes
-    $self->get_population_genotypes($var);
+    # $self->get_population_genotypes($var);
 
     # add variation to variationFeature
     $varfeat->variation($var);

@@ -75,7 +75,7 @@ sub apply_edits  {
 
 my @deletes = (( 'FOR\$',  'SIMILAR TO\$', 'SIMILAR TO PROTEIN\$', 
                'RIKEN.*FULL.*LENGTH.*ENRICHED.*LIBRARY',
-               '.*\d\d\d+.*',
+               '\w*\d{4,}',
                'HYPOTHETICAL PROTEIN'
                ), &as_words(qw(NOVEL PUTATIVE PREDICTED 
                                UNNAMED UNNMAED ORF CLONE MRNA 

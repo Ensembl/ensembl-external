@@ -254,49 +254,58 @@ sub fetch_all_by_DBLink_Container {
 =cut
 
 sub fetch_all_by_Slice {
-    my ($self,$slice) = @_;
+  my ($self,$slice) = @_;
 
-    #
-    # IGNORE Caching for now
-    #
+  # Examine cache
+  my $CACHE_KEY = $slice->name;
+  if( $self->{$CACHE_KEY} ){
+    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
+  }
 
-    my $chr_name   = $slice->chr_name();
-    my $chr_start  = $slice->chr_start();
-    my $chr_end    = $slice->chr_end();
-    my $KEY = "_slice_cache_${chr_name}_${chr_start}_${chr_end}";
-    return ( $self->{$KEY}, $self->{"_stylesheet_".$KEY} ) if defined $self->{$KEY};
+  # Get all coord systems this Ensembl DB knows about
+  my $csa = $slice->coord_system->adaptor;
+  my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 
-    my $chr_length = $slice->get_Chromosome()->length();
-    my $offset     = 1 - $chr_start;
-    my $length     = $chr_end + $offset;
-    my $db         = $slice->adaptor->db;
+  # Get the slice representation for each coord system. 
+  my @segments_to_request; # The DAS segments to query
+  my %slice_by_segment;    # tally of which slice belongs to segment
+  foreach my $system( keys %coord_systems ){
+    foreach my $segment( @{ $slice->project($system) || [] } ){
+      my $slice = $segment->to_Slice;
+      my $slice_name  = $slice->name;
+      my $slice_start = $slice->start;
+      my $slice_end   = $slice->end;
+      my $region_name = $slice->seq_region_name;
+      my $coord_system= $slice->coord_system;
+      if( $slice_name =~ /^clone/ ){ # Clone-specific hack for embl versions
+	my( $id, $version ) = split( /\./, $region_name );
+	if( $version ){
+	  push( @segments_to_request, "$id:$slice_start,$slice_end" );
+	  $slice_by_segment{$id} = $slice;
+	}
+      }
+      push( @segments_to_request, "$region_name:$slice_start,$slice_end" );
+      $slice_by_segment{$region_name} = $slice;
+    }
+  }
+
+  # Run the DAS query
+  my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS
+    ( '', 0, 0, [ @segments_to_request ], [], [], 0 );
 
 
-    my $mapper = $db->get_AssemblyMapperAdaptor()->fetch_by_type($slice->assembly_type());
-    my @raw_contig_ids = $mapper->list_contig_ids( $chr_name, $chr_start, $chr_end );
-    my $raw_Contig_Hash = $db->get_RawContigAdaptor->fetch_filled_by_dbIDs( @raw_contig_ids );
-    my %clone_hash  = map {( $_->clone->embl_id(), 1 ) } values %$raw_Contig_Hash;
+  # Map the DAS results into the coord system of the original slice
+  my @result_list;
+  foreach my $das_sf( @$features ){
+    my $das_slice = $slice_by_segment{ $das_sf->seqname } ||
+      ( warn( "No Slice for ", $das_sf->seqname ) && next );
+    $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) &&
+      push @result_list, $das_sf;
+  }
 
-    # provide mapping from contig names to internal ids
-
-## The following are used by _map_DASSeqFeature_to_chr and get_Ensembl_SeqFeature_DAS
-    my %contig_name_hash = map { ( $_->name(), $_) } values %$raw_Contig_Hash;
-    my @fpc_contigs = ();
-    my @raw_contig_names = keys %contig_name_hash;
-    my @clones = keys %clone_hash; # retrieve all embl clone accessions
-
-    # As DAS features come back from a Call Back system, we need to loop
-    # again over the list of features, decide what to do with them and map
-    # them all to chromosome coordinates
-    my( $features, $style ) =  $self->get_Ensembl_SeqFeatures_DAS(
-         $chr_name, $chr_start, $chr_end,
-         \@fpc_contigs, \@clones, \@raw_contig_names,
-         $chr_length );
-    my @result_list = grep { $self->_map_DASSeqFeature_to_chr(
-	                     $mapper, \%contig_name_hash, 
-                             $offset,$length,$db->get_CloneAdaptor, $_ ) == 1
-    } @$features;
-    return ( ($self->{$KEY} = \@result_list), ($self->{"_stylesheet_".$KEY} = $style) );
+  # Return the mapped features
+  return ( ($self->{$slice->name} = \@result_list), 
+	   ($self->{"_stylesheet_".$slice->name} = $style) );
 }
 
 #----------------------------------------------------------------------
@@ -327,99 +336,36 @@ sub _map_DASSeqFeature_to_pep{
 
 #----------------------------------------------------------------------
 
-sub _map_DASSeqFeature_to_chr {
-    my ($self,$mapper,$contig_hash_ref,$offset,$length,$clone_adaptor,$sf) = @_;
+sub _map_DASSeqFeature_to_slice {
+  my $self       = shift;
+  my $das_sf     = shift;
+  my $das_slice  = shift;
+  my $usr_slice  = shift;
 
-    my $type;
-    
-    ## Ensembl formac...BAC contigs...Celera Anopheles contigs...Rat contigs...Anopheles contigs...
-    my $seqname = $sf->seqname;
-    if( $contig_hash_ref->{ $seqname } ) { 
-      $type = 'contig';
-    } elsif( $seqname =~ /chr(\d+|X|Y|I{1,3}|I?V|[23][LR]|_scaffold_\d+|_\w+\d+)/io || # Hs/Mm/Dm/Ag/Fr/Rn/Ce/Dr
-             $seqname =~ /^scaffold_\d+$/io ||                            # Pt
-             $seqname =~ /^cb\d{2}\.fpc\d{4}$/io ||                            # Cb
-             $seqname =~ /^(6_DR5[12]|[0-2]?[0-9]|Un_\w+|I{1,3}|I?V|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
-	$type = 'chromosome';
-    } elsif( $seqname =~ /ctg\d+|NT_\d+/i) {
-	$type = 'fpc';
-	# This next Regex is for ensembl mouse denormalised contigs - (avc) do we need these any more?
-    } elsif( $seqname =~ /^(\w{1,2}\d+)(\.\d+)?$/i) {
-	my $clone;
-        eval { $clone = $clone_adaptor->fetch_by_accession($1); };
-	#we only use finished clones. finished means there is only
-	#one contig on the clone and it has an offset of 1
-	# Could we have a method on clone saying "is_finished"?
-        if( $@ ) { 
-          warn( "DAS CLONE error $@" ); return 0;
-        }
-        return 0 unless $clone;
-	my @contigs = @{$clone->get_all_Contigs};
-	if(scalar(@contigs) == 1 && ( $contigs[0]->embl_offset == 1 || $contigs[0]->embl_offset==0) ) {
-	    # sneaky. Finished clones have one contig - by setting this as the seqname
-	    # the contig remapping will work.
-            if( $contig_hash_ref->{$contigs[0]->name} ) {
-	      $sf->seqname($contigs[0]->name);
-	      $type = 'contig';
-            }
-	}
-    } elsif( $sf->das_type_id() eq '__ERROR__') {
-#                    Always push errors even if they aren't wholly within the VC
-	$type = 'error';
-    } elsif( $seqname eq '') {
-	#suspicious
-	return 0;
-    } else {
-	warn ("Got a DAS feature with an unrecognized segment type: >$seqname< >", $sf->das_type_id(), "<\n");
-	return 0;
-    }
+  my $fr_csystem = $das_slice->coord_system;
+  my $to_csystem = $usr_slice->coord_system;
 
-    # now switch on type
+  my $db = $usr_slice->adaptor->db;
+  my $ma = $db->get_AssemblyMapperAdaptor;
+  my $mapper = $ma->fetch_by_CoordSystems( $fr_csystem, $to_csystem );
 
-    if( $type eq 'contig' ) {
-	my( $coord ) = $mapper->map_coordinates_to_assembly
-	    ($contig_hash_ref->{ $sf->seqname() }->dbID(), 
-	     $sf->das_start, 
-	     $sf->das_end, 
-	     $sf->das_strand||0 );
+  # Map
+  my @coords = ();
+  eval{ @coords = $mapper->map( $das_slice->seq_region_name, 
+				$das_sf->das_start,
+				$das_sf->das_end,
+				$das_sf->das_orientation,
+				$fr_csystem ) };
+  if( $@ ){ warn( $@ ) }
+  @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
+  scalar( @coords ) || return 0;
+  $das_sf->seqname( $usr_slice->seq_region_name );
+  $das_sf->start( $coords[0]->start - $usr_slice->start + 1 );
+  $das_sf->end( $coords[-1]->end - $usr_slice->start + 1 );
+  $das_sf->strand( $coords[0]->strand );
+  #warn( "Ensembl:".$das_sf->seqname.":".$das_sf->start."-".$das_sf->end );
+  return 1;
 
-	# if its not mappable than ignore the feature
-	
-	if( $coord->isa( "Bio::EnsEMBL::Mapper::Gap" ) ) {
-	    return 0;
-	}
-
-	$sf->das_move( $coord->{'start'}+$offset, $coord->{'end'}+$offset, $coord->{'strand'} );
-
-	if ( $sf->das_start > $length || $sf->das_end < 1 ) {
-	    return 0;
-	} else {
-	    return 1;
-	}
-
-	return 1;
-
-    } elsif( $type eq 'chromosome' ) {
-	$sf->das_shift( $offset );
-	# trim features off slice
-	if ( $sf->das_start > $length || $sf->das_end < 1 ) {
-	    return 0;
-	} else {
-	    return 1;
-	}
-    } elsif ( $type eq 'error' ) {
-	return 1;
-    } elsif ( $type eq 'fpc' ) {
-	# don't handle FPC's currently
-	return 0;
-    } else {
-	return 0;
-    }
-
-    # should not get here. Throw
-
-    $self->throw("Impossible statement reached. Bad DAS SeqFeature coordinate error");
-    
 }
 
     
@@ -441,90 +387,85 @@ sub _map_DASSeqFeature_to_chr {
 =cut
 
 sub get_Ensembl_SeqFeatures_DAS {
-    my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref, $chr_length) = @_;
-	my $dbh 	   = $self->adaptor->_db_handle();
-	my $dsn 	   = $self->adaptor->dsn();
-	my $types 	   = $self->adaptor->types() || [];
-	my $url 	   = $self->adaptor->url();
-
+  my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref, $chr_length) = @_;
+    my $dbh 	   = $self->adaptor->_db_handle();
+    my $dsn 	   = $self->adaptor->dsn();
+    my $types 	   = $self->adaptor->types() || [];
+    my $url 	   = $self->adaptor->url();
     my $DAS_FEATURES = [];
     my $STYLES = [];
     
-    $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, global start, global end and other essential stuff. You didn't.")
-        unless ( scalar(@_) == 8);
+    $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, ".
+		 "global start, global end and other essential stuff. ".
+		 "You didn't.") unless ( scalar(@_) == 8);
 
     my @seg_requests = (
                         @$fpccontig_list_ref,
                         @$clone_list_ref, 
                         @$contig_list_ref
-                        );
-    if($global_end>0 && $global_start<=$chr_length) { # Make sure that we are grabbing a valid section of chromosome...
-        $global_start = 1           if $global_start<1;           # Convert start to 1 if non +ve
-        $global_end   = $chr_length if $global_end  >$chr_length; # Convert end to chr_length if fallen off end
-        #unshift @seg_requests, "chr$chr_name:$global_start,$global_end"; 
-        unshift @seg_requests, "$chr_name:$global_start,$global_end";  # support both types of chr ID
-    }
+		       );
 
-    my $callback_stylesheet =  sub {
-     # return if $_[3] eq 'pending';
+    my $callback_stylesheet = sub {
+      # return if $_[3] eq 'pending';
       push @$STYLES, {
-         'category' => $_[0],
-         'type'     => $_[1],
-         'zoom'     => $_[2],
-         'glyph'    => $_[3],
-         'attrs'    => $_[4]
-      };
+		      'category' => $_[0],
+		      'type'     => $_[1],
+		      'zoom'     => $_[2],
+		      'glyph'    => $_[3],
+		      'attrs'    => $_[4]
+		     };
     };
     my $callback =  sub {
         my $f = shift;
         return unless $f->isa('Bio::Das::Feature'); ## Bug in call back code means this is called for wrong DAS types
-        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+        my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
-        $CURRENT_FEATURE->das_feature_id($f->id());
-        $CURRENT_FEATURE->das_feature_label($f->label());
-        $CURRENT_FEATURE->das_segment_id($f->segment());
-        $CURRENT_FEATURE->das_segment_label($f->label());
-        $CURRENT_FEATURE->das_id($f->id());
-        $CURRENT_FEATURE->das_dsn($dsn);
-        $CURRENT_FEATURE->source_tag($dsn);
-        $CURRENT_FEATURE->primary_tag('das');
-        $CURRENT_FEATURE->das_type_id($f->type());
-        $CURRENT_FEATURE->das_type_category($f->category());
-        $CURRENT_FEATURE->das_type_reference($f->reference());
-        #$CURRENT_FEATURE->das_type_subparts($attr{'subparts'});
-        #$CURRENT_FEATURE->das_type_superparts($attr{'superparts'});
-        $CURRENT_FEATURE->das_name($f->id());
-        $CURRENT_FEATURE->das_method_id($f->method());
-        $CURRENT_FEATURE->das_link($f->link());
-        $CURRENT_FEATURE->das_link_label($f->link_label());
-        #$CURRENT_FEATURE->das_link_href($f->link());
-        $CURRENT_FEATURE->das_group_id($f->group());
-        $CURRENT_FEATURE->das_group_label($f->group_label());
-        $CURRENT_FEATURE->das_group_type($f->group_type());
-        $CURRENT_FEATURE->das_target($f->target());
-        $CURRENT_FEATURE->das_target_id($f->target_id);
-        $CURRENT_FEATURE->das_target_label($f->target_label);
-        $CURRENT_FEATURE->das_target_start($f->target_start);
-        $CURRENT_FEATURE->das_target_stop($f->target_stop);
-        $CURRENT_FEATURE->das_type($f->type());
-        $CURRENT_FEATURE->das_method($f->method());
-        $CURRENT_FEATURE->das_start($f->start());
-        $CURRENT_FEATURE->das_end($f->end());
-        $CURRENT_FEATURE->das_score($f->score());
-        $CURRENT_FEATURE->das_orientation($f->orientation()||0);    
-        $CURRENT_FEATURE->das_phase($f->phase());
-        $CURRENT_FEATURE->das_note($f->note());
+        $das_sf->das_feature_id($f->id());
+        $das_sf->das_feature_label($f->label());
+        $das_sf->das_segment_id($f->segment());
+        $das_sf->das_segment_label($f->label());
+        $das_sf->das_id($f->id());
+        $das_sf->das_dsn($dsn);
+        $das_sf->source_tag($dsn);
+        $das_sf->primary_tag('das');
+        $das_sf->das_type_id($f->type());
+        $das_sf->das_type_category($f->category());
+        $das_sf->das_type_reference($f->reference());
+        #$das_sf->das_type_subparts($attr{'subparts'});
+        #$das_sf->das_type_superparts($attr{'superparts'});
+        $das_sf->das_name($f->id());
+        $das_sf->das_method_id($f->method());
+        $das_sf->das_link($f->link());
+        $das_sf->das_link_label($f->link_label());
+        #$das_sf->das_link_href($f->link());
+        $das_sf->das_group_id($f->group());
+        $das_sf->das_group_label($f->group_label());
+        $das_sf->das_group_type($f->group_type());
+        $das_sf->das_target($f->target());
+        $das_sf->das_target_id($f->target_id);
+        $das_sf->das_target_label($f->target_label);
+        $das_sf->das_target_start($f->target_start);
+        $das_sf->das_target_stop($f->target_stop);
+        $das_sf->das_type($f->type());
+        $das_sf->das_method($f->method());
+        $das_sf->das_start($f->start());
+        $das_sf->das_end($f->end());
+        $das_sf->das_score($f->score());
+        $das_sf->das_orientation($f->orientation()||0);    
+        $das_sf->das_phase($f->phase());
+        $das_sf->das_note($f->note());
 
 
-        warn ("adding feature for $dsn.... @{[$f->id]}") if 0;
-        push(@{$DAS_FEATURES}, $CURRENT_FEATURE);
+        0 && warn("adding feature for $dsn.... @{[$f->id]}");
+        push(@{$DAS_FEATURES}, $das_sf);
     };
 
+    $self->verbose(1);
     my $response;
-     # Test POST echo server to request debugging
-     if($ENV{'ENSEMBL_DAS_WARN'}) { 
-           print STDERR "URL/DSN: $url/$dsn\n\n";
-           $response = $dbh->features( 
+    # Test POST echo server to request debugging
+    if( 0 ){ 
+           warn "URL/DSN: $url/$dsn";
+           $response = $dbh->features(
                -dsn        =>  "$ENV{'ENSEMBL_DAS_WARN'}/das/$dsn", 
                -segment    =>  \@seg_requests, 
                -callback   =>  $callback, 
@@ -532,14 +473,6 @@ sub get_Ensembl_SeqFeatures_DAS {
            ); 
      } 
 
-#    if($url=~/servlet\.sanger/) {
-#        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
-#        $CURRENT_FEATURE->das_type_id('__ERROR__'); 
-#        $CURRENT_FEATURE->id("Hardware failure");
-#        $CURRENT_FEATURE->das_dsn($dsn); 
-#        unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
-#        return ($DAS_FEATURES);
-#    }
 
 #     warn "GRABBING STYLE SHEET FOR $dsn";
      $response = $dbh->stylesheet(
@@ -586,7 +519,7 @@ sub get_Ensembl_SeqFeatures_DAS {
             print STDERR "FEATURE ID: ",        $feature->das_feature_id(), "\n";
         }
     }
-    return ($DAS_FEATURES,$STYLES);  # _MUST_ return a list here or StaticContig breaks!
+    return ($DAS_FEATURES,$STYLES); 
 }
 
 

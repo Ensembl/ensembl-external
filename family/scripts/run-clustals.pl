@@ -16,8 +16,8 @@ my $Usage=<<END_USAGE;
 Usage:
   $0 [ options ]  foo.clusters  bar.pep
   -h : this message
+  -c : check (do not run, unless providing -f option as well)
   -f : rerun jobs that failed
-  -c : check (do not run, unless fixing jobs that failed)
 
 foo.clusters is a file like that produced by by parse_mcl.pl; bar.pep is a
 FASTA file containing all the peptides clustered.  
@@ -67,8 +67,9 @@ if (! -e $peptidesfile ) {
 foreach my $cluster (sort numeric(keys(%families))) {
 
     my $command;
-    if (($has_ens_members{$cluster})              # only if it has ENS peptides
-        && ( @{$families{$cluster}} >0) ) {
+    if (($has_ens_members{$cluster})     # only if it has ENS peptides
+        && ( @{$families{$cluster}} > 1) # and only if more than 1!
+       ) {
 
         my $mems=join(" ",@{$families{$cluster}});
         my $aliseqs="/tmp/ali-seqs.$cluster-$$";

@@ -338,7 +338,7 @@ sub fetch_all_by_clone_accession {
                     'end'           =>  $end,
                     'strand'        =>  $row->{'SNP_STRAND'}*$clone_strand,
                     'raw_status'    =>  $row->{'VALIDATED'},
-                    'ambiguity_code'=>  $self->_ambiguity_code($row->{'ALLELES'}),
+                    '_ambiguity_code'=>  $self->_ambiguity_code($row->{'ALLELES'}),
                     'alleles'       =>  $row->{'ALLELES'},
                     'snpclass'      =>  $row->{'SNPCLASS'},
                     'source'        =>  'Glovar',

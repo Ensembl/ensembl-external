@@ -116,6 +116,23 @@ sub alleles {
     return $self->{'alleles'};
 }
 
+=head2 ambiguity_code
+
+  Arg[1]      : (optional) String - ambiguity code
+  Example     : my $ambig = $self->ambiguity_code;
+  Description : getter/setter for ambiguity code
+  Return type : String
+  Exceptions  : none
+  Caller      : general
+
+=cut
+
+sub ambiguity_code {
+    my $self = shift;
+    $self->{'_ambiguity_code'} = shift if (@_);
+    return $self->{'_ambiguity_code'};
+}
+
 =head2 add_DBLink
 
   Arg[1]      : Bio::Annotation::DBLink $link

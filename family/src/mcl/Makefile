@@ -74,7 +74,7 @@ ifeq ($(strip $(USR_ARCH)),OSF1)
     LINK_SYS = 
     ifeq ($(strip $(USR_OPT)),yes)
 # 	following not working/debugged yet:	
-	OPTIMIZE  := -O4  -DEXTERN__INLINE__DEFINE="static " \
+	OPTIMIZE  := -O4 -fp_reorder -float  -DEXTERN__INLINE__DEFINE="static " \
 			 -DEXTERN__INLINE__DECLARE="static "
     else
 	OPTIMIZE  :=  -g -DEXTERN__INLINE__DEFINE="static " \

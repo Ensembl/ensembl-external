@@ -9,16 +9,15 @@
 								    -host   => 'myhost',
 								   );
 
-    $family_adaptor  = $db->get_FamilyAdaptor();
-    $familymember_adaptor  = $db->get_FamilyMemberAdaptor();
+    $family_adaptor  = $db->get_FamilyAdaptor;
+    $familymember_adaptor  = $db->get_FamilyMemberAdaptor;
+    $taxon_adaptor  = $db->get_TaxonAdaptor;
 
 =head1 DESCRIPTION
 
-This object represents a database that is implemented somehow (you shouldn\'t
-care much as long as you can get the object). From the object you can pull
-out other objects by their stable identifier, such as Clone (accession number),
-Exons, Genes and Transcripts. The clone gives you a DB::Clone object, from
-which you can pull out associated genes and features. 
+This object represents a database that is implemented somehow (you shouldn't
+care much as long as you can get the object). You can pull
+out other objects such as Family, FamilyMember, Taxon through their respective adaptors.
 
 =head1 CONTACT
 
@@ -26,7 +25,8 @@ Describe contact details here
 
 =head1 APPENDIX
 
-The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
+The rest of the documentation details each of the object methods.
+Internal methods are usually preceded with a _
 
 =cut
 
@@ -47,11 +47,14 @@ use Bio::EnsEMBL::DBSQL::DBConnection;
 
 =head2 get_FamilyAdaptor
 
-    my $family_adaptor = $db->get_FamilyAdaptor;
-
-Returns a B<Bio::EnsEMBL::ExternalData::Family::DBSQL::FamilyAdaptor>
-object, which is used for reading and writing
-B<Bio::EnsEMBL::ExternalData::Family::Family> objects from and to the SQL database.
+ Args       : none
+ Example    : my $family_adaptor = $db->get_FamilyAdaptor;
+ Description: retrieve the FamilyAdaptor which is used for reading and writing
+              Bio::EnsEMBL::ExternalData::Family::Family objects from and to 
+              the SQL database.
+ Returntype : Bio::EnsEMBL::ExternalData::Family::DBSQL::FamilyAdaptor
+ Exceptions : none
+ Caller     : general
 
 =cut 
 
@@ -64,11 +67,14 @@ sub get_FamilyAdaptor {
 
 =head2 get_FamilyMemberAdaptor
 
-    my $familymember_adaptor = $db->get_FamilyMemberAdaptor;
-
-Returns a B<Bio::EnsEMBL::ExternalData::Family::DBSQL::FamilyMemberAdaptor>
-object, which is used for reading and writing
-B<Bio::EnsEMBL::ExternalData::FamilyMember> objects from and to the SQL database.
+ Args       : none
+ Example    : my $familymember_adaptor = $db->get_FamilyMemberAdaptor;
+ Description: retrieve the FamilyMemberAdaptor which is used for reading and writing
+              Bio::EnsEMBL::ExternalData::Family::FamilyMember objects from and to 
+              the SQL database.
+ Returntype : Bio::EnsEMBL::ExternalData::Family::DBSQL::FamilyMemberAdaptor
+ Exceptions : none
+ Caller     : general
 
 =cut 
 
@@ -81,11 +87,14 @@ sub get_FamilyMemberAdaptor {
 
 =head2 get_TaxonAdaptor
 
-    my $taxon__adaptor = $db->get_TaxonAdaptor;
-
-Returns a B<Bio::EnsEMBL::ExternalData::Family::DBSQL::TaxonAdaptor>
-object, which is used for reading and writing
-B<Bio::Species> objects from and to the SQL database.
+ Args       : none
+ Example    : my $taxon__adaptor = $db->get_TaxonAdaptor;
+ Description: retrieve the TaxonAdaptor which is used for reading and writing
+              Bio::EnsEMBL::ExternalData::Family::Taxon objects from and to 
+              the SQL database.
+ Returntype : Bio::EnsEMBL::ExternalData::Family::DBSQL::TaxonAdaptor
+ Exceptions : none
+ Caller     : general
 
 =cut 
 

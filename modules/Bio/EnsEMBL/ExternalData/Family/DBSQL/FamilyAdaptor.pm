@@ -29,8 +29,8 @@ FamilyAdaptor - DESCRIPTION of Object
 
   my $fam = $fam_adtor->fetch_by_stable_id('ENSF000013034');
   $fam = $fam_adtor->fetch_by_dbname_id('SPTR', 'P000123');
-  my @fam = $fam_adtor->fetch_by_description_with_wildcards('interleukin',1);
-  @fam = $fam_adtor->fetch_all();
+  my @fam = @{$fam_adtor->fetch_by_description_with_wildcards('interleukin',1)};
+  @fam = @{$fam_adtor->fetch_all()};
 
   ### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
   ### Ensembl database object, then use it as:

@@ -400,7 +400,7 @@ sub fetch_SNP_by_id  {
                 scd.description             as validated,
                 ss.alleles                  as alleles,
                 svd.description             as snpclass,
-                sseq.chromosome             as chr_name,
+                cd.chromosome               as chr_name,
                 sseq.id_sequence            as nt_id,
                 sseq.database_seqnname      as seq_name
         FROM    
@@ -409,13 +409,15 @@ sub fetch_SNP_by_id  {
                 snp,
                 snpvartypedict svd,
                 snp_confirmation_dict scd,
-                snp_summary ss
+                snp_summary ss,
+                chromosomedict cd
         WHERE   ss.default_name = ?
         AND     sseq.id_sequence = ms.id_sequence
         AND     ms.id_snp = ss.id_snp
         AND     ss.id_snp = snp.id_snp
         AND     snp.var_type = svd.id_dict
         AND     ss.confirmation_status = scd.id_dict
+        AND     sseq.chromosome = cd.id_dict
         AND     sseq.is_current = 1
     );
 
@@ -441,12 +443,6 @@ sub fetch_SNP_by_id  {
         } else {
             push @seq_clone, $r;
         }
-	if ($r->{'CHR_NAME'} eq 23) {
-	    $r->{'CHR_NAME'} = 'X';
-	}
-	if ($r->{'CHR_NAME'} eq 24) {
-	    $r->{'CHR_NAME'} = 'Y';
-	}
     }
     # if more than one NT or clone mapping has been returned, something is
     # wrong with snp_sequence.is_current, so print a warning

@@ -128,11 +128,11 @@ sub get_Ensembl_SeqFeatures_contig {
 
 		   # hacky temporary fix for web
 		   $name = 'est';
-		   $source = 'est';
-		   $out->set_all_fields($start,$end,$strand,$f_score,$name,$source,$contig,
-					$hstart,$hend,1,$f_score,$name,$source,$hid);
+		   $source = 'est';	# no longer used - DB
+		   $out->set_featurepair_fields($start, $end, $strand,
+		     $f_score, $name, $hstart, $hend, 1, $f_score,
+		     $name, $analysis);
 
-		   $out->analysis    ($analysis);
 		   $out->id          ($hid);              # MC This is for Arek - but I don't
 	                                        	  #    really know where this method has come from.
 		   $out->p_value    ($evalue)    if (defined $evalue);
@@ -251,15 +251,13 @@ sub get_Ensembl_SeqFeatures_contig_list{
        # is a paired feature
        # build EnsEMBL features and make the FeaturePair
        $out = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
-       $out->set_all_fields($start,$end,$strand,$f_score,$name,'similarity',$int_ext{$contig},
-			    $hstart,$hend,1,$f_score,$name,'similarity',$hid);
+       $out->set_featurepair_fields($start, $end, $strand, $f_score, $name,
+			    $hstart, $hend, 1, $f_score, $name, $analysis);
        
        if( !$out->isa("Bio::EnsEMBL::Ext::FeaturePair") ) { 
 	   	$out->percent_id  ($perc_id);
        }
 
-	   $out->source_tag("est");
-       $out->analysis    ($analysis);
        $out->id          ($hid);  
        $out->validate();
        
@@ -393,25 +391,18 @@ sub get_Ensembl_SeqFeatures_exon {
 	}
 	
 	my $f = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
-	$f->set_all_fields($rowhash->{'seq_start'},
-			   $rowhash->{'seq_end'},
-			   $rowhash->{'strand'},
-			   $rowhash->{'score'},
-			   $rowhash->{'name'},
-			   'similarity',
-			   $rowhash->{'contig'},
-			   $rowhash->{'hstart'},
-			   $rowhash->{'hend'},
-			   1, # hstrand
-			   $rowhash->{'score'},
-			   $rowhash->{'name'},
-			   'similarity',
-			   $rowhash->{'hid'});
+	$f->set_featurepair_fields($rowhash->{'seq_start'},
+			           $rowhash->{'seq_end'},
+			           $rowhash->{'strand'},
+			           $rowhash->{'score'},
+			           $rowhash->{'name'},
+			           $rowhash->{'hstart'},
+			           $rowhash->{'hend'},
+			           1, # hstrand
+			           $rowhash->{'score'},
+			           $rowhash->{'name'},
+				   $analysis);
 
-	#
-	# WARNING - assumming perl extensions, not C
-	#
-	
 	$f->analysis($analysis);
 	
 	$f->validate;

@@ -70,12 +70,13 @@ package Bio::EnsEMBL::ExternalData::DAS::DAS;
 use strict;
 use vars qw(@ISA);
 use Bio::Das; 
+use Bio::EnsEMBL::Root;
 
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
-# Object preamble - inherits from Bio::Root:RootI
-@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+# Object preamble
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
 
 
 sub new {

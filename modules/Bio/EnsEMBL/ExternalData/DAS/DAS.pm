@@ -180,7 +180,15 @@ sub get_Ensembl_SeqFeatures_DAS {
     #                  -callback   =>  $callback,
     #                  #-category   =>  'all',
     # );
-    
+
+#    if($url=~/servlet\.sanger/) {
+#        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
+#        $CURRENT_FEATURE->das_type_id('__ERROR__'); 
+#        $CURRENT_FEATURE->id("Hardware failure");
+#        $CURRENT_FEATURE->das_dsn($dsn); 
+#        unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
+#        return (@{$DAS_FEATURES});
+#    }
     $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",
                     -segment    =>  \@seg_requests,

@@ -99,7 +99,7 @@ while( my $old = shift @oldfams ) {
            $bestfam->annotation_confidence_score, 
            substr($old->description, 0, 30), $old->annotation_confidence_score);
         print STDERR " ", $bestfam->id, "\t", $old->id, " $perc % ($newd [$news] $oldd [$olds])\n";
-        # (this completes the line start at top of while loop)
+        # (this completes the line started at top of while loop)
     } else { 
         # these are the loosers, won't map them, sniff.
         push @unmapped_old, $old->id;

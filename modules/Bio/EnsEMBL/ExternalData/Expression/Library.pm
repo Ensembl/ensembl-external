@@ -88,6 +88,59 @@ sub new {
 }
 
 
+
+
+=head2 fetch_SeqTag_by_dbID
+
+ Title   : fetch_SeqTag_by_dbID
+ Usage   : $obj->fetch_SeqTag_by_dbID
+ Function: 
+ Example : 
+ Returns : seqtag object
+ Args    :
+
+
+=cut
+
+
+
+sub fetch_SeqTag_by_dbID {
+    my ($self,$id)=@_;
+
+    $self->throw ("need a seqtag id") unless $id;
+
+    return $self->adaptor->fetch_SeqTag_by_dbID($self->id,$id);
+
+}
+
+
+
+=head2 fetch_SeqTag_by_Synonym
+
+ Title   : fetch_SeqTag_by_Synonym
+ Usage   : $obj->fetch_SeqTag_by_Synonym
+ Function: 
+ Example : 
+ Returns : seqtag object
+ Args    :
+
+
+=cut
+
+
+
+sub fetch_SeqTag_by_Synonym {
+    my ($self,$synonym)=@_;
+
+    $self->throw ("need a seqtag synonym") unless $synonym;
+    return $self->adaptor->fetch_SeqTag_by_Synonym($self->id,$synonym);
+
+}
+
+
+
+
+
 =head2 fetch_all_SeqTags
 
  Title   : fetch_all_SeqTags

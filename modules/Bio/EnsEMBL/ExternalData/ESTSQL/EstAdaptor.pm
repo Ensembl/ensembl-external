@@ -87,7 +87,7 @@ sub new {
 sub get_Ensembl_SeqFeatures_contig {
    my ($self,$internal_id,$contig) = @_;
 
-	#print STDERR "Fetching ESTs for contig $internal_id...\n";
+	print STDERR "Fetching ESTs for contig $internal_id... HELOOOOO\n";
 
    if (!defined($contig)) {
        $self->throw("No contig entered for get_Ensembl_SeqFeatures_contig");
@@ -120,6 +120,7 @@ sub get_Ensembl_SeqFeatures_contig {
        }
        
        if( $hid ne '__NONE__' ) {
+
 	   	# is a paired feature
 		   # build EnsEMBL features and make the FeaturePair
 
@@ -164,7 +165,7 @@ sub get_Ensembl_SeqFeatures_contig {
       push(@array,$out);
       
    }
-   
+
    return @array;
 
 
@@ -223,9 +224,16 @@ sub get_Ensembl_SeqFeatures_contig_list{
        my $analysis;
        my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
        if (!$analhash{$analysisid}) {
-	   my $feature_obj=Bio::EnsEMBL::DBSQL::Feature_Obj->new($self->db);
-	   $analysis = $feature_obj->get_Analysis($analysisid);
+	 print STDERR "analysisid: $analysisid\n";
+	 $analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
+	 
+	 if(defined($analysis)){
+	   $self->throw("$analysis is not a Bio::EnsEMBL::Analysis") unless $analysis->isa("Bio::EnsEMBL::Analysis");
 	   $analhash{$analysisid} = $analysis;
+	 }
+	 else{
+	   $self->throw("no analysis fectehd for $fid $hid\n");
+	 }
        } else {
 	   $analysis = $analhash{$analysisid};
        }
@@ -327,14 +335,3 @@ sub db {
 }
 
 1;
-
-
-
-
-
-
-
-
-
-
-

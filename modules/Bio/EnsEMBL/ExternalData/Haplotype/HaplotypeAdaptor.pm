@@ -96,15 +96,14 @@ sub fetch_all_by_Slice {
 
   my @haplotypes = $self->fetch_Haplotype_by_chr_start_end($slice->chr_name,
                                                            $slice_start,
-                                                           $slice_end);
-
-  print STDERR "Got " . scalar @haplotypes . " back\n";
+                                                           $slice_end,
+							   $is_lite );
 
   #convert assembly coords to slice coords
   if($slice_strand == 1) {
     foreach my $h (@haplotypes) {
       $h->start($h->start - $slice_start + 1);
-      $h->end(  $h->start - $slice_start + 1);
+      $h->end(  $h->end   - $slice_start + 1);
     }
   } else {
     foreach my $h (@haplotypes) {

@@ -603,6 +603,7 @@ sub get_Ensembl_SeqFeatures_clone {
        next SNP if $type ne 'notwithdrawn';
        next SNP if $mapweight > 2;
 
+
        #exclude SNPs outside the given $start-$end range
        if (defined $start) {
 	   next SNP if $begin < $start;
@@ -735,10 +736,12 @@ sub get_Ensembl_SeqFeatures_clone_web{
 
    my $query = qq{
 
-       SELECT  start, end, strand,
-  	       acc,version,refsnpid
-	FROM   Hit
+       SELECT  p1.start, p1.end, p1.strand,
+  	       p1.acc,p1.version,p2.id,
+               p2.snptype,p2.mapweight
+	FROM   Hit as p1, RefSNP as p2
   	WHERE  acc in $inlist
+               AND p1.refsnpid = p2.id
   	       order by start
 	       };
 
@@ -750,13 +753,16 @@ sub get_Ensembl_SeqFeatures_clone_web{
    while( (my $arr = $sth->fetchrow_arrayref()) ) {
        
        my ($begin, $end,$strand,
-	   $acc,$ver,$snpuid 
+	   $acc,$ver,$snpuid,$type,$mapweight 
 	   ) = @{$arr};
        
        my $acc_version="$acc.$ver";
 
+       #snp info not valid
+       next SNP if $type ne 'notwithdrawn';
+       next SNP if $mapweight > 2;
+
        if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
-	   
 	   #ignore snp within glob area
 	   next SNP;
        }
@@ -770,6 +776,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
        $snp = new Bio::EnsEMBL::ExternalData::Variation
 	   (-start => $begin,
 	    -end => $end,
+	    -score => $mapweight,
 	    -strand => $strand,
 	    -source_tag => 'dbSNP',
 	    );

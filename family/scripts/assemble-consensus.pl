@@ -72,22 +72,21 @@ while (<FILE>) {
 
 my $final_total=0;
 my $total_discarded=0;
-my $cluster_i=0;
 foreach my $cluster_id (sort numeric (keys(%clusters))) {
     my $members="";
 
     my $annotation="UNKNOWN";
     my $score=0;
 
-    if ($swisshash{$cluster_i}) {
-        $annotation=$swisshash{$cluster_i};
-        $score=$swissscore{$cluster_i};
+    if ($swisshash{$cluster_id}) {
+        $annotation=$swisshash{$cluster_id};
+        $score=$swissscore{$cluster_id};
         if ($score==0) {
             $score=1;
         }
-    } elsif ($tremblhash{$cluster_i}) {
-        $annotation=$tremblhash{$cluster_i};
-        $score=$tremblscore{$cluster_i};
+    } elsif ($tremblhash{$cluster_id}) {
+        $annotation=$tremblhash{$cluster_id};
+        $score=$tremblscore{$cluster_id};
         if ($score==0) {
             $score=1;
         }
@@ -136,7 +135,7 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     $annotation=~ s/(\d+) (\d+) KDA/$1\.$2 KDA/;
     
     if (($total-$discarded) <= 0) {
-        print FILEOUT "$cluster_i\t$annotation\t$score\t:$members\n";
+        print FILEOUT "$cluster_id\t$annotation\t$score\t:$members\n";
         $annotation="UNKNOWN"; 
         $score=0;
     }
@@ -145,9 +144,8 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     $final_total +=  ($#{$clusters{$cluster_id}}+1);
     $members=join(":",@{$clusters{$cluster_id}});
     print "ENSF";
-    printf("%011.0d",$cluster_i+1);
+    printf("%011.0d",$cluster_id+1);
     print "\t$annotation\t$score\t:$members\n";
-    $cluster_i++;
 }                                       # foreach $cluster_id
 
 print STDERR "FINAL TOTAL: $final_total\n";

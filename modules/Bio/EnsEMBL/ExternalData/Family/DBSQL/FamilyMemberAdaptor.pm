@@ -83,7 +83,7 @@ sub fetch_by_stable_id  {
 
     $self->throw("stable_id arg is required") unless ($stable_id);
 
-    my $constraint = "fm.external_member_id = 'stable_id'";
+    my $constraint = "fm.external_member_id = '$stable_id'";
 
     return $self->_fetch_family_members($constraint);
 }           
@@ -126,7 +126,7 @@ sub fetch_by_family_dbname {
   my ($self,$family_id,$dbname) = @_;
 
   $self->throw("family_id and dbname args are required") 
-    unless($family_id, $dbname);
+    unless($family_id && $dbname);
 
   my $constraint = "fm.family_id = $family_id and ex.name = '$dbname'";
   
@@ -160,7 +160,7 @@ sub _fetch_family_members {
   if($constraint) {
     $q .= " AND $constraint";
   }
-  
+
   my $sth = $self->prepare($q);
   $sth->execute();
  

@@ -10,7 +10,7 @@ $|=1;
 
 use Getopt::Std;
 
-my $dflt_q='acarilong';
+my $dflt_q='acari';
 my $dflt_d='seq';
 my $dflt_m='/usr/local/ensembl/data/blastmat';
 
@@ -76,7 +76,12 @@ my ($sync_dir,$database)= &file_parts($arg);
 warn "``$sync_dir''is not an absolute filename;
 expecting something like /data/sync/stuff\n" if $sync_dir !~ /\//;
 
-my @chunks = `(ls $chunks_dir/*.[0-9]*;)`;
+# need this, because occasionally get " /bin/ls: Arg list too long" error:
+my @chunks = ();
+for (my $i=0; $i<10; $i++) {
+    my @chunk = `(ls $chunks_dir/*.${i}*;)`;
+    push(@chunks, @chunk);
+}
 
 CHUNK:
 foreach my $chunk ( @chunks) {

@@ -34,7 +34,7 @@ $dbobj->get_Ensembl_SeqFeatures_contig('AL035659.00001');
 Also
 my @features = $ext_das->fetch_SeqFeature_by_contig_id("AL035659.00001");
 
-Method get_Ensembl_SeqFeatures_clone returns an empty list.
+
 
 =head1 DESCRIPTION
 
@@ -63,6 +63,7 @@ The rest of the documentation details each of the object methods. Internal metho
 
 package Bio::EnsEMBL::ExternalData::DAS::DAS;
 
+use Data::Dumper;
 use strict;
 use vars qw(@ISA);
 use Bio::Das; 
@@ -193,6 +194,13 @@ sub _map_DASSeqFeature_to_chr {
     # now switch on type
 
     if( $type eq 'contig' ) {
+      ## It may be that we have some screwed up clones which 
+      ## are in the database twice:w
+        warn( $sf->seqname );
+        unless( exists $contig_hash_ref->{ $sf->seqname() } ) {
+          warn( "Cannot map clone: ",$sf->seqname() );
+          return 0 ;
+        }
 	my( $coord ) = $mapper->map_coordinates_to_assembly
 	    ($contig_hash_ref->{ $sf->seqname() }->dbID(), 
 	     $sf->das_start, 
@@ -268,6 +276,7 @@ sub get_Ensembl_SeqFeatures_DAS {
     $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, global start, global end and other essential stuff. You didn't.")
         unless ( scalar(@_) == 8);
 
+    warn( join ', ', @$fpccontig_list_ref, @$clone_list_ref, @$contig_list_ref );
     my @seg_requests = (
                         @$fpccontig_list_ref,
                         @$clone_list_ref, 

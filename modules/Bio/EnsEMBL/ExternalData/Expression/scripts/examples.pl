@@ -2,14 +2,12 @@ use strict;
 use Bio::EnsEMBL::DBSQL::Obj;
 use Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor;
 use Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor;
-my $obj= Bio::EnsEMBL::DBSQL::Obj->new(-dbname=>'ensembl080',-user=>'ensadmin',-host=>'ecs1c');
+my $obj= Bio::EnsEMBL::DBSQL::Obj->new(-dbname=>'expression',-user=>'ensadmin',-host=>'ecs1c');
 
 my $dbname='expression';
 my $lib_ad=Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor->new($obj);
-$lib_ad->dbname($dbname);
-
 my $tag_ad= Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($obj);
-$tag_ad->dbname($dbname);
+
 
 
 
@@ -21,7 +19,7 @@ $tag_ad->dbname($dbname);
 #my @libs=$lib_ad->fetch_all;
 #my @libs=$lib_ad->fetch_by_SeqTag_Name("AAAAAAAAAT");
 
-my @libs=$lib_ad->fetch_by_SeqTag_Synonym("ENSG00000080561"); 
+my @libs=$lib_ad->fetch_by_SeqTag_Name("ENSG00000080561"); 
 #my @libs=$lib_ad->fetch_by_SeqTag_Synonym_below_relative_frequency("ENSG00000080561",1000);
 #my @tgs=("AAAAAAAAAA","AAAAAAAAAC");
 #my @libs=$lib_ad->fetch_by_SeqTagList(@tgs);
@@ -31,7 +29,7 @@ my @libs=$lib_ad->fetch_by_SeqTag_Synonym("ENSG00000080561");
 
 
 foreach my $lib (@libs){
-    my @tgs=$lib->fetch_SeqTag_by_Synonym("ENSG00000080561");
+    my @tgs=$lib->fetch_SeqTag_by_Name("ENSG00000080561");
     foreach my $tg(@tgs){
 	print $lib->name,"\n";
 	foreach my $link ($tg->each_DBLink){
@@ -51,6 +49,23 @@ foreach my $lib (@libs){
 #    }
 
 }
+
+my $lib=$lib_ad->fetch_by_dbID(1);
+
+ foreach my $tag($lib->fetch_all_SeqTags_above_relative_frequency(1000)){
+#     print $tag->name," ",$tag->relative_frequency,"\n";
+
+foreach my $link ($tag->each_DBLink){
+	    if ($link->database eq 'bodymap'){
+		print $tag->name," ",$link->primary_id," ",$tag->relative_frequency,"\n";
+		
+	    }    
+	}
+
+
+ }
+
+
 
 
 

@@ -158,7 +158,7 @@ sub new {
     $linktext   && $self->linktext( $linktext );
     $linkurl    && $self->linkurl($linkurl );
     $strand     && $self->strand( $strand );
-    $depth      && $self->depth( $depth );
+    $self->depth( $depth ) if (defined($depth));
     $group      && $self->group( $group );
     $stylesheet && $self->stylesheet( $stylesheet );
     $conftype   && $self->conftype( $conftype );

@@ -642,13 +642,12 @@ sub each_DBLink{
 
 =head2 add_genotype
 
- Title   : add_genotype
- Usage   : $self->add_genotype($ref)
- Function: adds a genotype Variation object
- Example :
- Returns :
- Args    :
-
+  Arg 1      : Bio::EnsEMBL::ExternalData::Variation object
+  Example    : foreach my $snp ( $self->add_genotype() )
+  Description: add a genotype variation object
+  Returntype : none
+  Exceptions : none
+  Caller     : general
 
 =cut
 
@@ -659,13 +658,12 @@ sub add_genotype{
 
 =head2 each_genotype
 
-Title   : each_genotype
-  Usage   : foreach my $genotype ( $self->each_genotype() )
- Function: gets an array of genotype Variation objects
-  Example :
-  Returns :
-  Args    :
-  
+  Arg        : none
+  Example    : foreach my $genotype ( $self->each_genotype() )
+  Description: return a variation object
+  Returntype : array of Bio::EnsEMBL::ExternalData::Variation objects
+  Exceptions : none
+  Caller     : general
 
 =cut
 
@@ -678,7 +676,7 @@ sub each_genotype{
 =head2 add_population
 
   Arg 1      : Bio::EnsEMBL::ExternalData::Population object
-  Example    : none
+  Example    : foreach my $snp ( $self->add_population() )
   Description: add a population object
   Returntype : none
   Exceptions : none
@@ -695,7 +693,7 @@ sub add_population{
 =head2 each_population
 
   Arg        : none
-  Example    : none
+  Example    : foreach my $population ( $self->each_population() )
   Description: return a population object
   Returntype : array of Bio::EnsEMBL::ExternalData::Population objects
   Exceptions : none
@@ -708,38 +706,6 @@ sub each_population{
    return @{$self->{'_population'}} if defined $self->{'_population'};
 }
 
-=head2 add_frequency
-
-  Arg 1      : Bio::EnsEMBL::ExternalData::Frequency object
-  Example    : none
-  Description: add a frequency object
-  Returntype : none
-  Exceptions : none
-  Caller     : general
-
-=cut
-
-
-sub add_frequency{
-   my ($self,$com) = @_;
-   push(@{$self->{'_frequency'}},$com);
-}
-
-=head2 each_frequency
-
-  Arg        : none
-  Example    : none
-  Description: return a frequency object
-  Returntype : array of Bio::EnsEMBL::ExternalData::Frequency objects
-  Exceptions : none
-  Caller     : general
-
-=cut
-
-sub each_frequency{
-   my ($self) = @_;
-   return @{$self->{'_frequency'}} if defined $self->{'_frequency'};
-}
 
 
 =head2 type

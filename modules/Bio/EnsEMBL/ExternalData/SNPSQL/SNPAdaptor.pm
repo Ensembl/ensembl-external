@@ -143,6 +143,8 @@ sub fetch_attributes_only{
 #    }
 #  };
 
+
+  # Add Population and Frequency (allele frequency) objects to the SNP
   foreach my $pop (@{$self->fetch_pops_by_SNP_id($snp->id)}) {
     my $freqs = $self->fetch_freqs_by_pop_SNP_id($pop->pop_id, $snp->id);
     next unless @$freqs;
@@ -152,7 +154,6 @@ sub fetch_attributes_only{
     }
     $snp->add_population($pop);
   }
-
   return $snp;
  }
 
@@ -273,22 +274,20 @@ sub fetch_by_SNP_id {
       #add dbXref to Variation
       $snp->add_DBLink($link);
     }
-  
     push @variations, $snp;
   }
-
   return \@variations;
 }
 
 =head2 fetch_genotype_by_SNP_id
 
   Arg [1]    : int $refsnpid
-               The refsnp identifier of the snp to retrieve
+               The refsnp identifier of the snp to retrieve genotypes
   Example    : @snps = @{$snp_adaptor->fetch_genotype_by_SNP_id($refsnpid)};
-  Description: Retreives a snp via its refsnp identifier 
+  Description: Retreives a variation object via its refsnp identifier 
                One variation object is returned for genotype data
                associated with that snp
-  Returntype : Bio::EnsEMBL::Variation 
+  Returntype : Bio::EnsEMBL::Variation
   Exceptions : none
   Caller     : internal
 
@@ -313,9 +312,8 @@ sub fetch_genotype_by_SNP_id {
   my @snps = ();
   while ($arr = $sth->fetchrow_arrayref) { 
     my ($refsnpid, $ssid, $strain_name, $strain_alleles, $sex, $gt_source, $gt_source_ind_id ) = @$arr;
-    
-    my $snp = new Bio::EnsEMBL::ExternalData::Variation;
 
+    my $snp = new Bio::EnsEMBL::ExternalData::Variation;
     $snp->snpid($refsnpid);
     $snp->ssid($ssid);
     $snp->strain_name($strain_name);
@@ -326,14 +324,13 @@ sub fetch_genotype_by_SNP_id {
 
     push @snps, $snp;
   }
-
   return \@snps;
 }
 
 
 =head2 fetch_pops_by_SNP_id
 
-  Arg [1]    : int $refsnpid
+  Arg 1      : int $refsnpid
                Use refsnp identifier of the snp to retrieve the populations
                in which it has been genotyped.
   Example    : @pops = @{$snp_adaptor->fetch_pop_by_SNP_id($refsnpid)};
@@ -375,11 +372,13 @@ sub fetch_pops_by_SNP_id {
 
 =head2 fetch_freqs_by_pop_SNP_id
 
-  Arg [1]    : int $refsnpid
-               Use refsnp identifier and population ID to retrieve the allele frequencies
-  Example    : @pops = @{$snp_adaptor->fetch_pops_by_SNP_id($refsnpid)};
-  Description: Retreives a population objects for a given refSNP id
-  Returntype : Array ref of Bio::EnsEMBL::ExternalData::Population objects
+  Arg 1      : int $refsnpid
+  Arg 2      : int population ID
+               Use refsnp identifier and population ID to retrieve the allele
+               frequencies
+  Example    : @freqs = @{$snp_adaptor->fetch_freqs_by_pop_SNP_id($pop_id,$refsnpid)};
+  Description: Retreives frequency population objects for a given refSNP id
+  Returntype : Array ref of Bio::EnsEMBL::ExternalData::Frequency objects
   Exceptions : none
   Caller     : internal
 
@@ -414,7 +413,6 @@ sub fetch_freqs_by_pop_SNP_id {
 
     push @freqs, $freq;
   }
-
   return \@freqs;
 }
 

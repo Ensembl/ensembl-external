@@ -6,8 +6,8 @@ Bio::EnsEMBL::ExternalData::Population - create Population object for subSNP fre
 
 =head1 SYNOPSIS
 
-   ### my $snp_renderer = $snp_data->renderer;
-   ### $snp_renderer->outputGenericSNPTable;
+ my $snp_renderer = $snp_data->renderer;
+ $snp_renderer->outputFrequencyTable;
 
 =head1 DESCRIPTION
 

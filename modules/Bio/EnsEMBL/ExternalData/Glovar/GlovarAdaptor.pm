@@ -77,7 +77,8 @@ use Bio::Annotation::DBLink;
 sub fetch_clone_by_accession {
     my ($self, $embl_acc) = @_;
 
-    ## get info on clone
+    # get info on clone
+    # HACK (1): try to get it from NCBI35 first
     my $q1 = qq(
         SELECT
                 ss.database_seqnname,
@@ -108,15 +109,15 @@ sub fetch_clone_by_accession {
     my (@cloneinfo, $i);
     while (my @res = $sth->fetchrow_array) {
         @cloneinfo = @res;
-        warn "NCBI35: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
+        #warn "NCBI35: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
         $i++;
     }
     if ($i > 1) {
         $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
     }
 
-    # HACK: if we didn't find a mapping to the current sequences, try to get it
-    # from NCBI35
+    # HACK (2): if we didn't find a mapping to NCBI35, try to get it from
+    # is_current snp_sequence
     unless ($i) {
         my $q1a = qq(
             SELECT
@@ -146,7 +147,7 @@ sub fetch_clone_by_accession {
         }
         while (my @res = $sth->fetchrow_array) {
             @cloneinfo = @res;
-            warn "current: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
+            #warn "current: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
         }
     }
 

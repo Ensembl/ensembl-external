@@ -78,6 +78,8 @@ use strict;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 use Bio::EnsEMBL::ExternalData::Family::FamilyMember;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
+use Bio::EnsEMBL::ExternalData::Family::FamilyConf;
+use Bio::EnsEMBL::ExternalData::Family::Taxon;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
@@ -463,7 +465,7 @@ sub store {
   $q->execute($fam->stable_id);
   my $rowhash = $q->fetchrow_hashref;
   if ($rowhash->{family_id}) {
-    return $rowhash->{family_id};
+    return $rowhash->{family_id};
   }
 
   $q = "INSERT INTO family (stable_id, description, release, annotation_confidence_score) VALUES (?,?,?,?)";
@@ -473,7 +475,7 @@ sub store {
 
   my $member_adaptor = $self->db->get_FamilyMemberAdaptor;
   foreach my $member (@{$fam->get_all_members}) {
-    $self->_store_db_if_needed($member->database);
+    $member->external_db_id($self->_store_db_if_needed($member->database));
     $member_adaptor->store($fam->dbID,$member);
   }
 
@@ -496,6 +498,112 @@ sub _store_db_if_needed {
     return $q->{'mysql_insertid'};
   }
 }
+
+
+=head2 store
+
+ Arg [1]    : -family => \@Bio::Cluster::SequenceFamily
+ Example    : $FamilyAdaptor->convert_store_family(-family=>\@family)
+ Description: converts  Bio::Cluster::SequenceFamily objects into a Bio::EnsEMBL::ExternalData::Family objects
+              and store.
+ Returntype : array of dbIDs 
+              been the database family identifier, if family stored correctly
+ Exceptions : 
+ Caller     : general
+
+=cut
+
+sub convert_store_family {
+    my($self,@args) = @_;
+    my ($family) = $self->_rearrange([qw(FAMILY)],@args);
+
+    my %conf = %Bio::EnsEMBL::ExternalData::Family::FamilyConf::FamilyConf;
+    my @ens_species = split(',',$conf{'ENSEMBL_SPECIES'});
+    my $family_prefix = $conf{"FAMILY_PREFIX"};
+    my $release       = $conf{'RELEASE'};
+    my $ext_db_name   = $conf{'EXTERNAL_DBNAME'};
+    my %taxon_species;
+    my @id;
+
+    my @taxon_str;
+    foreach my $sp(@ens_species){
+      $sp = uc $sp;
+      push @taxon_str, $conf{"$sp"."_TAXON"};
+    }
+    my  %ens_taxon_info = $self->_setup_ens_taxon(@taxon_str);
+
+
+    my @ens_fam;
+    my $family_count = $conf{"FAMILY_START"} || 1;
+    foreach my $fam (@{$family}){
+      my @members = $fam->get_members;
+      my @ens_mem;
+      foreach my $mem (@members){
+        my $taxon = $mem->species;
+        if(!$taxon->ncbi_taxid){
+            foreach my $key (keys %ens_taxon_info){
+              if($mem->display_id =~/$key/){
+                my %taxon_hash = %{$ens_taxon_info{$key}};
+                my @class = split(':',$taxon_hash{'taxon_classification'});
+                $taxon = Bio::EnsEMBL::ExternalData::Family::Taxon->new(-classification=>\@class);
+                $taxon->common_name($taxon_hash{'taxon_common_name'});
+                $taxon->sub_species($taxon_hash{'taxon_sub_species'});
+                $taxon->ncbi_taxid($taxon_hash{'taxon_id'});
+                last;
+              }
+            }
+        }
+
+        bless $taxon,"Bio::EnsEMBL::ExternalData::Family::Taxon";
+
+        my $member = Bio::EnsEMBL::ExternalData::Family::FamilyMember->new();
+        $member->family_id($fam->family_id);
+        my ($annot) = $mem->annotation->get_Annotations('dblink');
+        $member->database($annot->database);
+        $member->stable_id($mem->display_name);
+        $taxon->ncbi_taxid || $self->throw($mem->id." has no taxon id!");
+        $self->db->get_TaxonAdaptor->store_if_needed($taxon);
+        $member->taxon_id($taxon->taxon_id);
+
+        $member->adaptor($self);
+
+        $member->database($ext_db_name);
+        push @ens_mem, $member;
+      }
+      my $stable_id = sprintf ("$family_prefix%011.0d",$family_count);
+      $family_count++;
+      my $ens_fam= new Bio::EnsEMBL::ExternalData::Family::Family(-stable_id=>$stable_id,
+                                                                  -members=>\@ens_mem,
+                                                                  -description=>$fam->description,
+                                                                  -score=>$fam->annotation_score,
+                                                                  -adpator=>$self);
+
+      $ens_fam->release($release);
+      #$ens_fam->annotation_confidence_score($fam->annotation_score);
+
+      push @id,$self->store($ens_fam);
+  }
+
+ return @id;
+
+}
+
+#process ensembl taxon information for FamilyConf.pm
+sub _setup_ens_taxon {
+    my ($self,@taxon_str) = @_;
+
+    my %hash;
+    foreach my $str(@taxon_str){
+
+      $str=~s/=;/=undef;/g;
+      my %taxon = map{split '=',$_}split';',$str;
+      my $prefix = $taxon{'PREFIX'}; 
+      delete $taxon{'PREFIX'};
+      $hash{$prefix} = \%taxon;
+    }
+    return %hash;
+}
+
 
 ###########################################
 #
@@ -537,5 +645,6 @@ Calling FamilyAdaptor->fetch_all instead!");
   return $self->fetch_all;
 
 }
+
 
 1;

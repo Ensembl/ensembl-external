@@ -203,7 +203,6 @@ sub disease_name_by_ensembl_gene
     }
     my $hugo='(';
 
-    my $seen;
     foreach my $dblink ($gene->each_DBLink) {
     if ($dblink->database eq 'HUGO') {
         $seen=1;
@@ -380,7 +379,6 @@ sub diseases_on_chromosome
     $chromosome_no || $self->throw("I need a chromosome");
     
     # If we've got limits, then do a limited query, otherwise, do a full query
-    
     if ($offset||$offset == 0){
         $offset='limit '.$offset;
         if($count){$count=','.$count;}
@@ -390,6 +388,7 @@ sub diseases_on_chromosome
                                 WHERE d.id = g.id 
                                 AND g.chromosome='$chromosome_no' 
                                 $offset $count;";
+
 
         my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
         $sth->execute;
@@ -777,6 +776,7 @@ my ($self,$query_string)=@_;
 my $sth=$self->_db_handle->prepare($query_string);
 $sth->execute;
 
+
 my $id;
 my @diseases;
 my $disease;
@@ -803,7 +803,6 @@ while ( my $rowhash = $sth->fetchrow_hashref)
 }
 
 
-
 if (defined $self->_ensdb){@diseases=$self->_link2ensembl(@diseases);}
 if (defined $self->_mapdb){@diseases=$self->_link2maps(@diseases);}
 
@@ -820,9 +819,9 @@ sub _get_disease_names
 {
     my ($self,$query_string)=@_;
 
-
     my $sth=$self->_db_handle->prepare($query_string);
     $sth->execute;
+
 
     my @diseases;
 

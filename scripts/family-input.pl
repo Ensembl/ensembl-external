@@ -65,7 +65,7 @@ if ($ddl) {                         # create database
     create_db($famdb_connect_string);
 }
 my $famdb = db_connect($famdb_connect_string);
-$famdb->{autocommit}++;
+$famdb->{AutoCommit}++;
 $famdb->{RaiseError}++; # so we can forget about all '|| die' s
 create_tables($famdb, $ddl) if $ddl;
 
@@ -218,14 +218,14 @@ sub fill_in_member_count {
           WHERE db_name = '$ens_pep_dbname'
           GROUP BY famid";
     $q = $dbh->prepare($q);
-    $q->execute;
+    $q->execute || die;
 
     my $u = "UPDATE family SET num_ens_pepts = ? WHERE internal_id = ?";
     $u = $dbh->prepare($u);
 
     my $tot_n=0;
- 
-    while ( my @row = $q->fetchrow ) {
+    while ( my @row = $q->fetchrow_array   ) {
+# warn @row;
         my ($famid, $n) = @row;
         $tot_n += $n;
         $u->execute($n, $famid);
@@ -238,12 +238,14 @@ sub fill_in_member_count {
 sub do_stats { 
     my ($dbh) = @_;
 
+    warn "filling in member counts ...\n";
     my $totn_enspepts = fill_in_member_count($dbh);
 
     ### temporary histogram (family_size, occurrences) for the
     ### distribution:
     my $distr_table= "tmp_distr_enspep_$$";
 
+    warn "doing histogram ...\n";
     ## note: we can't use a CREATE TEMPORARY TABLE here, since MySQL
     ## doesn't allow self-joins on tmp tables ...
     my $q = "CREATE TABLE $distr_table
@@ -251,9 +253,12 @@ sub do_stats {
              FROM  family
              GROUP BY n";
     $dbh->do($q);
+
     $q = "ALTER TABLE $distr_table ADD INDEX idx_$distr_table (n)";
     $dbh->do($q);
 
+
+    warn "doing (cumulative) distribution ...\n";
     ## find the fractional cumulative distribution ('running totals') of
     ## this (i.e., the fraction of ensembl peptides in clusters of size N
     ## and smaller). This uses a nifty SQL construct called a theta

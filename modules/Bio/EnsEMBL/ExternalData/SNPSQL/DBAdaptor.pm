@@ -112,6 +112,7 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor;
 
 use strict;
 use vars qw(@ISA);
+use DBI;
 use Bio::EnsEMBL::DB::WebExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::Variation;
 
@@ -563,17 +564,17 @@ sub get_Ensembl_SeqFeatures_clone_web{
     # db query to return all variation information ; confidence attribute is gone!!
     
     my $query = qq{
-        SELECT	p1.start, p1.end, p1.strand,
-        p1.acc,p1.version,p2.id,
-        p2.snptype,p2.mapweight, 
-        p3.handle, p3.altid 
+        SELECT  p1.start, p1.end, p1.strand,
+                p1.acc, p1.version, p2.id,
+                p2.snptype, p2.mapweight, 
+                p3.handle, p3.altid 
         FROM   	Hit as p1, RefSNP as p2, SubSNP as p3
         WHERE  	p1.acc in $inlist
           AND 	p1.refsnpid = p2.id
           AND   p3.refsnpid = p1.refsnpid
-        ORDER BY start
               };
-    
+    #        ORDER BY start    
+    ## removing this allows mySQL to use indexes, including it forces filesort
     
     my $sth = $self->prepare($query);
     my $res = $sth->execute();

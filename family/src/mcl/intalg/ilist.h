@@ -31,7 +31,7 @@ Ilist*   ilVA
 )  ;
 
 
-Ilist*   ilNew
+EXTERN__INLINE__DECLARE Ilist*   ilNew
 (  int   n
 ,  int*  ints
 ,  int   c
@@ -78,19 +78,19 @@ int   ilIsOneOne
 (  Ilist*   src
 )  ;
 
-int   ilIsNonDescending
+EXTERN__INLINE__DECLARE int   ilIsNonDescending
 (  Ilist*   src
 )  ;
 
-int   ilIsAscending
+EXTERN__INLINE__DECLARE int   ilIsAscending
 (  Ilist*   src
 )  ;
 
-int   ilIsNonAscending
+EXTERN__INLINE__DECLARE int   ilIsNonAscending
 (  Ilist*   src
 )  ;
 
-int   ilIsDescending
+EXTERN__INLINE__DECLARE int   ilIsDescending
 (  Ilist*   src
 )  ;
 
@@ -185,41 +185,39 @@ int ilSelectRltBar
 ,  int      onlyCount
 )  ;
 
-
-
-int ilSelectGqBar
+EXTERN__INLINE__DECLARE int ilSelectGqBar
 (  Ilist*   il
 ,  int      ilft
 )  ;
 
 
-EXTERN__INLINE__ int ilSelectGqBar
+EXTERN__INLINE__DEFINE int ilSelectGqBar
 (  Ilist*   il
 ,  int      i
 )  {  return ilSelectRltBar(il, i,  0, intGq, NULL, 0)
 ;  }
 
 
-int ilSelectLtBar
+EXTERN__INLINE__DECLARE int ilSelectLtBar
 (  Ilist*   il
 ,  int      irgt
 )  ;
 
 
-EXTERN__INLINE__ int ilSelectLtBar
+EXTERN__INLINE__DEFINE int ilSelectLtBar
 (  Ilist*   il
 ,  int      i
 )  {  return ilSelectRltBar(il, i,  0, intLt, NULL, 0)
 ;  }
 
 
-int ilCountLtBar
+EXTERN__INLINE__DECLARE int ilCountLtBar
 (  Ilist*   il
 ,  int      ilft
 )  ;
 
 
-EXTERN__INLINE__ int ilCountLtBar
+EXTERN__INLINE__DEFINE int ilCountLtBar
 (  Ilist*   il
 ,  int      i
 )  {  return ilSelectRltBar(il, i,  0, intLt, NULL, 1)
@@ -238,31 +236,31 @@ Ilist*     ilRandPartitionSizes
 )  ;
 
 
-EXTERN__INLINE__ int   ilIsDescending
+EXTERN__INLINE__DEFINE int   ilIsDescending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, -1, 1)
 ;  }
 
 
-EXTERN__INLINE__ int   ilIsNonAscending
+EXTERN__INLINE__DEFINE int   ilIsNonAscending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, -1, 0)
 ;  }
 
 
-EXTERN__INLINE__ int   ilIsNonDescending
+EXTERN__INLINE__DEFINE int   ilIsNonDescending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, 1, 0)
 ;  }
 
 
-EXTERN__INLINE__ int   ilIsAscending
+EXTERN__INLINE__DEFINE int   ilIsAscending
 (  Ilist*   src
 )  {  return ilIsMonotone(src, 1, 1)
 ;  }
 
 
-EXTERN__INLINE__ Ilist* ilNew
+EXTERN__INLINE__DEFINE Ilist* ilNew
 (  int   n
 ,  int*  ints
 ,  int   c

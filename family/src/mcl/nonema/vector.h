@@ -65,20 +65,20 @@ mcxVector* mcxVectorInit
 )  ;
 
 
-mcxVector* mcxVectorCreate
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorCreate
 (
    int                     nr
 )  ;
 
 
-mcxVector* mcxVectorResize
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorResize
 (
    mcxVector*              vec
 ,  int                     n_ivps
 )  ;
 
 
-mcxVector* mcxVectorCopy
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorCopy
 (
    const mcxVector*        src
 )  ;
@@ -98,7 +98,7 @@ mcxVector* mcxVectorComplete
 )  ;
 
 
-mcxVector* mcxVectorMaskedCopy
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorMaskedCopy
 (
    mcxVector*              dst
 ,  const mcxVector*        src
@@ -107,7 +107,7 @@ mcxVector* mcxVectorMaskedCopy
 )  ;
 
 
-EXTERN__INLINE__ mcxVector* mcxVectorCreate
+EXTERN__INLINE__DEFINE mcxVector* mcxVectorCreate
 (
    int                     n_ivps
 )  
@@ -116,7 +116,7 @@ EXTERN__INLINE__ mcxVector* mcxVectorCreate
 ;  }
 
 
-EXTERN__INLINE__ mcxVector*  mcxVectorResize
+EXTERN__INLINE__DEFINE mcxVector*  mcxVectorResize
 (
    mcxVector*              vec
 ,  int                     n_ivps
@@ -126,7 +126,7 @@ EXTERN__INLINE__ mcxVector*  mcxVectorResize
 ;  }
 
 
-EXTERN__INLINE__ mcxVector* mcxVectorCopy
+EXTERN__INLINE__DEFINE mcxVector* mcxVectorCopy
 (
    const mcxVector*        src
 )  
@@ -148,7 +148,7 @@ void mcxVectorUniqueIdx
 )  ;
 
 
-void mcxVectorSelectHighest
+EXTERN__INLINE__DECLARE void mcxVectorSelectHighest
 (
    mcxVector*              vec
 ,  int                     max_n_ivps
@@ -179,7 +179,7 @@ float mcxVectorSelectGqBar
 )  ;
 
 
-EXTERN__INLINE__ void mcxVectorSelectHighest
+EXTERN__INLINE__DEFINE void mcxVectorSelectHighest
 (
    mcxVector*              vec
 ,  int                     max_n_ivps
@@ -231,7 +231,7 @@ float mcxVectorInflate
 )  ;
 
 
-void mcxVectorMakeCharacteristic
+EXTERN__INLINE__DECLARE void mcxVectorMakeCharacteristic
 (
    mcxVector*              vec
 )  ;
@@ -244,7 +244,7 @@ void mcxVectorRemoveIdx
 )  ;
 
 
-EXTERN__INLINE__ void mcxVectorMakeCharacteristic
+EXTERN__INLINE__DEFINE void mcxVectorMakeCharacteristic
 (
    mcxVector*              vec
 )  
@@ -263,7 +263,7 @@ mcxVector* mcxVectorBinary
 )  ;
 
 
-EXTERN__INLINE__ mcxVector* mcxVectorMaskedCopy
+EXTERN__INLINE__DEFINE mcxVector* mcxVectorMaskedCopy
 (
    mcxVector*              dst
 ,  const mcxVector*        src
@@ -278,7 +278,7 @@ EXTERN__INLINE__ mcxVector* mcxVectorMaskedCopy
 ;  }
 
 
-mcxVector* mcxVectorSetMinus
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorSetMinus
 (
    const mcxVector*           vecl
 ,  const mcxVector*           vecr
@@ -286,7 +286,7 @@ mcxVector* mcxVectorSetMinus
 )  ;
 
 
-mcxVector* mcxVectorSetMerge
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorSetMerge
 (
    const mcxVector*           lft
 ,  const mcxVector*           rgt
@@ -294,7 +294,7 @@ mcxVector* mcxVectorSetMerge
 )  ;
 
 
-mcxVector* mcxVectorSetMeet
+EXTERN__INLINE__DECLARE mcxVector* mcxVectorSetMeet
 (
    const mcxVector*           lft
 ,  const mcxVector*           rgt
@@ -302,7 +302,7 @@ mcxVector* mcxVectorSetMeet
 )  ;
 
 
-EXTERN__INLINE__ mcxVector* mcxVectorSetMerge
+EXTERN__INLINE__DEFINE mcxVector* mcxVectorSetMerge
 (
    const mcxVector*  lft
 ,  const mcxVector*  rgt
@@ -312,7 +312,7 @@ EXTERN__INLINE__ mcxVector* mcxVectorSetMerge
 ;  }
 
 
-EXTERN__INLINE__ mcxVector* mcxVectorSetMinus
+EXTERN__INLINE__DEFINE mcxVector* mcxVectorSetMinus
 (
    const mcxVector*  lft
 ,  const mcxVector*  rgt
@@ -323,7 +323,7 @@ EXTERN__INLINE__ mcxVector* mcxVectorSetMinus
 ;  }
 
 
-EXTERN__INLINE__ mcxVector* mcxVectorSetMeet
+EXTERN__INLINE__DEFINE mcxVector* mcxVectorSetMeet
 (
    const mcxVector*  lft
 ,  const mcxVector*  rgt
@@ -354,13 +354,13 @@ float mcxVectorNorm
 )  ;
 
 
-float mcxVectorMaxValue
+EXTERN__INLINE__DECLARE float mcxVectorMaxValue
 (
    const mcxVector*           vec
 )  ;
 
 
-EXTERN__INLINE__ float mcxVectorMaxValue
+EXTERN__INLINE__DEFINE float mcxVectorMaxValue
 (
    const mcxVector*           vec
 )  
@@ -449,7 +449,7 @@ int mcxVectorCountGqBar
 )  ;
 
 
-EXTERN__INLINE__ int mcxVectorSelectGtBar
+EXTERN__INLINE__DEFINE int mcxVectorSelectGtBar
 (
    mcxVector*              vec
 ,  float                   bar
@@ -459,7 +459,7 @@ EXTERN__INLINE__ int mcxVectorSelectGtBar
 ;  }
 
 
-EXTERN__INLINE__ int mcxVectorCountGqBar
+EXTERN__INLINE__DEFINE int mcxVectorCountGqBar
 (
    mcxVector*              vec
 ,  float                   bar

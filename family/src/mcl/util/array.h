@@ -97,14 +97,14 @@ void        mcxArrayRelease
 )  ;  
 
 
-void        mcxArrayFree
+EXTERN__INLINE__DECLARE void        mcxArrayFree
 (  
    mcxArray**  arpp
 ,  void        (*obRelease)(void *)
 )  ;
 
 
-EXTERN__INLINE__ void  mcxArrayFree
+EXTERN__INLINE__DEFINE void  mcxArrayFree
 (  
    mcxArray**  arpp
 ,  void        (*obRelease)(void *)

@@ -35,7 +35,7 @@ mcxIOstream* mcxIOstreamNew
 )  ;
 
 
-void mcxIOstreamFree
+EXTERN__INLINE__DECLARE void mcxIOstreamFree
 (  
    mcxIOstream**  xf
 )  ;
@@ -112,7 +112,7 @@ void mcxIOstreamRewind
 )  ;
 
 
-EXTERN__INLINE__ void     mcxIOstreamFree
+EXTERN__INLINE__DEFINE void     mcxIOstreamFree
 (  
    mcxIOstream**  xf
 )  

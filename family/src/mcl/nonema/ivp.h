@@ -33,26 +33,26 @@ mcxIvp* mcxIvpInstantiate
 )  ;
 
 
-mcxIvp* mcxIvpInit
+EXTERN__INLINE__DECLARE mcxIvp* mcxIvpInit
 (  
    mcxIvp*                 ivp
 )  ;
 
 
-mcxIvp* mcxIvpCreate
+EXTERN__INLINE__DECLARE mcxIvp* mcxIvpCreate
 (  
    int                     idx
 ,  float                   value
 )  ;
 
 
-void mcxIvpFree
+EXTERN__INLINE__DECLARE void mcxIvpFree
 (  
    mcxIvp**                ivp
 )  ;
 
 
-EXTERN__INLINE__ mcxIvp* mcxIvpInit
+EXTERN__INLINE__DEFINE mcxIvp* mcxIvpInit
 (  
    mcxIvp*                 ivp
 )  
@@ -61,7 +61,7 @@ EXTERN__INLINE__ mcxIvp* mcxIvpInit
 ;  }
 
 
-EXTERN__INLINE__ mcxIvp* mcxIvpCreate
+EXTERN__INLINE__DEFINE mcxIvp* mcxIvpCreate
 (  
    int                     idx
 ,  float                   value
@@ -71,7 +71,7 @@ EXTERN__INLINE__ mcxIvp* mcxIvpCreate
 ;  }
 
 
-EXTERN__INLINE__ void mcxIvpFree
+EXTERN__INLINE__DEFINE void mcxIvpFree
 (  
    mcxIvp**                   p_ivp
 )  

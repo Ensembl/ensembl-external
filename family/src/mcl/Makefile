@@ -44,14 +44,17 @@ endif
 ifeq '$(USR_DEBUG)' 'yes'
 	COMPILE_DEBUG		=	-g # -DDEBUG_ON
 # following should work on any compiler
-	OPTIMIZATION		=	 -DEXTERN__INLINE__="static "
-	STRIP					=	chmod 755 $@
+	OPTIMIZATION		= -DEXTERN__INLINE__DEFINE="static " \
+				  -DEXTERN__INLINE__DECLARE="static "
+	STRIP			= chmod 755 $@
 else
 	COMPILE_DEBUG		=
 	LINK_DEBUG		=
 # following is GNU specific
-	OPTIMIZATION		=	-DEXTERN__INLINE__="extern __inline__ " -O3 -fomit-frame-pointer
-	STRIP					=	chmod 755 $@; strip $@
+	OPTIMIZATION		= -DEXTERN__INLINE__DEFINE="extern __inline__ "\
+				  -DEXTERN__INLINE__DECLARE="" \
+	 			  -O3 -fomit-frame-pointer
+	STRIP			= chmod 755 $@; strip $@
 endif
 
 

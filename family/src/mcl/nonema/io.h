@@ -24,7 +24,7 @@ int mcxParseHeaderLines
 )  ;
 
 
-mcxMatrix* mcxMatrixRead
+EXTERN__INLINE__DECLARE mcxMatrix* mcxMatrixRead
 (  
    mcxIOstream*      xfIn
 ,  mcxOnFail         ON_FAIL
@@ -48,7 +48,7 @@ mcxMatrix* mcxMatrixMaskedRead
 )  ;
 
 
-EXTERN__INLINE__ mcxMatrix* mcxMatrixRead
+EXTERN__INLINE__DEFINE mcxMatrix* mcxMatrixRead
 (  
    mcxIOstream*      xfIn
 ,  mcxOnFail         ON_FAIL
@@ -165,7 +165,7 @@ mcxstatus mcxVectorEmbedWrite
 )  ;
 
 
-void mcxVectorWriteAscii
+EXTERN__INLINE__DECLARE void mcxVectorWriteAscii
 (  
    const mcxVector*  vec
 ,  FILE*             fp
@@ -184,7 +184,7 @@ void mcxVectorDumpAscii
 )  ;
 
 
-EXTERN__INLINE__ void mcxVectorWriteAscii
+EXTERN__INLINE__DEFINE void mcxVectorWriteAscii
 (  const mcxVector*  vec
 ,  FILE*             fp
 ,  int               valdigits

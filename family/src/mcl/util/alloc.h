@@ -10,7 +10,7 @@
 #include "util/types.h"
 
 
-void* rqAlloc
+EXTERN__INLINE__DECLARE void* rqAlloc
 (  int               size
 ,  mcxOnFail         ON_FAIL
 )  ;
@@ -32,7 +32,7 @@ void mcxMemDenied
 ,  int               n
 )  ;
 
-EXTERN__INLINE__ void* rqAlloc
+EXTERN__INLINE__DEFINE void* rqAlloc
 (  int               size
 ,  mcxOnFail         ON_FAIL
 )  {  

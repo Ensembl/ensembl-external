@@ -87,14 +87,14 @@ mcxTxt* mcxTxtEnsure
 /* ================================================================== */
 
 
-mcxTxt* mcxTxtNew
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtNew
 (  const char*       string
 )  ;
 
                     /*
                      *     Accepts NULL argument!
                      */
-mcxTxt* mcxTxtEmptyString
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtEmptyString
 (  mcxTxt*           txt
 )  ;
 
@@ -118,7 +118,7 @@ u32 mcxTxtHash
 )  ;
 
 
-mcxTxt* mcxTxtAppend
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtAppend
 (  mcxTxt*           txt
 ,  const char*       string
 )  ;
@@ -137,7 +137,7 @@ mcxTxt* mcxTxtSplice
                     /*     does NOT accept NULL argument.
                      *     Txt is overwritten
                      */
-mcxTxt* mcxTxtNWrite
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtNWrite
 (  mcxTxt*           txt
 ,  const char*       string
 ,  int               n
@@ -146,7 +146,7 @@ mcxTxt* mcxTxtNWrite
                     /*     does NOT accept NULL argument.
                      *     Txt is overwritten
                      */
-mcxTxt* mcxTxtWrite
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtWrite
 (  mcxTxt*           txt
 ,  const char*       string
 )  ;
@@ -154,7 +154,7 @@ mcxTxt* mcxTxtWrite
                     /*
                      *     Wraps around txtSplice
                      */
-mcxTxt* mcxTxtInsert
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtInsert
 (  mcxTxt* txt
 ,  const char*       string
 ,  int               offset
@@ -164,7 +164,7 @@ mcxTxt* mcxTxtInsert
                     /*
                      *     Wraps around txtSplice
                      */ 
-mcxTxt* mcxTxtDelete
+EXTERN__INLINE__DECLARE mcxTxt* mcxTxtDelete
 (  mcxTxt*           txt
 ,  int               offset
 ,  int               width
@@ -174,7 +174,7 @@ mcxTxt* mcxTxtDelete
                     /*     Wrapper:
                      *     NULL str member is interpreted as empty string.
                      */ 
-const char* mcxTxtGetStr
+EXTERN__INLINE__DECLARE const char* mcxTxtGetStr
 (  mcxTxt*           txt
 )  ;
 
@@ -190,7 +190,7 @@ char*    mcxTxtChrcpy
 )  ;
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtEmptyString
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtEmptyString
 (  mcxTxt*           txt
 )  {
       txt           =   mcxTxtEnsure(txt, 1)
@@ -200,7 +200,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtEmptyString
 ;  }
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtNWrite
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtNWrite
 (  mcxTxt*           txt
 ,  const char*       string
 ,  int               n
@@ -216,7 +216,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtNWrite
 ;  }
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtWrite
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtWrite
 (  mcxTxt*           txt
 ,  const char*       string
 )  {  
@@ -227,7 +227,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtWrite
 ;  }
 
 
-EXTERN__INLINE__ const char* mcxTxtGetStr
+EXTERN__INLINE__DEFINE const char* mcxTxtGetStr
 (  mcxTxt*           txt
 )  {  
       if (txt==NULL)
@@ -237,7 +237,7 @@ EXTERN__INLINE__ const char* mcxTxtGetStr
 ;  }
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtNew
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtNew
 (  const char* string
 )  {  return mcxTxtInstantiate(NULL, string)
 ;  }
@@ -248,7 +248,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtNew
 #ifdef  SPLICE_WRAPPING
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtAppend
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtAppend
 (  mcxTxt*              txt
 ,  const char*          string
 )  {  
@@ -263,7 +263,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtAppend
 ;  }
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtInsert
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtInsert
 (  mcxTxt*              txt
 ,  const char*          string
 ,  int                  offset
@@ -279,7 +279,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtInsert
 ;  }
 
 
-EXTERN__INLINE__ mcxTxt* mcxTxtDelete
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtDelete
 (  mcxTxt*           txt
 ,  int               offset
 ,  int               width
@@ -302,7 +302,7 @@ EXTERN__INLINE__ mcxTxt* mcxTxtDelete
 
 #ifndef SPLICE_WRAPPING
 
-EXTERN__INLINE__ mcxTxt* mcxTxtAppend
+EXTERN__INLINE__DEFINE mcxTxt* mcxTxtAppend
 (  mcxTxt*              txt
 ,  const char*       string
 )  {  return mcxTxtInsert(txt, string, -1)

@@ -255,8 +255,10 @@ sub do_stats {
     $dbh->do($q);
 
     ## find the fractional cumulative distribution ('running totals') of
-    ## this. This uses a nifty SQL construct called a theta self-join. We
-    ## know the total number of members, so we can divide by it straight away
+    ## this (i.e., the fraction of ensembl peptides in clusters of size N
+    ## and smaller). This uses a nifty SQL construct called a theta
+    ## self-join. We know the total number of members, so we can divide by
+    ## it straight away
     $q = "INSERT INTO cumulative_distrib
           SELECT d1.n, d1.cnt, (SUM(d2.cnt*d2.n))/$totn_enspepts
           FROM $distr_table d1, $distr_table d2

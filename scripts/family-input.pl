@@ -198,7 +198,7 @@ sub compare_desc {
 
 sub fill_in_member_count {
     my ($dbh) = @_;
-
+die "this is so slow it needs redoing (with one SQL statement)";
     my $q= "SELECT internal_id from family";
     $q = $dbh->prepare($q) || die $dbh->errstr;
     $q->execute || die $dbh->errstr;

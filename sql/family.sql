@@ -30,6 +30,7 @@ CREATE TABLE family_members (
   external_db_id        int(10) NOT NULL, # foreign key from external_db table 
   external_member_id	varchar(40) NOT NULL, # e.g. ENSP000001234 or P31946
   taxon_id		int(10) NOT NULL, # foreign key from taxon table
+  alignment             text,
 
   PRIMARY KEY(family_member_id),
   UNIQUE KEY(family_id,external_db_id,external_member_id,taxon_id),
@@ -53,56 +54,19 @@ CREATE TABLE taxon (
   KEY(common_name)
 );
 
-CREATE TABLE alignments (
-  family_id  int(10) NOT NULL, #foreign key to family table
-  alignment  mediumtext NOT NULL,
-  PRIMARY KEY(family_id)
+
+
+#
+# Table structure for table 'genome_db'
+#
+
+CREATE TABLE genome_db (
+  genome_db_id int(10) NOT NULL auto_increment,
+  taxon_id int(10) DEFAULT '0' NOT NULL,
+  name varchar(40) DEFAULT '' NOT NULL,
+  assembly varchar(255) DEFAULT '' NOT NULL,
+  PRIMARY KEY (genome_db_id),
+  UNIQUE name (name,assembly)
 );
 
-#### deprecated ##########
-#CREATE TABLE cumulative_distrib (
-#  family_size int(10) NOT NULL,
-#  occurrences int(10) NOT NULL,
-#  cum_fraction_of_peptides float(4) NOT NULL, 
-#  PRIMARY KEY(family_size)
-#); 
 
-#### deprecated ##########
-#CREATE TABLE family_totals (
-#   family_id		int(10) NOT NULL, #foreign key to family table
-#   external_db_id	int(10) NOT NULL, #foreign key to external_db table 
-#   taxon_id		int(10) NOT NULL, # foreign key from taxon table
-#   members_total	int(10) NOT NULL,
-#
-#   PRIMARY KEY (family_id,external_db_id,taxon_id),
-#   KEY (members_total)
-#);
-
-#### deprecated ##########
-#CREATE TABLE meta (
-#    meta_id INT unsigned not null auto_increment,
-#    meta_key varchar( 40 ) not null,
-#    meta_value varchar( 255 ) not null,
-#
-#    PRIMARY KEY( meta_id ),
-#    KEY meta_key_index ( meta_key ),
-#    KEY meta_value_index ( meta_value )
-#);
-
-### not yet implemented:
-# ## table to hold keywords
-# CREATE TABLE family_keywords (
-#   family     int(10) NOT NULL,
-#   keyword    varchar(100) NOT NULL,
-# 
-#   PRIMARY KEY(family)
-# );
-
-### not yet implemented:
-# CREATE TABLE dbxrefs (
-#    family_id    int(10) NOT NULL,
-#    external_db  varchar(40) NOT NULL,
-#    external_id  varchar(40) NOT NULL,
-#    
-#    PRIMARY KEY(family_id,external_db,external_id)
-# );

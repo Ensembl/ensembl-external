@@ -87,6 +87,7 @@ use strict;
 use Bio::SeqFeature::Generic;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
+use Bio::SeqIO::FTHelper;
 
 @ISA = qw(Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
 
@@ -426,5 +427,55 @@ sub each_DBLink{
    return @{$self->{'link'}};
 }
 
+=head2 to_FTHelper
+
+ Title   : to_FTHelper
+ Usage   :
+ Function: creates a L<Bio::SeqIO::FTHelper> object for each allele
+           for inclusion to EMBL/GenBank feature table.
+ Example :
+ Returns : array of Bio::SeqIO::FTHelper objects
+ Args    : none
+
+
+=cut
+
+sub to_FTHelper{
+   my ($self) = @_;
+
+   my @fths;
+   foreach my $allele (split /\|/, $self->alleles) {
+
+       # Make new FTHelper, and fill in the key
+       my $fth = Bio::SeqIO::FTHelper->new;
+       $fth->key('variation');
+       # Add location line
+       my $g_start = $self->start;
+       my $g_end   = $self->end;
+       my $loc = "$g_start..$g_end";
+       if ($self->strand == -1) {
+	   $loc = "complement($loc)";
+       }
+       $fth->loc($loc);
+       #/replace="text" 
+       $fth->add_field('replace', $allele);
+       #/db_xref="<database>:<identifier>"
+       foreach my $link ($self->each_DBLink) {
+	   if ($link->database eq 'dbSNP' or 
+	       $link->database eq 'HGBASE' or 
+	       $link->database eq 'TSC-CSHL' ) {
+	       $fth->add_field('db_xref', $link->database.':'.$link->primary_id);
+	   }
+       }
+       #/evidence=<evidence_value>
+       my $evidence = 'not_experimental';
+       $evidence = 'experimental' if $self->status eq 'proven';
+       $fth->add_field('evidence', $evidence);
+
+       push @fths, $fth;
+   }
+
+   return @fths;
+}
 
 1;

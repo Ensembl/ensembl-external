@@ -7,10 +7,18 @@
 #
 # Run as:
 #
-#  family-input.pl -r 2 -E 'host=ecs1b;user=ensro;database=ensembl100;' \
-#       -F 'host=ecs1b;user=root;database=fam100;' families.pep 2> fam.log
+# family-input.pl -r 2 -F 'host=ecs1b;user=root;database=fam100;'  -E  \
+#   'DBCONNECTION[,DBCONNECTION...]'  families.pep 2> fam.log
 # 
-#  Where families.pep is Anton's families file, remapped using pep-id-remap.pl
+# where DBCONNECTION is a string like
+# 'host=ecs1b;user=root;database=fam100;' 
+# 
+# and families.pep a file as output by assemble-consensus.pl (and possibly
+# remapped using pep-id-remap.pl)
+#
+#### Note: we rely on ensemblid's matching /^[A-Z]{3}[PG]0\d{10}/ !
+
+#
 #
 #  After this, run fam-stats.sh ecs1b ensro fam100 fam.log
 #
@@ -23,14 +31,14 @@ use vars qw($opt_h $opt_r $opt_C $opt_E $opt_F);
 use Getopt::Std;
 
 my $max_desc_len = 255;                 # max length of description
-my $ens_pep_dbname = 'ENSEMBLPEP';      # name of EnsEMBL peptides database
-my $ens_gene_dbname = 'ENSEMBLGENE';    # name of EnsEMBL peptides database
+
+my $ensid_regexp = '^([A-Z]{3})([PG])(0\d{10})$'; # '; # fool emacs
 my $sp_dbname = 'SPTR';                 # name of SWISSPROT +TREMBL db
 my $add_ens_pep =1;                     # should ens_peptides be added?
 my $add_ens_gene =1;                    # should ens_genes be added?
 my $add_swissprot =1;                   # should swissprot entries be added?
 
-my @id_prefixes = qw(ENSP COBP PGBP);
+# my @id_prefixes = qw(ENSP COBP PGBP);
 
 ## list of regexps tested, in order of increasing desirability, when
 ## deciding which family to assign a gene to in case of conflicts (used in
@@ -59,7 +67,6 @@ my $release = ($opt_r || die " need a release number\n");
 my $ddl = undef;
 $ddl = $opt_C;
 
-
 if ($ddl) {                         # create database
     warn "creating...";
     create_db($famdb_connect_string);
@@ -69,16 +76,50 @@ $famdb->{AutoCommit}++;
 $famdb->{RaiseError}++; # so we can forget about all '|| die' s
 create_tables($famdb, $ddl) if $ddl;
 
-my $ensdb = db_connect($ensdb_connect_string);
-$ensdb->{RaiseError}++;
+my @ensdbs = &setup_aux_dbs($ensdb_connect_string);
+die "no auxiliary db's defined, need at least one" unless @ensdbs;
+
+### we now have to deal with two or more database connections. Make a
+### little 'object' that has the handle and the two cursors.
+### Note: we rely on ensemblid's matching /^[A-Z]{3}[PG]0\d$/ !
+sub setup_aux_dbs {
+    my ($connectstring)=@_;
+    my (@dbs);
+    foreach my $c ( split(',', $connectstring ) ) {
+        my $db = {};
+        my $dbhandle = db_connect($c);
+        $dbhandle->{RaiseError}++;
+        $db->{'connect'}=$c;            # for debugging
+        $db->{'db'}=$dbhandle;
+        
+        # query that checks for existence
+        my $pep_q = "SELECT id from translation where id = ?";
+        $db->{'peptide_query'}= $pep_q; # for debugging
+        $db->{'peptide_cursor'}=$dbhandle->prepare($pep_q);
+        
+        # query that finds gene of a peptide
+        my $gene_q = 
+          "SELECT g.id 
+       FROM gene g, translation tl, transcript tc 
+       WHERE tl.id = ? 
+           AND tl.id = tc.translation and tc.gene = g.id";
+        $db->{'gene_query'}= $gene_q;
+        $db->{'gene_cursor'}= $dbhandle->prepare($gene_q);
+        push(@dbs, $db);
+    }
+    @dbs;
+}                                       # setup_aux_dbs
 
 warn "loading families";
-&load_families($famdb, $ensdb);
+&load_families($famdb, @ensdbs);
 warn "doing statistics tables\n";
 &do_stats($famdb);
 warn "done with statistics\n";
 $famdb->disconnect;
-$ensdb->disconnect;
+
+foreach my $db  ( @ensdbs) {
+    $db->disconnect;
+}
 exit 0;
 
 # just creates empty database, returns nothing.
@@ -144,7 +185,7 @@ sub db_connect {
 
     my %keyvals= split('[=;]', $dbcs);
     my $user=$keyvals{'user'};
-    my $paw=$keyvals{'password'};
+    my $paw=$keyvals{'pass'};
 #    $dbcs =~ s/user=[^;]+;?//g;
 #    $dbcs =~ s/password=[^;]+;?//g;
 # (mysql doesn't seem to mind the extra user/passwd values, leave them)
@@ -157,29 +198,28 @@ sub db_connect {
     $dbh;
 }                                       # db_connect
 
-# find peptide or gene back in ensembl
+# find peptide or gene back in a list of ensembl auxdb's
 sub ens_find {
-    my ($q, $pepid) = @_;
-    $q->execute($pepid);
-
-    my $rowhash;
+    my ($pepid, $cursor_key, @dbs) = @_;
     my @results;
-    while ( $rowhash = $q->fetchrow_hashref) {
-        push @results, $rowhash->{id};
-    }
 
+    foreach my $db (@dbs) { 
+        my $q = $db->{$cursor_key};     # 'peptide_cursor' or 'gene_cursor'
+        $q->execute($pepid);
+
+        my $rowhash;
+        while ( $rowhash = $q->fetchrow_hashref) {
+            push @results, $rowhash->{id};
+        }
+    }
     if (@results != 1) {
         if (@results){
             warn "for $pepid, I got: " 
               . join(':', @results), "\n"; 
             die "expected exactly one";
-        } else {
-            # warn "for $pepid, I got no genes\n";
-            # die "not exactly one gene"; # ignore for now
-        }
+        }                          
     }
-    my $id =     $results[0];
-    $id;
+    $results[0];                        # may still be empty ? 
 }                                       # ens_find
 
 sub delete_prev_assign {
@@ -210,13 +250,13 @@ sub compare_desc {
 }                                       # compare_desc
 
 sub fill_in_member_count {
-## add the numbers of enspep members (==family_size) per family into
+## add the numbers of ens_pep members (==family_size) per family into
 ## family. Returns total number of enspepts.
-    my ($dbh) = @_;
+    my ($dbh, $dbname) = @_;
 
     my $q = "SELECT family as famid, COUNT(*) as n
           FROM family_members 
-          WHERE db_name = '$ens_pep_dbname'
+          WHERE db_name like '___P'
           GROUP BY famid";
     $q = $dbh->prepare($q);
     $q->execute || die;
@@ -263,7 +303,7 @@ sub do_stats {
 
     warn "doing (cumulative) distribution ...\n";
     ## find the fractional cumulative distribution ('running totals') of
-    ## this (i.e., the fraction of ensembl peptides in clusters of size N
+    ## this (i.e., the fraction of ENSEMBL peptides in clusters of size N
     ## and smaller). This uses a nifty SQL construct called a theta
     ## self-join. We know the total number of members, so we can divide by
     ## it straight away
@@ -279,9 +319,12 @@ sub do_stats {
 }                                       # do_stats
 
 sub load_families {
-    my ($famdb, $ensdb)=@_;
+    my ($famdb, @ensdbs)=@_;
     # god this function is hairy
-    warn "checking for all id with prefixes " , join(' ', @id_prefixes), "\n";
+
+#     warn "checking for all id with prefixes " , join(' ', @id_prefixes),
+#     "\n";
+
     my $fam_count = 0;
     my $mem_count =0;
 
@@ -290,37 +333,25 @@ sub load_families {
 
     $internal_id = get_max_id($famdb) +1;
 ### queries:
-    my $fam_q = 
+    my $addfam_q = 
       "INSERT INTO family(internal_id, id, description, release, 
                          annotation_confidence_score)
        VALUES(?,            ?,         ?,        ?,        ?)\n";
 ###            $internal_id, '$fam_id', '$descr', $release, $score);
 
-    $fam_q = $famdb->prepare($fam_q);
+    $addfam_q = $famdb->prepare($addfam_q);
 
-    my $mem_q = 
+    my $addmem_q = 
       "INSERT INTO family_members(family, db_name, db_id)
                            VALUES(?,      ?,       ?)\n";
 ###                         $internal_id, '$db_name', '$mem'
 
-    $mem_q = $famdb->prepare($mem_q);
-
-    # to check for existence
-    my $pep_q = "SELECT id from translation where id = ?";
-    $pep_q = $ensdb->prepare($pep_q);
-
-    my $gene_q = 
-      "SELECT g.id 
-       FROM gene g, translation tl, transcript tc 
-       WHERE tl.id = ? 
-           AND tl.id = tc.translation and tc.gene = g.id";
-
-    $gene_q = $ensdb->prepare($gene_q);
+    $addmem_q = $famdb->prepare($addmem_q);
 
     my $del_q = 
       "DELETE FROM family_members
-       WHERE db_name = '$ens_gene_dbname'
-         AND db_id = ?";
+       WHERE db_id = ?";                
+#        AND db_name = '$ens_gene_dbname' : forgetting this, should be uniq.
     $del_q = $famdb->prepare($del_q);
 ### end of queries
 
@@ -360,13 +391,14 @@ sub load_families {
         
         # my $fam_id = format_fam_id $num; now in file.
         
-        $fam_q->execute($internal_id, $fam_id, $desc, $release, $score);
+        $addfam_q->execute($internal_id, $fam_id, $desc, $release, $score);
         my %seen_gene = undef;          # just for filtering transcripts
 
       MEM:
         foreach my $mem (@mems) {
-            if ( grep $mem =~ /^$_/,@id_prefixes ) { # ie when not empty
-
+            my ($db, $type, $rest)  = ($mem =~ /$ensid_regexp/ );
+            my $pep_dbname = "$db$type"; # e.g. ENSP
+            if ( $db && $type && $rest ) {                # we have a match
                 if ( defined $seen_pept{$mem} ) {
                     warn "### already seen peptide $mem; at line $seen_pept{$mem}; ignoring it now\n";
                     next MEM;
@@ -374,42 +406,45 @@ sub load_families {
                 $seen_pept{$mem} = $.;
                 
                 if ($add_ens_pep)  {
-                    $mem_q->execute("$internal_id", $ens_pep_dbname, $mem);
+                    $addmem_q->execute("$internal_id", $pep_dbname, $mem);
                     $mem_count++;
                 }
                 
                 if ($add_ens_gene) {
                     # find the peptide back:
-                    if ( ens_find($pep_q, $mem) eq '' ) {
-                        warn "couldn't find peptide $mem - database mismatch? Can't find gene, continuing\n";
+                    if ( ens_find($mem, 'peptide_cursor', @ensdbs) eq '' ) {
+                        warn "couldn't find peptide $mem - database mismatch? Can't find peptide, continuing\n";
                         next MEM;
                     }
 
                     #find ENSGxxx, given ENSPxxx:
-                    my $ens_gene_id = ens_find($gene_q, $mem);
+                    my $gene_id = ens_find($mem, 'gene_cursor', @ensdbs);
                     
-                    if ( ! $ens_gene_id ) {
+                    if ( ! $gene_id ) {
                         warn "### did not find gene of $mem; continuing\n";
                         next MEM;
                     } 
                     
-                    if ( defined $seen_gene{$ens_gene_id}) {
+                    if ( defined $seen_gene{$gene_id}) {
                         # different transcripts into same family; OK
                         next MEM;
                     }
 
+                    my ($db2, $type2)  = ($gene_id =~ /$ensid_regexp/ );
+                    my $gene_dbname = "$db2$type2";
+
                     ### check to see if this gene was previously assigned
                     ### to another family; if so, try to correct
-                    if ( defined( $gene_fam{$ens_gene_id} )
-                         &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
+                    if ( defined( $gene_fam{$gene_id} )
+                         &&       $gene_fam{$gene_id} ne $fam_id ) {
 
                         ## we have a conflict: a previous peptide of the
                         ## same gene was already 'assigned' to a family,
                         ## but now a different transcript of the same gene
                         ## is about to be assigned to a different family:
-                        warn "### assigning gene $ens_gene_id (peptide: $mem) to $fam_id; already assigned to: $gene_fam{$ens_gene_id}\n";
+                        warn "### assigning gene $gene_id (peptide: $mem) to $fam_id; already assigned to: $gene_fam{$gene_id}\n";
                         
-                        my $prev_fam = $gene_fam{$ens_gene_id};
+                        my $prev_fam = $gene_fam{$gene_id};
                         my $prev_score = $fam_score{$prev_fam};
                         my $prev_desc = $fam_desc{$prev_fam};
 
@@ -425,20 +460,20 @@ sub load_families {
                         # new one is better; delete old one
                         warn "### replacing previous $prev_fam, score: $prev_score; desc: $prev_desc\n";
                         warn "### with $fam_id, score: $score; desc: $desc\n\n";
-                        $del_q->execute($ens_gene_id);
+                        $del_q->execute($gene_id);
                     }
-                    $gene_fam{$ens_gene_id} = $fam_id;
-                    $seen_gene{$ens_gene_id}=$mem;
+                    $gene_fam{$gene_id} = $fam_id;
+                    $seen_gene{$gene_id}=$mem;
                     
                     # if this fails, we have duplicate ensembl gene
-                    $mem_q->execute($internal_id, $ens_gene_dbname, 
-                                    $ens_gene_id);
+                    $addmem_q->execute($internal_id, $gene_dbname, 
+                                       $gene_id);
                     $mem_count++;
                 }                       # if add_ens_gene
-            } else {                    # this must be a swissprot
+            } else {                    # this must be a swissprot id
                 if ($add_swissprot) { 
-                    # if this fails, we have duplicate swissprot pept
-                    $mem_q->execute($internal_id, $sp_dbname, $mem);
+                    # if this fails, we have a duplicate swissprot peptide
+                    $addmem_q->execute($internal_id, $sp_dbname, $mem);
                     $mem_count++;
                 }
             }

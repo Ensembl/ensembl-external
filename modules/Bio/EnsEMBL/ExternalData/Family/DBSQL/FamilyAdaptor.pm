@@ -77,9 +77,9 @@ use vars qw(@ISA);
 use strict;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 use Bio::EnsEMBL::ExternalData::Family::FamilyMember;
-use Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor;
+use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
-@ISA = qw(Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
 =head2 fetch_by_dbID
 

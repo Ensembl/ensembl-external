@@ -31,9 +31,9 @@ use strict;
 
 #use Bio::Species;
 use Bio::EnsEMBL::ExternalData::Family::Taxon;
-use Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor;
+use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
-@ISA = qw(Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
 =head2 fetch_by_dbID
 

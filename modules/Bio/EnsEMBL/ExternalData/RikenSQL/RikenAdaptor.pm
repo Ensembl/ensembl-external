@@ -36,7 +36,6 @@ package Bio::EnsEMBL::ExternalData::RikenSQL::RikenAdaptor;
 
 use Bio::EnsEMBL::FeaturePair;
 use Bio::EnsEMBL::SeqFeature;
-use Bio::EnsEMBL::FeatureFactory;
 use Bio::EnsEMBL::DBSQL::AnalysisAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 use Bio::EnsEMBL::Root;

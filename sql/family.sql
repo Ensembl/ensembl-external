@@ -8,7 +8,6 @@ CREATE TABLE family (
    description			varchar(255) NOT NULL,
    release			varchar(10) NOT NULL,
    annotation_confidence_score	double, 
-   size        			int(10) NOT NULL,
 
    PRIMARY KEY(family_id), 
    UNIQUE KEY(stable_id),
@@ -34,10 +33,8 @@ CREATE TABLE family_members (
 
   PRIMARY KEY(family_member_id),
   UNIQUE KEY(family_id,external_db_id,external_member_id,taxon_id),
-
   KEY(external_db_id,external_member_id),
   KEY(external_db_id),
-#  UNIQUE KEY(external_member_id),
   KEY(family_id,external_db_id)
 );
 

@@ -842,7 +842,6 @@ sub _to_upper_case {
 
     foreach my $aref (@$arr){
         foreach my $value (@{@$aref} ){
-	warn "\033[31m WTF: $value \033[0m \n\n";
             $value = uc $value;
         }
     }

@@ -51,11 +51,11 @@ my @diseases_names=$diseasedb->disease_names_like("diabetes",4,5);
 
 foreach my $disease_name (@diseases_names)
 {
-    print $disease_name,"\n";
+#    print $disease_name,"\n";
 }
 
 
-print "count ",$diseasedb->disease_names_like_count('diabetes'),"\n";
+print "count ",$diseasedb->all_disease_count,"\n";
 
 
 
@@ -63,19 +63,19 @@ print "count ",$diseasedb->disease_names_like_count('diabetes'),"\n";
 
 foreach my $dis (@diseases)
 {
-    print $dis->name,"\n";
+    #print $dis->name,"\n";
 
 
     foreach my $location($dis->each_Location){
 	
-		print "has gene ",$location->external_gene," on chromosome ",
-		$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
+		#print "has gene ",$location->external_gene," on chromosome ",
+		#$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
 	
 	if (defined $location->ensembl_gene){
 
-	    print $dis->name," ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
+	    #print $dis->name," ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
 	}
-	else {print "no ensembl predictions for ", $location->external_gene,"\n";}
+	#else {print "no ensembl predictions for ", $location->external_gene,"\n";}
     }
 }
 

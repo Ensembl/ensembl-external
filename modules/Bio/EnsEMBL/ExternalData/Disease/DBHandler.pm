@@ -206,7 +206,7 @@ sub all_disease_names
     if($count){$count=','.$count;}
   
 
-    my $query_string="select disease from disease $offset $count;";
+    my $query_string="select distinct disease from disease $offset $count;";
 
     $self->_get_disease_names($query_string);
 
@@ -240,7 +240,7 @@ sub all_disease_count
 {
     my ($self)=@_;
 
-    my $query_string="select count(*) from disease;";
+    my $query_string="select distinct disease from disease;";
 
     $self->_get_count($query_string);
 
@@ -309,7 +309,7 @@ sub disease_names_on_chromosome
     if ($offset||$offset == 0){$offset='limit '.$offset;}
     if($count){$count=','.$count;}    
 
-    my $query_string=" select d.disease from disease as d,gene as g where d.id = g.id 
+    my $query_string=" select distinct d.disease from disease as d,gene as g where d.id = g.id 
                        and g.chromosome='$chromosome_no' $offset $count;";
 
     $self->_get_disease_names($query_string);
@@ -343,7 +343,7 @@ sub diseases_on_chromosome_count
 
     $chromosome || $self->throw("I need a chromosome");
 
-    my $query_string= "select count(*) from disease as d,gene as g where d.id = g.id 
+    my $query_string= "select distinct disease from disease as d,gene as g where d.id = g.id 
                        and g.chromosome='$chromosome'";
 
     $self->_get_count($query_string);
@@ -410,7 +410,7 @@ sub disease_names_with_genes
   if ($offset||$offset == 0){$offset='limit '.$offset;}
   if($count){$count=','.$count;}    
     
-  my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
+  my $query_string= "select distinct d.disease from disease as d,gene as g where d.id = g.id 
                        and g.gene_symbol IS NOT NULL $offset $count";
 
   $self->_get_disease_names($query_string);
@@ -443,7 +443,7 @@ sub diseases_with_genes_count
 {
     my ($self)=@_;
 
-    my $query_string= "select count(*) from disease as d,gene as g where d.id = g.id 
+    my $query_string= "select distinct disease from disease as d,gene as g where d.id = g.id 
                        and g.gene_symbol IS NOT NULL;";
 
     $self->_get_count($query_string);
@@ -514,7 +514,7 @@ sub disease_names_without_genes
   if ($offset||$offset == 0){$offset='limit '.$offset;}
   if($count){$count=','.$count;}    
   
-  my $query_string= "select d.disease from disease as d,gene as g where d.id = g.id 
+  my $query_string= "select distinct d.disease from disease as d,gene as g where d.id = g.id 
                        and g.gene_symbol IS NULL  $offset,$count";
 
   $self->_get_disease_names($query_string);
@@ -547,7 +547,7 @@ sub diseases_without_genes_count
 {
     my ($self)=@_;
 
-    my $query_string= "select count(*) from disease as d,gene as g where d.id = g.id 
+    my $query_string= "select distinct disease from disease as d,gene as g where d.id = g.id 
                        and g.gene_symbol IS NULL;";
 
     $self->_get_count($query_string);
@@ -616,7 +616,7 @@ sub disease_names_like
 
 
 
-    my $query_string="select d.disease from disease as d,gene as g 
+    my $query_string="select distinct d.disease from disease as d,gene as g 
                       where d.id = g.id and d.disease like '%$disease%' $offset $count";
 
     return $self->_get_disease_names($query_string);
@@ -652,7 +652,7 @@ sub disease_names_like_count
 
     $disease || $self->throw("I need disease name");
 
-    my $query_string= "select count(*) from disease as d,gene as g 
+    my $query_string= "select distinct disease from disease as d,gene as g 
                       where d.id = g.id and d.disease like '%$disease%'";
 
     $self->_get_count($query_string);
@@ -743,7 +743,15 @@ sub _get_count
     my $sth=$self->_db_handle->prepare($query_string);
     $sth->execute;
 
-    $sth->fetchrow_hashref->{'count(*)'};
+    my @diseases;
+    
+    while ( my $rowhash = $sth->fetchrow_hashref) 
+    {
+	push @diseases,$rowhash->{'disease'};	
+    } 
+
+    scalar @diseases;
+
 
 }
 

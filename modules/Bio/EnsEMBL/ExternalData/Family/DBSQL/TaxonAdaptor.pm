@@ -49,7 +49,9 @@ use Bio::EnsEMBL::ExternalData::Family::DBSQL::BaseAdaptor;
 
 sub fetch_by_dbID {
   my ($self,$taxon_id) = @_;
-  
+
+  $self->throw("Should give a defined taxon_id as argument\n") unless (defined $taxon_id);
+
   my $q = "SELECT taxon_id,genus,species,sub_species,common_name,classification
            FROM taxon
            WHERE taxon_id= ?";
@@ -87,6 +89,8 @@ sub fetch_by_dbID {
 
 sub fetch_by_taxon_id {
   my ($self,$taxon_id) = @_;
+
+  $self->throw("Should give a defined taxon_id as argument\n") unless (defined $taxon_id);
 
   return $self->fetch_by_dbID($taxon_id);
 }

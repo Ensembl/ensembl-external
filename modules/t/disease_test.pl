@@ -26,8 +26,8 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'en
 #my @diseases=$diseasedb->diseases_on_chromosome(22);
 #my @diseases=$diseasedb->diseases_without_genes;
 #my @diseases=$diseasedb->all_diseases;
-#my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
-my @diseases=$diseasedb->diseases_like("diabetes");
+my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+#my @diseases=$diseasedb->diseases_like("diabetes");
 
 foreach my $dis (@diseases)
 {

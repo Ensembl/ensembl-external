@@ -301,24 +301,22 @@ sub _get_diseases
 
 my ($self,$query_string)=@_;
 
-
 my $sth=$self->_db_handle->prepare($query_string);
 $sth->execute;
 
 
 my $id;
 my @diseases;
-my $counter;
 my $disease;
 
 while ( my $rowhash = $sth->fetchrow_hashref) 
 {
-    $counter++;
+ 
     if ($id!=$rowhash->{'id'})
     {	
-	unless ($counter==1){push @diseases,$disease;}
 	$disease=new Bio::EnsEMBL::ExternalData::Disease::Disease;
 	$disease->name($rowhash->{'disease'});
+	push @diseases,$disease;
     }
 
     my $location=new Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation(
@@ -327,14 +325,13 @@ while ( my $rowhash = $sth->fetchrow_hashref)
 							    -cyto_end=>$rowhash->{'end_cyto'},
 							    -external_gene=>$rowhash->{'gene_symbol'},
 							    -chromosome=>$rowhash->{'chromosome'});
+  
     if (defined $rowhash->{'gene_symbol'}){$location->has_gene(1);}
     $id=$rowhash->{'id'};
-
 
     $disease->add_Location($location);   
 }
 
-unless (! defined $disease ){push @diseases,$disease;}
 
 
 if (defined $self->_ensdb){@diseases=$self->_link2ensembl(@diseases);}

@@ -338,6 +338,20 @@ sub _map_DASSeqFeature_to_pep{
 
 #----------------------------------------------------------------------
 
+=head2 _map_DASSeqFeature_to_slice
+
+  Arg [1]   : DASSeqFeature object
+  Arg [2]   : Slice with CoordSystem and seq_region_name for DASSeqFeature
+  Arg [3]   : Slice with offsets and CoordSystem to map DASSeqFeature to
+  Function  : Maps DASSeqFeature in one CoordSystem to Slice coords in 
+              another CoordSystem
+  Returntype: 
+  Exceptions: 
+  Caller    : 
+  Example   : 
+
+=cut
+
 sub _map_DASSeqFeature_to_slice {
   my $self       = shift;
   my $das_sf     = shift;
@@ -349,22 +363,31 @@ sub _map_DASSeqFeature_to_slice {
 
   my $db = $usr_slice->adaptor->db;
   my $ma = $db->get_AssemblyMapperAdaptor;
-  my $mapper = $ma->fetch_by_CoordSystems( $fr_csystem, $to_csystem );
 
   # Map
-  my @coords = ();
-  eval{ @coords = $mapper->map( $das_slice->seq_region_name, 
-				$das_sf->das_start,
-				$das_sf->das_end,
-				$das_sf->das_orientation,
-				$fr_csystem ) };
-  if( $@ ){ warn( $@ ) }
-  @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
-  scalar( @coords ) || return 0;
-  $das_sf->seqname( $usr_slice->seq_region_name );
-  $das_sf->start( $coords[0]->start - $usr_slice->start + 1 );
-  $das_sf->end( $coords[-1]->end - $usr_slice->start + 1 );
-  $das_sf->strand( $coords[0]->strand );
+  unless( $fr_csystem->equals( $to_csystem ) ){
+    my $mapper = $ma->fetch_by_CoordSystems( $fr_csystem, $to_csystem );
+    my @coords = ();
+    eval{ @coords = $mapper->map( $das_slice->seq_region_name, 
+				  $das_sf->das_start,
+				  $das_sf->das_end,
+				  $das_sf->das_orientation,
+				  $fr_csystem ) };
+    if( $@ ){ warn( $@ ) }
+    @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
+    scalar( @coords ) || return 0;
+    $das_sf->seqname( $usr_slice->seq_region_name );
+    $das_sf->start ( $coords[0]->start - $usr_slice->start + 1 );
+    $das_sf->end   ( $coords[-1]->end  - $usr_slice->start + 1 );
+    $das_sf->strand( $coords[0]->strand );
+  }
+  else{ # No mapping needed
+    $das_sf->seqname( $usr_slice->seq_region_name );
+    $das_sf->start ( $das_sf->das_start - $usr_slice->start + 1 );
+    $das_sf->end   ( $das_sf->das_end   - $usr_slice->start + 1 );
+    $das_sf->strand( $das_sf->das_orientation );
+  }
+
   #warn( "Ensembl:".$das_sf->seqname.":".$das_sf->start."-".$das_sf->end );
   return 1;
 

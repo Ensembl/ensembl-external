@@ -26,19 +26,19 @@ my $fam, @fam;
 $fam = $famdb->get_Family_by_id('ENSF000013034');  # family id
 $fam = $famdb->get_Family_of_Ensembl_pep_id('ENSP00000012304');
 $fam = $famdb->get_Family_of_Ensembl_gene_id('ENSG00000012304');
-$fam = $famdb->get_Family_of_db_id('SWISSPROT', 'P000123');
+$fam = $famdb->get_Family_of_db_id('SPTR', 'P000123');
 @fam = $famdb->get_Family_described_as('interleukin');
 @fam = $famdb->all_Families();
 
 =head1 DESCRIPTION
 
 This module is an entry point into a database of protein families,
-clustering SWISSPROT using Anton Enright's algorithm. The clustering
+clustering SWISSPROT/TREMBL using Anton Enright's algorithm. The clustering
 neatly follows the SWISSPROT DE-lines, which are taken as the description
 of the whole family.
 
 The object is a bit bare, still; dbxrefs (i.e., family to family) are not
-implemented, and SWSISSPROT keywords aren't there yet either. 
+implemented, and SWISSPROT/TREMBL  keywords aren't there yet either. 
 
 The objects can only be read from the database, not written. (They are
 loaded ussing a separate perl script).
@@ -189,7 +189,7 @@ sub get_Family_of_Ensembl_gene_id {
 =head2 get_Family_of_db_id
 
  Title   : get_Family_of_db_id
- Usage   : $fam = $db->get_Family_of_db_id('SWISSPROT', 'P01235');
+ Usage   : $fam = $db->get_Family_of_db_id('SPTR', 'P01235');
  Function: find the family to which the given database and id belong
  Example :
  Returns : a Family or undef if not found 
@@ -219,7 +219,7 @@ sub get_Family_of_db_id {
  Example :
  Returns : a possibly empty list of Families that contain the string. 
            (The search is currently case-insensitive; this may change if
-           SWISSPROT changes to case-preservation)
+           SPTR changes to case-preservation)
  Args    : search string.
 
 =cut

@@ -1,6 +1,5 @@
-
 #
-# BioPerl module for 
+# EnsEMBL module for  Bio::EnsEMBL::ExternalData::Expression::SeqTag
 #
 # Cared for by EnsEMBL (www.ensembl.org)
 #
@@ -45,9 +44,10 @@ The rest of the documentation details each of the object methods. Internal metho
 package Bio::EnsEMBL::ExternalData::Expression::SeqTag;
 use vars qw(@ISA);
 use strict;
-use Bio::Root::RootI;
+use Bio::DBLinkContainerI;
 
-@ISA = qw(Bio::Root::RootI);
+
+@ISA = qw(Bio::DBLinkContainerI);
 
 
 sub new {
@@ -62,6 +62,47 @@ sub new {
     return $self;
    
 }
+
+
+
+=head2 add_DBLink
+
+ Title   : add_DBLink
+ Usage   : $self->add_DBLink($ref)
+ Function: adds a link object
+ Example :
+ Returns :
+ Args    :
+
+
+=cut
+
+sub add_DBLink{
+   my ($self,$com) = @_;
+   if( ! $com->isa('Bio::Annotation::DBLink') ) {
+       $self->throw("Is not a link object but a  [$com]");
+   }
+   push(@{$self->{'link'}},$com);
+}
+
+=head2 each_DBLink
+
+ Title   : each_DBLink
+ Usage   : foreach $ref ( $self->each_DBlink() )
+ Function: gets an array of DBlink of objects
+ Example :
+ Returns :
+ Args    :
+
+
+=cut
+
+sub each_DBLink{
+   my ($self) = @_;
+
+   return @{$self->{'link'}} if defined $self->{'link'};
+}
+
 
 
 
@@ -157,17 +198,26 @@ sub frequency {
 
 }
 
+=head2 relative_frequency
+
+ Title   : relative_frequency
+ Usage   : $obj->realtive_frequency($newval)
+ Function: 
+ Example : 
+ Returns : value  of realtive_frequency
+ Args    : newvalue (optional)
 
 
+=cut
 
+sub relative_frequency {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'_relative_frequency'} = $value;
+    }
+    return $obj->{'_relative_frequency'};
 
-
-
-
-
-
-
-
+}
 
 
 =head2 adaptor
@@ -199,13 +249,13 @@ sub _set_from_args {
 
     my ($self,@args)=@_;
 
-    my ($library_id,$source,$name,$frequency)=@args;
+    my ($id,$source,$name,$frequency,$relative_frequency)=@args;
 
-    $self->id($library_id);
+    $self->id($id);
     $self->source($source);
     $self->name($name);
     $self->frequency($frequency);
-    
+    $self->relative_frequency($relative_frequency);
 }
 
 

@@ -155,17 +155,40 @@ sub fetch_all_SeqTags_above_frequency {
 }
 
 sub fetch_all_SeqTags_above_relative_frequency {
-    my ($self,$id,$frequency,$multiplier)=@_;
+    my ($self,$id,$frequency)=@_;
 
     $self->throw("need a library id") unless $id; 
     $self->throw("need a frequency value") unless $frequency;
 
     my $seqtag_ad=Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($self->db);
     $seqtag_ad->dbname($self->dbname);
-    return $seqtag_ad->fetch_by_Library_dbID_above_relative_frequency($id,$frequency,$multiplier);
+    return $seqtag_ad->fetch_by_Library_dbID_above_relative_frequency($id,$frequency);
 
 }
 
+
+
+
+=head2 dbaname
+
+ Title   : dbname
+ Usage   : $obj->dbname($newval)
+ Function: 
+ Example : 
+ Returns : value of dbname
+ Args    : newvalue (optional)
+
+
+=cut
+
+sub dbname {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'_dbname'} = $value;
+    }
+    return $obj->{'_dbname'};
+
+}
 
 
 
@@ -197,29 +220,6 @@ sub _fetch {
     
     return @libs;
     
-}
-
-
-
-=head2 dbaname
-
- Title   : dbname
- Usage   : $obj->dbname($newval)
- Function: 
- Example : 
- Returns : value of dbname
- Args    : newvalue (optional)
-
-
-=cut
-
-sub dbname {
-   my ($obj,$value) = @_;
-   if( defined $value) {
-      $obj->{'_dbname'} = $value;
-    }
-    return $obj->{'_dbname'};
-
 }
 
 

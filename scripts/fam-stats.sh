@@ -29,10 +29,6 @@ echo "undecided conflicts (first assignment kept)" $[leaving - notbetter]
 
 echo
 
-user=ensro
-dbname=family100
-host=ecs1b
-
 brackets="1-1 2-10 11-100 101-1000 1001-10000"
 
 echo "Histogram of family sizes:"

@@ -195,9 +195,13 @@ sub get_Ensembl_SeqFeatures_contig_list{
    
    my @array;
 
-   my $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
-       "FROM  feature WHERE feature.contig in $inlist ";
+   #print STDERR "Getting ESTs by list from $inlist....\n";
 
+   my $glob = 50;
+
+   my $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
+       "FROM  feature WHERE feature.contig in $inlist order by hid,seq_start";
+ 
    &eprof_start('est-sql');
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;
@@ -207,7 +211,13 @@ sub get_Ensembl_SeqFeatures_contig_list{
    $sth->bind_columns(undef,\$fid,\$contig,\$start,\$end,\$strand,\$f_score,\$analysisid,\$name,\$hstart,\$hend,\$hid,\$evalue,\$perc_id,\$phase,\$end_phase);
    
    &eprof_start('est-object');
+   my $prev;
    while($sth->fetch) {
+
+       if( defined $prev && $prev->hseqname eq $hid && $prev->end+$glob > $start ) {
+	   $prev->end($end);
+	   next;
+       }
 
        my $out;
        my $analysis;
@@ -231,9 +241,10 @@ sub get_Ensembl_SeqFeatures_contig_list{
 			    $hstart,$hend,1,$f_score,$name,'similarity',$hid);
        
        if( !$out->isa("Bio::EnsEMBL::Ext::FeaturePair") ) { 
-	   $out->percent_id  ($perc_id);
+	   	$out->percent_id  ($perc_id);
        }
 
+	   $out->source_tag("est");
        $out->analysis    ($analysis);
        $out->id          ($hid);  
        $out->validate();
@@ -241,6 +252,7 @@ sub get_Ensembl_SeqFeatures_contig_list{
        push(@array,$out);
    }
    &eprof_end('est-object');
+	#print STDERR "No ESTs: ", scalar @array, "\n";
    return @array;
 }
 

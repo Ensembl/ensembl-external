@@ -115,6 +115,7 @@ use vars qw(@ISA);
 use DBI;
 use Bio::EnsEMBL::DB::WebExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::Variation;
+use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 
 # Object preamble - inherits from Bio::Root:RootI
 @ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::WebExternalFeatureFactoryI);
@@ -575,11 +576,19 @@ sub get_Ensembl_SeqFeatures_clone_web{
 	ORDER BY acc,start    
 
               };
-    
+
+    &eprof_start('snp-sql-query');
+
     my $sth = $self->prepare($query);
     my $res = $sth->execute();
+
+    &eprof_end('snp-sql-query');
+
     my $snp;
     my $cl;
+
+    &eprof_start('snp-sql-object');
+
   SNP:
     while( (my $arr = $sth->fetchrow_arrayref()) ) {
         
@@ -654,6 +663,8 @@ sub get_Ensembl_SeqFeatures_clone_web{
             push(@variations, $snp);
         }                               # if ! $seen{$key}
       }                                    # while a row from select statement
+
+    &eprof_end('snp-sql-object');
     
     return @variations;
 }

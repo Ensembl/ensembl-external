@@ -67,7 +67,8 @@ sub fetch_by_SNP_id {
       SELECT refsnp.internal_id, refsnp.id, hit.acc, hit.version, hit.start, 
              hit.end, hit.type, hit.strand, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
-             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight
+             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight,
+             source.source
       FROM   Hit as hit, RefSNP as refsnp, DataSource source
       WHERE  hit.internal_id = refsnp.internal_id
       AND    source.id = refsnp.source
@@ -83,7 +84,7 @@ sub fetch_by_SNP_id {
   while ($arr = $sth->fetchrow_arrayref) { 
     my ($internal_id, $dbsnp_id, $acc, $ver, $begin, $end, $postype, 
 	$strand, $class, $type, $alleles, $seq5, $seq3, $het, $hetse,  
-	$confirmed, $mapweight ) = @$arr;
+	$confirmed, $mapweight, $source ) = @$arr;
     
     #snp info not valid
     $self->throw("SNP withdrawn. Reason: $type ") 
@@ -121,7 +122,7 @@ sub fetch_by_SNP_id {
       $snp->strand($strand);
       $snp->original_strand($strand);
     }
-    $snp->source_tag('dbSNP');
+    $snp->source_tag($source);
     $snp->status($confirmed);
     $snp->alleles($alleles);
     $snp->upStreamSeq($seq5);
@@ -236,9 +237,10 @@ sub fetch_by_clone_accession_version {
   	       p2.id, p2.snpclass,  p2.snptype,
   	       p2.observed, p2.seq5, p2.seq3,
   	       p2.het, p2.hetse,
-               p2.validated, p2.mapweight
-  		FROM   Hit as p1, RefSNP as p2
+               p2.validated, p2.mapweight, p3.source
+  		FROM   Hit as p1, RefSNP as p2, DataSource as p3
   		WHERE  p1.acc = "$acc" and p1.version = "$ver"
+               AND p3.id = p2.source
   	       AND p1.internal_id = p2.internal_id
 	       };
 
@@ -252,7 +254,7 @@ sub fetch_by_clone_accession_version {
 		$snpuid, $class, $type,
 		$alleles, $seq5, $seq3, $het, $hetse,
 		$confirmed, $mapweight,
-		$subsnpid, $handle 
+		$source 
 		) = @{$arr};
 
 		#snp info not valid
@@ -297,12 +299,11 @@ sub fetch_by_clone_accession_version {
 	    		-end => $end,
 	    		-strand => $strand,
 	    		-original_strand => $strand,
-	    		-source_tag => 'dbSNP',
+	    		-source_tag => $source,
 	    		-score  => $mapweight,
 	    		-status => $confirmed,
 	    		-alleles => $alleles,
-            		-subsnpid => $subsnpid,
-	    		);
+   	    		);
 		$snp->upStreamSeq($seq5);
 		$snp->dnStreamSeq($seq3);
 		$snp->het($het);

@@ -245,13 +245,11 @@ sub fetch_by_clone_accession_version {
   	       AND p1.internal_id = p2.internal_id
 	       };
 
-    
-
     if($start) {
-	$query .= " AND p2.start >= $start";
+	$query .= " AND p1.start >= $start";
     } 
-    if($end) {
-	$query .= " AND p2.end <= $end";
+    if($stop) {
+	$query .= " AND p1.end <= $stop";
     }
 
    my $sth = $self->prepare($query);

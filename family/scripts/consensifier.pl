@@ -53,12 +53,12 @@ open FILE, "$filter | " || die "$filter: $!";
 my %hash;
 
 while (<FILE>) {
-  /^(\S+)\s+(\d+)\s+(\S+)\s+>(.*)$/;
+  /^(\S+)\t(\d+)\t(\S+)\t(.*)$/;
   my ($db,$cluster,$protein,$desc) = ($1,$2,$3,$4);
   $desc =~ s/\s+/ /g;
 
   if (uc $db eq $database) {
-    $desc = &apply_edits($desc);
+    $desc = &apply_edits(uc $desc);
     push(@{$hash{$cluster}},$desc);
   }
 }

@@ -36,16 +36,15 @@ unless (GetOptions('help' => \$help)) {
 
 
 if (@ARGV != 3 || $help) { 
-    die $usage; 
+  die $usage; 
 }
 
 ### deletes to be applied to correct some howlers
 
-my @deletes = ('FOR\s*$', 'SIMILAR\s*TO\s*$', 'SIMILAR\s*TO\s*PROTEIN\s*$', 'SIMILAR\s*TO\s*GENE\s*$','SIMILAR\s*TO\s*GENE\s*PRODUCT\s*$', '\s*\bEC\s*$', 'RIKEN CDNA [A_Z]\d+\s*$', 'NOVEL\s*PROTEIN\s*$', 'NOVEL\s*$'); 
+my @deletes = ('FOR\s*$', 'SIMILAR\s*TO\s*$', 'SIMILAR\s*TO\s*PROTEIN\s*$', 'SIMILAR\s*TO\s*GENE\s*$','SIMILAR\s*TO\s*GENE\s*PRODUCT\s*$', '\s*\bEC\s*$', 'RIKEN CDNA [A_Z]\d+\s*$', 'NOVEL\s*PROTEIN\s*$', 'NOVEL\s*$','C\d+ORF\d+','LIKE'); 
 
-#'
 ### any complete annotation that matches one of the following, gets
-### ticked off completely:
+### ticked off completely
 
 my @useless_annots = 
   qw( ^.$  
@@ -74,19 +73,23 @@ my @useless_words =  # and misspellings, that is
 
 # sanity check on the words:
 foreach my $w (@useless_words) {
-    if ( $w =~ /$word_splitter/) {
-        die "word '$w' to be matched matches ".
-          "the word_splitter regexp '$word_splitter', so will never match";
-    }
+  if ( $w =~ /$word_splitter/) {
+    die "word '$w' to be matched matches ".
+      "the word_splitter regexp '$word_splitter', so will never match";
+  }
 }
 
 my ($cluster_file, $swissprot_consensus, $sptrembl_consensus) = @ARGV;
 
 my %clusters;
 
-open (FILE,$cluster_file) || die "$cluster_file$!";
+if ($cluster_file =~ /\.gz/) {
+  open (FILE,"gunzip -c $cluster_file|") || die "$cluster_file$!"; 
+} else {
+  open (FILE,$cluster_file) || die "$cluster_file$!";
+}
 while (<FILE>) {
-  if (/^\S+\s+(\d+)\s+(.*)\s+\>.*$/) {
+  if (/^\S+\t(\d+)\t(.*)\t.*$/) {
     my ($cluster_id, $seqid) = ($1,$2);
     push(@{$clusters{$cluster_id}},$seqid);
   } else {
@@ -110,7 +113,7 @@ read_consensus($swissprot_consensus, \%descriptions, \%scores);
 my $final_total=0;
 my $discarded=0;
 my $n=0;
-my $offset = 1;
+
 foreach my $cluster_id (sort numeric (keys(%clusters))) {
   my $annotation="UNKNOWN";
   my $score=0;
@@ -159,14 +162,14 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
   $_=$annotation;
   
   #Apply some fixes to the annotation:
-  s/EC (\d+) (\d+) (\d+) (\d+)/EC $1.$2.$3.$4/;
-  s/EC (\d+) (\d+) (\d+)/EC $1.$2.$3.-/;
-  s/EC (\d+) (\d+)/EC $1\.$2.-.-/;
+  s/EC (\d+) (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.$4/;
+  s/EC (\d+) (\d+) (\d+)/EC $1\.$2\.$3\.-/;
+  s/EC (\d+) (\d+)/EC $1\.$2\.-\.-/;
   s/(\d+) (\d+) KDA/$1.$2 KDA/;
   
   s/\s+$//;
   s/^\s+//;
-  
+
   if (/^BG:.*$/ || /^EG:.*$/ || length($_) <= 2 || /^\w{1}\s\d+\w*$/) {
     $_="UNKNOWN";
     $score = 0;
@@ -174,11 +177,7 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
   
   my @members = @{$clusters{$cluster_id}};
   $final_total +=  int(@members);
-#  printf "$members[0]\tENSF%011.0d\t%s\t%d\t:%s\n"
-  printf "$members[0]\t%i\tENSF%011.0d\t%s\t%d\n"
-#    , $cluster_id + $offset, $_, $score, join(":",@members);
-    , $cluster_id + $offset, $cluster_id + $offset, $_, $score;
-#  $offset++;
+  print "$cluster_id\t$_\t$score\n";
 }                                       # foreach $cluster_id
 
 print STDERR "FINAL TOTAL: $final_total\n";
@@ -194,7 +193,7 @@ sub read_consensus {
   open FILE, $file || die "$file:$!";
   
   while (<FILE>) {
-    my ($id, $desc, $score) = (/^(\d+)\s+>>>(.*)<<<\s+(\d+)/);
+    my ($id, $desc, $score) = (/^(\d+)\t>>>(.*)<<<\t(\d+)/);
     if (0 && # for debugging purposes
 	defined $deschash->{$id}) {
       warn "for $id, replacing ".$deschash->{$id}." (score ".$scorehash->{$id}.") with $desc (score $score)\n";

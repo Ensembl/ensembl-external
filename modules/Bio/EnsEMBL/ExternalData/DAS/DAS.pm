@@ -291,16 +291,16 @@ sub fetch_all_by_Slice {
 
   # Run the DAS query
   my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS
-    ( '', 0, 0, [ @segments_to_request ], [], [], 0 );
+    ( [ @segments_to_request ] );
 
 
   # Map the DAS results into the coord system of the original slice
   my @result_list;
   foreach my $das_sf( @$features ){
-    my $segment = $das_sf->seqname ||
-      ( warn( "No seqname for $das_sf" ) && next );
-    my $das_slice = $slice_by_segment{$segment} ||
-      ( warn( "No Slice for $segment" ) && next );
+    my $segment = $das_sf->das_segment ||
+      ( warn( "No das_segment for $das_sf" ) && next );
+    my $das_slice = $slice_by_segment{$segment->ref} ||
+      ( warn( "No Slice for ", $segment->ref ) && next );
     $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) &&
       push @result_list, $das_sf;
   }
@@ -321,8 +321,8 @@ sub _map_DASSeqFeature_to_pep{
   if( $dsf->das_feature_id eq $dsf->das_segment->ref or
       ! $dsf->das_start or
       ! $dsf->das_end ){
-    $dsf->start = 0;
-    $dsf->end   = 0;
+    $dsf->start( 0 );
+    $dsf->end( 0 );
     return 1
   }
 
@@ -409,7 +409,7 @@ sub _map_DASSeqFeature_to_slice {
 =head2 get_Ensembl_SeqFeatures_DAS
 
  Title   : get_Ensembl_SeqFeatures_DAS ()
- Usage   : get_Ensembl_SeqFeatures_DAS($chr, $chr_start, $chr_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref );
+ Usage   : get_Ensembl_SeqFeatures_DAS(['AL12345','13']);
  Function:
  Example :
  Returns :
@@ -421,23 +421,18 @@ sub _map_DASSeqFeature_to_slice {
 =cut
 
 sub get_Ensembl_SeqFeatures_DAS {
-  my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref, $chr_length) = @_;
+    my $self = shift;
+    my $segments = shift || [];
     my $dbh 	   = $self->adaptor->_db_handle();
     my $dsn 	   = $self->adaptor->dsn();
     my $types 	   = $self->adaptor->types() || [];
     my $url 	   = $self->adaptor->url();
     my $DAS_FEATURES = [];
     my $STYLES = [];
-    
-    $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, ".
-		 "global start, global end and other essential stuff. ".
-		 "You didn't.") unless ( scalar(@_) == 8);
+    #$dbh->debug(1); # Useful debug flag
 
-    my @seg_requests = (
-                        @$fpccontig_list_ref,
-                        @$clone_list_ref, 
-                        @$contig_list_ref
-		       );
+    @$segments || $self->throw("Need some segment IDs to query against");
+    my @seg_requests = @$segments;
 
     my $callback_stylesheet = sub {
       # return if $_[3] eq 'pending';
@@ -453,11 +448,10 @@ sub get_Ensembl_SeqFeatures_DAS {
         my $f = shift;
         return unless $f->isa('Bio::Das::Feature'); ## Bug in call back code means this is called for wrong DAS types
         my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
-
-        $das_sf->das_feature_id($f->id());
-        $das_sf->das_feature_label($f->label());
-        $das_sf->das_segment($f->segment());
-        $das_sf->das_segment_label($f->label());
+        $das_sf->das_feature_id   ($f->id      );
+        $das_sf->das_feature_label($f->label   );
+        $das_sf->das_segment      ($f->segment );
+        $das_sf->das_segment_label($f->label   );
         $das_sf->das_id($f->id());
         $das_sf->das_dsn($dsn);
         $das_sf->source_tag($dsn);
@@ -494,7 +488,6 @@ sub get_Ensembl_SeqFeatures_DAS {
         push(@{$DAS_FEATURES}, $das_sf);
     };
 
-    $self->verbose(1);
     my $response;
     # Test POST echo server to request debugging
     if( 0 ){ 
@@ -530,15 +523,15 @@ sub get_Ensembl_SeqFeatures_DAS {
                     -callback   =>  $callback,
         );
      }
-    # warn $response;
     
     unless ($response->success()){
-        print STDERR "DAS fetch for $dsn failed\n";
-        print STDERR "XX: ", (join "\nXX:", @{$DAS_FEATURES}),"\n";
-        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
-        $CURRENT_FEATURE->das_type_id('__ERROR__'); 
-        $CURRENT_FEATURE->das_dsn($dsn); 
-        unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
+      #warn Data::Dumper::Dumper( $response );
+        $self->warn( "DAS fetch for $url/$dsn failed" );
+        #print STDERR "XX: ", (join "\nXX:", @{$DAS_FEATURES}),"\n";
+        my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
+        $das_sf->das_type_id('__ERROR__'); 
+        $das_sf->das_dsn($dsn);
+        unshift @{$DAS_FEATURES}, $das_sf;
         return ($DAS_FEATURES,$STYLES);
     }
     

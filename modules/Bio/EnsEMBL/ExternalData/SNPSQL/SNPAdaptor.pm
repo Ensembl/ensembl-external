@@ -332,7 +332,6 @@ sub fetch_by_clone_accession_version {
 
    # db query to return all variation information ; confidence attribute is gone!!
    my $query = qq{
-
        	SELECT  p1.start, p1.end, p1.type, p1.strand,
   	       p2.id, p2.snpclass,  p2.snptype,
   	       p2.observed, p2.seq5, p2.seq3,
@@ -491,6 +490,47 @@ sub fetch_between_internal_ids {
 	FROM   RefSNP as r, Hit as h
 	  WHERE  r.internal_id = h.internal_id and snptype = "notwithdrawn" 
 	    and r.internal_id between $start_internal_id and $end_internal_id
+	  };
+  
+  my $sth=$self->prepare($query);
+  
+  my $res=$sth->execute();
+  while (my $info = $sth->fetchrow_hashref()) {
+    if ($info) {
+      my $var_obj = $self->_objFromHashref($info);
+      #$var_objs{$var_obj->snpid}=$var_obj;
+      push (@var_objs, $var_obj);
+    }
+  }
+  return \@var_objs;
+}
+ 
+  
+=head2 fetch_all_by_Slice
+
+ Title   : fetch_all_by_Slice
+ Usage   : snpa->fetch_all_by_Slice($slice)
+ Function: return variation objects in the given slice
+ Example : snpa->fetch_all_by_Slice($slice)
+ Returns : a list of all variation objects in the given slice
+ Args    : $slice
+           
+=cut
+
+sub  fetch_all_by_Slice{
+  my ($self,$slice) = @_;
+  my ($query, @var_objs, %var_objs);
+  my $chr_start = $slice->chr_start;
+  my $chr_end = $slice->chr_end;
+  my $chr_name = $slice->chr_name;
+  
+    $query = qq{
+      SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3,
+      ch.physmap as start, ch.physmapstr as end , ch.physmapstrand as strand
+	FROM   RefSNP as r, ContigHit as ch
+	  WHERE  r.snptype = "notwithdrawn" 
+	    and r.internal_id = ch.internal_id and ch.physmap between $chr_start and $chr_end
+            and ch.chr = "$chr_name" 
 	  };
   
   my $sth=$self->prepare($query);

@@ -335,8 +335,6 @@ sub fetch_by_clone_accession_version {
 
 			my $link = new Bio::Annotation::DBLink;
 
-			print STDERR "Adding DBLink for $altid\n";
-
 			$link->database($handle);
 			$link->primary_id($altid);
 

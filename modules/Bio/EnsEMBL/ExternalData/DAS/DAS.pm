@@ -172,13 +172,15 @@ sub get_Ensembl_SeqFeatures_DAS {
     my $response;
 	
      # Test POST echo server to request debugging
-     print STDERR "URL/DSN: $url/$dsn\n\n";
-  #   $response = $dbh->features(
-  #                    -dsn    =>  "http://ecs3.internal.sanger.ac.uk:4001/das/$dsn",
-  #                    -segment    =>  \@seg_requests,
-  #                    -callback   =>  $callback,
-  #                    -type   =>  $types,
-  #   );
+     if($ENV{'ENSEMBL_DAS_WARN'}) { 
+           print STDERR "URL/DSN: $url/$dsn\n\n";
+           $response = $dbh->features( 
+               -dsn        =>  "$ENV{'ENSEMBL_DAS_WARN'}/das/$dsn", 
+               -segment    =>  \@seg_requests, 
+               -callback   =>  $callback, 
+               #-category   =>  'all', 
+           ); 
+     } 
 
 #    if($url=~/servlet\.sanger/) {
 #        my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
@@ -188,6 +190,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 #        unshift @{$DAS_FEATURES}, $CURRENT_FEATURE; 
 #        return ($DAS_FEATURES);
 #    }
+
      if(@$types) {
         $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",

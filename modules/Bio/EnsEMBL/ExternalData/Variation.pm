@@ -244,7 +244,7 @@ sub id {
 
     my @ids = $obj->each_DBLink;
     my $id = $ids[0];
-    return  $id->primary_id;
+    return $id ?  $id->primary_id : undef;
 }
 
 =head2 clone_name

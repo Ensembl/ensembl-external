@@ -103,9 +103,9 @@ sub new {
     if (! $port ) {
 	    $port = 3306;
     }
-    
-    my $dbh = GO::AppHandle->connect(-dbname=>$db,-dbhost=>$host,-dbuser=>$user);
-    $dbh->throw("Could not connect to database $db user $user as a locator") unless $dbh;
+    if(! $pass ) { $pass =''; } 
+    my $dbh ; eval { $dbh= GO::AppHandle->connect(-dbname=>$db,-dbhost=>"$host:$port",-dbuser=>$user,($pass?(-dbauth=>$pass):())); };
+    $dbh->throw("Could not connect to database $db user $user as a locator ($@)") unless $dbh;
     $self->_db_handle($dbh);
     
     return $self; # success - we hope!

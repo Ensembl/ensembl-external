@@ -235,7 +235,7 @@ echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchClu
 14- Insert the gene stable ids
     ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-InsertGenesInFamilies.pl
+~/src/ensembl_main/ensembl-external/family/scripts/InsertGenesInFamilies.pl -host ecs2d -dbname ensembl_family_14_1 -dbuser ecs2dadmin -dbpass TyhRv -conf_file ~/src/ensembl_main/ensembl-compara/modules/Bio/EnsEMBL/Compara/Compara.conf > ../geneLoading 2>&1
 
 15- Run the HealthCheck test suite on the database
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -253,7 +253,7 @@ family_id	PK	family
 external_db_id	PK	external_db
 		FK	family_members
 
-All ENSEMBLPEP/ENSEMBLGENE taxon_id should have an entry in genome_db
+All ENSEMBLPEP/ENSEMBLGENE taxon_id should have an entry in genome_db**
 =====================================================================
 
 mysql> select distinct(taxon_id) from family_members where external_db_id>=3;
@@ -270,4 +270,5 @@ mysql> select distinct(taxon_id) from family_members where external_db_id>=3;
 |    31033 |
 +----------+
 
+** Need to be added
 

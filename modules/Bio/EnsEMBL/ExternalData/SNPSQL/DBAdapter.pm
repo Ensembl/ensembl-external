@@ -39,8 +39,9 @@ database providing external features for EnsEMBL
 
    # accessing sequence variations by id
    # $snp is a Bio::EnsEMBL::ExternalData::Variation object
-
-   my $snp = $snpdb->get_SeqFeature_by_id("TSC0000002");
+   # the method call returns an array of Variation objects; one for each location
+   my @snps = $snpdb->get_SeqFeature_by_id("578");
+   my $snp = pop @snps;
 
 
 =head1 DESCRIPTION

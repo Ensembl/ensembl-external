@@ -240,22 +240,23 @@ sub get_Ensembl_SeqFeatures_clone_web{
        #add dbXref to Variation
        $snp->add_DBLink($link);
 
-	   my $altquery = qq{
-		   SELECT p1.handle, p1.altid 
-		   FROM   SubSNP as p1
-		   WHERE  p1.refsnpid = "$snpuid"
-	   };
-	   
-       my $sth2 = $self->prepare($altquery);
-       my $res2 = $sth2->execute();
-       while(my ($handle, $altid) = $sth2->fetchrow_array()){	    
-		   my $link = new Bio::Annotation::DBLink;
-		   $link->database($handle);
-		   $link->primary_id($altid);
-		   #add dbXref to Variation
-		   $snp->add_DBLink($link);
-       }
-	   
+	if(0){
+		   my $altquery = qq{
+			   SELECT p1.handle, p1.altid 
+			   FROM   SubSNP as p1
+			   WHERE  p1.refsnpid = "$snpuid"
+		   };
+
+    	   my $sth2 = $self->prepare($altquery);
+    	   my $res2 = $sth2->execute();
+    	   while(my ($handle, $altid) = $sth2->fetchrow_array()){	    
+			   my $link = new Bio::Annotation::DBLink;
+			   $link->database($handle);
+			   $link->primary_id($altid);
+			   #add dbXref to Variation
+			   $snp->add_DBLink($link);
+    	   }
+	 } 
 
        $cl=$acc_version;
        # set for compatibility to Virtual Contigs

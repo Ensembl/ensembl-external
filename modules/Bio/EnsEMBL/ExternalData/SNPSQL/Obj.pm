@@ -480,7 +480,7 @@ sub get_Ensembl_SeqFeatures_clone {
 	}
     }
 
-    my $embl_ver = uc "$acc.$ver";
+    my $acc_version = uc "$acc.$ver";
 
 
    # db query to return all variation information except alleles
@@ -493,7 +493,7 @@ sub get_Ensembl_SeqFeatures_clone {
       	      p1.Qry_Start, p1.Qry_END
        from   TBL_INSILICO_RESULTS as p1,
        	      TBL_SNP_INFO as p2
-       where  p1.Sub_ACC_version = "$embl_ver" and
+       where  p1.Sub_ACC_version = "$acc_version" and
       	      p1.Clique_id = p2.CLIQUE_ID
       
 	       };  
@@ -582,6 +582,9 @@ sub get_Ensembl_SeqFeatures_clone {
 	    -status => $confirmed,
 #	    -alleles => $alleles   
 	    );
+
+       # set for compatibility to Virtual Contigs
+       $snp->seqname($acc_version);
        
        #DBLink
        my $link = new Bio::Annotation::DBLink;

@@ -56,7 +56,6 @@ use DBI;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Family::Family;
-use vars qw(@ISA);
 
 
 @ISA = qw(Bio::Root::Object);
@@ -106,7 +105,7 @@ sub new{
     $db     || ( $db = 'family' );
     $user   || ( $user = 'ensembl' );   
 #    $ensdb  || $self->throw("I need ensembl db obj"); ? 
-    $famdb  || $self->throw("I need family db obj");
+#    $famdb  || $self->throw("I need family db obj");
    
 #     $self->_ensdb($ensdb); 
     $self->_famdb($famdb); 
@@ -115,32 +114,85 @@ sub new{
    my $dbh = DBI->connect("$dsn","$user",$password,{RaiseError => 1});
    $dbh || $self->throw("Could not connect to database $db user $user using [$dsn] as a locator");
    $self->_db_handle($dbh);
+   $self;
 }                                       # new
 
-
 sub get_Family_by_id  {# ('ENSF000013034');           # get family, given id
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
-} 
+    my ($self, $id) = @_; 
 
-sub get_Family_of_Ensembl_id { # ('ENSP00000012304'); # family _of_ an entry
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
+    my $q = 
+      "SELECT internal_id, id, description, release, annotation_confidence_score
+       FROM family
+       WHERE id = '$id'";
+
+    $self->_get_family($q);
+}                                       # get_Family_by_id
+
+# pull all fam's members from db
+sub _get_members {
+    my ($self, $fam) = @_;
+
+    my $iid = $fam->internal_id;
+    my $q = 
+      "SELECT db_name, db_id
+       FROM family_members
+       WHERE family = $iid";
+
+    $q = $self->_prepare($q);
+    $q->execute;
+
+    my ($rowhash, $n, $mem, $db_name, $db_id);
+
+    while ( $rowhash = $q->fetchrow_hashref) {
+        $fam->add_member( $rowhash->{db_name}, $rowhash->{db_id});
+        $n++;
+    }
+
+    $self->throw("internal error; expecting at least one member for id $iid") 
+      if ($n < 1);
+    undef;
 }
 
-sub get_Family_of_db_id{ # ('SWISSPROT', 'P000123')  # family of any entry
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
+sub get_Family_of_Ensembl_id { # ('ENSP00000012304'); # family _of_ an entry
+    my ($self, $eid) = @_; 
+
+    $self->get_Family_of_db_id('ENSEMBLPEP', $eid);  #PL: what db_name ???
+}
+
+sub get_Family_of_db_id { # ('SWISSPROT', 'P000123')  # family of any entry
+    my ($self, $db_name, $db_id) = @_; 
+
+    my $q = 
+      "SELECT f.internal_id, f.id, f.description, 
+              f.release, f.annotation_confidence_score
+       FROM family f, family_members fm
+       WHERE f.internal_id = fm.family
+         AND fm.db_name = '$db_name' 
+         AND fm.db_id = '$db_id'"; 
+
+    $self->_get_family($q);
 }
 
 sub get_Families_described_as{ # ('interleukin'); # families that contain this
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
+    my ($self, $desc) = @_; 
+
+    my $q = 
+      "SELECT f.internal_id, f.id, f.description, 
+              f.release, f.annotation_confidence_score
+       FROM family f
+       WHERE f.description LIKE '%". $desc . "%'";
+
+    $self->_get_families($q);
 }
 
-sub all_Families(){ 
+sub all_Families() { 
     my ($self) = @_; 
-    $self->throw("not yet implemented");
+    
+    my $q = 
+      "SELECT f.internal_id, f.id, f.description, 
+              f.release, f.annotation_confidence_score
+       FROM family f";
+    $self->_get_families($q);
 }
 
 # set/get handle on ensembl database
@@ -160,29 +212,45 @@ sub _famdb
   
   return $self->{'_famdb'};
 }
-
-
-sub _get_family_objects {
-    my ($self, $query) = @_;
-
-    $self->throw("not yet implemented");
-
-    $query = $self->_db_handle->prepare($query);
-    $query->execute;
+# get one or no family, given some query
+sub _get_family {
+    my ($self, $q) = @_;
     
-    my $id; 
+    my @fams = $self->_get_families($q);
+    
+    if (@fams > 1) {
+        $self->throw("internal error; expecting at most one Family");
+    };
+    return $fams[0];                    # may be undef
+}                                       # _get_family
+
+# get 0 or more families
+sub _get_families {
+    my ($self, $q) = @_;
+
+    $q = $self->_prepare($q);
+    $q->execute;
+
+    my $rowhash =undef;
     my $fam;
     my @fams;
+    while ( $rowhash = $q->fetchrow_hashref) {
+        $self->throw("internal error: " . $self->errstr) if  $q->err;
+        $fam = new Bio::EnsEMBL::ExternalData::Family::Family;
 
-#     while ( my $rowhash = $query->fetchrow_hashref) {
-# 
-#         ...;
-#         $fam = new Bio::EnsEMBL::ExternalData::Family::Family(
-#                                                               ...;
-#                                                               );
-#     }
-}
-
+        $fam->internal_id($rowhash->{internal_id});
+        $fam->id($rowhash->{id});
+        $fam->description($rowhash->{description});
+        $fam->release($rowhash->{release});
+        $fam->annotation_confidence_score(
+                                 $rowhash->{annotation_confidence_score});
+        $self->_get_members($fam);
+        push(@fams, $fam);
+    }
+    $self->throw("internal error: " . $self->errstr) if  $q->err;
+    
+    @fams;                              # maybe empty
+}                                       # _get_families
 
 sub _db_handle 
 {
@@ -193,25 +261,27 @@ sub _db_handle
 }
 
 
-sub _prepare
-{
+sub _prepare {
     my ($self,$string) = @_;
     
     if( ! $string ) {$self->throw("Attempting to prepare an empty SQL query!");}
     
-    my( $sth );
-    eval {$sth = $self->_db_handle->prepare($string);};
-    $self->throw("Error preparing $string\n$@") if $@;
-    return $sth;
-    
+    my $sth = $self->_db_handle->prepare($string);
+    $self->throw("Error preparing statement $string:\n".$sth->errstr) 
+      if (! $sth  or $sth->err);
+    $sth;
 }
 
+sub DESTROY {
+   my ($self) = @_;
 
-sub _ensdb 
-{
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_ensdb'} = $value;}
-  
-  return $self->{'_ensdb'};
+#    my $sth = $self->_prepare("unlock tables");
+#    my $rv  = $sth->execute();
+#    $self->throw("Failed to unlock tables") unless $rv;
+#    %{$self->{'_lock_table_hash'}} = ();
+
+   if( $self->{'_db_handle'} ) {
+       $self->{'_db_handle'}->disconnect;
+       $self->{'_db_handle'} = undef;
+   }
 }
-

@@ -70,15 +70,15 @@ sub fetch_by_SNP_id {
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
              refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight,
              ds.datasource
-      FROM   Hit as hit, RefSNP as refsnp, DataSource ds
+      FROM   Hit as hit, RefSNP as refsnp, DataSource as ds
       WHERE  hit.internal_id = refsnp.internal_id
       AND    ds.id = refsnp.datasource
       AND    refsnp.id = ? 
-      AND    source.ds = ?');
+      AND    ds.datasource = ?');
 
   $sth->execute($refsnpid, $source);
 
-  $sth->rows || $self->throw("snp $refsnpid not in database or not mapped to contig");
+  $sth->rows || $self->throw("$source $refsnpid not in database or not mapped to contig");
 
   my $arr;
   my @variations = ();

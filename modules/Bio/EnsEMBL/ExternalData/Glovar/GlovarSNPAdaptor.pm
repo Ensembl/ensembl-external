@@ -13,7 +13,7 @@ $glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -driver => 'Oracle'
 );
 my $glovar_adaptor = $glodb->get_GlovarSNPAdaptor;
-$listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
+my $snps = $glovar_adaptor->fetch_all_by_clone_accession('AL100005', 'AL100005', 1, 10000);
 
 =head1 DESCRIPTION
 
@@ -38,10 +38,13 @@ use strict;
 use Bio::EnsEMBL::Variation::VariationFeature;
 use Bio::EnsEMBL::Variation::Variation;
 use Bio::EnsEMBL::Variation::TranscriptVariation;
+use Bio::EnsEMBL::Variation::PopulationGenotype;
+use Bio::EnsEMBL::Variation::Population;
 use Bio::EnsEMBL::Transcript;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);
 use Bio::EnsEMBL::Registry;
+use Bio::EnsEMBL::Utils::Exception qw(throw warning);
 
 use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
@@ -75,7 +78,7 @@ our %CONSEQUENCE_TYPE_MAP = (
   Arg[4]      : clone end coordinate
   Example    : @list = @{$glovar_adaptor->fetch_all_by_clone_accession('AL100005', 'AL100005', 1, 10000)};
   Description: Retrieves a list of SNPs on a clone in clone coordinates.
-  Returntype : Listref of Bio::EnsEMBL::SNP objects
+  Returntype : Listref of Bio::EnsEMBL::Variation::VariationFeature objects
   Exceptions : none
   Caller     : $self->fetch_all_by_Clone
 
@@ -201,7 +204,7 @@ sub fetch_all_by_clone_accession {
                     -NAME               => $row->{'ID_DEFAULT'},
                     -SOURCE             => 'Glovar',
             );
-            $self->_get_DBLinks($var);
+            $self->get_DBLinks($var);
             $varfeat->variation($var);
             
             $cons{$key} = $cons_rank;
@@ -220,7 +223,7 @@ sub fetch_all_by_clone_accession {
   Arg[1]      : String - Variation ID
   Example     : my $variation = $glovar_adaptor->fetch_SNP_by_id($id);
   Description : retrieve variations from Glovar by ID
-  Return type : Listref of Bio::EnsEMBL::SNP objects.
+  Return type : Listref of Bio::EnsEMBL::Variation::VariationFeature objects.
   Exceptions  : none
   Caller      : $self
 
@@ -393,12 +396,15 @@ sub fetch_SNP_by_id  {
     $var->three_prime_flanking_seq(substr($seq, 26));
     
     # consequences and  DBLinks
-    $self->_get_consequences($varfeat);
-    $self->_get_DBLinks($var);
+    $self->get_consequences($varfeat);
+    $self->get_DBLinks($var);
 
     # validation state
     $varfeat->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
     $var->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
+
+    # population genotypes
+    $self->get_population_genotypes($var);
 
     # add variation to variationFeature
     $varfeat->variation($var);
@@ -409,19 +415,18 @@ sub fetch_SNP_by_id  {
     return [$varfeat];
 }
 
-=head2 _get_DBLinks
+=head2 get_DBLinks
 
   Arg[1]      : Bio::EnsEMBL::SNP object
-  Example     : $glovar_adaptor->_get_DBLinks($snp, '104567');
-  Description : adds external database links to snp object; links are added
-                as Bio::Annotation::DBLink objects
+  Example     : $glovar_adaptor->get_DBLinks($snp, '104567');
+  Description : adds external database links to snp object
   Return type : none
   Exceptions  : none
   Caller      : $self
 
 =cut
 
-sub _get_DBLinks {
+sub get_DBLinks {
     my ($self, $var) = @_;
     my $q = qq(
         SELECT
@@ -448,18 +453,18 @@ sub _get_DBLinks {
     }
 }
 
-=head2 _get_consequences
+=head2 get_consequences
 
   Arg[1]      : Bio::EnsEMBL::Variation::Variation object
-  Example     : $glovar_adaptor->_get_consequences($var);
-  Description : adds consequences (position type, consequence) to snp object
+  Example     : $glovar_adaptor->get_consequences($var);
+  Description : Adds a TranscriptVariation object to the variation
   Return type : none
   Exceptions  : none
   Caller      : $self
 
 =cut
 
-sub _get_consequences {
+sub get_consequences {
     my ($self, $varfeat) = @_;
     my $q = qq(
         SELECT
@@ -504,6 +509,102 @@ sub _get_consequences {
             consequence_type    => $consequence_type,
         });
         $varfeat->add_TranscriptVariation($tvar);
+    }
+}
+
+=head2 get_population_genotypes
+
+  Arg[1]      : Bio::EnsEMBL::Variation::Variation object
+  Example     : $self->get_population_genotypes($var);
+  Description : Adds PopulationGenotype objects to a variation by fetching
+                population genotype info from the db
+  Return type : none
+  Exceptions  : thrown if no Bio::EnsEMBL::Variation::Variation is supplied
+  Caller      : internal
+
+=cut
+
+sub get_population_genotypes {
+    my ($self, $var) = @_;
+    unless ($var->isa('Bio::EnsEMBL::Variation::Variation')) {
+        throw("You must provide a Bio::EnsEMBL::Variation::Variation object.");
+    }
+    my $q = qq(
+        SELECT
+                sv.var_string       as allele,
+                af.frequency        as frequency,
+                p.description       as pop_name,
+                ao.sample_size      as sample_size
+        FROM
+                snp_variation sv,
+                allele_frequency af,
+                assay_outcome ao,
+                population p
+        WHERE   sv.id_snp = ?
+        AND     sv.id_var = af.id_var
+        AND     af.id_outcome = ao.id_outcome
+        AND     ao.id_pop = p.id_pop
+    );
+    my $sth;
+    eval {
+        $sth = $self->prepare($q);
+        $sth->execute($var->dbID);
+    }; 
+    if ($@){
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        return;
+    }
+
+    my $pop;
+    while (my $row = $sth->fetchrow_hashref) {
+        # collect genotypes by population
+        $pop->{$row->{'POP_NAME'}}->{'sample_size'} = $row->{'SAMPLE_SIZE'};
+        push @{ $pop->{$row->{'POP_NAME'}}->{'frequency'} }, $row->{'FREQUENCY'};
+        push @{ $pop->{$row->{'POP_NAME'}}->{'alleles'} }, $row->{'ALLELE'};
+    }
+
+    foreach my $p (keys %$pop) {
+        my $population = Bio::EnsEMBL::Variation::Population->new(
+            -dbID       => $p,
+            -NAME       => $p,
+            -SIZE       => $pop->{$p}->{'size'},
+        );
+
+        # add PopulationGenotype for each genotype
+        # genotype frequencies are calculated by combinatorics from allele
+        # frequencies, which is biologically not correct.
+        # ToDo: find the right data in the database
+        my ($allele1, $allele2) = @{ $pop->{$p}->{'alleles'} };
+        my ($freq1, $freq2) = @{ $pop->{$p}->{'frequency'} };
+
+        # homozygous genotypes
+        my $pop_genotype = Bio::EnsEMBL::Variation::PopulationGenotype->new(
+            -dbID       => $p,
+            -ALLELE1    => $allele1,
+            -ALLELE2    => $allele1,
+            -FREQUENCY  => $freq1**2,
+        );
+        $pop_genotype->population($population);
+        $var->add_PopulationGenotype($pop_genotype);
+        
+        my $pop_genotype = Bio::EnsEMBL::Variation::PopulationGenotype->new(
+            -dbID       => $p,
+            -ALLELE1    => $allele2,
+            -ALLELE2    => $allele2,
+            -FREQUENCY  => $freq2**2,
+        );
+        $pop_genotype->population($population);
+        $var->add_PopulationGenotype($pop_genotype);
+
+        # heterozygous genotype
+        my $pop_genotype = Bio::EnsEMBL::Variation::PopulationGenotype->new(
+            -dbID       => $p,
+            -ALLELE1    => $allele1,
+            -ALLELE2    => $allele2,
+            -FREQUENCY  => $freq1*$freq2*2,
+        );
+        $pop_genotype->population($population);
+        $var->add_PopulationGenotype($pop_genotype);
     }
 }
 

@@ -49,7 +49,7 @@ L<Bio::EnsEMBL::DB::ExternalFeatureFactoryI> for more details on how
 to use this class.
 
 The objects returned in a list are
-L<Bio::EnsEMBL::DBSQL::SeqFeature> objects which might possibly contain
+L<Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature> objects which might possibly contain
 L<Bio::Annotation::DBLink> objects to give unique IDs in various
 DAS databases.
 
@@ -108,19 +108,44 @@ sub new {
 sub get_Ensembl_SeqFeatures_contig{
     my($self) = shift;
     my ($id, $ver, $start, $stop) = @_;
+	my @features = ();
 
     if ( ! defined $id) {
 		$self->throw("Contig ID required as argument to get_Ensembl_SeqFeatures_contig!");
     }
 
-	my $dbh = $self->_db_handle();
-	my @features = ();
-	my $dsn = $dbh->dsn();
+	if ($start > $stop){
+		print STDERR "ERROR: Bad DAS request on contig $id -> st/ed: $start, $stop\n"; 
+		return(@features);
+	}
 
-	if(my $segment = $dbh->segment(-ref=>$id)){
-		foreach my $f ($segment->features()){
+	my $dbh = $self->_db_handle();
+	my $dsn = $dbh->dsn();
+	my $segment = undef;
+
+	eval {
+		$segment = $dbh->segment(-ref=>$id);
+	};
+	if ($@){
+		print STDERR "ERROR: Bad DAS request via DSN $dsn (ignoring)\n"; 
+		return(@features);
+	}
+
+	my @xml_features = ();
+	if($segment){
+		eval {
+			print STDERR "Getting segment features from $dsn...\n";
+			@xml_features = $segment->features();
+			print STDERR "Done with $dsn\n";
+		};
+		if ($@){
+			print STDERR "ERROR: Bad DAS segment request via DSN $dsn (ignoring)\n"; 
+			return(@features);
+		}
+		foreach my $f (@xml_features){
 			next unless($f);	# sometimes get null features here: DAS bug?
 
+			## Should do clipping here!
 			#print STDERR "Got DAS feature $f\n";
 			#print STDERR "Got DAS start ", $f->start(), "\n";
 			#print STDERR "Got DAS end ", $f->stop(), "\n";
@@ -128,25 +153,32 @@ sub get_Ensembl_SeqFeatures_contig{
 			#print STDERR "Got DAS id ", $f->id, "\n";
 			#print STDERR "Got DAS link ", $f->link, "\n";
 
-			########################################################
-			## Should do clipping here!
-			########################################################
-
 			my $type = $f->type();
-			#print STDERR "Got DAS $type \n";
+			my $s = $f->start();
+			my $e = $f->stop();
+			my $id = $f->id();
+			my $ori = $f->orientation();
+
+			#print STDERR "Got raw DAS $id at $s --> $e on strand $ori\n";
 			unless (ref($f) && $f->isa("Bio::Das::Segment::Feature")){
 				warn qq(Got a bad DAS feature "$f" from DSN: $dsn\n);
 				next;
 			}
 			my $out = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 			$out->das_name($type);
-			$out->das_id($f->id);
+			$out->das_id($id);
 			$out->das_dsn($dsn);
-			$out->start($f->start);
-			$out->end($f->stop);
+			$out->start($s);
+			$out->end($e);
 			$out->primary_tag('das');
 			$out->source_tag($dsn);
-			$out->strand($f->orientation);
+			if ($ori eq "+"){
+				$out->strand(1);
+			} elsif ($ori eq "-"){
+				$out->strand(-1);
+			} else {
+				$out->strand(0);	# help!
+			}
 			$out->phase($f->phase);   
 			push(@features,$out);
 		}

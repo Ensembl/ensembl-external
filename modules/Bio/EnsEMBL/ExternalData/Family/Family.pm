@@ -17,38 +17,36 @@ Family - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
-  use Bio::EnsEMBL::DBSQL::DBAdaptor;
+  use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
   use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
   use Bio::EnsEMBL::ExternalData::Family::Family;
 
-  $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
-                                             -user   => 'ensro',
-                                             -dbname => 'family102',
-                                             -host   => 'ecs1b',
-                                             -driver => 'mysql',
+  $famdb = Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor->new(
+					     -user   => 'myusername',
+                                             -dbname => 'myfamily_db',
+                                             -host   => 'myhost',
                                               );
 
-  my $fam_adtor =
-    Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
+  my $fam_adtor = $famdb->get_FamilyAdaptor;
 
-  my $fam = $fam_adtor->get_family_by_Ensembl_id('ENSP00000012304');
+  my $fam = $fam_adtor->fetch_by_stable_id('ENSP00000012304');
 
-  print $fam->description, join('; ',$fam->keywords), $fam->release, 
-    $fam->score, $fam->size;
+  print $fam->description, join('; ',$fam->keywords,$fam->release, 
+    $fam->annotation_confidence_score, $fam->size);
 
 
 =head1 DESCRIPTION
 
 This object describes protein families obtained from clustering
-SWISSPROT/TREMBL using Anton Enright's Tribe algorithm. The clustering
+SWISSPROT/TREMBL using Tribe MCL algorithm. The clustering
 neatly follows the SWISSPROT/TREMBL DE-lines, which are taken as the
 description of the whole family.
 
-The object is a bit bare, still; dbxrefs (i.e., family to family) are not
-implemented, and SWSISSPROT keywords aren't there yet either. 
+SWSISSPROT keywords aren't there yet either. 
 
-The family members are currently represented by DBLink's; more convenient
-navigation may be added at a later stage.
+The family members are currently represented by Bio::EnsEMBL::ExternalData::Family::Family
+objects
+
 
 
 =head1 CONTACT
@@ -60,7 +58,8 @@ navigation may be added at a later stage.
 
 =head1 APPENDIX
 
-The rest of the documentation details each of the object methods. Internal methods are usually preceded with a _
+The rest of the documentation details each of the object methods.
+Internal methods are usually preceded with a _
 
 =cut
 
@@ -84,7 +83,7 @@ use Bio::EnsEMBL::Root;
  Function:
  Example :
  Returns : a family (but without members; caller has to fill using
-           add_member or add_DBLink)
+           add_member)
  Args    :
          
 =cut
@@ -254,7 +253,7 @@ sub size {
   # even transcript. Then recode size as size_by_type or something like that.
   # size_by_type('peptide'),...
 
-  return scalar $self->each_member - $self->size_by_dbname('ENSEMBLGENE');
+  return scalar $self->get_all_members - $self->size_by_dbname('ENSEMBLGENE');
 }
 
 =head2 size_by_dbname
@@ -273,7 +272,7 @@ sub size_by_dbname {
   
   $self->throw("Should give a defined databasename as argument\n") unless (defined $dbname);
   
-  return scalar $self->each_member_of_db($dbname);
+  return scalar $self->get_members_by_dbname($dbname);
 }
 
 =head2 size_by_dbname_taxon
@@ -291,13 +290,13 @@ sub size_by_dbname_taxon {
   
   $self->throw("Should give defined databasename and taxon_id as arguments\n") unless (defined $dbname && defined $taxon_id);
 
-  return scalar $self->each_member_of_db_taxon($dbname,$taxon_id);
+  return scalar $self->get_members_by_dbname_taxon($dbname,$taxon_id);
 }
 
-=head2 each_member
+=head2 get_all_members
 
- Title   : each_member
- Usage   : foreach $member ($fam->each_member) {...
+ Title   : get_all_members
+ Usage   : foreach $member ($fam->get_all_members) {...
  Function: fetch all the members of the family
  Example :
  Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
@@ -305,57 +304,74 @@ sub size_by_dbname_taxon {
 
 =cut
 
-sub each_member {
+sub get_all_members {
   my ($self) = @_;
   
   unless (defined $self->{'_members'}) {
-    $self->adaptor->_get_each_member($self);
+    my $family_id = $self->dbID;
+    my $FamilyMemberAdaptor = $self->adaptor->db->get_FamilyMemberAdaptor();
+    my @members = $FamilyMemberAdaptor->fetch_by_family_id($family_id);
+    $self->{_members} = [];
+    $self->{_members_by_dbname} = {};
+    $self->{_members_by_dbname_taxon} = {};
+    foreach my $member (@members) {
+      $self->add_member($member);
+    }
   }
   return @{$self->{'_members'}};
 }
 
-=head2 each_member_of_db
+=head2 get_members_by_dbname
 
- Title   : each_member_of_db
- Usage   : $fam->each_member_of_db('SPTR')
+ Title   : get_members_by_dbname
+ Usage   : $fam->get_members_by_dbname('SPTR')
  Function: fetch all the members that belong to a particular database
  Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
  Args    : a databasename
 
 =cut
 
-sub each_member_of_db {
+sub get_members_by_dbname {
   my ($self, $dbname) = @_;
 
-  $self->throw("Should give a defined databasename as argument\n") unless (defined $dbname);
+  $self->throw("Should give defined databasename as arguments\n") unless (defined $dbname);
 
-  unless (defined $self->{_members_per_db}->{$dbname}) {
-    $self->{_members_per_db}->{$dbname} = [];
-    $self->adaptor->_get_each_member($self);
+  unless (defined $self->{_members_by_dbname}->{$dbname}) {
+    my $family_id = $self->dbID;
+    my $FamilyMemberAdaptor = $self->adaptor->db->get_FamilyMemberAdaptor();
+    my @members = $FamilyMemberAdaptor->fetch_by_family_dbname($family_id,$dbname);
+
+    $self->{_members_by_dbname}->{$dbname} = [];
+    push @{$self->{_members_by_dbname}->{$dbname}}, @members;
   }
-  return @{$self->{_members_per_db}->{$dbname}};
+  return @{$self->{_members_by_dbname}->{$dbname}};
+
 }
 
-=head2 each_member_of_db_taxon
+=head2 get_members_by_dbname_taxon
 
- Title   : each_member_of_db_taxon
- Usage   : $obj->each_member_of_db('ENSEMBLGENE',9606)
+ Title   : get_members_by_dbname_taxon
+ Usage   : $obj->get_members_by_dbname_taxon('ENSEMBLGENE',9606)
  Function: fetch all the members that belong to a particular database and taxon_id
  Returns : an array of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
  Args    : a databasename and taxon_id
 
 =cut
 
-sub each_member_of_db_taxon {
+sub get_members_by_dbname_taxon {
   my ($self, $dbname, $taxon_id) = @_;
 
   $self->throw("Should give defined databasename and taxon_id as arguments\n") unless (defined $dbname && defined $taxon_id);
 
-  unless (defined $self->{_members_per_db_taxon}->{$dbname."_".$taxon_id}) {
-    $self->{_members_per_db_taxon}->{$dbname."_".$taxon_id} = [];
-    $self->adaptor->_get_each_member($self);
+  unless (defined $self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}) {
+    my $family_id = $self->dbID;
+    my $FamilyMemberAdaptor = $self->adaptor->db->get_FamilyMemberAdaptor();
+    my @members = $FamilyMemberAdaptor->fetch_by_family_dbname_taxon($family_id,$dbname,$taxon_id);
+
+    $self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id} = [];
+    push @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}}, @members;
   }
-  return @{$self->{_members_per_db_taxon}->{$dbname."_".$taxon_id}};
+  return @{$self->{_members_by_dbname_taxon}->{$dbname."_".$taxon_id}};
 }
 
 =head2 add_member
@@ -376,8 +392,8 @@ sub add_member {
       $self->throw("You have to add a Bio::EnsEMBL::ExternalData::Family::FamilyMember object, not a $member");
    
     push @{$self->{_members}}, $member;
-    push @{$self->{_members_per_db}{$member->database}}, $member;
-    push @{$self->{_members_per_db_taxon}{$member->database."_".$member->taxon_id}}, $member;
+    push @{$self->{_members_by_dbname}{$member->database}}, $member;
+    push @{$self->{_members_by_dbname_taxon}{$member->database."_".$member->taxon_id}}, $member;
 }
 
 =head2 get_alignment_string
@@ -410,6 +426,37 @@ sub get_alignment_string {
 sub get_alignment {
     my ($self) = @_;
     $self->adaptor->_get_alignment($self);
+}
+
+###########################################
+#
+# Deprecated methods. Will be deleted soon.
+
+sub each_member {
+  my ($self) = @_;
+
+  $self->warn("Family->each_member is a deprecated method!
+Calling Family->get_all_members instead!");
+  
+  return $self->get_all_members;
+}
+
+sub each_member_of_db {
+  my ($self, $dbname) = @_;
+
+  $self->warn("Family->each_member_of_db is a deprecated method!
+Calling Family->get_members_by_dbname instead!");
+  
+  return $self->get_members_by_dbname($dbname);
+}
+
+sub each_member_of_db_taxon {
+  my ($self, $dbname, $taxon_id) = @_;
+
+  $self->warn("Family->each_member_of_db_taxon is a deprecated method!
+Calling Family->get_members_by_dbname_taxon instead!");
+  
+  return $self->get_members_by_dbname_taxon($dbname,$taxon_id);
 }
 
 1;

@@ -17,8 +17,8 @@ variation database providing external features for EnsEMBL
 
 =head1 SYNOPSIS
 
-e "Bio::EnsEMBL::Extern
-    $snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor->new( -dbname => 'snp'
+  use Bio::EnsEMBL::External::SNPSQL::DBAdaptor;
+  $snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor->new( -dbname => 'snp'
 							  -user => 'root'
 							  );
 
@@ -176,11 +176,6 @@ sub get_snp_info_by_refsnpid {
         "\$db_adaptor->get_SNPAdaptor()->fetch_by_refsnpid(\$id)");
 
   return $self->get_SNPAdaptor()->fetch_by_refsnpid(@args);
-}
-
-sub get_available_adaptors{
-  my %pairs = ("SNP", "Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor");
-  return (\%pairs);
 }
 
 1;

@@ -40,8 +40,6 @@ use vars '@ISA';
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor );
 
-
-
 =head2 fetch_attributes_only
 
   Arg [1]    : int refsnp_id
@@ -877,5 +875,4 @@ sub _objFromHashref {
   return $snp;
 }
   
-
 1;

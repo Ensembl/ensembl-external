@@ -525,6 +525,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $das_sf->das_score($f->score());
         $das_sf->das_orientation($f->orientation()||0);    
         $das_sf->das_phase($f->phase());
+	my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
         $das_sf->das_note($f->note());
 
 

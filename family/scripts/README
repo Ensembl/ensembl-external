@@ -211,7 +211,7 @@ gzip mcl_tribe_14_1
 11- Load in a family database
     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl mcl_tribe_14_1.gz index_tribe_14_1.gz ../srs/metazoa_14_1.desc > mcl_description_14_1 2> mcl_description_14_1.err &
+nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl -host ecs2d -dbuser ecs2dadmin -dbpass xxxx -dbname ensembl_family_14_1 -release 14_1 mcl_tribe_14_1.gz index_tribe_14_1.gz ../srs/metazoa_14_1.desc > mcl_description_14_1 2> mcl_description_14_1.err &
 
 12- Generates the family descriptions
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -229,7 +229,11 @@ nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl mcl_tribe_
 mcl_description_14_1.SPTREMBL-consensus  > families.out 2> families.err
 
 
-update the family description in ensembl_family_14_1 with the data in families.out
+update the family description in ensembl_family_14_1 with the data in families.out using 
+ensembl-external/family/scripts/LoadDescriptionInFamily.pl 
+
+LoadDescriptionInFamily.pl -host ecs2d -dbuser ecs2dadmin -dbpass xxxx -dbname ensembl_family_14_1 families.out
+
 
 13- Run clustalw over all the families
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -151,10 +151,39 @@ sub get_Ensembl_SeqFeatures_contig_list{
 	my $xml = "";
 
 	foreach my $u (@urls){
-		#print STDERR "URLs: ",$u, " \n"; 
 		my $url = $base . "/" . $u;
 		my $request = HTTP::Request->new(GET => "$url");
 		my $reply = $ua->request($request);
+
+		### Check to see if we got a valid HTTP response - if not
+		### send back a special seqfeature indicating an error condition that can
+		### be parsed by the drawing code
+
+		my $REPLY_CODE = $reply->code();
+		my $DAS_CODE = $reply->header('X-DAS-Status');
+		if ($REPLY_CODE > 399 || $DAS_CODE > 399){
+			my $CODE = "DAS";
+			if ($REPLY_CODE > 399) {
+				$CODE = "HTTP error code: $REPLY_CODE"; 
+			} else {
+				$CODE = "DAS error code:  $DAS_CODE"; 
+			}
+			my @features = ();
+			## create a fake contig to return as our "error feature"
+			## (but make sure it is on this VC!)
+			my $contig = $contig_listref->[0];
+			my $out = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+			$out->seqname($contig->id());
+			$out->das_id("$CODE");
+			$out->id("__ERROR__");
+			$out->das_dsn($dsn);
+			$out->primary_tag('das');
+			$out->source_tag($dsn);
+			push(@features,$out);
+			#print STDERR "************ DAS ERROR fetching from $dsn ****************\n";
+			#print STDERR "************ DAS ERROR CODE: $CODE        ****************\n";
+			return(@features);
+		}
 		$xml = $xml . "\n" . $reply->content();
 	}
 

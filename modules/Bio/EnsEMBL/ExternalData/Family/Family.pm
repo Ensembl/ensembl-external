@@ -74,6 +74,8 @@ use strict;
 # Object preamble - inheriets from Bio::EnsEMBL::Root
 use Bio::EnsEMBL::Root;
 use IO::File;
+use Bio::SimpleAlign;
+use Bio::LocatableSeq;
 
 @ISA = qw(Bio::EnsEMBL::Root);
 
@@ -294,13 +296,65 @@ sub size_by_dbname_taxon {
   return scalar @{$self->get_members_by_dbname_taxon($dbname,$taxon_id)};
 }
 
+
+
+
+=head2 get_SimpleAlign
+
+  Arg [1]    : get_SimpleAlign
+  Example    : none
+  Description: Returns a Bio::SimpleAlign feature constructed from the
+               multiple alignment of this Families members.
+               The SimpleAlign can then be printed out in many different
+               formats using the Bio::ALignIO module
+  Returntype : Bio::SimpleAlign
+  Exceptions : none
+  Caller     : general
+
+=cut
+
+sub get_SimpleAlign {
+  my $self = shift;
+  
+  my $sa = Bio::SimpleAlign->new();
+
+
+
+  #Hack to try to work with both bioperl 0.7 and 1.2:
+  #Check the symbol table to see if the method is called 'addSeq' or 'add_seq'
+  my $bio07 = 0;
+  if(!defined(&{ref($sa) . '::add_seq'})) {
+    $bio07 = 1;
+  }
+  
+  foreach my $member (@{$self->get_all_members}) {
+    my $seqstr = $member->alignment_string;
+    next if(!$seqstr);
+    my $seq = Bio::LocatableSeq->new(-SEQ    => $seqstr,
+                                     -START  => 1,
+                                     -END    => length($seqstr),
+                                     -ID     => $member->stable_id,
+                                     -STRAND => 0);
+    
+    if($bio07) {
+      $sa->addSeq($seq);
+    } else {
+      $sa->add_seq($seq);
+    }
+  }
+
+  return $sa;
+}
+
 =head2 get_all_members
 
  Title   : get_all_members
  Usage   : foreach $member ($fam->get_all_members) {...
  Function: fetch all the members of the family
  Example :
- Returns : an array reference of Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may be empty)
+ Returns : an array reference of 
+           Bio::EnsEMBL::ExternalData::Family::FamilyMember objects (which may
+           be empty)
  Args    : none
 
 =cut

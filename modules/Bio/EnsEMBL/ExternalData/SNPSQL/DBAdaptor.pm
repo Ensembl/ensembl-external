@@ -674,6 +674,70 @@ sub get_Ensembl_SeqFeatures_clone_web {
     return @variations;
 }
 
+=head2 get_all_snp_info
+
+ Title   : get_all_snp_info
+ Usage   :
+ Function:
+ Example :
+ Returns : a list of all snp info between start_refsnpid and end_refsnpid
+ Args    : start_refsnpid and end_refsnpid
+           
+=cut
+
+sub get_all_snp_info {
+
+   my ($self,$start_refnum,$end_refnum) = @_;
+   my @infos;
+   
+   my $query = qq{
+       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3, 
+	      h.acc, h.version, h.start, h.end, h.strand
+       FROM   RefSNP as r, Hit as h
+       WHERE  r.id = h.refsnpid ##and snptype = "notwithdrawn" 
+	      and r.id between $start_refnum and $end_refnum
+       };
+      
+   my $sth=$self->prepare($query);
+
+   my $res=$sth->execute();
+   while (my $info = $sth->fetchrow_arrayref()) {
+     push (@infos, [@$info]);
+   }
+   return @infos;
+}
+
+=head2 get_snp_info_by_refsnpid
+
+ Title   : get_snp_info_by_refsnpid
+ Usage   :
+ Function:
+ Example :
+ Returns : a list of snp info by given refsnpid
+ Args    : refsnpid
+           
+=cut
+
+sub get_snp_info_by_refsnpid {
+
+   my ($self,$refsnpid) = @_;
+   my @infos;
+   
+   my $query = qq{
+       SELECT t1.id, t1.snpclass, t1.snptype, t1.observed, t1.seq5, t1.seq3, 
+	      t2.acc, t2.version, t2.start, t2.end, t2.strand
+       FROM   RefSNP as t1, Hit as t2 
+       WHERE  t1.id = t2.refsnpid and t1.mapweight <=2 and t1.id = "$refsnpid"
+       };
+      
+   my $sth=$self->prepare($query);
+
+   my $res=$sth->execute();
+    while (my $info = $sth->fetchrow_arrayref()) {
+       push (@infos, [@$info]);
+   }   
+   return $infos[0];
+}
 
 
 =head2 prepare
@@ -720,6 +784,16 @@ sub _db_handle{
     }
     return $self->{'_db_handle'};
 
+}
+
+sub get_Hitcount {
+    my ($self) = @_;
+    my $sth=$self->prepare("select count(*) from RefSNP");
+    my $res=$sth->execute();
+
+    my ($count) = $sth->fetchrow_array();
+   
+    return $count;
 }
 
 =head2 _lock_tables

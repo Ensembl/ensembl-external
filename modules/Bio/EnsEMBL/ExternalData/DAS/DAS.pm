@@ -111,6 +111,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 	my $dbh 	   = $self->_db_handle();
 	my $dsn 	   = $self->_dsn();
 	my $url 	   = $self->_url();
+
     my $DAS_FEATURES = [];
     
     $self->throw("Must give get_Ensembl_SeqFeatures_DAS a chr, global start, global end and other essential stuff. You didn't.")
@@ -125,6 +126,7 @@ sub get_Ensembl_SeqFeatures_DAS {
         $global_start = 1           if $global_start<1;           # Convert start to 1 if non +ve
         $global_end   = $chr_length if $global_end  >$chr_length; # Convert end to chr_length if fallen off end
         unshift @seg_requests, "chr$chr_name:$global_start,$global_end"; 
+        unshift @seg_requests, "$chr_name:$global_start,$global_end";  # support both types of chr ID
     }
 
     my $callback =  sub {
@@ -168,12 +170,13 @@ sub get_Ensembl_SeqFeatures_DAS {
         push(@{$DAS_FEATURES}, $CURRENT_FEATURE);
     };
 
-    my $response = $dbh->features(
-                    -dsn    =>  "http://ensrv3.sanger.ac.uk:9999",
-                    -segment    =>  \@seg_requests,
-                    -callback   =>  $callback,
-                    #-category   =>  'all',
-                    );
+    # Test POST echo server to request debugging
+    #my $response = $dbh->features(
+    #                -dsn    =>  "http://ensrv3.sanger.ac.uk:9999",
+    #                -segment    =>  \@seg_requests,
+    #                -callback   =>  $callback,
+    #                #-category   =>  'all',
+    #                );
     
     my $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",

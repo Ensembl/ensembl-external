@@ -35,7 +35,7 @@ my $file=$ARGV[0];
 open (FILE,$file) || die "pepfile $file: $!";
 while (<FILE>) {
     chomp($_);
-    if (/^>(\S+)\s+(.*)/) {
+    if (/^>(\S+)\s*(.*)/) {
           $annotatehash{$1}=$2;
           my $seqid=$1;
           $_=$seqid;

@@ -3,7 +3,7 @@
 
 =head1 SYNOPSIS
 
-    $db = Bio::EnsEMBL::DBSQL::ExternalData::Family::DBAdaptor->new(
+    $db = Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor->new(
 								    -user   => 'myusername',
 								    -dbname => 'familydb',
 								    -host   => 'myhost',

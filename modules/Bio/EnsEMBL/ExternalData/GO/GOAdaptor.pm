@@ -20,27 +20,27 @@ HaplotypeAdaptor - DESCRIPTION of Object
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::GO::GOAdaptor;
 
-$hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
-                                             -user   => 'ensro',
-                                             -dbname => 'haplotype_5_28',
-                                             -host   => 'ecs3d',
-                                             -driver => 'mysql',
-                                            );
-my $go_adtor = Bio::EnsEMBL::ExternalData::GO::GOAdaptor->new($godb);
-my $term = $go_adtor->get_term({acc=>"GO:0005509"});
+  $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+                                    -user   => 'ensro',
+                                    -dbname => 'go',
+                                    -host   => 'ecs3d',
+                                    -driver => 'mysql',
+                                              );
+  my $go_adtor = Bio::EnsEMBL::ExternalData::GO::GOAdaptor->new($godb);
+  my $term = $go_adtor->get_term({acc=>"GO:0005509"});
     printf
       "GO term; name=%s GO ID=%s\n\n",
       $term->name(), $term->public_acc();
 
-### You can add the GOAdaptor as an 'external adaptor' to the 'main'
-### Ensembl database object, then use it as:
-$ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
-$ensdb->add_ExternalAdaptor('go', $go_adtor);
-# then later on, elsewhere: 
-$go_adtor = $ensdb->get_ExternalAdaptor('go');
-# also available:
-$ensdb->list_ExternalAdaptors();
-$ensdb->remove_ExternalAdaptor('go');
+  ### You can add the GOAdaptor as an 'external adaptor' to the 'main'
+  ### Ensembl database object, then use it as:
+  $ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
+  $ensdb->add_ExternalAdaptor('go', $go_adtor);
+  # then later on, elsewhere: 
+  $go_adtor = $ensdb->get_ExternalAdaptor('go');
+  # also available:
+  $ensdb->list_ExternalAdaptors();
+  $ensdb->remove_ExternalAdaptor('go');
 
 =head1 DESCRIPTION
 
@@ -53,7 +53,7 @@ For more info, see GO::AppHandle.pm
 
 =head1 CONTACT
 
- Tony Cox <Lavc@sanger.ac.uk>
+ Tony Cox <avc@sanger.ac.uk>
 
 =head1 APPENDIX
 
@@ -73,8 +73,9 @@ use DBI;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use GO::AppHandle;
+use Bio::EnsEMBL::Root;
 
-@ISA = qw(Bio::Root::RootI GO::AppHandle);
+@ISA = qw(Bio::EnsEMBL::Root GO::AppHandle);
 
 sub new {
     my($class,@args) = @_;

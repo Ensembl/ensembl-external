@@ -203,7 +203,7 @@ sub fetch_by_SNP_id {
 	}
     }
 
-    return @variations;
+    return \@variations;
 }
 
 
@@ -392,7 +392,7 @@ sub fetch_by_clone_accession_version {
 		push(@variations, $snp);
 	}
 
-	return @variations;
+	return \@variations;
 }
 
 
@@ -433,7 +433,7 @@ sub fetch_between_refsnp_ids {
       push (@var_objs, $var_obj);
     }
   }
-  return @var_objs;
+  return \@var_objs;
 }
  
   

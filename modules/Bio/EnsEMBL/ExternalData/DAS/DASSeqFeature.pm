@@ -61,14 +61,21 @@ use Bio::EnsEMBL::Root;
 
 # The <SEGMENT> tag
 
+sub das_shift {
+   my( $self, $shift) = @_;
+      $self->{'das_start'}  += $shift;
+      $self->{'_gsf_start'} += $shift;
+      $self->{'das_end'}    += $shift;
+      $self->{'_gsf_end'}   += $shift;
+}
 sub das_move {
-   my( $self, $offset, $strand) = @_;
-      $self->{'das_start'}  += $offset;
-      $self->{'_gsf_start'} += $offset;
-      $self->{'das_end'}    += $offset;
-      $self->{'_gsf_end'}   += $offset;
-      $self->{'das_strand'}  *= $strand;
-      $self->{'_gsf_strand'} *= $strand;
+   my( $self, $start, $end, $strand) = @_;
+      $self->{'das_start'}  = $start;
+      $self->{'_gsf_start'} = $start;
+      $self->{'das_end'}    = $end;
+      $self->{'_gsf_end'}   = $end;
+      $self->{'das_strand'}  = $strand;
+      $self->{'_gsf_strand'} = $strand;
 }
 
 sub das_segment_id {
@@ -309,6 +316,15 @@ sub das_link {
    }
     return $self->{'das_link'};
 }
+
+sub das_link_label {
+   my ($self,$arg) = @_;
+   if( $arg) {
+      $self->{'das_link_label'} = $arg;
+   }
+    return $self->{'das_link_label'};
+}
+
 sub das_link_href {
    my ($self,$arg) = @_;
    if( $arg) {

@@ -256,8 +256,8 @@ sub get_SeqFeature_by_id {
   SNP:
     while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
-	my $allele_pos = 0; 
-	my $strand = 1;
+	my $allele_pos = '0'; 
+	my $strand = '1';
 
 	my ($snpid,  $snpuid, $confidence, $confirmed, 
 	    $snp_withdrawn, $q_pos, $dbsnpid,
@@ -268,11 +268,14 @@ sub get_SeqFeature_by_id {
 	$self->throw("SNP withdrawn!") if $snp_withdrawn eq 'Y';
 
         #coordinate system change from clique -> clone
-        if ($q_start < $q_end) {
-           $allele_pos = $t_start + $q_start + $q_pos - 2;
-           $strand = -1;
-        } else {
-           $allele_pos = $t_start + $q_start - $q_pos;
+        if ($acc_version) {
+           if ($q_start < $q_end) {
+              $allele_pos = $t_start + $q_start + $q_pos - 2;
+              $strand = 1;
+           } else {
+              $allele_pos = $t_start + $q_start - $q_pos;
+              $strand = -1;
+ 	   }
 	}
 
 	# use the right vocabulary for the SNP status
@@ -342,10 +345,12 @@ sub get_SeqFeature_by_id {
 
 	#Variation
 
-        $snp->seqname($acc_version);
-	$snp->start($allele_pos);
-	$snp->end($allele_pos);
-	$snp->strand($strand);
+	if ($acc_version) {
+	        $snp->seqname($acc_version);
+		$snp->start($allele_pos);
+		$snp->end($allele_pos);
+		$snp->strand($strand);
+	}
 	$snp->source_tag('The SNP Consortium');
 	$snp->score($confidence);    
 	$snp->status($confirmed);
@@ -490,10 +495,10 @@ sub get_Ensembl_SeqFeatures_clone {
        #coordinate system change from clique -> clone
        if ($q_start < $q_end) {
 	   $allele_pos = $t_start + $q_start + $q_pos - 2;
-	   $strand = -1;
        }
        else {
 	   $allele_pos = $t_start + $q_start - $q_pos;
+	   $strand = -1;
        }
        
        #exclude SNPs outside the given $start-$end range

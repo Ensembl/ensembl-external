@@ -107,12 +107,12 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter;
 use strict;
 use vars qw(@ISA);
 use DBI;
-use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
+use Bio::EnsEMBL::DB::WebExternalFeatureFactoryI;
 use Bio::EnsEMBL::ExternalData::Variation;
 
 
 # Object preamble - inherits from Bio::Root:RootI
-@ISA = qw(Bio::Root::RootI  Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::WebExternalFeatureFactoryI);
 
 sub new {
     my($class,@args) = @_;
@@ -692,6 +692,160 @@ sub get_Ensembl_SeqFeatures_clone {
        #	    #$alleles,
        #	     $begin, $end,
        #	     "\n");
+   }
+
+   return @variations;
+}
+=head2 get_Ensembl_SeqFeatures_clone_web
+
+ Title   : get_Ensembl_SeqFeatures_clone_web
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+sub get_Ensembl_SeqFeatures_clone_web{
+   my ($self,$glob,@acc) = @_;
+
+   if (! defined $glob) {
+       $self->throw("Need to call get_Ensembl_SeqFeatures_clone_web with a globbing parameter and a list of clones");
+   }
+   if (scalar(@acc) == 0) {
+       $self->throw("Calling get_Ensembl_SeqFeatures_clone_web with empty list of clones!\n");
+   }
+
+   #lists of variations to be returned
+   my @variations;
+   my %hash;
+   my $string;
+   foreach my $a (@acc) {
+       $a =~ /(\S+)\.(\d+)/;
+       $string .= "'$1',";
+       $hash{$1}=$2;
+   }
+   $string =~ s/,$//;
+   my $inlist = "($string)";
+
+   # db query to return all variation information ; confidence attribute is gone!!
+   my $query = qq{
+
+       SELECT  p1.start, p1.end, p1.type, p1.strand,
+  	       p2.id, p2.snpclass,  p2.snptype,
+  	       p2.observed, p2.seq5, p2.seq3,p1.acc,p1.version,
+  	       #p2.het, p2.hetse,
+               p2.validated, p2.mapweight
+  	FROM   Hit as p1, RefSNP as p2
+  	WHERE  p1.acc in $inlist
+  	       AND p1.refsnpid = p2.id order by p1.start
+	       };
+
+   my $sth = $self->prepare($query);
+   my $res = $sth->execute();
+   my $snp;
+   my $cl;
+ SNP:
+   while( (my $arr = $sth->fetchrow_arrayref()) ) {
+       
+       my $allele_pos = 0;
+       
+       my ($begin, $end, $hittype, $strand,
+	   $snpuid, $class, $type,
+	   $alleles, $seq5, $seq3, $acc,$ver,#$het, $hetse,
+	   $confirmed, $mapweight,
+           $subsnpid, $handle 
+	   ) = @{$arr};
+
+       my $acc_version="$acc.$ver";
+
+       if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
+	   
+	   #ignore snp within glob area
+	   next SNP;
+	}
+
+       next SNP if $hash{$acc} != $ver;
+       #snp info not valid
+       next SNP if $type ne 'notwithdrawn';
+       
+       # use the right vocabulary for the SNP status
+       if ($confirmed ) {
+	   $confirmed = "proven";
+       } else {
+	   $confirmed = "suspected";
+       }
+	
+       # the allele separator should be  '|'
+       $alleles =~ s/\//\|/g;
+
+       #prune flank sequences to 25 nt
+       $seq5 = substr($seq5, -25, 25);
+       $seq3 = substr($seq3, 0, 25);
+
+       #
+       # prepare the output objects
+       #
+
+       #Variation
+       $snp = new Bio::EnsEMBL::ExternalData::Variation
+	   (-start => $begin,
+	    -end => $end,
+	    -strand => $strand,
+	    -original_strand => $strand,
+	    -source_tag => 'dbSNP',
+	    -score  => $mapweight,
+	    -status => $confirmed,
+	    -alleles => $alleles,
+            -subsnpid => $subsnpid,
+	    );
+       $snp->upStreamSeq($seq5);
+       $snp->dnStreamSeq($seq3);
+
+       
+       $cl=$acc_version;
+       # set for compatibility to Virtual Contigs
+       $snp->seqname($acc_version);
+
+       #DBLink
+       my $link = new Bio::Annotation::DBLink;
+       $link->database('dbSNP');
+       $link->primary_id($snpuid);
+       $link->optional_id($acc_version);
+
+       #add dbXref to Variation
+       $snp->add_DBLink($link);
+
+
+       #get alternative IDs
+       my $primid = $snp->id;
+       my $query2 = qq{
+	   
+	   SELECT p1.handle, p1.altid 
+	   FROM   SubSNP as p1
+           WHERE  p1.refsnpid = "$primid"
+
+       };
+
+       my $sth2 = $self->prepare($query2);
+       my $res2 = $sth2->execute();
+       while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
+	    
+	   my ($handle, $altid
+	       ) = @{$arr2};
+	   
+	   my $link = new Bio::Annotation::DBLink;
+	   $link->database($handle);
+	   $link->primary_id($altid);
+	   
+	   #add dbXref to Variation
+	   $snp->add_DBLink($link);
+       }
+
+       #add SNP to the list
+       push(@variations, $snp);
    }
 
    return @variations;

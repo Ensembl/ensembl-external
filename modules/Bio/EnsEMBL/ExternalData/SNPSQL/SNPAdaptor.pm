@@ -359,30 +359,30 @@ sub coordinate_systems {
   return ("CLONE");
 }
 
-=head2 fetch_between_refsnpids
+=head2 fetch_between_internal_ids
 
- Title   : fetch_between_refsnpids
+ Title   : fetch_between_internal_ids
  Usage   :
  Function:
  Example :
- Returns : a list of all snp info between start_refsnpid and end_refsnpid
- Args    : start_refsnpid and end_refsnpid
+ Returns : a list of all snp info between start_internal_id and end_internal_id
+ Args    : start_internal_id and end_internal_id
            
 =cut
 
-sub fetch_between_refsnp_ids {
-  my ($self,$start_intnum,$end_intnum) = @_;
+sub fetch_between_internal_ids {
+  my ($self,$start_internal_id,$end_internal_id) = @_;
   my ($query, @var_objs, %var_objs);
-  if (!$end_intnum) {
-    $end_intnum = $start_intnum;
+  if (!$end_internal_id) {
+    $end_internal_id = $start_internal_id;
   }
   
     $query = qq{
       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3, 
       h.acc, h.version, h.start, h.end, h.strand
 	FROM   RefSNP as r, Hit as h
-	  WHERE  r.id = h.refsnpid and snptype = "notwithdrawn" 
-	    and r.internal_id between $start_intnum and $end_intnum
+	  WHERE  r.internal_id = h.internal_id and snptype = "notwithdrawn" 
+	    and r.internal_id between $start_internal_id and $end_internal_id
 	  };
   
   my $sth=$self->prepare($query);
@@ -428,10 +428,10 @@ sub fetch_by_refsnpid {
       SELECT t1.id, t1.snpclass, t1.snptype, t1.observed, t1.seq5, t1.seq3, 
       t2.acc, t2.version, t2.start, t2.end, t2.strand
 	FROM   RefSNP as t1, Hit as t2 
-	  WHERE  t1.id = t2.refsnpid and t1.mapweight <=2 and t1.id = "$refsnpid"
+	  WHERE  t1.internal_id = t2.internal_id and t1.mapweight <=2 and t1.id = "$refsnpid"
 	};
   }
-  
+		       
   my $sth=$self->prepare($query);
   
   my $res=$sth->execute();
@@ -439,9 +439,6 @@ sub fetch_by_refsnpid {
     if ($info) {
       my $var_obj = $self->_objFromHashref($info);
       return $var_obj if $var_obj;
-      
-      #$var_objs{$var_obj->snpid}=$var_obj;
-      #return values %var_objs;
     }
   }
 }

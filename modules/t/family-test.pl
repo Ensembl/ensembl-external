@@ -1,7 +1,7 @@
 # $Id$
 ## Little test script for the family stuff
 
-my $m = "This test script goes with scripts/family-test.dat, which is loaded by
+my $m = "This test script goes with scripts/family-cob.dat, which is loaded by
 scripts/family-input.pl [ stuff (try -h) ] family-test.dat It does _not_
 adhere to the Geneva test ban conventions!!; will ratify this later :-P)
 ";
@@ -28,7 +28,18 @@ if (defined($fam)){
     warn "didn't find a family";
 }
 
-$fam = $db->get_Family_of_Ensembl_id('ENSP00000204233');
+# $fam = $db->get_Family_of_Ensembl_pep_id('ENSP00000204233');
+$fam = $db->get_Family_of_Ensembl_pep_id('COBP00000002080');
+if (defined($fam)){
+    print "ok\n";
+    _print_fam($fam);
+} else  {
+    print "not ok\n";
+    warn "didn't find a family";
+}
+
+# $fam = $db->get_Family_of_Ensembl_gene_id('ENSG00000042607');
+$fam = $db->get_Family_of_Ensembl_gene_id('COBG00000002080');
 if (defined($fam)){
     print "ok\n";
     _print_fam($fam);
@@ -47,7 +58,7 @@ if (defined($fam)){
     warn "didn't find a family";
 }
 
-my @fams = $db->get_Families_described_as('REDUCTASE');
+my @fams = $db->get_Families_described_as('reductase');
 foreach $fam (@fams) {
     if (defined($fam)){
         print "ok\n";
@@ -57,7 +68,7 @@ foreach $fam (@fams) {
         warn "didn't find a family";
     }
 }
-
+exit 0;
 
 @fams = $db->all_Families();
 foreach $fam (@fams) {
@@ -80,11 +91,18 @@ $\ = "\n"; $"=" : ";
   print "release: ", $fam->release;
   print "score: ", $fam->annotation_confidence_score ;
   print "size: ", $fam->size;
-  print "SP members:\n";
- _print_mem( $fam->each_member_of_db('SWISSPROT') );
 
-  print "All members:\n";
-  _print_mem($fam->each_DBLink() );
+  print "ENS PEP members:\n";
+  _print_mem( $fam->each_ens_pep_member() );
+
+  print "ENS GENE members:\n";
+  _print_mem( $fam->each_ens_gene_member() );
+
+  print "SP members:\n";
+  _print_mem( $fam->each_member_of_db('SWISSPROT') );
+
+#   print "All members:\n";
+#  _print_mem($fam->each_DBLink() );
   print "\n";
 }  
 

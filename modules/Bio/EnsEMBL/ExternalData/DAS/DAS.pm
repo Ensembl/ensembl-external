@@ -107,19 +107,25 @@ sub fetch_all_by_DBLink_Container {
    my $self       = shift;
    my $parent_obj = shift;
    my $id_type    = shift || 'swissprot';
+   $id_type = lc( $id_type );
+
    my $url        = $self->_url;
    my $dsn        = $self->_dsn;
+
    $parent_obj->can('get_all_DBLinks') ||
-     $self->throw( "Need a Bio::EnsEMBL obj (eg Transcript) that can ".
+     $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can ".
 		   "get_all_DBLinks" );
 
-   $id_type = lc( $id_type );
+   my $ensembl_id = '';
+   if( $parent_obj->can('stable_id') ){
+     $ensembl_id = $parent_obj->stable_id();
+   }
 
    my %ids = ();
    foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
        lc( $xref->dbname ) ne $id_type and next;
        my $id = $xref->display_id || $xref->primary_id;
-       $ids{ $id } ++;
+       $ids{ $id } = $xref;
    }
 
    my @das_features = ();
@@ -127,6 +133,7 @@ sub fetch_all_by_DBLink_Container {
        my $f = shift;
        $f->isa('Bio::Das::Feature') || return;
        my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
+       $dsf->id                ( $ensembl_id );
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
        $dsf->das_segment_id    ( $f->segment()->ref );
@@ -167,8 +174,13 @@ sub fetch_all_by_DBLink_Container {
        -segment=>[keys %ids], 
        -feature_callback=>$callback );
 
+   my @result_list = grep 
+     { 
+       $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment_id}, $_ ) == 1 
+     } @das_features;
+
    my $key = join( '_', $dsn, keys(%ids) );
-   return( $key, [@das_features] );
+   return( $key, [@result_list] );
 }
 
 
@@ -231,6 +243,34 @@ sub fetch_all_by_Slice {
     return ( ($self->{$KEY} = \@result_list), ($self->{"_stylesheet_".$KEY} = $style) );
 }
 
+#----------------------------------------------------------------------
+
+sub _map_DASSeqFeature_to_pep{
+  my $self = shift;
+  my $dblink = shift || die( "Need a DBLink object" ); 
+  my $dsf    = shift || die( "Need a DASSeqFeature object" );
+
+  # Check for 'global' feature - mapping not needed 
+  if( $dsf->das_feature_id eq $dsf->das_segment_id ){ return 1 }
+
+  # Check that dblink is map-able
+  if( ! $dblink->can( 'get_mapper' ) ){ return 0 }
+
+  # Map
+  my $mapper = $dblink->get_mapper;
+  #warn Data::Dumper::Dumper( $mapper );
+  my @coords = $mapper->map_coordinates( 'EXTERNAL_ID',
+					 $dsf->das_start      || 1, 
+					 $dsf->das_end        || 1,
+					 1, 'external' );
+  @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
+  @coords || return 0;
+  $dsf->start( $coords[0]->start );
+  $dsf->end( $coords[-1]->end );
+  return 1;
+}
+
+#----------------------------------------------------------------------
 
 sub _map_DASSeqFeature_to_chr {
     my ($self,$mapper,$contig_hash_ref,$offset,$length,$clone_adaptor,$sf) = @_;

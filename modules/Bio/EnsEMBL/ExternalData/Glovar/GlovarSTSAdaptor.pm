@@ -47,17 +47,14 @@ methods are usually preceded with a _
 =cut
 
 package Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor;
-use vars qw(@ISA);
+
 use strict;
-use Data::Dumper;
 
-use Bio::EnsEMBL::DBSQL::BaseAdaptor;
-use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
-use Bio::EnsEMBL::SeqFeature;
-use Bio::EnsEMBL::SNP;
-use Bio::Annotation::DBLink;
+use Bio::EnsEMBL::DnaDnaAlignFeature;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
+use Bio::EnsEMBL::Utils::Eprof('eprof_start','eprof_end','eprof_dump');
 
+use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
 
 
@@ -75,20 +72,20 @@ use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 =cut
 
 sub fetch_all_by_Slice {
-  my ($self, $slice, $is_light) = @_;
+    my ($self, $slice, $is_light) = @_;
 
-  unless($slice->assembly_name() && $slice->assembly_version()){
-      warn("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
-      return([]);
-  }
+    unless($slice->assembly_name() && $slice->assembly_version()){
+        warn("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
+        return([]);
+    }
 
-  my @f = ();
-  if($is_light){
-    push @f, @{$self->fetch_Light_STS_by_chr_start_end($slice)};
-  } else {
-    push @f, @{$self->fetch_STS_by_chr_start_end($slice)};
-  } 
-  return(\@f); 
+    my @f = ();
+    if($is_light){
+        push @f, @{$self->fetch_Light_STS_by_chr_start_end($slice)};
+    } else {
+        push @f, @{$self->fetch_STS_by_chr_start_end($slice)};
+    } 
+    return(\@f); 
 }
 
 
@@ -104,53 +101,54 @@ sub fetch_all_by_Slice {
 =cut
 
 sub fetch_Light_STS_by_chr_start_end  {
-
-    ## this is work in progress - not fully functional!!
-
-    my ($self,$slice) = @_; 
-
+    my ($self, $slice) = @_; 
     my $slice_chr    = $slice->chr_name();
     my $slice_start  = $slice->chr_start();
     my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();
     my $ass_name     = $slice->assembly_name();
     my $ass_version  = $slice->assembly_version();
 
-    ## optimize coordinate transformation!
-    my $q = qq(SELECT ms.id_sts,
-               (ms.start_coordinate + ssm.start_coordinate -1) as start_coord,
-               (ms.end_coordinate + ssm.start_coordinate -1) as end_coord,
-               ss.sts_name,
-               ss.id_sts as sts_id,
-               length(ss.sense_oligoprimer) as sen_len,
-               length(ss.antisense_oligoprimer) as anti_len,
-               ss.pass_status,
-               ms.is_revcomp as ori
-        FROM   chrom_seq cs,
-               database_dict dd,
-               seq_seq_map ssm,
-               mapped_sts ms,
-               sts_summary ss
-        WHERE  cs.database_seqname = '$slice_chr'
-        AND    dd.id_dict = cs.database_source
-        AND    dd.database_name = '$ass_name'
-        AND    dd.database_version = '$ass_version'
-        AND    ssm.id_chromseq = cs.id_chromseq
-        AND    ms.id_sequence = ssm.sub_sequence
-        AND    ss.id_sts = ms.id_sts
-        AND    (ms.start_coordinate + ssm.start_coordinate) 
-        BETWEEN 
-                '$slice_start' 
-        AND 
-                '$slice_end'
-        ORDER BY 
-                end_coord
-        
-        );
-    
-    my @vars = ();
-    my $sth;
+    &eprof_start('glovar_sts1');
 
+    ## NOTES:
+    ## 1. this query only gets ExoSeq STSs (sts_summary.assay_type = 8)
+    ## 2. the query is not speed-optimized, since it uses ms.end_coordinate in
+    ##    the WHERE clause which is not indexed (but there is no other easy
+    ##    way to get the data
+    my $q = qq(
+        SELECT 
+                ss.id_sts,
+                (ssm.contig_orientation * ms.start_coordinate)
+                    + ssm.start_coordinate - 1 as start_coord,
+                (ssm.contig_orientation * ms.end_coordinate)
+                    + ssm.start_coordinate - 1 as end_coord,
+                ss.sts_name,
+                length(ss.sense_oligoprimer) as sen_len,
+                length(ss.antisense_oligoprimer) as anti_len,
+                ss.pass_status,
+                ms.is_revcomp as ori,
+                ssm.contig_orientation as chr_strand,
+                ss.is_private as private
+        FROM    chrom_seq cs,
+                database_dict dd,
+                seq_seq_map ssm,
+                mapped_sts ms,
+                sts_summary ss
+        WHERE   cs.database_seqname = '$slice_chr'
+        AND     dd.database_name = '$ass_name'
+        AND     dd.database_version = '$ass_version'
+        AND     dd.id_dict = cs.database_source
+        AND     ssm.id_chromseq = cs.id_chromseq
+        AND     ms.id_sequence = ssm.sub_sequence
+        AND     ss.id_sts = ms.id_sts
+        AND     ss.assay_type = 8
+        AND     ms.start_coordinate < ('$slice_end' - ssm.start_coordinate + 1)
+        AND     ms.end_coordinate > ('$slice_start' - ssm.start_coordinate + 1)
+        ORDER BY 
+                start_coord
+    );
+    
+    my $sth;
     eval {
         $sth = $self->prepare($q);
         $sth->execute();
@@ -160,33 +158,56 @@ sub fetch_Light_STS_by_chr_start_end  {
         return([]);
     }
 
-    while (my $rowhash = $sth->fetchrow_hashref()) {
-        return([]) unless keys %{$rowhash};
-        #print STDERR Dumper($rowhash);
-        my $var = Bio::EnsEMBL::SNP->new_fast(
-            {
-                '_snpid'        =>    $rowhash->{'STS_NAME'},
-                'dbID'          =>    $rowhash->{'STS_NAME'},
-                '_gsf_start'    =>    $rowhash->{'START_COORD'} - $slice_start + 1,#convert assembly coords to slice coords
-                '_gsf_end'      =>    $rowhash->{'END_COORD'} - $slice_start + 1,
-                '_snp_strand'   =>    -1,
-                '_gsf_score'    =>    -1,
-                '_type'         =>    '_',
-                '_validated'    =>    $rowhash->{'VALIDATED'},
-                'alleles'       =>    $rowhash->{'ALLELES'},
-                '_source_tag'   =>    $rowhash->{'SOURCE'},
-            });
-
-        my $link = Bio::Annotation::DBLink->new();
-        $link->database("dbSNP");
-        $link->primary_id($rowhash->{'ID_REFSNP'});
-        $var->add_DBLink($link);
-        #print STDERR Dumper($var);
-        push (@vars,$var); 
-
+    my @features = ();
+    my %passmap = ( 1 => 'pass', 2 => 'fail' );
+    while (my $row = $sth->fetchrow_hashref()) {
+        return([]) unless keys %{$row};
+        next if $row->{'PRIVATE'};
+        my $sen_start = $row->{'START_COORD'};
+        my $sen_end = $row->{'START_COORD'} + $row->{'SEN_LEN'};
+        my $sen_len = $sen_end - $sen_start;
+        my $anti_start = $row->{'END_COORD'};
+        my $anti_end = $row->{'END_COORD'} + $row->{'ANTI_LEN'};
+        my $anti_len = $anti_end - $anti_start;
+        my $pass = $passmap{$row->{'PASS_STATUS'}} || "unknown";
+        push @features, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
+                '_analysis'      =>  'glovar_sts',
+                '_gsf_start'    =>    $sen_start - $slice_start + 1,
+                '_gsf_end'      =>    $sen_end - $slice_start + 1,
+                '_gsf_strand'   =>    $row->{'CHR_STRAND'},
+                '_seqname'       =>  $slice->name,
+                '_hstart'        =>  1,
+                '_hend'          =>  $sen_len,
+                '_hstrand'       =>  1, # fix
+                '_hseqname'      =>  $row->{'STS_NAME'},
+                '_gsf_seq'       =>  $slice,
+                '_cigar_string'  =>  $sen_len."M",
+                '_id'            =>  $row->{'ID_STS'},
+                '_database_id'   =>  $row->{'ID_STS'},
+                '_pass'          =>  $pass,
+        });
+        push @features, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
+                '_analysis'      =>  'glovar_sts',
+                '_gsf_start'    =>    $anti_start - $slice_start + 1,
+                '_gsf_end'      =>    $anti_end - $slice_start + 1,
+                '_gsf_strand'   =>    $row->{'CHR_STRAND'},
+                '_seqname'       =>  $slice->name,
+                '_hstart'        =>  1,
+                '_hend'          =>  $anti_len,
+                '_hstrand'       =>  1, # fix
+                '_hseqname'      =>  $row->{'STS_NAME'},
+                '_gsf_seq'       =>  $slice,
+                '_cigar_string'  =>  $anti_len."M",
+                '_id'            =>  $row->{'ID_STS'},
+                '_database_id'   =>  $row->{'ID_STS'},
+                '_pass'          =>  $pass,
+        });
     }
     
-    return(\@vars);
+    &eprof_end('glovar_sts1');
+    #&eprof_dump(\*STDERR);
+    
+    return(\@features);
 }                                       
 
 =head2 fetch_STS_by_chr_start_end

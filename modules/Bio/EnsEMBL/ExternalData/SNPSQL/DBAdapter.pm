@@ -734,7 +734,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
 
    my $query = qq{
 
-       SELECT  start, end, 
+       SELECT  start, end, strand,
   	       acc,version,refsnpid
 	FROM   Hit
   	WHERE  acc in $inlist
@@ -748,12 +748,12 @@ sub get_Ensembl_SeqFeatures_clone_web{
  SNP:
    while( (my $arr = $sth->fetchrow_arrayref()) ) {
        
-       my ($begin, $end,
+       my ($begin, $end,$strand,
 	   $acc,$ver,$snpuid 
 	   ) = @{$arr};
        
        my $acc_version="$acc.$ver";
-       
+
        if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
 	   
 	   #ignore snp within glob area
@@ -769,6 +769,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
        $snp = new Bio::EnsEMBL::ExternalData::Variation
 	   (-start => $begin,
 	    -end => $end,
+	    -strand => $strand,
 	    -source_tag => 'dbSNP',
 	    );
 
@@ -782,7 +783,6 @@ sub get_Ensembl_SeqFeatures_clone_web{
        $cl=$acc_version;
        # set for compatibility to Virtual Contigs
        $snp->seqname($acc_version);
-
        #add SNP to the list
        push(@variations, $snp);
    }

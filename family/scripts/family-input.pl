@@ -16,12 +16,16 @@
 # and families.pep a file as output by assemble-consensus.pl (and possibly
 # remapped using pep-id-remap.pl)
 #
-#### Note: we rely on ensemblid's matching /^[A-Z]{3}[PG]0\d{10}/ !
+#### Note: we rely on ensemblid's matching /^[A-Z]{3}[PG]0\d{10}/ ! (or
+#### something else ...)
 
 #
 #
 #  After this, run fam-stats.sh ecs1b ensro fam100 fam.log
 #
+
+warn "WARNING: hacks ahead ... relying on translation id's matching 'COBP'";
+# die "actually, don't use it for now ...";
 
 use DBI;
 use strict;
@@ -32,11 +36,16 @@ use Getopt::Std;
 
 my $max_desc_len = 255;                 # max length of description
 
-my $ensid_regexp = '^([A-Z]{3})([PG])(0\d{10})$'; # '; # fool emacs
+# my $ensid_regexp = '^([A-Z]{3})([PG])(0\d{10})$'; # '; # fool emacs
+my $ensid_regexp = '^(COB)([PG])(\d+)$';   # '; #fool emacs
+warn "\$ensid_regexp = $ensid_regexp !!! ";
+
 my $sp_dbname = 'SPTR';                 # name of SWISSPROT +TREMBL db
+
 my $add_ens_pep =1;                     # should ens_peptides be added?
 my $add_ens_gene =1;                    # should ens_genes be added?
-my $add_swissprot =1;                   # should swissprot entries be added?
+my $add_other =1;                       # should swissprot (or others)
+                                        # be added?
 
 # my @id_prefixes = qw(ENSP COBP PGBP);
 
@@ -93,16 +102,16 @@ sub setup_aux_dbs {
         $db->{'db'}=$dbhandle;
         
         # query that checks for existence
-        my $pep_q = "SELECT id from translation where id = ?";
+        my $pep_q = "SELECT translation_id from translation where translation_id = ?";
         $db->{'peptide_query'}= $pep_q; # for debugging
         $db->{'peptide_cursor'}=$dbhandle->prepare($pep_q);
         
         # query that finds gene of a peptide
         my $gene_q = 
-          "SELECT g.id 
+          "SELECT g.gene_id 
        FROM gene g, translation tl, transcript tc 
-       WHERE tl.id = ? 
-           AND tl.id = tc.translation and tc.gene = g.id";
+       WHERE tl.translation_id = ? 
+           AND tl.translation_id = tc.translation_id and tc.gene_id = g.gene_id";
         $db->{'gene_query'}= $gene_q;
         $db->{'gene_cursor'}= $dbhandle->prepare($gene_q);
         push(@dbs, $db);
@@ -199,17 +208,27 @@ sub db_connect {
 }                                       # db_connect
 
 # find peptide or gene back in a list of ensembl auxdb's
+# this function tried to be clever, but ended up being  muddled
 sub ens_find {
     my ($pepid, $cursor_key, @dbs) = @_;
     my @results;
 
     foreach my $db (@dbs) { 
         my $q = $db->{$cursor_key};     # 'peptide_cursor' or 'gene_cursor'
+        my $id_field=undef;
+        if ($cursor_key eq 'peptide_cursor') {
+            $id_field = 'translation_id';
+        } elsif ( $cursor_key eq 'gene_cursor') {
+            $id_field = 'gene_id';
+        } else {
+            die "bug: don't now id_field for cursor_key $cursor_key";
+        }
+
         $q->execute($pepid);
 
         my $rowhash;
         while ( $rowhash = $q->fetchrow_hashref) {
-            push @results, $rowhash->{id};
+            push @results, $rowhash->{$id_field};
         }
     }
     if (@results != 1) {
@@ -398,12 +417,15 @@ sub load_families {
         foreach my $mem (@mems) {
             my ($db, $type, $rest)  = ($mem =~ /$ensid_regexp/ );
             my $pep_dbname = "$db$type"; # e.g. ENSP
-            if ( $db && $type && $rest ) {                # we have a match
+            if ( $db && $type && $rest ) {                # we have an ENS pep
+
+                my $mem_internal_id = $mem; $mem_internal_id =~ s/^COBP//g;
+                
                 if ( defined $seen_pept{$mem} ) {
                     warn "### already seen peptide $mem; at line $seen_pept{$mem}; ignoring it now\n";
                     next MEM;
                 }
-                $seen_pept{$mem} = $.;
+                $seen_pept{$mem} = $.;  # where we (last) saw  it
                 
                 if ($add_ens_pep)  {
                     $addmem_q->execute("$internal_id", $pep_dbname, $mem);
@@ -411,15 +433,17 @@ sub load_families {
                 }
                 
                 if ($add_ens_gene) {
-                    # find the peptide back:
-                    if ( ens_find($mem, 'peptide_cursor', @ensdbs) eq '' ) {
-                        warn "couldn't find peptide $mem - database mismatch? Can't find peptide, continuing\n";
+                    # find the peptide back, to see if it's there
+                    if ( ens_find($mem_internal_id, 
+                                  'peptide_cursor', @ensdbs) eq '' ) {
+                        warn "couldn't find peptide $mem_internal_id - database mismatch? Can't find peptide, continuing\n";
                         next MEM;
                     }
 
-                    #find ENSGxxx, given ENSPxxx:
-                    my $gene_id = ens_find($mem, 'gene_cursor', @ensdbs);
-                    
+                    # it is there, now find ENSGxxx, given ENSPxxx:
+                    my $gene_id = ens_find($mem_internal_id, 'gene_cursor', @ensdbs);
+                    # This is an ensembl internal_id! 
+
                     if ( ! $gene_id ) {
                         warn "### did not find gene of $mem; continuing\n";
                         next MEM;
@@ -460,20 +484,28 @@ sub load_families {
                         # new one is better; delete old one
                         warn "### replacing previous $prev_fam, score: $prev_score; desc: $prev_desc\n";
                         warn "### with $fam_id, score: $score; desc: $desc\n\n";
-                        $del_q->execute($gene_id);
+                        $del_q->execute("COBG$gene_id");
                     }
                     $gene_fam{$gene_id} = $fam_id;
                     $seen_gene{$gene_id}=$mem;
                     
                     # if this fails, we have duplicate ensembl gene
                     $addmem_q->execute($internal_id, $gene_dbname, 
-                                       $gene_id);
+                                       "COBG$gene_id"); # hack! 
                     $mem_count++;
                 }                       # if add_ens_gene
             } else {                    # this must be a swissprot id
-                if ($add_swissprot) { 
-                    # if this fails, we have a duplicate swissprot peptide
-                    $addmem_q->execute($internal_id, $sp_dbname, $mem);
+                if ($add_other) { 
+                    my $dbname;         # which database name to use?
+                    if ( $mem =~ /^ENSMUSP/ ) { 
+                        $dbname = 'ENSMUSPEP';
+                    } elsif ( $mem =~ /^ENSMUSG/ ) { # (not there yet)
+                        $dbname = 'ENSMUSGENE';
+                    } else {
+                        $dbname = $sp_dbname;
+                    }
+                    $addmem_q->execute($internal_id, $dbname, $mem);
+                    # (if this failed, we have a duplicate swissprot peptide)
                     $mem_count++;
                 }
             }

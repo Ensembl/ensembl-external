@@ -14,7 +14,7 @@
 # Note: I am using 'old' and 'new' in perhaps confusing ways: I am mapping
 # id's from an old release to _preliminary_ (new) id's from a new release,
 # in order that the preliminary (new) id's can be replaced with old ones
-# if appropriate. 
+# if they match.
 #
 
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
@@ -57,8 +57,8 @@ my @newfams = $newdb->all_Families();
 my $new_n=@newfams;
 warn "got $new_n new families\n";
 
-@oldfams = sort by_decr_size @oldfams;  # start with biggest, for speed
-@newfams = sort by_decr_size @newfams;
+@oldfams = sort by_decr_size @oldfams;  # start with biggest, for speed only
+@newfams = sort by_decr_size @newfams;  # (and for the odd tie). 
 
 sub by_decr_size {
     return $b->size <=> $a->size;
@@ -98,7 +98,7 @@ while( my $old = shift @oldfams ) {
           (substr($bestfam->description, 0, 30), 
            $bestfam->annotation_confidence_score, 
            substr($old->description, 0, 30), $old->annotation_confidence_score);
-        print STDERR " ", $bestfam->id, "\t", $old->id, "($newd [$news] $oldd [$olds])\n";
+        print STDERR " ", $bestfam->id, "\t", $old->id, " $perc % ($newd [$news] $oldd [$olds])\n";
         # (this completes the line start at top of while loop)
     } else { 
         # these are the loosers, won't map them, sniff.

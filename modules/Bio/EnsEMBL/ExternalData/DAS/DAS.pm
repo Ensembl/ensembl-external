@@ -147,7 +147,6 @@ sub fetch_dsn_info {
 
   Arg [1]   : Bio::Ensembl object that implements get_all_DBLinks method
               (e.g. Bio::Ensembl::Protein, Bio::Ensembl::Gene)
-  Arg [2]   : DB name for DBLink (default - swissprot)
   Function  : Basic GeneDAS/ProteinDAS adaptor.
   Returntype: Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature (listref)
   Exceptions: 
@@ -159,9 +158,9 @@ sub fetch_dsn_info {
 sub fetch_all_by_DBLink_Container {
    my $self       = shift;
    my $parent_obj = shift;
-   my $id_type    = shift || 'swissprot';
-   $id_type = lc( $id_type );
+   my $id_method  = shift || 'display_id';
 
+   my $id_type    = $self->adaptor->type || 'swissprot';
    my $url        = $self->adaptor->url;
    my $dsn        = $self->adaptor->dsn;
 
@@ -169,16 +168,22 @@ sub fetch_all_by_DBLink_Container {
      $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can ".
 		   "get_all_DBLinks" );
 
+
    my $ensembl_id = '';
    if( $parent_obj->can('stable_id') ){
      $ensembl_id = $parent_obj->stable_id();
    }
 
    my %ids = ();
+   # If $id_type is suffixed with '_acc', use primary_id call 
+   # rather than display_id
+   my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
    foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
-       lc( $xref->dbname ) ne $id_type and next;
-       my $id = $xref->display_id || $xref->primary_id;
-       $ids{ $id } = $xref;
+     lc( $xref->dbname ) ne $id_type and next;
+
+     my $id = $xref->$id_method || next;
+     $ids{$id} = $xref;
+
    }
 
    my @das_features = ();
@@ -186,6 +191,7 @@ sub fetch_all_by_DBLink_Container {
        my $f = shift;
        $f->isa('Bio::Das::Feature') || return;
        my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
+       warn( "===>",$f->note );
        $dsf->id                ( $ensembl_id );
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
@@ -228,7 +234,7 @@ sub fetch_all_by_DBLink_Container {
        -feature_callback=>$callback );
 
    my @result_list = grep 
-     { 
+     {
        $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment_id}, $_ ) == 1 
      } @das_features;
 

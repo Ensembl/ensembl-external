@@ -248,7 +248,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
        $snp->dnStreamSeq($seq3);
        $snp->het($het);
        $snp->hetse($hetse); 
-
+print STDERR "-------$het-$hetse-------------\n";
        my $link = new Bio::Annotation::DBLink;
        $link->database('dbSNP');
        $link->primary_id($snpuid);
@@ -266,5 +266,5 @@ sub get_Ensembl_SeqFeatures_clone_web{
    return @variations;
 }
 
-
+1;
 

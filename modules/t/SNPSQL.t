@@ -43,7 +43,7 @@ print "ok 1\n";    # 1st test passes.
 #							-host=>'ensrv3.sanger.ac.uk'
 #
 #							);
-$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter->new( -dbname=>'snp', 
+$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter->new( -dbname=>'snp_chr22', 
 						       -user=>'root',
 						       -host=>'localhost'
 
@@ -99,7 +99,7 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
    #AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
     #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end); AL136106', '2'
     @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AC002472', 6 );
-    if ( scalar @variations == 1 ) { 
+    if ( scalar @variations > 1 ) { 
 	print "ok 5\n"; 
     }  else {
 	print "not ok 5\n";

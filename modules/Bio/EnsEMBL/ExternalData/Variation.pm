@@ -276,9 +276,9 @@ sub end_in_clone_coord {
  Function:
 
            Returns the status of the variation object.
-           Valid values are: 'suspected' and 'proven'
+           Valid values are: 'suspected' and 'proven [by XXX]'
 
- Example : $obj->status('proven');
+ Example : $obj->status('proven by submitter');
  Returns : scalar
  Args    : valid string (optional, for setting)
 
@@ -288,8 +288,11 @@ sub end_in_clone_coord {
 
 sub status {
    my ($obj,$value) = @_;
-   my %status = (suspected => 1,
-		 proven => 1
+   my %status = ('suspected' => 1,
+		 'proven by submitter' => 1,
+		 'proven by frequency' => 1,
+		 'proven by cluster' => 1,
+		 'proven' => 1
 		 );
 
    if( defined $value) {

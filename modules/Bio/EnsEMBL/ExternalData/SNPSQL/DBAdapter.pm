@@ -249,12 +249,11 @@ sub Xget_Ensembl_SeqFeatures_contig{
 	   next SNP if $end > $stop;
        }
 
-       # use the right vocabulary for the SNP status
-       if ($confirmed ) {
-	   $confirmed = "proven";
-       } else {
-	   $confirmed = "suspected";
-       }
+        # use the right vocabulary for the SNP status
+        if ($confirmed eq 'no-info') {
+	    $confirmed = "suspected";
+        }
+
 	
        # the allele separator should be  '|'
        $alleles =~ s/\//\|/g;
@@ -412,13 +411,10 @@ sub get_SeqFeature_by_id {
         #snp info not valid
 	$self->throw("SNP withdrawn. Reason: $type ") if $type ne 'notwithdrawn';
 
-	# use the 'standard' vocabulary for the SNP status
-	# use the right vocabulary for the SNP status
-	if ($confirmed ) {
-	    $confirmed = "proven";
-	} else {
+        # use the right vocabulary for the SNP status
+        if ($confirmed eq 'no-info') {
 	    $confirmed = "suspected";
-	}
+        }
 	
 	# the allele separator should be  '|'
 	$alleles =~ s/\//\|/g;
@@ -426,6 +422,10 @@ sub get_SeqFeature_by_id {
 	#prune flank sequences to 25 nt
 	$seq5 = substr($seq5, -25, 25);
 	$seq3 = substr($seq3, 0, 25);
+
+	#add Ns to length of 25;
+	$seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
+	$seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
 
 	#
 	# prepare the output objects
@@ -450,6 +450,8 @@ sub get_SeqFeature_by_id {
 	$snp->upStreamSeq($seq5);
 	$snp->dnStreamSeq($seq3);
 	$snp->score($mapweight); 
+        $snp->het($het);
+        $snp->hetse($hetse);
 
 	#add SNP to the list
 	push(@variations, $snp);
@@ -611,12 +613,10 @@ sub get_Ensembl_SeqFeatures_clone {
 	   next SNP if $end > $stop;
        }
 
-       # use the right vocabulary for the SNP status
-       if ($confirmed ) {
-	   $confirmed = "proven";
-       } else {
-	   $confirmed = "suspected";
-       }
+        # use the right vocabulary for the SNP status
+        if ($confirmed eq 'no-info') {
+	    $confirmed = "suspected";
+        }
 	
        # the allele separator should be  '|'
        $alleles =~ s/\//\|/g;

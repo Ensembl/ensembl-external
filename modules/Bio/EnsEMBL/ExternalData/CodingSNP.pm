@@ -216,7 +216,8 @@ sub snp2transcript{
    my $trans = $self->transcript;
 
    my $aa = $trans->translation; #Bio::Ensembl::Translation object
-      
+   use Data::Dumper;
+   print Dumper($aa);
    my $aaseq = $trans->translate;
    $seqDiff = $self->_calculate_gene_coordinates($snp, $trans, $aa, $aaseq);
    return $seqDiff;
@@ -247,7 +248,7 @@ sub _calculate_gene_coordinates {
     #first create the container object
     #
     $seqDiff = Bio::Variation::SeqDiff->new();
-    $seqDiff->moltype('dna');
+    $seqDiff->moltype('rna');
     $seqDiff->numbering('entry');
     #$seqDiff->dna_ori(); leave undefined, 
     #we do not want to burden the object with long contig sequnce
@@ -258,7 +259,7 @@ sub _calculate_gene_coordinates {
     $seqDiff->offset($aa->start -1);
     $seqDiff->cds_end($aa->end - $aa->start + 1);
     
-    #print STDERR "AA: ".$aa->start."\t".$aa->end."\n";
+    print STDERR "AA: ".$aa->start."\t".$aa->end."\n";
 
 
 ##################################

@@ -29,13 +29,13 @@ Bio::DBLinkContainerI - Abstract interface for any object wanting to use
 
 =head1 DESCRIPTION
 
-This interface is the functions one can expect for any object wanting
+This interface defines the functions one can expect for any object wanting
 to use database cross-references. This class doesn't actually provide
 any implemention, it just provides the definitions of what methods one
 can call.
 
-The database cross-references are implemented as
-L<Bio::Annotation::DBLink> objects in bioperl.
+The database cross-references are implemented as L<Bio::Annotation::DBLink>
+objects.
 
 =head1 FEEDBACK
 
@@ -113,7 +113,6 @@ sub _abstractDeath {
   confess "Abstract method '$caller' defined in interface 
           Bio::DBLinkContainerI not implemented by package $package";
 }
-
 
 
 1;

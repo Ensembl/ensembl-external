@@ -24,10 +24,18 @@ echo "conflicts resolved by choosing first assignment:" $notbetter
 echo "undecided conflicts (first assignment kept)" $[leaving - notbetter]
 
 echo
-echo "Histogram of family sizes"
 
-# for i in ...;
-echo "select '11 - 100', sum(occurrences) from cumulative_distrib where family_size between 11 and 100" |\
- mysql -u $user -h $host $dbname | grep -v 'sum'
+user=ensro
+dbname=family100
+host=ecs1b
 
+brackets="1-1 2-10 11-100 101-1000 1001-10000"
+
+echo "Histogram of family sizes:"
+for b in $brackets; do
+    echo -n "$b: "
+    echo $b | awk -F'-' \
+     '{print "select sum(occurrences) from cumulative_distrib where family_size between ",$1," and ",$2}' |\
+        mysql -u $user -h $host $dbname | grep -v 'sum'
+done
 

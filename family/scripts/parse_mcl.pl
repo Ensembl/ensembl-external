@@ -118,6 +118,11 @@ if ($desc_file =~ /\.gz/) {
 while (<DESC>) {
   if (/^(.*)\t(.*)\t(.*)\t(.*)$/) {
     my ($type,$seqid,$desc,$taxon) = ($1,$2,$3,$4);
+    if(!$taxon || !$seqid) {
+      warn("taxon or seqid not defined, skipping description:\n".
+           "\t[$type]\t[$seqid]\t\[$desc]\t[$taxon]\n");
+      next;
+    }
     $desc = "" unless (defined $desc);
     $seqinfo{$seqid}{'type'} = $type;
     $seqinfo{$seqid}{'description'} = $desc;
@@ -199,6 +204,24 @@ foreach my $cluster (@clusters) {
     last if ($member =~ /^\$$/);
     my $seqid = $member_index{$member};
 
+    unless($seqid) {
+      warn("no seqid defined for member [$member]\n");
+      next;
+    }
+
+    if(!$seqinfo{$seqid}) {
+      warn("no seqinfo defined for [$seqid]\n");
+      next;
+    }
+   
+    if(!$seqinfo{$seqid}{'taxon'}) {
+      warn("taxon is not defined for seqid [$seqid]");
+      if($seqinfo{$seqid}) {
+         map {warn( $_ . '=>' . $seqinfo{$seqid}{$_})} keys %{$seqinfo{$seqid}};
+      }
+      next;
+    }
+
     my $taxon_hash = parse_taxon($seqinfo{$seqid}{'taxon'});
     my @classification = split(':',$taxon_hash->{'taxon_classification'});
     my $taxon = new Bio::EnsEMBL::ExternalData::Family::Taxon->new(-classification=>\@classification);
@@ -241,6 +264,14 @@ foreach my $seqid (keys %seqinfo) {
   $Family->release($release_number);
   $Family->description("NULL");
   $Family->annotation_confidence_score(0);
+
+  if(!$seqinfo{$seqid}{'taxon'}) {
+    warn("taxon is not defined for seqid [$seqid]");
+    if($seqinfo{$seqid}) {
+       map {warn( $_ . '=>' . $seqinfo{$seqid}{$_})} keys %{$seqinfo{$seqid}};
+    }
+    next;
+  }
 
   my $taxon_hash = parse_taxon($seqinfo{$seqid}{'taxon'});
   my @classification = split(':',$taxon_hash->{'taxon_classification'});

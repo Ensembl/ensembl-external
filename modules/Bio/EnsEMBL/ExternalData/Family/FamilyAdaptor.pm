@@ -1,9 +1,11 @@
 # $Id$
+# 
 # BioPerl module for Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor
-#
+# (i.e. for Anton Enright's Tribe database).
+# 
 # Cared for by Philip Lijnzaad <lijnzaad@ebi.ac.uk>
 #
-# Copyright Philip Lijnzaad
+# Copyright EnsEMBL
 #
 # You may distribute this module under the same terms as perl itself
 
@@ -72,9 +74,7 @@ use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 
-
-@ISA = qw(Bio::Root::Object);
-# new() is inherited from Bio::Root::Object
+@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
 # _initialize is where the heavy stuff will happen when new is called
 
@@ -86,49 +86,6 @@ sub _initialize {
 # set stuff in self from @args
  return $make; # success - we hope!
 }
-
-=head2 new
-
- Title   : new
- Usage   : 
- Function: create a new adaptor for the Anton Enrights protein family database
- Example :
- Returns : 
- Args    : -dbname, -host, -user
-=cut
-
-sub new{
-   my ($class,@args) = @_;
-
-   my $self = bless {}, $class;
-    
-   my ($db,$host,$driver,$user,$password,$debug,$ensdb,$famdb) = 
-      $self->_rearrange([qw(DBNAME
-			    HOST
-			    DRIVER
-			    USER
-			    PASS
-			    DEBUG
-			    ENSDB
-			    FAMDB
-			    )],@args);
-
-    $driver || ( $driver = 'mysql' );
-    $host   || ( $host = 'localhost' );
-    $db     || ( $db = 'family' );
-    $user   || ( $user = 'ensembl' );   
-#    $ensdb  || $self->throw("I need ensembl db obj"); ? 
-#    $famdb  || $self->throw("I need family db obj");
-   
-#     $self->_ensdb($ensdb); 
-    $self->_famdb($famdb); 
-
-   my $dsn = "DBI:$driver:database=$db;host=$host";
-   my $dbh = DBI->connect("$dsn","$user",$password,{RaiseError => 1});
-   $dbh || $self->throw("Could not connect to database $db user $user using [$dsn] as a locator");
-   $self->_db_handle($dbh);
-   $self;
-}                                       # new
 
 =head2 get_Family_by_id
 
@@ -285,18 +242,17 @@ sub _known_databases {
   my $q = 
     "SELECT distinct db_name 
      FROM family_members";
-  $q = $self->_prepare($q);
-  $q->execute || $self->throw($q->errstr);
+  $q = $self->prepare($q);
+  $q->execute;
 
   my @res= ();
   while ( my ( @row ) = $q->fetchrow_array ) {
-    push @res, $row[0];
+        push @res, $row[0];
   }
   # $q->finish;
   $self->throw("didn't find any database") if (int(@res) == 0);
   return \@res;
 }
-
 
 # pull all fam's members from db
 sub _get_members {
@@ -308,7 +264,7 @@ sub _get_members {
        FROM family_members
        WHERE family = $iid";
 
-    $q = $self->_prepare($q);
+    $q = $self->prepare($q);
     $q->execute;
 
     my ($rowhash, $n, $mem, $db_name, $db_id);
@@ -356,14 +312,13 @@ sub _get_family {
 sub _get_families {
     my ($self, $q) = @_;
 
-    $q = $self->_prepare($q);
+    $q = $self->prepare($q);
     $q->execute;
 
     my $rowhash =undef;
     my $fam;
     my @fams;
     while ( $rowhash = $q->fetchrow_hashref) {
-        $self->throw("internal error: " . $self->errstr) if  $q->err;
         $fam = new Bio::EnsEMBL::ExternalData::Family::Family;
 
         $fam->internal_id($rowhash->{internal_id});
@@ -375,7 +330,6 @@ sub _get_families {
         $self->_get_members($fam);
         push(@fams, $fam);
     }
-    $self->throw("internal error: " . $self->errstr) if  $q->err;
     
     @fams;                              # maybe empty
 }                                       # _get_families
@@ -386,18 +340,6 @@ sub _db_handle
   if( defined $value) {$self->{'_db_handle'} = $value;}
   
   return $self->{'_db_handle'};
-}
-
-
-sub _prepare {
-    my ($self,$string) = @_;
-    
-    if( ! $string ) {$self->throw("Attempting to prepare an empty SQL query!");}
-    
-    my $sth = $self->_db_handle->prepare($string);
-    $self->throw("Error preparing statement $string:\n".$sth->errstr) 
-      if (! $sth  or $sth->err);
-    $sth;
 }
 
 sub DESTROY {

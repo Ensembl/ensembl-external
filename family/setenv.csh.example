@@ -1,4 +1,5 @@
 # $Id$
 # This file is to be source'd, before running stuff
 setenv FAMPATH `pwd` # this only works if you source this file while 'in' its directory
-setenv PATH "$FAMPATH:$PATH"
+setenv PATH "$FAMPATH/scripts:$FAMPATH/bin:$PATH"
+setenv PERLLIB "$FAMPATH/modules:$PERLLIB"

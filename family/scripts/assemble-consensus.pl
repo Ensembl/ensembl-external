@@ -30,20 +30,27 @@ my @useless_words =  # and misspellings, that is
       NOVEL PUTATIVE PREDICTED UNNAMED UNNMAED
       PEPTIDE KDA ORF CLONE MRNA CDNA FOR
       EST
-      RIKEN FIS KIAA\d+ \S+RIK IMAGE HSPC\d+  # db-specific ID's
-      .*\d\d\d+.*                       # anything that looks like an ID
+      RIKEN FIS KIAA\d+ \S+RIK IMAGE HSPC\d+
+      .*\d\d\d+.*
     );
 
 use vars qw($opt_h);
 my $opts = 'h';
 my $Usage=<<END_USAGE;
+
 Usage:
-  $0  [options ] file.annotated file.SWISSPROT-consensus file.SPTREMBL-consensus > families
-  Discarded annotations are written to $discarded_file.
+  $0  [options ] file.annotated \\
+      file.SWISSPROT-consensus file.SPTREMBL-consensus \\
+         > file.families 2> file.discarded
+
+  Discarded annotations are written to stderr
+
+  Note: the order of the consensus files matters: first SWISSPROT, then SPTREMBL
+
   Options:
    -h          : this message
 END_USAGE
-  #;
+                                        #; <=pacify emacs
   ;
 
 if (@ARGV!=3 
@@ -60,9 +67,8 @@ foreach my $w (@useless_words) {
     }
 }
 
-my $discarded_file="annotations.discarded";
-
-open (DISCARDED,">$discarded_file") || die "$discarded_file: $!";
+# my $discarded_file="annotations.discarded";
+# open (DISCARDED,">$discarded_file") || die "$discarded_file: $!";
 
 my %clusters;
 my $file=$ARGV[0];
@@ -131,7 +137,7 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     if ( $annotation eq ''
          || ($useless >= 1 && $total == 1)
          || $useless > ($total+1)/2 ) {
-        print DISCARDED "uselessness: $useless/$total: $cluster_id\t$annotation\t$score\n";
+        print STDERR "uselessness: $useless/$total: $cluster_id\t$annotation\t$score\n";
         $discarded++;
         $annotation="UNKNOWN"; 
         $score=0;
@@ -150,10 +156,10 @@ foreach my $cluster_id (sort numeric (keys(%clusters))) {
     printf "ENSF%011.0d\t%s\t%d\t:%s\n"
       , $cluster_id+1, $_, $score, join(":",@members);
 }                                       # foreach $cluster_id
-close(DISCARDED);
+# close(DISCARDED);
 
 print STDERR "FINAL TOTAL: $final_total\n";
-print STDERR "discarded: $discarded (see $discarded_file)\n";
+print STDERR "discarded: $discarded\n";
 
 sub numeric { $a <=> $b}
 

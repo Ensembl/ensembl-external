@@ -526,7 +526,7 @@ sub  fetch_all_by_Slice{
   
     $query = qq{
       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3,
-      ch.physmap-$chr_start+1 as start, ch.physmapstr-$chr_start+1 as end , ch.physmapstrand as strand
+      ch.physmap as start, ch.physmapstr as end , ch.physmapstrand as strand
 	FROM   RefSNP as r, ContigHit as ch
 	  WHERE  r.snptype = "notwithdrawn" 
 	    and r.internal_id = ch.internal_id and ch.physmap between $chr_start and $chr_end
@@ -538,6 +538,12 @@ sub  fetch_all_by_Slice{
   my $res=$sth->execute();
   while (my $info = $sth->fetchrow_hashref()) {
     if ($info) {
+      my $physmapstr = $info->{end};
+      my ($start, $end) = split /\^|\.\./, $physmapstr if ($info->{start} != $info->{end});
+      $info->{start} = $start-$chr_start+1 if ($start);
+      $info->{end} = $end-$chr_start+1 if ($end);
+      $info->{start} = $info->{start}-$chr_start+1 if (!$start);
+      $info->{end} = $info->{end}-$chr_start+1 if (!$end);
       my $var_obj = $self->_objFromHashref($info);
       #$var_objs{$var_obj->snpid}=$var_obj;
       push (@var_objs, $var_obj);

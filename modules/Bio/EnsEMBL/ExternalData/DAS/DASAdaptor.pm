@@ -101,6 +101,7 @@ sub new {
 	 $types,
 	 $on,
 	 $enable,
+	 $help, 
 	 $fasta ) = $self->_rearrange([qw( URL
 					   DSN
 					   ENSDB
@@ -127,6 +128,7 @@ sub new {
 					   TYPES
 					   ON
 					   ENABLE
+					   HELP
 					   FASTA)],@args);
 
 
@@ -229,6 +231,9 @@ sub url{
   if( @_ ){
     my $url = shift;
 
+# new DAS stuff adds 'das' to the URL     
+    $url =~ s/\/das\/das$/\/das/;
+
     my( $protocol, $domain );
     if( $url =~ m|(\w+)://(.+)| ){
       $protocol = $1;
@@ -244,6 +249,9 @@ sub url{
     $self->protocol( $protocol );
     $self->domain( $domain );
   }
+
+
+  
 
   return( join( '://',$self->protocol,$self->domain) );
 }
@@ -762,6 +770,26 @@ sub enable{
    return $self->{$key};
 }
 
+#----------------------------------------------------------------------
+
+=head2 dsn
+
+ Title   : help
+ Usage   : $obj->dsn("source")
+ Function: select a DAS data source
+ Returns : 
+ Args    : none
+
+
+=cut
+
+sub help {
+    my ($self,$value) = @_;
+    if( defined $value) {
+        $self->{'_help'} = $value;
+    }
+    return $self->{'_help'};
+}
 
 #----------------------------------------------------------------------
 

@@ -197,7 +197,7 @@ sub fetch_all_by_DBLink_Container {
      if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
      elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
      elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
-  } elsif ($id_type eq 'mgi_id') { 
+  } elsif ($id_type eq 'mgi') { 
        # MGI Accession IDs come from MarkerSymbol DB
        my $id_method = 'primary_id';
        foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
@@ -820,7 +820,7 @@ sub fetch_all_by_ID {
      if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
      elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
      elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
-   } elsif ($id_type eq 'mgi_id') { 
+   } elsif ($id_type eq 'mgi') { 
        # MGI Accession IDs come from MarkerSymbol DB
        my $id_method = 'primary_id';
        foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){

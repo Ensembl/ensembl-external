@@ -157,6 +157,12 @@ sub fetch_by_dbname_id {
     return $self->_get_family($q);
 }
 
+
+sub get_Family_of_Ensembl_gene_id {
+    my ($self, $eid) = @_;
+    $self->fetch_by_dbname_id('ENSEMBLGENE', $eid);
+}
+
 =head2 fetch_by_dbname_taxon_member
 
  Title   : fetch_of_dbname_taxon_member
@@ -463,3 +469,4 @@ sub _store_db_if_needed {
     return $q->{'mysql_insertid'};
   }
 }
+

@@ -15,6 +15,8 @@ my $dflt_d='seq';
 my $dflt_m='/usr/local/ensembl/data/blastmat';
 
 my $blast="/usr/local/ensembl/bin/blastall_2.0.11";
+my $parse = "$ENV{FAMPATH}/scripts/parse";
+
 my $e_value = 0.00001;
 
 my $workdir=`pwd`;
@@ -73,8 +75,6 @@ my ($sync_dir,$database)= &file_parts($arg);
 
 warn "``$sync_dir''is not an absolute filename;
 expecting something like /data/sync/stuff\n" if $sync_dir !~ /\//;
-
-my $parse = "$ENV{FAMPATH}/scripts/parse";
 
 my @chunks = `(ls $chunks_dir/*.[0-9]*;)`;
 

@@ -163,7 +163,7 @@ sub create_fasta_table  {
 
     my $sth = $self->prepare($SCHEMA);
     $sth->execute();
-    my $sth = $self->prepare($META);
+    $sth = $self->prepare($META);
     $sth->execute();
 	
 }
@@ -226,7 +226,7 @@ sub drop_fasta_table  {
 	};
 	warn ("Database error! $@\n") if $@;
 
-	my $sql =qq( DROP TABLE ${id}_meta );
+	$sql =qq( DROP TABLE ${id}_meta );
 
 	eval {
     	my $sth = $self->prepare($sql);

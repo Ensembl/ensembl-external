@@ -108,56 +108,43 @@ sub fetch_all_by_Slice {
     # IGNORE Caching for now
     #
 
+    my $chr_name   = $slice->chr_name();
+    my $chr_start  = $slice->chr_start();
+    my $chr_end    = $slice->chr_end();
+    my $KEY = "_slice_cache_${chr_name}_${chr_start}_${chr_end}";
+    return $self->{$KEY} if defined $self->{$KEY};
 
     my $chr_length = $slice->get_Chromosome()->length();
-    my $chr_start  = $slice->chr_start();
-    my $chr_name   = $slice->chr_name();
     my $offset     = 1 - $chr_start;
-    my $chr_end    = $slice->chr_end();
-    my $chr_strand = $slice->strand();
     my $length     = $chr_end + $offset;
     my $db         = $slice->adaptor->db;
-    my $clone_adaptor = $db->get_CloneAdaptor();
 
 
-    my %genomic_features;
-    
     my $mapper = $db->get_AssemblyMapperAdaptor()->fetch_by_type($slice->assembly_type());
-    
-    my @raw_contig_ids = $mapper->list_contig_ids( $chr_name,
-						   $chr_start,
-						   $chr_end );
-    
-    my @fpccontigs = (undef);
-    
-    my $rca = $db->get_RawContigAdaptor();
-    my $raw_Contig_Hash = $rca->fetch_filled_by_dbIDs( @raw_contig_ids );
-    
-    # provide mapping from contig names to internal ids
-    my %contig_name_hash =
-     map { ( $_->name(), $_) } values %$raw_Contig_Hash;
-    my @raw_contig_names = keys %contig_name_hash;
-    
-    # retrieve all embl clone accessions
-    my %clone_hash  =
-	map {( $_->clone->embl_id(), 1 ) } values %$raw_Contig_Hash;
-    my @clones = keys %clone_hash;
+    my @raw_contig_ids = $mapper->list_contig_ids( $chr_name, $chr_start, $chr_end );
+    my $raw_Contig_Hash = $db->get_RawContigAdaptor->fetch_filled_by_dbIDs( @raw_contig_ids );
+    my %clone_hash  = map {( $_->clone->embl_id(), 1 ) } values %$raw_Contig_Hash;
 
-    my @result_list;
+    # provide mapping from contig names to internal ids
+
+## The following are used by _map_DASSeqFeature_to_chr and get_Ensembl_SeqFeature_DAS
+    my %contig_name_hash = map { ( $_->name(), $_) } values %$raw_Contig_Hash;
+    my @fpc_contigs = ();
+    my @raw_contig_names = keys %contig_name_hash;
+    my @clones = keys %clone_hash; # retrieve all embl clone accessions
 
     # As DAS features come back from a Call Back system, we need to loop
     # again over the list of features, decide what to do with them and map
     # them all to chromosome coordinates
-    foreach my $sf ( @{ $self->get_Ensembl_SeqFeatures_DAS
-	($chr_name,$chr_start,$chr_end,
-	 \@fpccontigs, \@clones,\@raw_contig_names, $chr_length)} ) {
-
-	if( $self->_map_DASSeqFeature_to_chr($mapper,\%contig_name_hash,$offset,$length,$sf) == 1 ) {
-	    push(@result_list,$sf);
-	}
-    }
-
-    return \@result_list;
+    my @result_list = grep { $self->_map_DASSeqFeature_to_chr(
+	                     $mapper, \%contig_name_hash, 
+                             $offset,$length,$_ ) == 1
+    } @{ $self->get_Ensembl_SeqFeatures_DAS(
+         $chr_name, $chr_start, $chr_end,
+         \@fpc_contigs, \@clones, \@raw_contig_names,
+         $chr_length )
+    };
+    return $self->{$KEY} = \@result_list;
 }
 
 
@@ -166,7 +153,8 @@ sub _map_DASSeqFeature_to_chr {
 
     my $type;
     
-    if( $sf->seqname() =~ /(\w+\.\d+\.\d+.\d+|BAC.*_C)|CRA_.*/ ) {
+    ## Ensembl formac...BAC contigs...Celera Anopheles contigs...Rat contigs...Anopheles contigs...
+    if( $sf->seqname() =~ /(\w+\.\d+\.\d+.\d+|BAC.*_C)|CRA_.*|RNOR\d+|\w{4}\d+\_\d+/ ) {
 	$type = 'contig';
     } elsif( $sf->seqname() =~ /chr[\d+|X|Y]/i) {
 	$type = 'chromosome';
@@ -174,7 +162,6 @@ sub _map_DASSeqFeature_to_chr {
 	$type = 'chromosome';
     } elsif( $sf->seqname() =~ /ctg\d+|NT_\d+/i) {
 	$type = 'fpc';
-	
 	# This next Regex is for ensembl mouse denormalised contigs
     } elsif( $sf->seqname() =~ /^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|X)\.\d+\-\d+/i) {
 	$type = 'contig';
@@ -196,7 +183,6 @@ sub _map_DASSeqFeature_to_chr {
     } elsif( $sf->das_type_id() eq '__ERROR__') {
 #                    Always push errors even if they aren't wholly within the VC
 	$type = 'error';
-#                     push(@{$genomic_features{$dsn}}, $sf);
     } elsif( $sf->seqname() eq '') {
 	#suspicious
 	warn ("Got a DAS feature with an empty seqname! (discarding it)\n");

@@ -61,7 +61,7 @@ sub fetch_by_SNP_id {
   my ($self, $refsnpid, $source) = @_;
   
   unless($refsnpid && $source) {
-    $self->throw("Both refsnpid and source arguments are required");
+    die("Both refsnpid and source arguments are required");
   }
 
   my $sth = $self->prepare('

@@ -37,6 +37,7 @@ B<EnsTestDB.conf.example> for an example.
 =cut
 
 package EnsTestDB;
+BEGIN { warn "This file is depracated because it duplicates ensembl/modules/t/EnsTestDB.pm";}
 
 use strict;
 use Sys::Hostname 'hostname';
@@ -49,7 +50,7 @@ my $counter=0;
 
 {
     # This is a list of possible entries in the config
-    # file "EnsTestDB.conf"
+    # file "EnsTestDB.conf" or in the hash being used.
     my %known_field = map {$_, 1} qw(
         driver
         host
@@ -59,33 +60,43 @@ my $counter=0;
         schema_sql
         module
         );
-    
+
+    ### now takes an optional argument; when given, it can be a filename
+    ### or a hash, and will be used to get arguments from. If not, the
+    ### file 'EnsTestDB.conf' will be tried; it it exist; that is taken;
+    ### otherwise, some hopefully defaults will be used.
     sub new {
-        my( $pkg,@param ) = @_;
-	
+        my( $pkg, $arg ) = @_;
+
         $counter++;
-        # Get config from file, or use default values
-        my $self = do 'EnsTestDB.conf' || {
-            'driver'        => 'mysql',
-            'host'          => 'localhost',
-            'user'          => 'root',
-            'port'          => '3306',
-            'password'      => undef,
-            'schema_sql'    => ['../sql/table.sql'],
-            'module'        => 'Bio::EnsEMBL::DBSQL::Obj'
-            };
-	for (my $i=0;$i<@param;$i+=2) {
-	    $param[$i]=~s/^\-//;
-	}
-	my (%args) = @param;
-	foreach my $key ( keys %args ) {
-	    $self->{$key} = $args{$key};
-	}
+
+        my $self =undef;
+        if ($arg) {
+            if  (ref $arg eq 'HASH' ) {  # a hash ref
+                $self=$arg;
+            } elsif (-f $arg )  { # a file name
+                $self = do $arg;
+            } else {
+                confess "expected a hash ref or existing file";
+            }
+        } else {
+            $self = do 'EnsTestDB.conf'
+              || {
+                  'driver'        => 'mysql',
+                  'host'          => 'localhost',
+                  'user'          => 'root',
+                  'port'          => '3306',
+                  'password'      => undef,
+                  'schema_sql'    => ['../sql/table.sql'],
+                  'module'        => 'Bio::EnsEMBL::DBSQL::DBAdaptor'
+                 };
+        }
+
         foreach my $f (keys %$self) {
-            confess "Unknown config field: '$f'" unless ($known_field{$f});
+            confess "Unknown config field: '$f'" unless $known_field{$f};
         }
         bless $self, $pkg;
-	$self->create_db;
+        $self->create_db;
 	
         return $self;
     }
@@ -152,6 +163,17 @@ sub dbname {
     return $self->{'_dbname'};
 }
 
+# convenience method: by calling it, you get the name of the database,
+# which  you can cut-n-paste into another window for doing some mysql
+# stuff interactively
+sub pause {
+    my ($self) = @_;
+    my $db = $self->{'_dbname'};
+    print STDERR "pausing to inspect database; name of database is:  $db\n";
+    print STDERR "press ^D to continue\n";
+    `cat `;
+}
+
 sub module {
     my ($self, $value) = @_;
     $self->{'module'} = $value if ($value);
@@ -208,18 +230,18 @@ sub test_locator {
 sub ensembl_locator {
     my( $self) = @_;
     
-    my $module = ($self->module() || 'Bio::EnsEMBL::DBSQL::Obj');
+    my $module = ($self->module() || 'Bio::EnsEMBL::DBSQL::DBAdaptor');
     my $locator = '';
-    foreach my $meth (qw( host port dbname user password )) {
+    foreach my $meth (qw{ host port dbname user password }) {
         my $value = $self->$meth();
-	if( !defined $value ) { next; }	
+	next unless defined $value;
         $locator .= ';' if $locator;
-	if( $meth eq 'password' ) { $locator .= "pass=$value" }
-        else { $locator .= "$meth=$value"; }
+        $locator .= "$meth=$value";
     }
     return "$module/$locator";
 }
 
+# return the database handle:
 sub get_DBSQL_Obj {
     my( $self ) = @_;
     
@@ -245,7 +267,10 @@ sub do_sql_file {
         }
         close SQL;
         
-        foreach my $s (grep /\S/, split /;/, $sql) {
+	#Modified split statement, only semicolumns before end of line,
+	#so we can have them inside a string in the statement
+	#\s*\n, takes in account the case when there is space before the new line
+        foreach my $s (grep /\S/, split /;\s*\n/, $sql) {
             $self->validate_sql($s);
             $dbh->do($s);
             $i++

@@ -263,10 +263,12 @@ sub _get_members {
     my ($self, $fam) = @_;
 
     my $iid = $fam->internal_id;
+# warn hard coding here !!!
     my $q = 
       "SELECT db_name, db_id
        FROM family_members
-       WHERE family = $iid";
+       WHERE family = $iid
+         AND db_name <> 'ENSMUSPEP'";
 
     $q = $self->prepare($q);
     $q->execute;

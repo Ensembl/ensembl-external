@@ -179,7 +179,7 @@ sub get_Ensembl_SeqFeatures_DAS {
                     #-category   =>  'all',
     );
     
-    my $response = $dbh->features(
+    $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",
                     -segment    =>  \@seg_requests,
                     -callback   =>  $callback,

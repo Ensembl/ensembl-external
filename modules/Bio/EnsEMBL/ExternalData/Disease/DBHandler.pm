@@ -203,7 +203,6 @@ sub disease_name_by_ensembl_gene
     }
     my $hugo='(';
 
-    my $seen;
     foreach my $dblink ($gene->each_DBLink) {
     if ($dblink->database eq 'HUGO') {
         $seen=1;

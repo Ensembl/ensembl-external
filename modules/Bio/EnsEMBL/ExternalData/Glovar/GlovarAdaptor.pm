@@ -58,29 +58,6 @@ use Bio::Annotation::DBLink;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor);
 
-
-=head2 fetch_all_by_Slice
-
-  Arg [1]    : Bio::EnsEMBL::Slice $slice
-  Arg [2]    : (optional) boolean $is_lite
-               Flag indicating if 'light weight' variations should be obtained
-  Example    : svars = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
-  Description: Retrieves a list of variations on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::Variation objects
-  Exceptions : none
-  Caller     : external feature factory system
-
-=cut
-
-sub fetch_all_by_Slice {
-  my ($self, $slice, $is_light) = @_;
-
-  die("ERROR: fetch_all_by_Slice called on Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor!\n
-        It should be implemented by a derived class!\n");
-
-  return([]);
-}
-
 sub track_name {
     my ($self) = @_;    
     die("ERROR: track_name called on Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor!\n

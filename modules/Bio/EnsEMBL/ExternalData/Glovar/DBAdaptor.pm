@@ -1,7 +1,42 @@
-use strict;
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor - 
+Database adaptor for a Glovar database
+
+=head1 SYNOPSIS
+
+    $db_adaptor = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
+        -user   => 'root',
+        -pass   => 'secret',
+        -dbname => 'pog',
+        -host   => 'caldy',
+        -driver => 'Oracle'
+        );
+    $snp_adaptor = $db_adaptor->get_GlovarSNPAdaptor;
+    
+=head1 DESCRIPTION
+
+This object represents a Glovar database Once created you can retrieve object
+adaptors that allow you to create objects from data in the Glovar database.
+
+=head1 LICENCE
+
+This code is distributed under an Apache style licence:
+Please see http://www.ensembl.org/code_licence.html for details
+
+=head1 AUTHOR
+
+Tony Cox <avc@sanger.ac.uk>
+
+=head1 CONTACT
+
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
+
+=cut
 
 package Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
 
+use strict;
 use vars qw(@ISA);
 use strict;
 
@@ -88,70 +123,118 @@ sub new {
   $self->password( $password);
   $self->driver($driver);
 
-  #be very sneaky and actually return a container object which is outside
-  #of the circular reference loops and will perform cleanup when all references
-  #to the container are gone.
+    # be very sneaky and actually return a container object which is outside of
+    # the circular reference loops and will perform cleanup when all references
+    # to the container are gone.
   return new Bio::EnsEMBL::Container($self);
 }
 
 =head2 get_GlovarAdaptor
 
   Arg [1]    : none
-  Example    : $glovar_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+  Example    :
+        my $db_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+        my $glovar_adaptor = $db_adaptor->get_GlovarAdaptor;
   Description: Retrieves a glovar adaptor
-  Returntype : none
+  Returntype : Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor
   Exceptions : none
-  Caller     : EnsWeb, general
+  Caller     : EnsEBML::Web::DB::Core, EnsEBML::Web::DB::DBConnection, general
 
 =cut
 
 sub get_GlovarAdaptor {
   my $self = shift;
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor');
-
-}
-sub get_GlovarSNPAdaptor {
-  my $self = shift;
-  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor');
-
-}
-sub get_GlovarSTSAdaptor {
-  my $self = shift;
-  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor');
-
-}
-sub get_GlovarTraceAdaptor {
-  my $self = shift;
-  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor');
-
 }
 
-=head2 dnadb
+=head2 get_GlovarSNPAdaptor
 
-  Args        : Bio::EnsEMBL::DBSQL::DBAdaptor
-  Example     : my $dnadb = $db->dnadb;
-  Description : getter/setter for the database adaptor where the dna lives
-                Useful if you only want to keep one copy of the dna on disk but
-                have other databases with genes and features in
-  Return type : Bio::EnsEMBL::DBSQL::DBAdaptor
+  Arg [1]    : none
+  Example    :
+        my $db_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+        my $snp_adaptor = $db_adaptor->get_GlovarSNPAdaptor;
+  Description: Retrieves a glovar SNP adaptor
+  Returntype : Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor
+  Exceptions : none
+  Caller     : EnsEBML::Web::DB::Core, EnsEBML::Web::DB::DBConnection, general
 
 =cut
 
-sub dnadb {
-  my ($self,$arg) = @_;
+sub get_GlovarSNPAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor');
+}
 
-  if ($arg) {
-    if(ref $arg && (($arg->isa('Bio::EnsEMBL::Container') && 
-		     $arg->_obj == $self) || $arg == $self)) {
-      #we don't want to store a circular reference to our self
-      return;
-    }
+=head2 get_GlovarBaseCompAdaptor
 
-    #if this a container, we don't care, hang onto it
-    $self->{'dnadb'} = $arg;
-  }
+  Arg [1]    : none
+  Example    :
+        my $db_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+        my $basecomp_adaptor = $db_adaptor->get_GlovarBaseCompAdaptor;
+  Description: Retrieves a glovar base composition adaptor
+  Returntype : Bio::EnsEMBL::ExternalData::Glovar::GlovarBaseCompAdaptor
+  Exceptions : none
+  Caller     : EnsEBML::Web::DB::Core, EnsEBML::Web::DB::DBConnection, general
 
-  return $self->{'dnadb'} || $self;
+=cut
+
+sub get_GlovarBaseCompAdaptor {
+    my $self = shift;
+    return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarBaseCompAdaptor');
+}
+
+=head2 get_GlovarSTSAdaptor
+
+  Arg [1]    : none
+  Example    :
+        my $db_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+        my $sts_adaptor = $db_adaptor->get_GlovarSTSAdaptor;
+  Description: Retrieves a glovar STS adaptor
+  Returntype : Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor
+  Exceptions : none
+  Caller     : EnsEBML::Web::DB::Core, EnsEBML::Web::DB::DBConnection, general
+
+=cut
+
+sub get_GlovarSTSAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor');
+}
+
+=head2 get_GlovarTraceAdaptor
+
+  Arg [1]    : none
+  Example    :
+        my $db_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+        my $trace_adaptor = $db_adaptor->get_GlovarTraceAdaptor;
+  Description: Retrieves a glovar trace adaptor
+  Returntype : Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor
+  Exceptions : none
+  Caller     : EnsEBML::Web::DB::Core, EnsEBML::Web::DB::DBConnection, general
+
+=cut
+
+sub get_GlovarTraceAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarTraceAdaptor');
+}
+
+=head2 get_GlovarHaplotypeAdaptor
+
+  Arg [1]    : none
+  Example    :
+        my $db_adaptor = new Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor;
+        my $haplotype_adaptor = $db_adaptor->get_GlovarHaplotypeAdaptor;
+  Description: Retrieves a glovar haplotype adaptor
+  Returntype : Bio::EnsEMBL::ExternalData::Glovar::GlovarHaplotypeAdaptor
+  Exceptions : none
+  Caller     : EnsEBML::Web::DB::Core, EnsEBML::Web::DB::DBConnection, general
+
+=cut
+
+sub get_GlovarHaplotypeAdaptor {
+    my $self = shift;
+    return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarHaplotypeAdaptor');
 }
 
 1;

@@ -829,8 +829,11 @@ sub _link2ensembl
     foreach my $dis (@diseases){ 
 	foreach my $location($dis->each_Location){ 
 
+	    eval {
 	    my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
 	    $location->ensembl_gene($ensembl_gene);
+	};
+	    if ($@){print STDERR "problems with ensembl genes\n$@\n";}
 	}
     }
     

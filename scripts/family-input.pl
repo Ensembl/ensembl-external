@@ -84,10 +84,11 @@ exit 0;
 # just creates empty database, returns nothing.
 sub create_db {
     my ($conn) = @_;
+    $conn = "$conn;" unless $conn =~ /;$/;
 
-    my ($database) = ($conn =~ /database=([^;]+);/);
+    my ($database) = ($conn =~ /database=([^;]+);/g);
     # connect to database 'mysql' instead, since $database doesn't exist yet
-    $conn =~ s/database=[^;]+;/database=mysql;/;
+    $conn =~ s/database=[^;]+;/database=mysql;/g;
 
     $conn = db_connect($conn);
     
@@ -330,6 +331,9 @@ sub load_families {
 #    $famdb->{RaiseError}=0; doesn't work !?!$?!@~@
 #    $ensdb->{RaiseError}=0;
 
+    my %seen_pept = undef;              # for ignoring (rare) duplicates
+                                        # in the original clustering
+    
     while(<>) {
         next if /^#/;
         chomp;
@@ -357,12 +361,17 @@ sub load_families {
         # my $fam_id = format_fam_id $num; now in file.
         
         $fam_q->execute($internal_id, $fam_id, $desc, $release, $score);
-
         my %seen_gene = undef;          # just for filtering transcripts
 
       MEM:
         foreach my $mem (@mems) {
-            if ( grep $mem =~ /^$_/,@id_prefixes ) {
+            if ( grep $mem =~ /^$_/,@id_prefixes ) { # ie when not empty
+
+                if ( defined $seen_pept{$mem} ) {
+                    warn "### already seen peptide $mem; at line $seen_pept{$mem}; ignoring it now\n";
+                    next MEM;
+                }
+                $seen_pept{$mem} = $.;
                 
                 if ($add_ens_pep)  {
                     $mem_q->execute("$internal_id", $ens_pep_dbname, $mem);

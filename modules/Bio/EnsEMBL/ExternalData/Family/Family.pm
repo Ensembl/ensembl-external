@@ -89,6 +89,8 @@ use Bio::Annotation::DBLink;
          
 =cut
 
+#';
+
 sub new {
   my($class,@args) = @_;
   
@@ -99,15 +101,15 @@ sub new {
       #do this explicitly.
       my ($dbid, $stable_id,$descr,$release, $score, $memb,$totalhash,$adap); 
       $self->_rearrange([qw(
-			    DBID
-			    STABLE_ID
-			    DESCRIPTION
-			    RELEASE
-			    SCORE
-			    MEMBERS
-			    TOTALHASH
-			    ADAPTOR
-			    )], @args);
+        		    DBID
+        		    STABLE_ID
+        		    DESCRIPTION
+        		    RELEASE
+        		    SCORE
+        		    MEMBERS
+        		    TOTALHASH
+        		    ADAPTOR
+        		    )], @args);
       
       $dbid && $self->dbID($dbid);
       $stable_id || $self->throw("Must have a stable_id");
@@ -140,7 +142,12 @@ sub new {
 =cut
 
 sub adaptor {
-  my ($self)= shift;
+  my ($self,$value)= @_;
+  
+  if (defined $value) {
+    $self->{'adaptor'} = $value;
+  }
+
   return $self->{'adaptor'};
 }
 
@@ -253,17 +260,15 @@ sub annotation_confidence_score {
 
 =cut
 
-sub _totalhash{
-   my $self= shift;
+sub _totalhash {
+   my ($self, $value) = @_;
 
-   if( @_ ) {
-       my $value = shift;
+   if (defined $value) {
        $self->{'_totalhash'} = $value;
    }
+
    return $self->{'_totalhash'};
 }
-
-
 
 =head2 size
 
@@ -277,15 +282,55 @@ sub _totalhash{
 =cut
 
 sub size {
-    my ($self, $dbname) = @_; 
+  my ($self) = @_; 
     
-    my %tot = %{$self->_totalhash()};
-    if  ( defined $dbname) { 
-	return $tot{$dbname};
-    }
-    else {
-	return $tot{'all'};
-    }
+  my %tot = %{$self->_totalhash()};
+
+  return $tot{'all_peptides_in_the_family'};
+}
+
+=head2 size_by_dbname
+
+ Title   : size_by_dbname
+ Usage   : $fam->size_by_dbname
+ Function: returns the number of members of the family
+ Returns : an int
+ Args : optionally, a databasename; if given, only members belonging to
+        that database are counted, otherwise, all are given.
+
+=cut
+
+sub size_by_dbname {
+  my ($self, $dbname) = @_; 
+    
+  my %tot = %{$self->_totalhash()};
+  if (defined $dbname) { 
+     return $tot{$dbname};
+  } else {
+     $self->throw("Should give a database as argument\n.");
+  }
+}
+
+=head2 size_by_dbname_taxon
+
+ Title   : size
+ Usage   : $fam->size
+ Function: returns the number of members of the family
+ Returns : an int
+ Args : optionally, a databasename; if given, only members belonging to
+        that database are counted, otherwise, all are given.
+
+=cut
+
+sub size_by_dbname_taxon_id {
+  my ($self, $dbname, $taxon_id) = @_; 
+    
+  my %tot = %{$self->_totalhash()};
+  if (defined $dbname && defined $taxon_id) { 
+    return $tot{$dbname."_".$taxon_id};
+  } else {
+     $self->throw("Should give a database and a taxon_id as arguments\n.");
+  }
 }
 
 =head2 each_member_of_db
@@ -299,7 +344,7 @@ sub size {
 =cut
 
 sub each_member_of_db {
-    my ($self, $db) = @_;
+  my ($self, $db) = @_;
     
     # might be slowish; do we need to change this, e.g., go to database? 
     
@@ -347,7 +392,10 @@ sub _each_member_of_db {
 sub each_DBLink{
     my ($self) = @_;
     
-    if ( defined $self->{'_members'} ) { return @{$self->{'_members'}}; }
+    if (defined $self->{'_members'}) {
+      return @{$self->{'_members'}};
+    }
+    
     return ();
 }
 

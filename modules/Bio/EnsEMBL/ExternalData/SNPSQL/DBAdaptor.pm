@@ -115,7 +115,7 @@ use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 
 # Object preamble - inherits from Bio::Root:RootI
-@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::WebExternalFeatureFactoryI);
 
 sub new {
     my($class,@args) = @_;
@@ -522,6 +522,158 @@ sub get_Ensembl_SeqFeatures_clone {
 
 	return @variations;
 }
+
+
+
+=head2 get_Ensembl_SeqFeatures_clone_web
+
+ Title   : get_Ensembl_SeqFeatures_clone_web
+ Usage   :
+ Function:
+ Example :
+ Returns : a list of lightweight Variation features.
+ Args    : scalar in nucleotides (should default to 50)
+           array of accession.version numbers
+
+=cut
+
+sub get_Ensembl_SeqFeatures_clone_web {
+    my ($self,$glob,@acc) = @_;
+    
+    if (! defined $glob) {
+        $self->throw("Need to call get_Ensembl_SeqFeatures_clone_web with a globbing parameter and a list of clones");
+    }
+    if (scalar(@acc) == 0) {
+        $self->throw("Calling get_Ensembl_SeqFeatures_clone_web with empty list of clones!\n");
+    }
+    
+    #lists of variations to be returned
+    my @variations;
+    my %hash;
+    my $string;
+    foreach my $a (@acc) {
+        $a =~ /(\S+)\.(\d+)/;
+        $string .= "'$1',";
+        $hash{$1}=$2;
+    }
+    $string =~ s/,$//;
+    my $inlist = "($string)";
+    
+    # db query to return all variation information in current GoldenPath; confidence attribute is gone!!
+    # data are preprocessed to contain only relevent information (RefSNP.mapweight  is not needed)
+    # denormalized SubSNP in
+
+    my $query = qq{
+
+        SELECT   gp.start, gp.end, gp.strand,
+                 gp.acc, gp.version, gp.refsnpid,
+                 gp.tcsid, gp.hgbaseid, rf.observed, rf.het, rf.hetse
+        FROM   	 GPHit gp,RefSNP rf
+        WHERE  	 gp.acc in $inlist and rf.id = gp.refsnpid
+	ORDER BY gp.acc,gp.start    
+
+              };
+
+    &eprof_start('snp-sql-query');
+
+    my $sth = $self->prepare($query);
+    my $res = $sth->execute();
+
+    &eprof_end('snp-sql-query');
+
+    my $snp;
+    my $cl;
+
+    &eprof_start('snp-sql-object');
+
+  SNP:
+    while( (my $arr = $sth->fetchrow_arrayref()) ) {
+        
+        my ($begin, $end, $strand,
+            $acc, $ver, $snpuid,
+            $tscid, $hgbaseid, $alleles, $het, $hetse
+           ) = @{$arr};
+
+	$alleles =~ s/\//\|/g;
+
+        my $acc_version="$acc.$ver";
+	if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
+            #ignore snp within glob area
+            next SNP;
+        }
+        
+        next SNP if $hash{$acc} != $ver;
+        #
+        # prepare the output objects
+        #
+        
+        ### mega dodginess here: ideally, a Variation should be allowed to
+        ### have several Locations. However, a Variation is-a SeqFeature,
+        ### which can only have one. So instead, we'll return a list of
+        ### Varations, each with a separate single location, but otherwise
+        ### identical. That's clean-room engineering for you :-) 
+        
+        my $key=$snpuid.$acc;           # for purpose of filtering duplicates
+        my %seen;                       # likewise
+        
+        
+        if ( ! $seen{$key} )  {
+            ## we're grabbing all the necessary stuff from the db in one
+            ## SQL statement for speed purposes, so we have to do some
+            ## duplicate filtering here.
+
+            $seen{$key}++;
+            
+            #Variation
+            $snp = new Bio::EnsEMBL::ExternalData::Variation
+              (-start => $begin,
+               -end => $end,
+               -strand => $strand,
+               -original_strand => $strand,
+               -score => 1,
+               -source_tag => 'dbSNP',
+              );
+
+
+	    $snp->alleles($alleles);
+	    $snp->het($het);
+	    $snp->hetse($hetse);
+
+            
+            my $link = new Bio::Annotation::DBLink;
+            $link->database('dbSNP');
+            $link->primary_id($snpuid);
+            $link->optional_id($acc_version);
+            #add dbXref to Variation
+            $snp->add_DBLink($link);
+	    if ($hgbaseid) {
+	      my $link2 = new Bio::Annotation::DBLink;
+	      $link2->database('HGBASE');
+	      $link2->primary_id($hgbaseid);
+	      $link2->optional_id($acc_version);
+	      $snp->add_DBLink($link2);
+	    }
+	    if ($tscid) {
+	      my $link3 = new Bio::Annotation::DBLink;
+	      $link3->database('TSC-CSHL');
+	      $link3->primary_id($tscid);
+	      $link3->optional_id($acc_version);
+	      #add dbXref to Variation
+	      $snp->add_DBLink($link3);
+	    }
+            $cl=$acc_version;
+            # set for compatibility to Virtual Contigs
+            $snp->seqname($acc_version);
+            #add SNP to the list
+            push(@variations, $snp);
+        }                               # if ! $seen{$key}
+      }                                    # while a row from select statement
+
+    &eprof_end('snp-sql-object');
+    
+    return @variations;
+}
+
 
 
 =head2 prepare

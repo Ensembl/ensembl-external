@@ -307,17 +307,16 @@ sub Xget_Ensembl_SeqFeatures_contig{
 
        my $sth2 = $self->prepare($query2);
        my $res2 = $sth2->execute();
-       while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
-	    
-	   my ($handle, $altid
-	       ) = @{$arr2};
-	   
-	   my $link = new Bio::Annotation::DBLink;
-	   $link->database($handle);
-	   $link->primary_id($altid);
-	   
-	   #add dbXref to Variation
-	   $snp->add_DBLink($link);
+       while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {	    
+		   my ($handle, $altid
+	    	   ) = @{$arr2};
+
+		   my $link = new Bio::Annotation::DBLink;
+		   $link->database($handle);
+		   $link->primary_id($altid);
+
+		   #add dbXref to Variation
+		   $snp->add_DBLink($link);
        }
 
        #add SNP to the list

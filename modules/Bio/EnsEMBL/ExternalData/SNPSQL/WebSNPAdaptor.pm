@@ -188,14 +188,15 @@ sub get_Ensembl_SeqFeatures_clone_web{
 
    my $query = qq{
 
-       SELECT  p1.start, p1.end, p1.strand,
-  	       p1.acc,p1.version,p2.id,
-               p2.snptype,p2.mapweight  
-	FROM   Hit as p1, RefSNP as p2
-  	WHERE  acc in $inlist
-               AND p1.refsnpid = p2.id
-  	       order by start
-	       };
+   		SELECT	p1.start, p1.end, p1.strand,
+  	       		p1.acc,p1.version,p2.id,
+           		p2.snptype,p2.mapweight  
+		FROM   	Hit as p1, RefSNP as p2
+  		WHERE  	acc in $inlist
+        AND 	p1.refsnpid = p2.id
+  	    order by start
+	};
+
 
    my $sth = $self->prepare($query);
    my $res = $sth->execute();
@@ -225,13 +226,12 @@ sub get_Ensembl_SeqFeatures_clone_web{
        #
        
        #Variation
-       $snp = new Bio::EnsEMBL::ExternalData::Variation
-	   (-start => $begin,
-	    -end => $end,
-	    -score => $mapweight,
-	    -strand => $strand,
-	    -source_tag => 'dbSNP',
-	    );
+       $snp = new Bio::EnsEMBL::ExternalData::Variation(-start => $begin,
+	    												-end => $end,
+	    												-score => $mapweight,
+	    												-strand => $strand,
+	    												-source_tag => 'dbSNP',
+	    												);
 
        my $link = new Bio::Annotation::DBLink;
        $link->database('dbSNP');
@@ -239,6 +239,23 @@ sub get_Ensembl_SeqFeatures_clone_web{
        $link->optional_id($acc_version);
        #add dbXref to Variation
        $snp->add_DBLink($link);
+
+	   my $altquery = qq{
+		   SELECT p1.handle, p1.altid 
+		   FROM   SubSNP as p1
+		   WHERE  p1.refsnpid = "$snpuid"
+	   };
+	   
+       my $sth2 = $self->prepare($altquery);
+       my $res2 = $sth2->execute();
+       while(my ($handle, $altid) = $sth2->fetchrow_array()){	    
+		   my $link = new Bio::Annotation::DBLink;
+		   $link->database($handle);
+		   $link->primary_id($altid);
+		   #add dbXref to Variation
+		   $snp->add_DBLink($link);
+       }
+	   
 
        $cl=$acc_version;
        # set for compatibility to Virtual Contigs

@@ -75,13 +75,13 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
 #using the method get_Ensembl_SeqFeatures_clone
 
 #AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
-#get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end);
-@variations = $snpdb->get_Ensembl_SeqFeatures_clone('AL136106', '2' );
-if ( scalar @variations == 99 ) { 
+#get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end); AL136106', '2'
+@variations = $snpdb->get_Ensembl_SeqFeatures_clone('AP000933', 3 );
+if ( scalar @variations == 1 ) { 
     print "ok 5\n"; 
 }  else {
-    print STDERR "Query returned ",  scalar @variations, " variations\n";
     print "not ok 5\n";
+    print STDERR "  Query returned ",  scalar @variations, " variations\n";
 }
 
 $v = $variations[0];
@@ -92,7 +92,7 @@ if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
 }
 
 # using the method get_SeqFeature_by_id 
-my $id = "18"; 
+my $id = "677"; 
 my @snps = $snpdb->get_SeqFeature_by_id($id);
 my $snp = pop @snps;
 
@@ -102,6 +102,12 @@ if( $id eq $snp->id) {
     print "not ok 7\n";
 }
 
+if ($snp->each_DBLink == 2 ) {
+    print "ok 8\n"; 
+} else {
+    print "not ok 8\n";
+    print STDERR "  Found ",  scalar $snp->each_DBLink , " DBLinks\n";
+}
 
 # using the method get_SeqFeature_by_id with dbSNP id
 #my $id2 = "20409"; 
@@ -111,3 +117,6 @@ if( $id eq $snp->id) {
 #} else {
 #    print "not ok 8\n";
 #}
+
+
+

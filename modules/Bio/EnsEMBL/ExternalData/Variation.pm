@@ -37,8 +37,8 @@ Bio::EnsEMBL::ExternalData::Variation redifines and extends
 L<Bio::SeqFeature::Generic> for (genomic) sequence variations.
 
 Attribute 'source' is used to give the source database string.
-Attribute 'score' is used to give the percent confidence that the
-variation is not a sequencing error.  'status' has two values:
+Attribute 'score' is used to give the code number for uniquesness of
+the SNP. Lower values are better. 1 is best.  'status' has two values:
 'suspected' or 'proven'. 'alleles' lists all known, typically two,
 allelic variants in the given position.
 

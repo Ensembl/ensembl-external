@@ -57,9 +57,8 @@ L<Bio::EnsEMBL::ExternalData::Variation> objects which contain
 L<Bio::Annotation::DBLink> objects to give unique IDs in various
 Variation databases.
 
-This first implementation uses The SNP Consortium database, TSC, with
-mySQL engine.
-
+This version uses the relational mySQL representation of the
+dbSNP exchange XML for build 89.
 
 =head1 FEEDBACK
 
@@ -70,7 +69,17 @@ mySQL engine.
   to one of the Bioperl mailing lists.
   Your participation is much appreciated.
 
-  ensembl-vdev@ebi.ac.uk                        - General discussion
+  vsns-bcd-perl@lists.uni-bielefeld.de          - General discussion
+  vsns-bcd-perl-guts@lists.uni-bielefeld.de     - Technically-oriented discussion
+  http://bio.perl.org/MailList.html             - About the mailing lists
+
+=head2 Reporting Bugs
+
+  Report bugs to the Bioperl bug tracking system to help us keep track
+  the bugs and their resolution.
+  Bug reports can be submitted via email or the web:
+
+  ensembl-dev@ebi.ac.uk                        - General discussion
 
 =head1 AUTHOR - Heikki Lehvaslaiho
 
@@ -214,7 +223,7 @@ sub get_SeqFeature_by_id {
 	    SELECT p1.acc, p1.version, p1.start, p1.end, p1.type,
 	     	   p2.snpclass,  p2.snptype,
 	     	   p2.observed, p2.seq5, p2.seq3,
-	     	   p2.het, p2.hetse, p2.validated, p2.hitcount
+	     	   p2.het, p2.hetse, p2.validated, p2.mapweight
 	    FROM   Hit as p1, RefSNP as p2
             WHERE  p2.id = "$id"
                    AND p1.refsnpid = p2.id
@@ -234,7 +243,7 @@ sub get_SeqFeature_by_id {
 	my $strand = '1';
 	
 	my ($acc, $ver, $begin, $end, $postype, $class, $type,
-	    $alleles, $seq5, $seq3, $het, $hetse,  $confirmed, $hitcount
+	    $alleles, $seq5, $seq3, $het, $hetse,  $confirmed, $mapweight
 	    ) = @{$arr};
 	
         #snp info not valid
@@ -276,7 +285,7 @@ sub get_SeqFeature_by_id {
 	$snp->alleles($alleles);
 	$snp->upStreamSeq($seq5);
 	$snp->dnStreamSeq($seq3);
-	$snp->score($hitcount); 
+	$snp->score($mapweight); 
 	
 	#DBLink
 	my @dlinks = $snp->each_DBLink;
@@ -284,6 +293,32 @@ sub get_SeqFeature_by_id {
 	    my $link = new Bio::Annotation::DBLink;
 	    $link->database('dbSNP');
 	    $link->primary_id($id);
+	    
+	    #add dbXref to Variation
+	    $snp->add_DBLink($link);
+	}
+
+	#get alternative IDs
+	my $primid = $snp->id;
+	my $query2 = qq{
+	    
+	    SELECT p1.handle, p1.altid 
+	    FROM   SubSNP as p1
+            WHERE  p1.refsnpid = "$primid"
+
+	    };
+
+	my $sth2 = $self->prepare($query2);
+	my $res2 = $sth2->execute();
+	while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
+	    
+	    
+	    my ($handle, $altid
+		) = @{$arr2};
+
+	    my $link = new Bio::Annotation::DBLink;
+	    $link->database($handle);
+	    $link->primary_id($altid);
 	    
 	    #add dbXref to Variation
 	    $snp->add_DBLink($link);
@@ -334,7 +369,6 @@ sub get_SeqFeature_by_id {
            $start of range, optional
            $end of range, optional
 
-
 =cut
 
 sub get_Ensembl_SeqFeatures_clone {
@@ -350,7 +384,7 @@ sub get_Ensembl_SeqFeatures_clone {
 	$self->throw("Two arguments are requided: embl_accession number and version_number!");
     }
     if ( ! defined $ver) {
-	$self->throw("Two arguments are requided: embl_accession number and version_number!");
+	$self->throw("Two arguments are required: embl_accession number and version_number!");
     }
     if (defined $start) {
 	$start = 1 if $start eq "";
@@ -378,9 +412,9 @@ sub get_Ensembl_SeqFeatures_clone {
 
        SELECT  p1.start, p1.end, p1.type,
   	       p2.id, p2.snpclass,  p2.snptype,
-  	       #p2.observed, p2.seq5, p2.seq3,
+  	       p2.observed, p2.seq5, p2.seq3,
   	       #p2.het, p2.hetse,
-               p2.validated, p2.hitcount
+               p2.validated, p2.mapweight
   	FROM   Hit as p1, RefSNP as p2
   	WHERE  p1.acc = "$acc" and p1.version = "$ver"
   	       AND p1.refsnpid = p2.id
@@ -397,8 +431,8 @@ sub get_Ensembl_SeqFeatures_clone {
 
        my ($begin, $end, $hittype,
 	   $snpuid, $class, $type,
-	   #$alleles, $seq5, $seq3, $het, $hetse,
-	   $confirmed, $hitcount
+	   $alleles, $seq5, $seq3, #$het, $hetse,
+	   $confirmed, $mapweight
 	   ) = @{$arr};
 
        #snp info not valid
@@ -420,7 +454,11 @@ sub get_Ensembl_SeqFeatures_clone {
        }
 	
        # the allele separator should be  '|'
-       #$alleles =~ s/\//\|/g;
+       $alleles =~ s/\//\|/g;
+
+       #prune flank sequences to 25 nt
+       $seq5 = substr($seq5, -25, 25);
+       $seq3 = substr($seq5, 0, 25);
 
        #
        # prepare the output objects
@@ -432,10 +470,12 @@ sub get_Ensembl_SeqFeatures_clone {
 	    -end => $end,
 	    -strand => $strand,
 	    -source_tag => 'dbSNP',
-	    -score  => $hitcount,
+	    -score  => $mapweight,
 	    -status => $confirmed,
-	    #-alleles => $alleles
+	    -alleles => $alleles
 	    );
+       $snp->upStreamSeq($seq5);
+       $snp->dnStreamSeq($seq3);
 
        # set for compatibility to Virtual Contigs
        $snp->seqname($acc_version);

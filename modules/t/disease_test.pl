@@ -12,13 +12,12 @@ my $mapdb = new Bio::EnsEMBL::Map::DBSQL::Obj( -user => 'root',
 					    -host=>'ensrv3.sanger.ac.uk',
 					    -ensdb=>'f15');
 
-if ($mapdb){print "connected maps\n";}
 
 
 my $ensembldb = new Bio::EnsEMBL::DBSQL::Obj( -user => 'ensro', 
 					    -dbname => 'f15',
 					    -host=>'ensrv3.sanger.ac.uk');
-if ($ensembldb){print "connected ensembl\n";}
+
 
 my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'root', 
 						      -dbname => 'disease',
@@ -29,37 +28,40 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler( -user => 'ro
 
 
 
-if ($diseasedb){print "connected diseases\n";}
 
 #my @diseases=$diseasedb->diseases_on_chromosome(22);
 #my @diseases=$diseasedb->diseases_without_genes;
-my @diseases=$diseasedb->all_diseases;
-#my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+#my @diseases=$diseasedb->all_diseases;
 #my @diseases=$diseasedb->diseases_like("diabetes");
+
+#my @diseases=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
+my @diseases=$diseasedb->disease_by_name("Albinism, rufous, 278400 (3)");
+
+
+
+
+
+
+
+
+
 
 foreach my $dis (@diseases)
 {
-  
-    
     foreach my $location($dis->each_Location){
 	
-#	print "has gene ",$location->external_gene," on chromosome ",
-#	$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
+	#	print "has gene ",$location->external_gene," on chromosome ",
+	#	$location->chromosome," (",$location->cyto_start,"-",$location->cyto_end,")","\n";
 	
 	if (defined $location->ensembl_gene){
 
-	   # print "\n",$dis->name, "\n";
-	    print "FOUND ensembl gene for ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
-	   # print "\n";
-	    foreach my $transcript ($location->ensembl_gene->each_Transcript){
-		#print " transcripts: ",$transcript->id,"\n";
-	    }
+	    print $dis->name," ",$location->external_gene," = ",$location->ensembl_gene->id,"\n";
 	}
-	#else {print "no ensembl predictions for ", $location->external_gene,"\n";}
+	else {print "no ensembl predictions for ", $location->external_gene,"\n";}
     }
-    
-   # print "\n";
 }
+
+
 
 
 

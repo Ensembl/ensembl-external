@@ -31,10 +31,11 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
+use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
 
 use vars '@ISA';
 
-@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor );
 
 
 #use constructor inherited from Bio::EnsEMBL::BaseAdaptor
@@ -237,7 +238,7 @@ sub fetch_by_clone_accession_version {
   	       p2.id, p2.snpclass,  p2.snptype,
   	       p2.observed, p2.seq5, p2.seq3,
   	       p2.het, p2.hetse,
-               p2.validated, p2.mapweight, p3.source
+               p2.validated, p2.mapweight, p3.source, p2.internal_id
   		FROM   Hit as p1, RefSNP as p2, DataSource as p3
   		WHERE  p1.acc = "$acc" and p1.version = "$ver"
                AND p3.id = p2.source
@@ -254,7 +255,7 @@ sub fetch_by_clone_accession_version {
 		$snpuid, $class, $type,
 		$alleles, $seq5, $seq3, $het, $hetse,
 		$confirmed, $mapweight,
-		$source 
+		$source, $primid 
 		) = @{$arr};
 
 		#snp info not valid
@@ -321,11 +322,10 @@ sub fetch_by_clone_accession_version {
 		$snp->add_DBLink($link);
 
 		#get alternative IDs
-		my $primid = $snp->id;
 		my $query2 = qq{ 
 			SELECT p1.handle, p1.altid 
 			FROM   SubSNP as p1
-			WHERE  p1.refsnpid = "$primid"
+			WHERE  p1.internal_id = "$primid"
 		};
 
 		my $sth2 = $self->prepare($query2);
@@ -350,7 +350,16 @@ sub fetch_by_clone_accession_version {
 	return \@variations;
 }
 
+sub  fetch_all_by_Clone {
+  my ( $self, $clone ) = @_;
 
+  $self->fetch_by_clone_accession_version( $clone->embl_id(),
+					   $clone->embl_version() );
+}
+
+sub coordinate_systems {
+  return ("CLONE");
+}
 
 =head2 fetch_between_refsnpids
 

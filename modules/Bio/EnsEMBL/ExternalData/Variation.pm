@@ -89,6 +89,7 @@ use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::SeqIO::FTHelper;
 
+
 @ISA = qw( Bio::SeqFeature::Generic  Bio::DBLinkContainerI);
 
 

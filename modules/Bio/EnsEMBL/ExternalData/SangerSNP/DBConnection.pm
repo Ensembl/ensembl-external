@@ -134,6 +134,14 @@ sub new {
 }
 
 
+sub assembly_type {
+  my($self, $arg ) = @_;
+
+  (defined $arg) &&
+    ($self->{_assembly_type} = $arg );
+  return $self->{_assembly_type};
+}
+
 =head2 driver
 
   Arg [1]    : (optional) string $arg

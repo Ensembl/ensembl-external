@@ -332,4 +332,88 @@ sub db {
     return $self->{_db};
 }
 
+
+=head2 get_Ensembl_SeqFeatures_exon
+
+ Title   : get_Ensembl_SeqFeatures_exon
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+sub get_Ensembl_SeqFeatures_exon {
+    my ( $self, $exon )  = @_;
+    
+    # if exon is sticky, get supporting from components
+    if( $exon->isa( 'Bio::EnsEMBL::StickyExon' )) {
+	# sticky storing. Sticky exons contain normal exons ...
+	
+	my @componentExons = $exon->each_component_Exon();
+	for my $componentExon ( @componentExons ) {
+	    $self->fetch_evidence_by_Exon( $componentExon );
+	}
+	return;
+    }
+			
+    my $statement = "SELECT contig, seq_start, seq_end, score,
+                          strand, analysis, name, hstart, hend,
+                          hid, evalue, perc_id, phase, end_phase
+                   FROM feature 
+                   WHERE contig = ".$exon->contig->internal_id."
+                   AND seq_start <= ".$exon->end()."
+                   AND seq_end >= ".$exon->start();
+    
+    my $sth = $self->db->prepare($statement);
+    $sth->execute || $self->throw("execute failed for supporting evidence get!");
+
+    my @features;
+
+    my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);
+    
+    while (my $rowhash = $sth->fetchrow_hashref) {
+	my $analysis = $anaAdaptor->fetch_by_dbID( $rowhash->{analysis} );
+	
+	if( 
+	    $analysis->logic_name ne "est"
+	    ) {
+	    next;
+	}
+	
+	my $f = Bio::EnsEMBL::FeatureFactory->new_feature_pair();
+	$f->set_all_fields($rowhash->{'seq_start'},
+			   $rowhash->{'seq_end'},
+			   $rowhash->{'strand'},
+			   $rowhash->{'score'},
+			   $rowhash->{'name'},
+			   'similarity',
+			   $rowhash->{'contig'},
+			   $rowhash->{'hstart'},
+			   $rowhash->{'hend'},
+			   1, # hstrand
+			   $rowhash->{'score'},
+			   $rowhash->{'name'},
+			   'similarity',
+			   $rowhash->{'hid'});
+
+	#
+	# WARNING - assumming perl extensions, not C
+	#
+	
+	$f->analysis($analysis);
+	
+	$f->validate;
+	push(@features,$f);
+
+    }
+    
+    return @features;   
+}
+
 1;
+
+
+

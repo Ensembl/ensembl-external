@@ -30,6 +30,7 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor;
 
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::Variation;
+use Bio::EnsEMBL::SNP;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
 
@@ -39,41 +40,43 @@ use vars '@ISA';
 
 
 
+=head2 fetch_attributes_only
 
-
-=head2 fetch_attributes
-
-  Arg [1]    : Bio::EnsEMBL::SNP $snp
+  Arg [1]    : int refsnp_id
+  Arg [2]    : (optional) string source
   Example    : none
-  Description: Retrieves detailed information (such as flanking sequence)
-               for a snp which already has positional information.
+  Description: Retrieves a snp objcet from the SNP database but does not
+               populate the location information.  This is necessary given 
+               the current state of the snp database because location 
+               information has to be retrieved differently for different 
+               species!
   Returntype : Bio::EnsEMBL::SNP
   Exceptions : none
   Caller     : snpview
 
 =cut
 
-sub fetch_attributes {
+sub fetch_attributes_only{
   my $self = shift;
-  my $snp = shift;
 
-  $self->throw('snp arg is required') unless($snp && ref $snp);
-  
-  my $dbID = $snp->dbID;
-  $self->throw('snp dbID must be set') unless($dbID); 
+  my $refsnp_id = shift;
+  my $source = shift || 'dbSNP';
 
   my $sth = $self->prepare('
-      SELECT refsnp.id, refsnp.snpclass,  refsnp.snptype,
+      SELECT refsnp.internal_id, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
              refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight
-      FROM   RefSNP as refsnp
-      AND    refsnp.internal_id = ?');
+      FROM   RefSNP refsnp, DataSource ds
+      WHERE  refsnp.id = ?
+      AND    ds.id = refsnp.datasource
+      AND    ds.datasource = ?');
 
-  $sth->execute($dbID);
+  $sth->execute("$refsnp_id", $source);
 
-  $sth->rows || $self->throw("snp [$dbID] not found in database");
+  $sth->rows || $self->throw("snp with refsnp_id/src [$refsnp_id/source]" .
+			     "not found in database");
 
-  my ($refsnp_id, $snp_class, $snp_type, $alleles, $seq5, $seq3,
+  my ($dbID, $snp_class, $snp_type, $alleles, $seq5, $seq3,
       $het, $hetse, $confirmed, $mapweight) = $sth->fetchrow_array;
 
   $sth->finish;
@@ -97,6 +100,10 @@ sub fetch_attributes {
   $seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
   $seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
 
+  my $snp = Bio::EnsEMBL::SNP->new;
+
+  $snp->dbID($dbID);
+  $snp->source_tag($source);
   $snp->status($confirmed);
   $snp->alleles($alleles);
   $snp->upStreamSeq($seq5);
@@ -156,18 +163,19 @@ sub fetch_by_SNP_id {
   }
 
   my $sth = $self->prepare('
-      SELECT refsnp.internal_id, refsnp.id, hit.acc, hit.version, hit.start, 
+      SELECT STRAIGHT_JOIN 
+             refsnp.internal_id, refsnp.id, hit.acc, hit.version, hit.start, 
              hit.end, hit.type, hit.strand, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
              refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight,
              ds.datasource
-      FROM   Hit as hit, RefSNP as refsnp, DataSource as ds
+      FROM   RefSNP refsnp, Hit hit, DataSource ds
       WHERE  hit.internal_id = refsnp.internal_id
       AND    ds.id = refsnp.datasource
       AND    refsnp.id = ? 
       AND    ds.datasource = ?');
 
-  $sth->execute($refsnpid, $source);
+  $sth->execute("$refsnpid", $source);
 
   $sth->rows || $self->throw("$source $refsnpid not in database or not mapped to contig");
 

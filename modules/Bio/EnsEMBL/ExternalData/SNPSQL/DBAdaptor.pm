@@ -17,7 +17,7 @@ variation database providing external features for EnsEMBL
 
 =head1 SYNOPSIS
 
-
+e "Bio::EnsEMBL::Extern
     $snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor->new( -dbname => 'snp'
 							  -user => 'root'
 							  );
@@ -80,6 +80,8 @@ methods. Internal methods are usually preceded with a _
 # Let the code begin...
 
 package Bio::EnsEMBL::ExternalData::SNPSQL::DBAdaptor;
+
+use Bio::EnsEMBL::DBSQL::DBConnection;
 
 use strict;
 use vars qw(@ISA);

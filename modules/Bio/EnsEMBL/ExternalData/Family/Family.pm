@@ -89,51 +89,126 @@ sub new {
    my $self = {};
    bless $self,$class;
 
-   my ($id,$descr,$debug,) = $self->_rearrange([qw(
-                                    ID
-                                    DESCRIPTION
-                                    DEBUG
-                                    )], @args);
-
-   $id || $self->throw("family must have an id");
-   $self->id($id);
-
-   $descr || $self->throw("family must have a description");
-   $self->description($descr);
-
-   $self->{_members} = []; 
+# do this explicitly.
+#    my ($internal_id, $id,$descr,$score, $rel, $debug,) 
+#      = $self->_rearrange([qw(
+#                              INTERNAL_ID
+#                              ID
+#                              DESCRIPTION
+#                              RELEASE
+#                              SCORE
+#                              DEBUG
+#                             )], @args);
+# 
+#    $id || $self->throw("family must have an id");
+#    $self->id($id);
+# 
+#    $descr || $self->throw("family must have a description");
+#    $self->description($descr);
+# 
+#    $self->{_members} = []; 
 #    foreach my $mem (@args) {
 #        $self->add_member($mem);
 #    }
-
-   $self->_debug($debug?$debug:0);
+#
+#   $self->_debug($debug?$debug:0);
+   $self;
 }                                       # new
 
+sub id {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	$self->{'id'} = $value;
+    }
+    return $self->{'id'};
+}
 
+sub internal_id {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	$self->{'internal_id'} = $value;
+    }
+    return $self->{'internal_id'};
+}
 
-=head2 each_DBLink
+sub description {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	$self->{'desc'} = $value;
+    }
+    return $self->{'desc'};
+}
 
- Title   : each_DBLink
- Usage   : foreach $ref ( $self->each_DBlink() )
- Function: gets an array of DBlinks representing/pointing to the family members
- Example :
- Returns : an array of Bio::Annotation::DBLink objects
- Args    : none
+sub release {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	$self->{'release'} = $value;
+    }
+    return $self->{'release'};
+}
+
+sub annotation_confidence_score {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	$self->{'annotation_confidence_score'} = $value;
+    }
+    return $self->{'annotation_confidence_score'};
+}
+
+# sub keywords { 
+#     my ($self) = @_; 
+#     $self->throw("not yet implemented");
+# }
+
+=head2 size
+
+ Title   : size
+ Usage   : $fam->size
+ Function: returns the number of members of the family
+ Returns : an int
+ Args    : 
 
 =cut
 
+sub size {
+ my ($self) = @_; 
+ return int(@{$self->{'_members'}});
+}
+
+=head2 each_member_of_db
+
+ Title   : each_member_of_db
+ Usage   : $obj->each_member_of_db('SWISSPROT')
+ Function: returns all the members that belong to a particular database
+ Returns : a list of DBLinks (which may be empty)
+ Args    : the database name
+
+=cut
+
+sub each_member_of_db {
+  my ($self, $db) = @_;
+
+  # might be slowish; do we need to change this, e.g., go to database? 
+
+  my @mems = ();
+
+  foreach my $mem ($self->each_DBLink()) {  
+    if ($mem->database eq $db) { 
+         push @mems, $mem;
+     };
+  }
+  return @mems;
+}
 
 ### inherited from Bio::DBLinkContainerI
 =head2 each_DBLink
 
  Title   : each_DBLink
- Usage   : foreach $ref ( $self->each_DBlink() )
- Function: gets an array of DBlink of objects
+ Usage   : foreach $ref ( $self->each_DBLink() )
+ Function: gets an array of DBLink of objects
  Example :
  Returns : an array of Bio::Annotation::DBLink objects
  Args    : none
-
-
 =cut
 
 sub each_DBLink{
@@ -141,7 +216,6 @@ sub each_DBLink{
 
   return @{$self->{'_members'}};
 }
-
 
 =head2 add_DBLink
 
@@ -176,7 +250,7 @@ sub _dbid_to_dblink {
     if ($database eq '' || $primary_id eq '') {
         Bio::Root::RootI->throw("Bio::EnsEMBL::ExternalData::Family::Family::_dbid_to_dblink:  must have both a database and an id");
     }
-    my $link = Bio::Annotation::DBLink::new();
+    my $link = new Bio::Annotation::DBLink();
 
     $link->database($database);
     $link->primary_id($primary_id);
@@ -215,24 +289,6 @@ sub add_member {
 
 =cut
 
-sub id {
-    my ($self,$value) = @_;
-    if( defined $value) {
-	$self->{'id'} = $value;
-    }
-    return $self->{'id'};
-}
-
-sub description {
-    my ($self,$value) = @_;
-    if( defined $value) {
-	$self->{'desc'} = $value;
-    }
-    return $self->{'desc'};
-}
-
-
-
 sub _debug{
     my ($self,$value) = @_;
     if( defined $value) {
@@ -241,57 +297,4 @@ sub _debug{
     return $self->{'_debug'};
 }
 
-sub keywords { 
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
-}
-
-sub release { 
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
-}
-
-sub score {  
-    my ($self) = @_; 
-    $self->throw("not yet implemented");
-}
-
-=head2 size
-
- Title   : size
- Usage   : $fam->size
- Function: returns the number of members of the family
- Returns : an int
- Args    : 
-
-=cut
-
-sub size {
- my ($self) = @_; 
- return int(@{$self->{'_members'}});
-}
-
-=head2 each_member_of_db
-
- Title   : each_member_of_db
- Usage   : $obj->each_member_of_db('SWISSPROT')
- Function: returns all the members that belong to a particular database
- Returns : 
- Args    : the database name
-
-=cut
-
-sub each_member_of_db {
-  my ($self, $db) = @_;
-
-  # might be slowish; do we need to change this, e.g., go to database? 
-
-  my @mems = ();
-
-  foreach my $mem ($self->each_DBlink()) {  
-    if ($mem->database eq $db) { push @mems, $mem};
-  }
-  return @mems;
-}
-
-
+1;

@@ -50,6 +50,19 @@ use Bio::DBLinkContainerI;
 @ISA = qw(Bio::DBLinkContainerI);
 
 
+=head2 new
+
+ Title   : new
+ Usage   : 
+ Function: 
+ Example : 
+ Returns : SeqTag object
+ Args    :
+
+
+=cut
+
+
 sub new {
     my ($class,$adaptor,@args) = @_;
 

@@ -17,11 +17,16 @@ Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor
 
     # $db is Bio::EnsEMBL::DB::Obj 
 
-    my $da= Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor->new($obj);
-    my $clone=$da->fetch($id);
+    my $dbname='expression';
+    my $lib_ad=Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor->new($obj);
+    $lib_ad->dbname($dbname);
 
-    @contig = $clone->get_all_Contigs();
-    @genes    = $clone->get_all_Genes();
+    my @libs=$lib_ad->fetch_by_SeqTag_Synonym("ENSG00000080561"); 
+
+    my @tgs=("AAAAAAAAAA","AAAAAAAAAC");
+    my @libs=$lib_ad->fetch_by_SeqTagList(@tgs);
+
+
 
 =head1 DESCRIPTION
 
@@ -38,11 +43,6 @@ The rest of the documentation details each of the object methods. Internal metho
 =cut
 
 
-
-
-
-
-
 package Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor;
 use Bio::EnsEMBL::ExternalData::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::Expression::Library;
@@ -53,6 +53,23 @@ use strict;
 @ISA = qw(Bio::EnsEMBL::ExternalData::BaseAdaptor);
 
 # new in Bio::EnsEMBL::ExternalData::BaseAdaptor
+
+
+
+
+=head2 fetch_all
+
+ Title   : fetch_all
+ Usage   : $obj->fetch_all
+ Function: 
+ Example : 
+ Returns : array of library objects
+ Args    : 
+
+
+=cut
+
+
 
 
 sub fetch_all {
@@ -67,6 +84,21 @@ sub fetch_all {
     return $self->_fetch($statement);   
 
 }
+
+
+
+
+=head2 fetch_by_SeqTag_Name
+
+ Title   : fetch_by_SeqTag_Name
+ Usage   : $obj->fetch_by_SeqTag_Name
+ Function: 
+ Example : 
+ Returns : array of library objects
+ Args    : seqtag name
+
+
+=cut
 
 
 
@@ -87,7 +119,24 @@ sub fetch_by_SeqTag_Name {
             
     return $self->_fetch($statement); 
 
+
 }
+
+
+
+=head2 fetch_by_SeqTag_Synonym
+
+ Title   : fetch_by_SeqTag_Synonym
+ Usage   : $obj->fetch_by_SeqTag_Synonym
+ Function: 
+ Example : 
+ Returns : array of library objects
+ Args    : seqtag synonym
+
+
+=cut
+
+
 
 
 
@@ -112,21 +161,101 @@ sub fetch_by_SeqTag_Synonym {
 }
 
 
+=head2 fetch_by_SeqTagList
+
+ Title   : fetch_by_SeqTagList
+ Usage   : $obj->fetch_by_SeqTagList
+ Function: 
+ Example : 
+ Returns : array of library objects
+ Args    : array of seqtag names
+
+
+=cut
+
+
+
 
 sub fetch_by_SeqTagList {
 
-    my ($self,@genes)=@_;
+    my ($self,@seqtags)=@_;
 
+    $self->throw("need a seqtag name") unless  @seqtags && $#seqtags>=0; 
+
+    my $list=$self->_prepare_list(@seqtags);
+    my $dbname=$self->dbname;
+    my $statement="select l.library_id,l.source,l.cgap_id,
+                          l.dbest_id,l.name,
+                          l.tissue_type,l.description,l.total_seqtags
+                   from   $dbname.library l,$dbname.seqtag s,$dbname.frequency f 
+                   where  l.library_id=f.library_id 
+                   and    f.seqtag_id=s.seqtag_id 
+                   and    s.name in $list"; 
+    
+    print "$statement\n";
+
+    return $self->_fetch($statement); 
+    
+    
 }
+
+
+
+
+=head2 fetch_by_SeqTag_SynonymList
+
+ Title   : fetch_by_SeqTag_SynonymList
+ Usage   : $obj->fetch_by_SeqTag_SynonymList
+ Function: 
+ Example : 
+ Returns : array of library objects
+ Args    : array of seqtag synonyms
+
+
+=cut
+
+
+
 
 
 sub fetch_by_SeqTag_SynonymList {
 
-    my ($self,@transcripts)=@_;
+    my ($self,@seqtags)=@_;
+
+    $self->throw("need a seqtag name") unless  @seqtags && $#seqtags>=0; 
+
+    my $list=$self->_prepare_list(@seqtags);
+    my $dbname=$self->dbname;
+    my $statement="select l.library_id,l.source,l.cgap_id,
+                          l.dbest_id,l.name,
+                          l.tissue_type,l.description,l.total_seqtags
+                   from   $dbname.library l,$dbname.seqtag_alias a,$dbname.frequency f 
+                   where  l.library_id=f.library_id 
+                   and    f.seqtag_id=a.seqtag_id
+                   and    a.external_name in $list"; 
+            
+    return $self->_fetch($statement); 
+
+
+
+
 
 }
 
 
+
+
+=head2 fetch_all_SeqTags
+
+ Title   : fetch_all_SeqTags
+ Usage   : $obj->fetch_all_SeqTags
+ Function: 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
 
 
 sub fetch_all_SeqTags {
@@ -142,6 +271,22 @@ sub fetch_all_SeqTags {
 
 
 
+=head2 fetch_all_SeqTags_above_frequency
+
+ Title   : fetch_all_SeqTags_above_frequency
+ Usage   : $obj->fetch_all_SeqTags_above_frequency
+ Function: returns seqtags with expression above given level 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
+
+
+
+
+
 sub fetch_all_SeqTags_above_frequency {
     my ($self,$id,$frequency)=@_;
 
@@ -153,6 +298,23 @@ sub fetch_all_SeqTags_above_frequency {
     return $seqtag_ad->fetch_by_Library_dbID_above_frequency($id,$frequency);
 
 }
+
+
+
+
+=head2 fetch_all_SeqTags_above_relative_frequency
+
+ Title   : fetch_all_SeqTags_above_relative_frequency
+ Usage   : $obj->fetch_all_SeqTags_above_realtive_frequency
+ Function: returns seqtags with expression above given level 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
+
+
 
 sub fetch_all_SeqTags_above_relative_frequency {
     my ($self,$id,$frequency)=@_;
@@ -169,7 +331,7 @@ sub fetch_all_SeqTags_above_relative_frequency {
 
 
 
-=head2 dbaname
+=head2 dbname
 
  Title   : dbname
  Usage   : $obj->dbname($newval)
@@ -189,12 +351,6 @@ sub dbname {
     return $obj->{'_dbname'};
 
 }
-
-
-
-
-
-
 
 
 
@@ -225,6 +381,24 @@ sub _fetch {
 
 
 
+sub _prepare_list {
+    my ($self,@ids)=@_;
+    
+    my $string;
+    foreach my $id(@ids){
+	$string .= $id . "\',\'"; 
+    }
+
+    $string="\'".$string;
+       
+    chop $string;
+    chop $string;
+
+    if ($string) { $string = "($string)";} 
+
+    return $string;
+    
+}
 
 
 

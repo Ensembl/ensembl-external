@@ -1,6 +1,6 @@
 
 #
-# BioPerl module for DB::Clone
+# EnsEMBL module for  Bio::EnsEMBL::ExternalData::Expression::Library
 #
 # Cared for by EnsEMBL (www.ensembl.org)
 #
@@ -18,11 +18,18 @@ Bio::EnsEMBL::ExternalData::Expression::Library
 
     # $db is Bio::EnsEMBL::DB::Obj 
 
-    @contig = $db->get_Contigs();
+    my $dbname='expression';
+    my $lib_ad=Bio::EnsEMBL::ExternalData::Expression::LibraryAdaptor->new($obj);
+    $lib_ad->dbname($dbname);
 
-    $clone = $db->get_Clone();
+    my @libs=$lib_ad->fetch_by_SeqTag_Synonym("ENSG00000080561"); 
 
-    @genes    = $clone->get_all_Genes();
+    foreach my $lib (@libs){
+    print $lib->id,"\t",$lib->name,"\t",$lib->total_seqtags,"\n";
+    }
+
+
+
 
 =head1 DESCRIPTION
 
@@ -54,6 +61,17 @@ use Bio::Root::RootI;
 @ISA = qw(Bio::Root::RootI);
 
 
+=head2 new
+
+ Title   : new
+ Usage   : 
+ Function: 
+ Example : 
+ Returns : Library object
+ Args    :
+
+
+=cut
 
 
 sub new {
@@ -70,6 +88,19 @@ sub new {
 }
 
 
+=head2 fetch_all_SeqTags
+
+ Title   : fetch_all_SeqTags
+ Usage   : $obj->fetch_all_SeqTags
+ Function: 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
+
+
 
 sub fetch_all_SeqTags {
     my ($self)=shift;
@@ -77,6 +108,19 @@ sub fetch_all_SeqTags {
     return $self->adaptor->fetch_all_SeqTags($self->id);
 
 }
+
+
+=head2 fetch_all_SeqTags_above_frequency
+
+ Title   : fetch_all_SeqTags_above_frequency
+ Usage   : $obj->fetch_all_SeqTags_above_frequency
+ Function: returns seqtags with expression above given level 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
 
 
 sub fetch_all_SeqTags_above_frequency {
@@ -88,6 +132,21 @@ sub fetch_all_SeqTags_above_frequency {
 }
 
 
+
+=head2 fetch_all_SeqTags_above_relative_frequency
+
+ Title   : fetch_all_SeqTags_above_relative_frequency
+ Usage   : $obj->fetch_all_SeqTags_above_realtive_frequency
+ Function: returns seqtags with expression above given level 
+ Example : 
+ Returns : array of seqtags objects
+ Args    :
+
+
+=cut
+
+
+
 sub fetch_all_SeqTags_above_relative_frequency {
     my ($self,$frequency,$multiplier)=@_;
 
@@ -96,14 +155,6 @@ sub fetch_all_SeqTags_above_relative_frequency {
 
 
 }
-
-
-
-
-
-
-
-
 
 
 =head2 id

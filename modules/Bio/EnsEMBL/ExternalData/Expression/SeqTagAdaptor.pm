@@ -17,8 +17,11 @@ Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor
 
     # $obj is Bio::EnsEMBL::DB::Obj 
 
-    my $sta= Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($obj);
+    my $dbname='expression';
+    my $tag_ad= Bio::EnsEMBL::ExternalData::Expression::SeqTagAdaptor->new($obj);
+    $tag_ad->dbname($dbname);
     my $tag=$sta->fetch_by_Name("AAAAAAAAAA");
+
 
 =head1 DESCRIPTION
 
@@ -154,7 +157,7 @@ sub fetch_by_dbID {
     my ($self,$id)=@_;
  
 
-    $self->throw("need a db id") unless defined $id;
+    $self->throw("need a db id") unless  $id;
 
     my $dbname=$self->dbname; 
     my $multiplier=$self->multiplier; 
@@ -197,7 +200,7 @@ sub fetch_by_Name {
     my ($self,$name)=@_;
  
 
-    $self->throw("need a tag name") unless defined $name;
+    $self->throw("need a tag name") unless  $name;
 
     my $dbname=$self->dbname; 
     my $multiplier=$self->multiplier; 
@@ -236,7 +239,7 @@ sub fetch_by_Library_dbID
 {
     my ($self,$id)=@_;
 
-    $self->throw("need a library id") unless defined $id;
+    $self->throw("need a library id") unless  $id;
 
     my $dbname=$self->dbname;
     my $multiplier=$self->multiplier; 
@@ -272,7 +275,7 @@ sub fetch_by_Library_Name
 {
     my ($self,$name)=@_;
 
-  $self->throw("need a library name") unless defined $name;
+  $self->throw("need a library name") unless  $name;
 
     my $dbname=$self->dbname;
     my $multiplier=$self->multiplier; 
@@ -310,7 +313,7 @@ sub fetch_by_LibraryList_dbIDs
 {
     my ($self,@ids)=@_;
 
-    $self->throw("need a list of library ids") unless defined @ids && $#ids>=0;
+    $self->throw("need a list of library ids") unless  @ids && $#ids>=0;
     
     my $list=$self->_prepare_list(@ids);
 
@@ -353,7 +356,7 @@ sub fetch_by_LibraryList_Name
 {
     my ($self,@ids)=@_;
 
-    $self->throw("need a list of library ids") unless defined @ids && $#ids>=0;
+    $self->throw("need a list of library ids") unless  @ids && $#ids>=0;
     
     my $list=$self->_prepare_list(@ids);
     
@@ -382,7 +385,7 @@ sub fetch_by_LibraryList_Name
 
  Title   : fetch_by_Library_dbID_above_frequency
  Usage   : $obj->fetch_by_Library_dbID_above_frequency
- Function: 
+ Function: this method is supposed to be used from LibraryAdaptor
  Example : 
  Returns : array of seqtag objects above absolute frequency
  Args    : libray id, frequency
@@ -394,8 +397,8 @@ sub fetch_by_LibraryList_Name
 sub fetch_by_Library_dbID_above_frequency {
     my ($self,$id,$frequency)=@_;
 
-    $self->throw("need a library id") unless defined $id;
-    $self->throw("need a frequency value") unless defined $frequency;
+    $self->throw("need a library id") unless  $id;
+    $self->throw("need a frequency value") unless  $frequency;
 
     my $dbname=$self->dbname;
     my $multiplier=$self->multiplier; 
@@ -419,7 +422,7 @@ sub fetch_by_Library_dbID_above_frequency {
 
  Title   : fetch_by_Library_dbID_above_relative_frequency
  Usage   : $obj->fetch_by_Library_dbID_above_relative_frequency
- Function: 
+ Function: this method is supposed to be used from LibraryAdaptor
  Example : 
  Returns : array of seqtag objects above relative frequency
  Args    : libray id, frequency
@@ -431,8 +434,8 @@ sub fetch_by_Library_dbID_above_frequency {
 sub fetch_by_Library_dbID_above_relative_frequency {
     my ($self,$id,$frequency)=@_;
 
-    $self->throw("need a library id") unless defined $id;
-    $self->throw("need a frequency value") unless defined $frequency;
+    $self->throw("need a library id") unless  $id;
+    $self->throw("need a frequency value") unless  $frequency;
     
     my $multiplier=$self->multiplier; 
     my $dbname=$self->dbname;
@@ -548,7 +551,6 @@ sub _prepare_list {
     
     my $string;
     foreach my $id(@ids){
-	print "id $id\n";
 	$string .= $id . ","; 
     }
     chop $string;

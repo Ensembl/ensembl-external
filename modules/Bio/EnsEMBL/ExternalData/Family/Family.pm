@@ -16,12 +16,20 @@ Family - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
-my $famdb=Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor\
-                               ->new(-dbname=>'anton-1', 
-                                     -host=>'ecs1c', 
-                                     -user=>'ensadmin');
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
+use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
+use Bio::EnsEMBL::ExternalData::Family::Family;
 
-my $fam = $famdb->get_family_by_Ensembl_id('ENSP00000012304');
+$famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+                                             -user   => 'ensro',
+                                             -dbname => 'family102',
+                                             -host   => 'ecs1b',
+                                             -driver => 'mysql',
+                                            );
+
+my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
+
+my $fam = $fam_adtor->get_family_by_Ensembl_id('ENSP00000012304');
 
 print $fam->description, join('; ',$fam->keywords), $fam->release, 
       $fam->score, $fam->size;
@@ -123,6 +131,21 @@ sub new {
 #   $self->_debug($debug?$debug:0);
    $self;
 }                                       # new
+
+=head2 adaptor
+
+ Title   : adaptor
+ Usage   : $adaptor = $fam->adaptor
+ Function: find this objects\'s adaptor object (set by FamilyAdaptor)
+ Example :
+ Returns : 
+ Args    : 
+=cut
+
+sub adaptor {
+  my ($self)= shift;
+  return $self->{'adaptor'};
+}
 
 
 =head2 id
@@ -380,6 +403,22 @@ sub add_member {
 
     push @{$self->{_members}}, _dbid_to_dblink($database, $primary_id);
     undef;
+}
+
+=head2 get_alignment
+
+ Title   : get_alignment
+ Usage   : $obj->get_alignment
+ Function: returns a complete clustal alignment as a string
+ Example : 
+ Returns : complete clustal alignment as a string, or undef if not found
+ Args    : none
+
+=cut
+
+sub get_alignment {
+    my ($self) = @_;
+    $self->adaptor->_get_alignment($self);
 }
 
 =head2 _debug

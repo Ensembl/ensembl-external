@@ -112,23 +112,23 @@ sub fetch_Light_STS_by_chr_start_end  {
 
     ## NOTES:
     ## 1. this query only gets ExoSeq STSs (sts_summary.assay_type = 8)
-    ## 2. the query is not speed-optimized, since it uses ms.end_coordinate in
-    ##    the WHERE clause which is not indexed (but there is no other easy
-    ##    way to get the data
+    ## 2. all code here assumes that ssm.contig_orientation is always 1
+    ##    and ms.is_revcomp is always 0
+
     my $q = qq(
         SELECT 
                 ss.id_sts,
-                (ssm.contig_orientation * ms.start_coordinate)
-                    + ssm.start_coordinate - 1 as start_coord,
-                (ssm.contig_orientation * ms.end_coordinate)
-                    + ssm.start_coordinate - 1 as end_coord,
-                ss.sts_name,
-                length(ss.sense_oligoprimer) as sen_len,
-                length(ss.antisense_oligoprimer) as anti_len,
-                ss.pass_status,
-                ms.is_revcomp as ori,
-                ssm.contig_orientation as chr_strand,
-                ss.is_private as private
+                ms.start_coordinate + ssm.start_coordinate - 1
+                                                    as start_coord,
+                ms.end_coordinate + ssm.start_coordinate - 1
+                                                    as end_coord,
+                ss.sts_name                         as sts_name,
+                length(ss.sense_oligoprimer)        as sen_len,
+                length(ss.antisense_oligoprimer)    as anti_len,
+                ss.pass_status                      as pass_status,
+                -1 * (ms.is_revcomp * 2 - 1)        as ori,
+                ssm.contig_orientation              as contig_ori,
+                ss.is_private                       as private
         FROM    chrom_seq cs,
                 database_dict dd,
                 seq_seq_map ssm,
@@ -154,7 +154,7 @@ sub fetch_Light_STS_by_chr_start_end  {
         $sth->execute();
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_Light_STS_by_chr_start_end()!\n$@");
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
 
@@ -162,42 +162,48 @@ sub fetch_Light_STS_by_chr_start_end  {
     my %passmap = ( 1 => 'pass', 2 => 'fail' );
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        next if $row->{'PRIVATE'};
+        #next if $row->{'PRIVATE'};
+        
+        ## NT_contigs should always be on forward strand
+        warn "Contig is in reverse orientation. THIS IS BAD!"
+            if ($row->{'CONTIG_ORI'} == -1);
+        ## STSs should always be on forward strand
+        warn "STS is in reverse orientation. THIS IS BAD!"
+            if ($row->{'ORI'} == -1);
+        
+        my $pass = $passmap{$row->{'PASS_STATUS'}} || "unknown";
         my $sen_start = $row->{'START_COORD'};
         my $sen_end = $row->{'START_COORD'} + $row->{'SEN_LEN'};
-        my $sen_len = $sen_end - $sen_start;
         my $anti_start = $row->{'END_COORD'};
-        my $anti_end = $row->{'END_COORD'} + $row->{'ANTI_LEN'};
-        my $anti_len = $anti_end - $anti_start;
-        my $pass = $passmap{$row->{'PASS_STATUS'}} || "unknown";
+        my $anti_end = $row->{'END_COORD'} - $row->{'ANTI_LEN'};
         push @features, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
                 '_analysis'      =>  'glovar_sts',
-                '_gsf_start'    =>    $sen_start - $slice_start + 1,
-                '_gsf_end'      =>    $sen_end - $slice_start + 1,
-                '_gsf_strand'   =>    $row->{'CHR_STRAND'},
+                '_gsf_start'     =>  $sen_start - $slice_start + 1,
+                '_gsf_end'       =>  $sen_end - $slice_start + 1,
+                '_gsf_strand'    =>  1,
                 '_seqname'       =>  $slice->name,
                 '_hstart'        =>  1,
-                '_hend'          =>  $sen_len,
-                '_hstrand'       =>  1, # fix
+                '_hend'          =>  $row->{'SEN_LEN'},
+                '_hstrand'       =>  1,
                 '_hseqname'      =>  $row->{'STS_NAME'},
                 '_gsf_seq'       =>  $slice,
-                '_cigar_string'  =>  $sen_len."M",
+                '_cigar_string'  =>  $row->{'SEN_LEN'}."M",
                 '_id'            =>  $row->{'ID_STS'},
                 '_database_id'   =>  $row->{'ID_STS'},
                 '_pass'          =>  $pass,
         });
         push @features, Bio::EnsEMBL::DnaDnaAlignFeature->new_fast({
                 '_analysis'      =>  'glovar_sts',
-                '_gsf_start'    =>    $anti_start - $slice_start + 1,
-                '_gsf_end'      =>    $anti_end - $slice_start + 1,
-                '_gsf_strand'   =>    $row->{'CHR_STRAND'},
+                '_gsf_start'     =>  $anti_start - $slice_start + 1,
+                '_gsf_end'       =>  $anti_end - $slice_start + 1,
+                '_gsf_strand'    =>  1,
                 '_seqname'       =>  $slice->name,
                 '_hstart'        =>  1,
-                '_hend'          =>  $anti_len,
-                '_hstrand'       =>  1, # fix
+                '_hend'          =>  $row->{'ANTI_LEN'},
+                '_hstrand'       =>  1,
                 '_hseqname'      =>  $row->{'STS_NAME'},
                 '_gsf_seq'       =>  $slice,
-                '_cigar_string'  =>  $anti_len."M",
+                '_cigar_string'  =>  $row->{'ANTI_LEN'}."M",
                 '_id'            =>  $row->{'ID_STS'},
                 '_database_id'   =>  $row->{'ID_STS'},
                 '_pass'          =>  $pass,
@@ -205,7 +211,6 @@ sub fetch_Light_STS_by_chr_start_end  {
     }
     
     &eprof_end('glovar_sts1');
-    #&eprof_dump(\*STDERR);
     
     return(\@features);
 }                                       

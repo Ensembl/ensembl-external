@@ -53,6 +53,7 @@ use strict;
 use Bio::EnsEMBL::SNP;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
+use Bio::EnsEMBL::Utils::Eprof('eprof_start','eprof_end','eprof_dump');
 
 use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
@@ -108,25 +109,28 @@ sub fetch_Light_SNP_by_chr_start_end  {
     my $ass_name     = $slice->assembly_name();
     my $ass_version  = $slice->assembly_version();
 
+    ## NOTE:
+    ## all code here assumes that ssm.contig_orientation is always 1!
+
+    &eprof_start('glovar_snp');
+
     my $q = qq(
         SELECT
                 ss.ID_SNP                       as INTERNAL_ID,
                 ss.DEFAULT_NAME                 as ID_DEFAULT,
-                (seq_seq_map.contig_orientation * mapped_snp.POSITION)
-                    + seq_seq_map.START_COORDINATE - 1
+                mapped_snp.POSITION + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
-                (seq_seq_map.contig_orientation * mapped_snp.END_POSITION)
-                    + seq_seq_map.START_COORDINATE - 1
+                mapped_snp.END_POSITION + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_END,
                 seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
                 scd.DESCRIPTION                 as VALIDATED,
                 ss.ALLELES                      as ALLELES,
                 svd.DESCRIPTION                 as SNPCLASS,
+                seq_seq_map.CONTIG_ORIENTATION  as CONTIG_ORI,
                 ss.IS_PRIVATE                   as PRIVATE
         FROM    chrom_seq,
                 database_dict,
                 seq_seq_map,
-                snp_sequence,
                 mapped_snp,
                 snp,
                 snpvartypedict svd,
@@ -137,17 +141,16 @@ sub fetch_Light_SNP_by_chr_start_end  {
         AND     database_dict.DATABASE_VERSION = '$ass_version'
         AND     database_dict.ID_DICT = chrom_seq.DATABASE_SOURCE
         AND     chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
-        AND     seq_seq_map.SUB_SEQUENCE = snp_sequence.ID_SEQUENCE
-        AND     snp_sequence.ID_SEQUENCE = mapped_snp.ID_SEQUENCE
+        AND     seq_seq_map.SUB_SEQUENCE = mapped_snp.ID_SEQUENCE
         AND     mapped_snp.ID_SNP = ss.ID_SNP
         AND     ss.ID_SNP = snp.ID_SNP
         AND     snp.VAR_TYPE = svd.ID_DICT
         AND     ss.CONFIRMATION_STATUS = scd.ID_DICT
         AND     mapped_snp.POSITION
-        BETWEEN
-                ('$slice_start' - seq_seq_map.START_COORDINATE - 99)
+                BETWEEN
+                ($slice_start - seq_seq_map.START_COORDINATE - 99)
                 AND 
-                ('$slice_end' - seq_seq_map.START_COORDINATE + 1)
+                ($slice_end - seq_seq_map.START_COORDINATE + 1)
         ORDER BY
                 CHR_START
 
@@ -159,7 +162,7 @@ sub fetch_Light_SNP_by_chr_start_end  {
         $sth->execute();
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_Light_SNP_by_chr_start_end()!\n$@");
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
 
@@ -167,8 +170,12 @@ sub fetch_Light_SNP_by_chr_start_end  {
     my @snps = ();
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        next if $row->{'PRIVATE'};
+        #next if $row->{'PRIVATE'};
 
+        ## NT_contigs should always be on forward strand
+        warn "Contig is in reverse orientation. THIS IS BAD!"
+            if ($row->{'CONTIG_ORI'} == -1);
+        
         my $ambig = $ambig{ join '', sort split /\|/, $row->{'ALLELES'} };
         $row->{'CHR_END'} ||= $row->{'CHR_START'};
         my $snp = Bio::EnsEMBL::SNP->new_fast(
@@ -178,7 +185,6 @@ sub fetch_Light_SNP_by_chr_start_end  {
                 '_gsf_start'    =>    $row->{'CHR_START'} - $slice_start + 1,
                 '_gsf_end'      =>    $row->{'CHR_END'} - $slice_start + 1,
                 '_snp_strand'   =>    $row->{'CHR_STRAND'},
-                '_gsf_score'    =>    -1,
                 '_validated'    =>    $row->{'VALIDATED'},
                 '_raw_status'   =>    $row->{'VALIDATED'},
                 '_ambiguity_code' =>  $ambig,
@@ -197,6 +203,8 @@ sub fetch_Light_SNP_by_chr_start_end  {
         push (@snps, $snp); 
     }
 
+    &eprof_end('glovar_snp');
+    
     return(\@snps);
 }                                       
 
@@ -246,11 +254,9 @@ sub fetch_SNP_by_id  {
         SELECT
                 ss.ID_SNP                       as INTERNAL_ID,
                 ss.DEFAULT_NAME                 as ID_DEFAULT,
-                (seq_seq_map.contig_orientation * mapped_snp.POSITION)
-                    + seq_seq_map.START_COORDINATE - 1
+                mapped_snp.POSITION + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
-                (seq_seq_map.contig_orientation * mapped_snp.END_POSITION)
-                    + seq_seq_map.START_COORDINATE - 1
+                mapped_snp.END_POSITION + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_END,
                 seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
                 scd.DESCRIPTION                 as VALIDATED,
@@ -258,6 +264,7 @@ sub fetch_SNP_by_id  {
                 snp_sequence.DATABASE_SEQVERSION    as SEQVERSION,
                 snp_sequence.CHROMOSOME         as CHR_NAME,
                 ss.ALLELES                      as ALLELES,
+                seq_seq_map.CONTIG_ORIENTATION  as CONTIG_ORI,
                 ss.IS_PRIVATE                   as PRIVATE
         FROM    chrom_seq,
                 database_dict,
@@ -287,15 +294,18 @@ sub fetch_SNP_by_id  {
         $sth->execute();
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
-            \n$@");
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
 
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        next if $row->{'PRIVATE'};
+        #next if $row->{'PRIVATE'};
 
+        ## NT_contigs should always be on forward strand
+        warn "Contig is in reverse orientation. THIS IS BAD!"
+            if ($row->{'CONTIG_ORI'} == -1);
+        
         my $snp = Bio::EnsEMBL::SNP->new;
         
         my $acc_version = '';
@@ -370,8 +380,7 @@ sub _get_DBLinks {
         $sth->execute($id);
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
-            \n$@");
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return;
     }
 
@@ -416,8 +425,7 @@ sub _get_consequences {
         $sth->execute($id);
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_SNP_by_id()!
-            \n$@");
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return;
     }
 

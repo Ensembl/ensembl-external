@@ -11,7 +11,7 @@
 
 =head1 NAME
 
-GlovarHaplotypeAdaptor - Database adaptor for Glovar haplotypes
+GlovarTraceAdaptor - Database adaptor for Glovar traces
 
 =head1 SYNOPSIS
 
@@ -20,7 +20,7 @@ $glodb = Bio::EnsEMBL::ExternalData::Glovar::DBAdaptor->new(
                                          -dbname => 'snp',
                                          -host   => 'go_host',
                                          -driver => 'Oracle');
-my $glovar_adaptor = $glodb->get_GlovarHaplotypeAdaptor;
+my $glovar_adaptor = $glodb->get_GlovarTraceAdaptor;
 $var_listref  = $glovar_adaptor->fetch_all_by_Slice($slice);
 
 =head1 DESCRIPTION
@@ -59,8 +59,8 @@ use vars qw(@ISA);
   Arg [2]    : (optional) boolean $is_lite
                Flag indicating if 'light weight' variations should be obtained
   Example    : svars = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
-  Description: Retrieves a list of variations on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::Variation objects
+  Description: Retrieves a list of traces on a slice in chromosomal coordinates 
+  Returntype : Listref of Bio::EnsEMBL::MapFrag objects
   Exceptions : none
   Caller     : Bio::EnsEMBL::Slice::get_all_ExternalFeatures
 
@@ -88,9 +88,9 @@ sub fetch_all_by_Slice {
 
  Title   : fetch_Light_Trace_by_chr_start_end
  Usage   : $db->fetch_Light_Trace_by_chr_start_end($slice);
- Function: find lightweight variations by chromosomal location.
+ Function: find lightweight traces by chromosomal location.
  Example :
- Returns : a list ref of very light SNP objects - designed for drawing only.
+ Returns : a listref of Bio::EnsEMBL::MapFrag objects
  Args    : slice
 
 =cut
@@ -106,25 +106,26 @@ sub fetch_Light_Trace_by_chr_start_end  {
     ## return traces from cache if available
     my $key = join(":", $slice_chr, $slice_start, $slice_end);
     if ($self->{'_cache'}->{$key}) {
-        warn "using trace cache $key";
         return $self->{'_cache'}->{$key};
     }
 
     &eprof_start('glovar_trace2');
 
-    ## removed DISTINCT ???
+    ## NOTE:
+    ## all code here assumes that ssm.contig_orientation is always 1!
+
     my $q = qq(
         SELECT   
-        DISTINCT
-                (ssm.contig_orientation * ms.contig_match_start)
-                    + ssm.start_coordinate - 1 as start_coord,
-                (ssm.contig_orientation * ms.contig_match_end)
-                    + ssm.start_coordinate - 1 as end_coord,
                 ms.snp_rea_id_read      as read_id,
                 sr.readname             as readname,
-                ms.is_revcomp           as orientation,
+                ms.contig_match_start   as contig_start,
+                ms.contig_match_end     as contig_end,
+                ms.contig_orientation   as read_ori,
                 ms.read_match_start     as read_start,
-                ms.read_match_end       as read_end
+                ms.read_match_end       as read_end,
+                ssm.start_coordinate    as chr_start,
+                ssm.end_coordinate      as chr_end,
+                ssm.contig_orientation  as contig_ori
         FROM    chrom_seq cs,
                 seq_seq_map ssm,
                 mapped_seq ms,
@@ -137,25 +138,11 @@ sub fetch_Light_Trace_by_chr_start_end  {
         AND     cs.id_chromseq = ssm.id_chromseq
         AND     ssm.sub_sequence = ms.id_sequence
         AND     ms.snp_rea_id_read = sr.id_read
-        AND ((
-                (ms.is_revcomp = 0) 
-            AND
-                (ms.contig_match_start BETWEEN
-                $slice_start-10000-ssm.start_coordinate AND
-                $slice_end-ssm.start_coordinate+1)
-            AND
-                (ms.contig_match_end >$slice_start-ssm.start_coordinate+1)
-            ) OR (
-                (ms.is_revcomp = 1)
-            AND
-                (ms.contig_match_start BETWEEN
-                $slice_start-ssm.start_coordinate+1 AND
-                $slice_end-ssm.start_coordinate+10000)
-            AND
-                (ms.contig_match_end < $slice_end-ssm.start_coordinate+1)
-            ))
-        ORDER BY 
-                start_coord
+        AND     ssm.start_coordinate
+                BETWEEN
+                ($slice_start - ms.contig_match_end + 1)
+                AND
+                ($slice_end - ms.contig_match_start + 1)
     );
 
     my $sth;
@@ -164,24 +151,30 @@ sub fetch_Light_Trace_by_chr_start_end  {
         $sth->execute();
     }; 
     if ($@){
-        warn("ERROR: SQL failed in GlovarAdaptor->fetch_Light_Trace_by_chr_start_end()!\n$@");
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
 
     my @traces = ();
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        next if $row->{'PRIVATE'};
-        my ($start, $end, $strand);
-        if ($row->{'ORIENTATION'} == 1) {
-            $start = $row->{'END_COORD'};
-            $end = $row->{'START_COORD'};
-            $strand = '-1';
-        } else {
-            $start = $row->{'START_COORD'};
-            $end = $row->{'END_COORD'};
-            $strand = 1;
+        #next if $row->{'PRIVATE'};
+        
+        ## NT_contigs should always be on forward strand
+        warn "Contig is in reverse orientation. THIS IS BAD!"
+            if ($row->{'CONTIG_ORI'} == -1);
+        
+        my $start = $row->{'CONTIG_START'} + $row->{'CHR_START'} - 1;
+        my $end = $row->{'CONTIG_END'} + $row->{'CHR_START'} - 1;
+
+        ## hack for broken data -- remove this
+        my $strand = $row->{'READ_ORI'};
+        if ($start > $end) {
+            my $temp = $start;
+            $start = $end;
+            $end = $temp;
         }
+        
         my $trace = Bio::EnsEMBL::MapFrag->new(
             $slice_start,
             $row->{'READ_ID'},
@@ -193,20 +186,26 @@ sub fetch_Light_Trace_by_chr_start_end  {
             $strand,
             $row->{'READNAME'},
         );
+        
         $trace->add_annotation('read_start', $row->{'READ_START'});
         $trace->add_annotation('read_end', $row->{'READ_END'});
+        
         ## add strand as annotation so that GlyphSet_simple understands it
         $trace->add_annotation('strand', $strand);
 
-        push (@traces,$trace); 
-
         #warn join(" | ", $row->{'READNAME'}, $start, $end, $strand);
+
+        push (@traces, $trace); 
     }
+
+    ## sort the traces by start chromosomal coordinate
+    @{$self->{'_cache'}->{$key}} = 
+        sort { $a->seq_start <=> $b->seq_start }
+            @traces;
     
     &eprof_end('glovar_trace2');
-    #&eprof_dump(\*STDERR);
     
-    return $self->{'_cache'}->{$key} = \@traces;
+    return $self->{'_cache'}->{$key};
 }                                       
 
 
@@ -215,7 +214,7 @@ sub fetch_Trace_by_chr_start_end  {
     return(1);
 }
 
-sub fetch_Trace_Alignment_by_id  {
+sub fetch_Trace_by_id  {
     my ($self, $id) = @_;
     return(1);
 }

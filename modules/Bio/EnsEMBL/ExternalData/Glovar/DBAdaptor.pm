@@ -115,6 +115,10 @@ sub get_GlovarSNPAdaptor {
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor');
 
 }
+sub get_GlovarBaseCompAdaptor {
+  my $self = shift;
+  return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarBaseCompAdaptor');
+}
 sub get_GlovarSTSAdaptor {
   my $self = shift;
   return $self->_get_adaptor('Bio::EnsEMBL::ExternalData::Glovar::GlovarSTSAdaptor');

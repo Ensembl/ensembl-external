@@ -5,7 +5,9 @@
 
 use POSIX;
 use strict;
-# throws away unnecessary  cruft from raw blast output
+
+# throws away cruft from preparsed blast output, only keeping first
+# (==largest) id1,id2,factor, magnitude of the lot.
 
 my $total=0;
 

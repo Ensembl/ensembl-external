@@ -685,27 +685,45 @@ sub get_Ensembl_SeqFeatures_clone_web {
            
 =cut
 
-sub get_snp_info_between_two_refsnpids {
+sub get_snp_info_between_two_internalids {
 
-   my ($self,$start_refnum,$end_refnum) = @_;
-   my @infos;
-   
-   my $query = qq{
-       SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3, 
-	      h.acc, h.version, h.start, h.end, h.strand
-       FROM   RefSNP as r, Hit as h
-       WHERE  r.id = h.refsnpid ##and snptype = "notwithdrawn" 
-	      and r.id between $start_refnum and $end_refnum
-       };
-      
-   my $sth=$self->prepare($query);
+  my ($self,$start_intnum,$end_intnum,$mouse) = @_;
+  my ($query, @var_objs, %var_objs);
+  if (!$end_intnum) {
+    $end_intnum = $start_intnum;
+  }
+  #if ($mouse) {
+    #$query = qq{
+    #SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3
+    #FROM   RefSNP as r
+	#WHERE  r.snptype = "notwithdrawn" 
+	  #and r.internal_id between $start_intnum and $end_intnum
+	#};
+  #}
+  #else {
+    $query = qq{
+      SELECT r.id, r.snpclass, r.mapweight, r.observed, r.seq5, r.seq3, 
+      h.acc, h.version, h.start, h.end, h.strand
+	FROM   RefSNP as r, Hit as h
+	  WHERE  r.id = h.refsnpid and snptype = "notwithdrawn" 
+	    and r.internal_id between $start_intnum and $end_intnum
+	  };
+  #}
 
-   my $res=$sth->execute();
-   while (my $info = $sth->fetchrow_arrayref()) {
-     push (@infos, [@$info]);
-   }
-   return @infos;
+  my $sth=$self->prepare($query);
+  
+  my $res=$sth->execute();
+  while (my $info = $sth->fetchrow_hashref()) {
+    if ($info) {
+      my $var_obj = $self->_objFromHashref($info);
+      #$var_objs{$var_obj->snpid}=$var_obj;
+      push (@var_objs, $var_obj);
+    }
+  }
+  return @var_objs;
 }
+ 
+  
 
 =head2 get_snp_info_by_refsnpid
 
@@ -720,25 +738,76 @@ sub get_snp_info_between_two_refsnpids {
 
 sub get_snp_info_by_refsnpid {
 
-   my ($self,$refsnpid) = @_;
-   my @infos;
-   
-   my $query = qq{
-       SELECT t1.id, t1.snpclass, t1.snptype, t1.observed, t1.seq5, t1.seq3, 
-	      t2.acc, t2.version, t2.start, t2.end, t2.strand
-       FROM   RefSNP as t1, Hit as t2 
-       WHERE  t1.id = t2.refsnpid and t1.mapweight <=2 and t1.id = "$refsnpid"
-       };
-      
-   my $sth=$self->prepare($query);
-
-   my $res=$sth->execute();
-    while (my $info = $sth->fetchrow_arrayref()) {
-       push (@infos, [@$info]);
-   }   
-   return $infos[0];
+  my ($self,$refsnpid,$mouse) = @_;
+  my (@infos,$query,%var_objs);
+  
+  if ($mouse) {
+    $query = qq{
+      SELECT t1.id, t1.snpclass, t1.snptype, t1.observed, t1.seq5, t1.seq3
+	FROM   RefSNP as t1
+	  WHERE  t1.id = "$refsnpid"
+	};
+  }
+  else {
+    $query = qq{
+      SELECT t1.id, t1.snpclass, t1.snptype, t1.observed, t1.seq5, t1.seq3, 
+      t2.acc, t2.version, t2.start, t2.end, t2.strand
+	FROM   RefSNP as t1, Hit as t2 
+	  WHERE  t1.id = t2.refsnpid and t1.mapweight <=2 and t1.id = "$refsnpid"
+	};
+  }
+  
+  my $sth=$self->prepare($query);
+  
+  my $res=$sth->execute();
+  while (my $info = $sth->fetchrow_hashref()) {
+    if ($info) {
+      my $var_obj = $self->_objFromHashref($info);
+      $var_objs{$var_obj->snpid}=$var_obj;
+      return values %var_objs;
+    }
+  }
 }
 
+sub _objFromHashref {
+  my ($self,$info) = @_;
+  
+  my $acc_version = '';
+  my $acc = $info->{acc};
+  my $ver = $info->{version};
+  my $acc_version .= uc $acc if $acc;
+  $acc_version .= ".$ver" if $ver;
+  
+  my $snp = new Bio::EnsEMBL::ExternalData::Variation;
+  
+  $snp->acc($info->{acc});
+  $snp->version($info->{version});
+  $snp->seqname($acc_version);
+  $snp->start($info->{start});
+  $snp->end($info->{end});
+  $snp->strand($info->{strand});
+  $snp->source_tag('dbSNP');
+  #$snp->status($info->{confirmed});
+  $snp->alleles($info->{observed});
+  $snp->upStreamSeq($info->{seq5});
+  $snp->dnStreamSeq($info->{seq3});
+  $snp->score($info->{mapweight}); 
+  #$snp->het($info->{het});
+  #$snp->hetse($info->{hetse});
+  $snp->snpid($info->{id});
+  $snp->snpclass($info->{snpclass});
+
+  #DBLink
+  my $link = new Bio::Annotation::DBLink;
+  $link->database('dbSNP');
+  $link->primary_id($info->{id});
+  
+  #add dbXref to Variation
+  $snp->add_DBLink($link);
+  
+  return $snp;
+}
+  
 
 =head2 prepare
 

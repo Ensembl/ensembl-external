@@ -18,7 +18,7 @@
 
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..5\n"; 
+BEGIN { $| = 1; print "1..6\n"; 
 	use vars qw($loaded); }
 END {print "not ok 1\n" unless $loaded;}
 
@@ -68,8 +68,15 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
 #AC025148.1 AB000381.1  AB012922.1
 #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end);
 @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AB000381', '1' );
-if ( scalar @variations == 1 ) { 
+if ( scalar @variations == 2 ) { 
     print "ok 5\n"; 
 }  else {
     print "not ok 5\n";
+}
+
+$v = $variations[0];
+if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
+    print "ok 6\n"; 
+} else {
+    print "not ok 6\n"; 
 }

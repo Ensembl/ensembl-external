@@ -155,9 +155,10 @@ sub _map_DASSeqFeature_to_chr {
     
     ## Ensembl formac...BAC contigs...Celera Anopheles contigs...Rat contigs...Anopheles contigs...
     my $seqname = $sf->seqname;
-    if( $seqname =~ /(scaffold_\d+|(1?[0-9]|X)\.\d+\-\d+|^\w+\.\d+\.\d+.\d+|c\d+\.\d+\.\d+|[23][LR]_\d+|[4XU]_\d+|BAC.*_C)|CRA_.*|RNOR\d+|\w{4}\d+\_\d+/iox ) {
+    if( $seqname =~ /(scaffold_\d+|(1?[0-9]|X)\.\d+\-\d+|ctg\d+\.\d+|^\w+\.\d+\.\d+.\d+|c\d+\.\d+\.\d+|[23][LR]_\d+|[4XU]_\d+|BAC.*_C)|CRA_.*|RNOR\d+|\w{4}\d+\_\d+/iox ) {
 	$type = 'contig';
     } elsif( $seqname =~ /chr(\d+|X|Y|I{1,3}|I?V|[23][LR]|_scaffold_\d+|_\w+\d+)/io || # Hs/Mm/Dm/Ag/Fr/Rn/Ce/Dr
+             $seqname =~ /^assembly_\d+$/io ||                            # Dr
              $seqname =~ /^cb\d{2}\.fpc\d{4}$/io ||                            # Cb
              $seqname =~ /^([0-2]?[0-9]|I{1,3}|I?V|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
 	$type = 'chromosome';

@@ -37,6 +37,16 @@ CREATE TABLE cumulative_distrib (
   PRIMARY KEY(family_size)
 ); 
 
+CREATE TABLE meta (
+    meta_id INT unsigned not null auto_increment,
+    meta_key varchar( 40 ) not null,
+    meta_value varchar( 255 ) not null,
+
+    PRIMARY KEY( meta_id ),
+    KEY meta_key_index ( meta_key ),
+    KEY meta_value_index ( meta_value )
+);
+
 ### not yet implemented:
 # ## table to hold keywords
 # CREATE TABLE family_keywords (

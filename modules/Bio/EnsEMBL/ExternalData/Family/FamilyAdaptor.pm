@@ -19,36 +19,36 @@ FamilyAdaptor - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
-use Bio::EnsEMBL::DBSQL::DBAdaptor;
-use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
-use Bio::EnsEMBL::ExternalData::Family::Family;
-use Bio::AlignIO;
+  use Bio::EnsEMBL::DBSQL::DBAdaptor;
+  use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
+  use Bio::EnsEMBL::ExternalData::Family::Family;
+  use Bio::AlignIO;
 
-$famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+  $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
                                              -dbname => 'family102',
                                              -host   => 'ecs1b',
                                              -driver => 'mysql',
-                                            );
-my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
+                                              );
+  my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
 
-$fam = $fam_adtor->fetch_by_stable_id('ENSF000013034');  # family id
-$fam = $fam_adtor->fetch_by_dbname_id('SPTR', 'P000123');
-@fam = $fam_adtor->fetch_by_description_with_wildcards('interleukin',1);
-@fam = $fam_adtor->fetch_all();
+  $fam = $fam_adtor->fetch_by_stable_id('ENSF000013034');  # family id
+  $fam = $fam_adtor->fetch_by_dbname_id('SPTR', 'P000123');
+  @fam = $fam_adtor->fetch_by_description_with_wildcards('interleukin',1);
+  @fam = $fam_adtor->fetch_all();
 
-### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
-### Ensembl database object, then use it as:
+  ### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
+  ### Ensembl database object, then use it as:
 
-$ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
+  $ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
 
-$ensdb->add_ExternalAdaptor('family', $fam_adtor);
+  $ensdb->add_ExternalAdaptor('family', $fam_adtor);
 
-# then later on, elsewhere: 
-$fam_adtor = $ensdb->get_ExternalAdaptor('family');
-# also available:
-$ensdb->list_ExternalAdaptors();
-$ensdb->remove_ExternalAdaptor('family');
+  # then later on, elsewhere: 
+  $fam_adtor = $ensdb->get_ExternalAdaptor('family');
+  # also available:
+  $ensdb->list_ExternalAdaptors();
+  $ensdb->remove_ExternalAdaptor('family');
 
 =head1 DESCRIPTION
 

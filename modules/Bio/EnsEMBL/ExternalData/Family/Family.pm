@@ -16,23 +16,24 @@ Family - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
-use Bio::EnsEMBL::DBSQL::DBAdaptor;
-use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
-use Bio::EnsEMBL::ExternalData::Family::Family;
+  use Bio::EnsEMBL::DBSQL::DBAdaptor;
+  use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
+  use Bio::EnsEMBL::ExternalData::Family::Family;
 
-$famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+  $famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
                                              -dbname => 'family102',
                                              -host   => 'ecs1b',
                                              -driver => 'mysql',
-                                            );
+                                              );
 
-my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
+  my $fam_adtor =
+    Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
 
-my $fam = $fam_adtor->get_family_by_Ensembl_id('ENSP00000012304');
+  my $fam = $fam_adtor->get_family_by_Ensembl_id('ENSP00000012304');
 
-print $fam->description, join('; ',$fam->keywords), $fam->release, 
-      $fam->score, $fam->size;
+  print $fam->description, join('; ',$fam->keywords), $fam->release, 
+    $fam->score, $fam->size;
 
 
 =head1 DESCRIPTION

@@ -775,7 +775,7 @@ sub _objFromHashref {
   my $acc_version = '';
   my $acc = $info->{acc};
   my $ver = $info->{version};
-  my $acc_version .= uc $acc if $acc;
+  $acc_version .= uc $acc if $acc;
   $acc_version .= ".$ver" if $ver;
   
   my $snp = new Bio::EnsEMBL::ExternalData::Variation;

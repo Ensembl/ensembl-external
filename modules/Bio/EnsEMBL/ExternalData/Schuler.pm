@@ -323,9 +323,10 @@ sub make_overlaps {
 							  -contigb      => $contigobjb,
 							  -positiona    => $posa,
 							  -positionb    => $posb,
-							  -overlap_type => $type);
+							  -overlap_type => $type,
+							  -source       => 'SCHULER');
 	    
-	    $self->_dbobj->write_ContigOverlap($overlap,"SCHULER");
+	    $self->_dbobj->write_ContigOverlap($overlap);
 	    
 	};
 	if ($@) {

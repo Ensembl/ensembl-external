@@ -382,6 +382,7 @@ sub diseases_on_chromosome
     # If we've got limits, then do a limited query, otherwise, do a full query
     
     if ($offset||$offset == 0){
+	$offset+=0;
         $offset='limit '.$offset;
         if($count){$count=','.$count;}
     
@@ -391,6 +392,7 @@ sub diseases_on_chromosome
                                 AND g.chromosome='$chromosome_no' 
                                 $offset $count;";
 
+        print STDERR $get_disease_ids_sql,"\n\n";
         my $sth=$self->_db_handle->prepare($get_disease_ids_sql);
         $sth->execute;
     

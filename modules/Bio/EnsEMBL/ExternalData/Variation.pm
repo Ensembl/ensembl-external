@@ -1,4 +1,4 @@
-
+#$Id$
 #
 # BioPerl module for Bio::EnsEMBL::ExternalData::Variation
 #
@@ -303,23 +303,22 @@ sub status {
 =cut
 
 sub alleles {
-   my ($obj,$value) = @_;
-   if( defined $value) { 
-      $obj->{'alleles'} = $value;
+    my ($obj,$value) = @_;
+    if( defined $value) { 
+	$obj->{'alleles'} = $value;
     }
-   if ($obj->original_strand==-1 && $obj->_reversed !=1)
-   {             
-       my $value=$obj->{'alleles'};
-       $value=~tr/ATGCatgc/TACGtagc/; 
-       $obj->{'alleles'} = $value;
-       $obj->_reversed(1);
-   }
-   
-   if( ! exists $obj->{'alleles'} ) {
-       return undef;
-   }
-   return $obj->{'alleles'};
-
+    if ($obj->original_strand == -1 && defined $obj->_reversed && $obj->_reversed != 1) {             
+	my $value=$obj->{'alleles'};
+	$value=~tr/ATGCatgc/TACGtagc/; 
+	$obj->{'alleles'} = $value;
+	$obj->_reversed(1);
+    }
+    
+    if( ! exists $obj->{'alleles'} ) {
+	return undef;
+    }
+    return $obj->{'alleles'};
+    
 }
 
 =head2 position_problem
@@ -405,36 +404,32 @@ sub dnStreamSeq {
 
 }
 
-
-
-
-
-sub sub_snp_id {
-   my ($obj,$value) = @_;
-   if( defined $value) {
-      $obj->{'subsnpid'} = $value;
-  }
-   if( ! exists $obj->{'subsnpid'} ) {
-       return undef;
-   }
-   return $obj->{'subsnpid'};
-
-}
-
-
-
-
-sub handle {
-   my ($obj,$value) = @_;
-   if( defined $value) {
-      $obj->{'handle'} = $value;
-  }
-   if( ! exists $obj->{'handle'} ) {
-       return undef;
-   }
-   return $obj->{'handle'};
-
-}
+#sub sub_snp_id {
+#   my ($obj,$value) = @_;
+#   if( defined $value) {
+#      $obj->{'subsnpid'} = $value;
+#  }
+#   if( ! exists $obj->{'subsnpid'} ) {
+#	return undef;
+#   }
+#   return $obj->{'subsnpid'};
+#
+#}
+#
+#
+#
+#
+#sub handle {
+#   my ($obj,$value) = @_;
+#   if( defined $value) {
+#      $obj->{'handle'} = $value;
+#  }
+#   if( ! exists $obj->{'handle'} ) {
+#	return undef;
+#   }
+#   return $obj->{'handle'};
+#
+#}
 
 
 sub original_strand {
@@ -461,14 +456,6 @@ sub _reversed {
    return $obj->{'reversed'};
 
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -507,7 +494,7 @@ sub add_DBLink{
 sub each_DBLink{
    my ($self) = @_;
 
-   return @{$self->{'link'}};
+   return @{$self->{'link'}} if defined $self->{'link'};
 }
 
 =head2 to_FTHelper

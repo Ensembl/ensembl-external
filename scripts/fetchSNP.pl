@@ -17,8 +17,14 @@ my $id = shift;
 
 $id = "5" unless defined $id;
 
-my @snps = $snpdb->get_SeqFeature_by_id($id);
-my $snp = pop @snps;
+my (@snps, $snp);
+
+eval {
+    @snps = $snpdb->get_SeqFeature_by_id($id);
+    $snp = pop @snps;
+};
+die "SNP with id '$id' not found\n$@\n" if $@;
+
 
 print 
 "\nID          : ",        $snp->id,

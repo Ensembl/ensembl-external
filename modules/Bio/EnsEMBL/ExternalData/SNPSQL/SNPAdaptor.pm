@@ -38,7 +38,98 @@ use vars '@ISA';
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor );
 
 
-#use constructor inherited from Bio::EnsEMBL::BaseAdaptor
+
+
+
+=head2 fetch_attributes
+
+  Arg [1]    : Bio::EnsEMBL::SNP $snp
+  Example    : none
+  Description: Retrieves detailed information (such as flanking sequence)
+               for a snp which already has positional information.
+  Returntype : Bio::EnsEMBL::SNP
+  Exceptions : none
+  Caller     : snpview
+
+=cut
+
+sub fetch_attributes {
+  my $self = shift;
+  my $snp = shift;
+
+  $self->throw('snp arg is required') unless($snp && ref $snp);
+  
+  my $dbID = $snp->dbID;
+  $self->throw('snp dbID must be set') unless($dbID); 
+
+  my $sth = $self->prepare('
+      SELECT refsnp.id, refsnp.snpclass,  refsnp.snptype,
+	     refsnp.observed, refsnp.seq5, refsnp.seq3,
+             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight
+      FROM   RefSNP as refsnp
+      AND    refsnp.internal_id = ?');
+
+  $sth->execute($dbID);
+
+  $sth->rows || $self->throw("snp [$dbID] not found in database");
+
+  my ($refsnp_id, $snp_class, $snp_type, $alleles, $seq5, $seq3,
+      $het, $hetse, $confirmed, $mapweight) = $sth->fetchrow_array;
+
+  $sth->finish;
+
+  # use the right vocabulary for the SNP status
+  if ($confirmed eq 'no-info') {
+    $confirmed = "suspected";
+  } else {
+    $confirmed =~ s/-/ /;
+    $confirmed = "proven $confirmed";
+  }
+
+  # the allele separator should be  '|'
+  $alleles =~ s/\//\|/g;
+
+  #prune flank sequences to 25 nt
+  $seq5 = substr($seq5, -25, 25);
+  $seq3 = substr($seq3, 0, 25);
+    
+  #add Ns to length of 25;
+  $seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
+  $seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
+
+  $snp->status($confirmed);
+  $snp->alleles($alleles);
+  $snp->upStreamSeq($seq5);
+  $snp->dnStreamSeq($seq3);
+  $snp->score($mapweight); 
+  $snp->het($het);
+  $snp->hetse($hetse);
+    
+  #DBLink
+  my $link = new Bio::Annotation::DBLink;
+  $link->database('dbSNP');
+  $link->primary_id($refsnp_id);
+  $snp->add_DBLink($link);
+    
+  #get alternative IDs
+  $sth = $self->prepare("	    
+	  SELECT subsnp.handle, subsnp.altid 
+	  FROM   SubSNP as subsnp
+	  WHERE  subsnp.internal_id = ?");
+  
+  $sth->execute($dbID);
+  
+  while(my ($handle, $altid) = $sth->fetchrow_array) {
+    my $link = new Bio::Annotation::DBLink;
+    $link->database($handle);
+    $link->primary_id($altid);
+    #add dbXref to Variation
+    $snp->add_DBLink($link);
+  }
+
+  return $snp;
+}
+  
 
 
 =head2 fetch_by_SNP_id

@@ -239,13 +239,15 @@ sub annotation_confidence_score {
  Usage   : $fam->size
  Function: returns the number of members of the family
  Returns : an int
- Args    : 
-
+ Args : optionally, a databasename; if given, only members belonging to
+        that database are counted, otherwise, all are given.
 =cut
 
 sub size {
- my ($self) = @_; 
- return int(@{$self->{'_members'}});
+ my ($self, $db_name) = @_; 
+
+ if  ( defined $db_name) { return int($self->each_member_of_db($db_name)); }
+ else { return int(@{$self->{'_members'}}) };
 }
 
 =head2 each_ens_pep_member

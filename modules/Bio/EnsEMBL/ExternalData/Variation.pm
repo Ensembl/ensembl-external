@@ -127,8 +127,8 @@ sub new {
     $gff_string && $self->SUPER::_from_gff_string($gff_string);
     $status  && $self->status($status);
     $alleles && $self->alleles($alleles);
-    $upstreamseq  && $self->upstreamseq($upstreamseq);
-    $dnstreamseq  && $self->dnstreamseq($dnstreamseq);
+    $upstreamseq  && $self->upStreamSeq($upstreamseq);
+    $dnstreamseq  && $self->dnStreamSeq($dnstreamseq);
 
     $self->{ 'link' } = [];
 

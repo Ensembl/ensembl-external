@@ -19,18 +19,32 @@ FamilyAdaptor - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
-my $famdb=Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor\
-                               ->new(-dbname=>'anton-1', 
-                                     -host=>'ecs1c', 
-                                     -user=>'ensadmin');
-my $fam, @fam;
+$famdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+                                             -user   => 'ensro',
+                                             -dbname => 'family102',
+                                             -host   => 'ecs1b',
+                                             -driver => 'mysql',
+                                            );
+my $fam_adtor = Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor->new($famdb);
 
-$fam = $famdb->get_Family_by_id('ENSF000013034');  # family id
-$fam = $famdb->get_Family_of_Ensembl_pep_id('ENSP00000012304');
-$fam = $famdb->get_Family_of_Ensembl_gene_id('ENSG00000012304');
-$fam = $famdb->get_Family_of_db_id('SPTR', 'P000123');
-@fam = $famdb->get_Family_described_as('interleukin');
-@fam = $famdb->all_Families();
+$fam = $fam_adtor->get_Family_by_id('ENSF000013034');  # family id
+$fam = $fam_adtor->get_Family_of_Ensembl_pep_id('ENSP00000012304');
+$fam = $fam_adtor->get_Family_of_Ensembl_gene_id('ENSG00000012304');
+$fam = $fam_adtor->get_Family_of_db_id('SPTR', 'P000123');
+@fam = $fam_adtor->get_Family_described_as('interleukin');
+@fam = $fam_adtor->all_Families();
+
+### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
+### Ensembl database object, then use it 
+
+$ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
+
+$ensdb->add_ExternalAdaptor('family', $fam_adtor);
+# then later on, elsewhere: 
+$fam_adtor = $ensdb->get_ExternalAdaptor('family');
+# also available:
+$ensdb->list_ExternalAdaptors();
+$ensdb->remove_ExternalAdaptor('family');
 
 =head1 DESCRIPTION
 
@@ -38,9 +52,6 @@ This module is an entry point into a database of protein families,
 clustering SWISSPROT/TREMBL using Anton Enright's algorithm. The clustering
 neatly follows the SWISSPROT DE-lines, which are taken as the description
 of the whole family.
-
-The object is a bit bare, still; dbxrefs (i.e., family to family) are not
-implemented, and SWISSPROT/TREMBL  keywords aren't there yet either. 
 
 The objects can only be read from the database, not written. (They are
 loaded ussing a separate perl script).
@@ -66,9 +77,7 @@ use strict;
 # Object preamble - inheriets from Bio::Root::Object
 
 use Bio::Root::Object;
-# use Bio::Root::RootI;
 use DBI;
-#use Bio::EnsEMBL::DBLoader; ??
 
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;

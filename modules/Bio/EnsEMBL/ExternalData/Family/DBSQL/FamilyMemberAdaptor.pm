@@ -158,6 +158,36 @@ sub fetch_by_dbname {
   return @members;
 }
 
+
+sub fetch_by_dbname_taxon {
+  my ($self,$dbname,$taxon_id) = @_;
+
+  $self->throw("Should give defined databasename and taxon_id as arguments\n") unless (defined $dbname && defined $taxon_id);
+
+  my $q = "SELECT fm.family_id,fm.family_member_id, fm.external_db_id, fm.external_member_id, fm.taxon_id, ex.name
+           FROM family_members fm, external_db ex
+           WHERE ex.external_db_id = fm.external_db_id and ex.name = ? and fm.taxon_id = ?";
+
+  $q = $self->prepare($q);
+  $q->execute($dbname,$taxon_id);
+  
+  my @members;
+
+  while (defined (my $rowhash = $q->fetchrow_hashref)) {
+    my $member = new Bio::EnsEMBL::ExternalData::Family::FamilyMember();
+
+    $member->adaptor($self);
+    $member->dbID($rowhash->{family_member_id});
+    $member->family_id($rowhash->{family_id});
+    $member->external_db_id($rowhash->{external_db_id});
+    $member->database($rowhash->{name});
+    $member->stable_id($rowhash->{external_member_id});
+    $member->taxon_id($rowhash->{taxon_id});
+    push @members, $member;
+  }
+  return @members;
+}
+
 sub fetch_by_family_dbname {
   my ($self,$family_id,$dbname) = @_;
 

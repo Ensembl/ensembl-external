@@ -110,7 +110,7 @@ sub fetch_all_by_DBLink_Container {
    my $url        = $self->_url;
    my $dsn        = $self->_dsn;
    $parent_obj->can('get_all_DBLinks') ||
-     $self->throw( "Need a Bio::EnsEMBL obj (eg Protein) that can ".
+     $self->throw( "Need a Bio::EnsEMBL obj (eg Transcript) that can ".
 		   "get_all_DBLinks" );
 
    $id_type = lc( $id_type );
@@ -129,7 +129,7 @@ sub fetch_all_by_DBLink_Container {
        my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
-       $dsf->das_segment_id    ( $f->segment() );
+       $dsf->das_segment_id    ( $f->segment()->ref );
        $dsf->das_segment_label ( $f->label() );
        $dsf->das_id            ( $f->id() );
        $dsf->das_dsn           ( $dsn );

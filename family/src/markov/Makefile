@@ -5,7 +5,7 @@ OPTS = -g3 -O
 
 CFLAGS = -c $(OPTS)
 
-.PHONY: install clean
+.PHONY: all install clean
 
 all: markov
 

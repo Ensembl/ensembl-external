@@ -39,10 +39,23 @@ use Bio::EnsEMBL::FeaturePair;
 use Bio::EnsEMBL::SeqFeature;
 use Bio::EnsEMBL::FeatureFactory;
 use Bio::EnsEMBL::DBSQL::AnalysisAdaptor;
+use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 use Bio::Root::RootI;
 use vars qw(@ISA);
 
 @ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+
+my $NO_EXTERNAL = 1;
+BEGIN {
+        eval {
+	    require EnsemblExt;
+        };
+        if( $@ ) {
+           $NO_EXTERNAL = 1;
+        } else {
+           $NO_EXTERNAL = 0;
+        }
+};
 
 
 sub new {
@@ -185,19 +198,23 @@ sub get_Ensembl_SeqFeatures_contig_list{
    my $statement = "SELECT id, contig, seq_start, seq_end, strand, score, analysis, name, hstart, hend, hid, evalue, perc_id, phase, end_phase " .
        "FROM  feature WHERE feature.contig in $inlist ";
 
+   &eprof_start('est-sql');
    my $sth = $self->db->prepare($statement);
    my $res = $sth->execute;
+   &eprof_end('est-sql');
    
    # bind the columns
    $sth->bind_columns(undef,\$fid,\$contig,\$start,\$end,\$strand,\$f_score,\$analysisid,\$name,\$hstart,\$hend,\$hid,\$evalue,\$perc_id,\$phase,\$end_phase);
    
+   &eprof_start('est-object');
    while($sth->fetch) {
 
        my $out;
        my $analysis;
        my $anaAdaptor = Bio::EnsEMBL::DBSQL::AnalysisAdaptor->new($self->db);      
        if (!$analhash{$analysisid}) {
-	   $analysis   = $anaAdaptor->fetch_by_dbID($analysisid);     
+	   my $feature_obj=Bio::EnsEMBL::DBSQL::Feature_Obj->new($self->db);
+	   $analysis = $feature_obj->get_Analysis($analysisid);
 	   $analhash{$analysisid} = $analysis;
        } else {
 	   $analysis = $analhash{$analysisid};
@@ -213,13 +230,17 @@ sub get_Ensembl_SeqFeatures_contig_list{
        $out->set_all_fields($start,$end,$strand,$f_score,$name,'similarity',$int_ext{$contig},
 			    $hstart,$hend,1,$f_score,$name,'similarity',$hid);
        
-       $out->percent_id  ($perc_id);
+       if( !$out->isa("Bio::EnsEMBL::Ext::FeaturePair") ) { 
+	   $out->percent_id  ($perc_id);
+       }
+
        $out->analysis    ($analysis);
        $out->id          ($hid);  
        $out->validate();
        
        push(@array,$out);
    }
+   &eprof_end('est-object');
    return @array;
 }
 

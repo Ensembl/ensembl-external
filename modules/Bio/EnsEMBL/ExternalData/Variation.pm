@@ -123,6 +123,8 @@ sub _initialize {
   
   $start && $self->SUPER::start($start);
   $end   && $self->SUPER::end($end);
+ $start && $self->start_in_clone_coord($start);
+  $end   && $self->end_in_clone_coord($end);
   $strand && $self->SUPER::strand($strand);
   $primary && $self->SUPER::primary_tag($primary);
   $source  && $self->SUPER::source_tag($source);
@@ -168,6 +170,46 @@ sub id {
 #    return $id->database. "::". $id->primary_id;
     return  $id->primary_id;
 }
+
+sub clone_name {
+    my ($obj) = @_;
+
+    my @names = $obj->each_DBLink;
+    my $name = $names[0];
+#    return $id->database. "::". $id->primary_id;
+    return  $name->optional_id;
+}
+
+sub start_in_clone_coord {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'start_in_clone_coord'} = $value;
+    }
+   if( ! exists $obj->{'start_in_clone_coord'} ) {
+       return "$obj";
+   }
+   return $obj->{'start_in_clone_coord'};
+
+}
+
+
+sub end_in_clone_coord {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'end_in_clone_coord'} = $value;
+    }
+   if( ! exists $obj->{'end_in_clone_coord'} ) {
+       return "$obj";
+   }
+   return $obj->{'end_in_clone_coord'};
+
+}
+
+
+
+
+
+
 
 
 =head2 status

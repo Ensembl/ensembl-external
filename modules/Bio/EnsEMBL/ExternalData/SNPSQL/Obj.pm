@@ -590,7 +590,8 @@ sub get_Ensembl_SeqFeatures_clone {
        my $link = new Bio::Annotation::DBLink;
        $link->database('TSC');
        $link->primary_id($snpuid);
-
+       $link->optional_id($acc_version);
+  
        #add dbXref to Variation
        $snp->add_DBLink($link);
 

@@ -80,19 +80,12 @@ package Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use vars qw(@ISA);
 use strict;
 
-# Object preamble - inheriets from Bio::Root::Object
-
-use Bio::Root::Object;
-use DBI;
-
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
-
-warn "``WHERE ... db_name <> 'ENSMUSPEP' '' is hard-coded!";
 
 =head2 get_Family_by_id
 
@@ -109,11 +102,10 @@ sub get_Family_by_id  {
     my ($self, $id) = @_; 
 
     my $q = 
-      "SELECT
-            f.internal_id, f.id, f.description, f.release, 
-            f.annotation_confidence_score, f.num_ens_pepts
+      "SELECT family_id, stable_id, description, release, 
+              annotation_confidence_score
        FROM family f
-       WHERE id = '$id'";
+       WHERE stable_id = '$id'";
 
     $self->_get_family($q);
 }                                       # get_Family_by_id
@@ -132,7 +124,7 @@ sub get_Family_by_id  {
 sub get_Family_of_Ensembl_pep_id {
     my ($self, $eid) = @_; 
 
-    $self->get_Family_of_db_id('ENSEMBLPEP', $eid);  #PL: what db_name ???
+    $self->get_Family_of_db_id(2, $eid);  #PL: what db_name ???
 }
 
 =head2 get_Family_of_Ensembl_gene_id
@@ -148,7 +140,7 @@ sub get_Family_of_Ensembl_pep_id {
 
 sub get_Family_of_Ensembl_gene_id {
     my ($self, $eid) = @_; 
-    $self->get_Family_of_db_id('ENSEMBLGENE', $eid);  #PL: what db_name ???
+    $self->get_Family_of_db_id(1, $eid);  #PL: what db_name ???
 }
 
 =head2 get_Family_of_db_id
@@ -163,15 +155,15 @@ sub get_Family_of_Ensembl_gene_id {
 =cut
 
 sub get_Family_of_db_id { 
-    my ($self, $db_name, $db_id) = @_; 
+    my ($self, $extdbid, $extm_id) = @_; 
 
     my $q = 
-      "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score, f.num_ens_pepts
+      "SELECT f.family_id, f.stable_id, f.description, 
+              f.release, f.annotation_confidence_score
        FROM family f, family_members fm
-       WHERE f.internal_id = fm.family
-         AND fm.db_name = '$db_name' 
-         AND fm.db_id = '$db_id'"; 
+       WHERE f.family_id = fm.family_id
+         AND fm.external_db_id = $extdbid 
+         AND fm.external_member_id = '$extm_id'"; 
 
     $self->_get_family($q);
 }
@@ -193,8 +185,8 @@ sub get_Families_described_as{
     my ($self, $desc) = @_; 
 
     my $q = 
-      "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score, f.num_ens_pepts
+      "SELECT f.family_id, f.stable_id, f.description, 
+              f.release, f.annotation_confidence_score
        FROM family f
        WHERE f.description LIKE '%". "\U$desc" . "%'";
 
@@ -216,16 +208,14 @@ sub get_Families_described_as{
 sub all_Families { 
     my ($self) = @_; 
 
-# my $nnn = 10;
-# warn "@@@ DEBUG: limiting the number of families to those bigger than $nnn members";
-    
     my $q = 
-      "SELECT f.internal_id, f.id, f.description, 
-              f.release, f.annotation_confidence_score, f.num_ens_pepts
+      "SELECT f.family_id, f.stable_id, f.description, 
+              f.release, f.annotation_confidence_score
        FROM family f";
-#       FROM family f WHERE num_ens_pepts > $nnn";
     $self->_get_families($q);
 }
+
+#Add method to fetch by number of members
 
 =head2 known_databases
 
@@ -252,8 +242,7 @@ sub _known_databases {
   my ($self)= shift;
   
   my $q = 
-    "SELECT distinct db_name 
-     FROM family_members";
+    "SELECT name FROM external_db";
   $q = $self->prepare($q);
   $q->execute;
 
@@ -270,12 +259,12 @@ sub _known_databases {
 sub _get_members {
     my ($self, $fam) = @_;
 
-    my $iid = $fam->internal_id;
+    my $fid = $fam->internal_id;
 # warn hard coding here !!!
     my $q = 
-      "SELECT db_name, db_id
+      "SELECT external_db_id, external_member_id
          FROM family_members
-        WHERE family = $iid";
+        WHERE family_id = $fid";
 
     $q = $self->prepare($q);
     $q->execute;
@@ -283,7 +272,7 @@ sub _get_members {
     my ($rowhash, $n, $mem, $db_name, $db_id);
 
     while ( $rowhash = $q->fetchrow_hashref) {
-        $fam->add_member( $rowhash->{db_name}, $rowhash->{db_id});
+        $fam->add_member( $rowhash->{external_db_id}, $rowhash->{external_member_id});
         $n++;
     }
 
@@ -353,10 +342,10 @@ sub get_max_id {
 sub _get_alignment_string {
     my ($self, $fam) = @_; 
 
-    my $internal_id = $fam->internal_id();
+    my $fid = $fam->internal_id();
     my $q= "SELECT alignment
             FROM alignments 
-            WHERE family = $internal_id";
+            WHERE family_id = $fid";
 
     $q = $self->prepare($q);
     $q->execute();
@@ -399,13 +388,11 @@ sub _get_families {
     while ( $rowhash = $q->fetchrow_hashref) {
         $fam = new Bio::EnsEMBL::ExternalData::Family::Family;
         $fam->{'adaptor'}=$self;
-        $fam->internal_id($rowhash->{internal_id});
-        $fam->id($rowhash->{id});
+        $fam->internal_id($rowhash->{family_id});
+        $fam->id($rowhash->{stable_id});
         $fam->description($rowhash->{description});
         $fam->release($rowhash->{release});
         $fam->annotation_confidence_score($rowhash->{annotation_confidence_score});
-
-        $fam->num_ens_pepts($rowhash->{num_ens_pepts});
 
         $self->_get_members($fam);      # make more lazy ? 
         push(@fams, $fam);

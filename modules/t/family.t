@@ -12,7 +12,7 @@ use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Family::FamilyAdaptor;
 use Bio::EnsEMBL::ExternalData::Family::Family;
 ## use Bio::EnsEMBL::DBLoader;
-use lib 't';
+use lib '../../ensembl/modules/t';
 use EnsTestDB;
 
 $loaded = 1;
@@ -23,11 +23,6 @@ $" = ", ";                          # for easier list-printing
 ## configuration thing. Note: EnsTestDB.conf is always read (if available); this
 ## hash only overrides bits and pieces of that.
 my $testconf={
-    'driver'        => 'mysql',
-    'host'          => 'ecs1a',
-    'user'          => 'ensadmin',
-    'port'          => '3306',
-    'pass'      => 'ensembl',
     'schema_sql'    => ['../sql/family.sql'],
     'module'        => 'Bio::EnsEMBL::DBSQL::DBAdaptor'
 };
@@ -113,8 +108,6 @@ if ($@ || $fam) {
 };
 
 
-
-
 $id='ENSP00000231624';
 $fam = $famadtor->get_Family_of_Ensembl_pep_id($id);
 if (defined($fam)) {
@@ -133,7 +126,7 @@ if (defined($fam)){
     warn "didn't find family of gene id $id\n";
 }
 
-@pair = ('SPTR', 'O15520');
+@pair = (3, 'O15520');
 $fam = $famadtor->get_Family_of_db_id(@pair);
 if (defined($fam)){
     print "ok 11\n";

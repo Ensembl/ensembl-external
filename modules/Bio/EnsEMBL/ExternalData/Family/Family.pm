@@ -68,25 +68,13 @@ use vars qw(@ISA);
 use strict;
 
 # Object preamble - inheriets from Bio::Root::Object
-
-use Bio::Root::Object;
+use Bio::Root::Root;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 
 
-@ISA = qw(Bio::Root::Object Bio::DBLinkContainerI);
+@ISA = qw(Bio::Root::Root Bio::DBLinkContainerI);
 # new() is inherited from Bio::Root::Object
-
-# _initialize is where the heavy stuff will happen when new is called
-
-sub _initialize {
-  my($self,@args) = @_;
-
-  my $make = $self->SUPER::_initialize;
-
-# set stuff in self from @args
- return $make; # success - we hope!
-}
 
 =head2 new
 
@@ -101,10 +89,10 @@ sub _initialize {
 =cut
 
 sub new {
-   my ($class, @args) = @_;
+  my($class,@args) = @_;
 
-   my $self = {};
-   bless $self,$class;
+  my $self = $class->SUPER::new(@args);
+
 
 # do this explicitly.
 #    my ($internal_id, $id,$descr,$score, $rel, $debug,) 
@@ -129,7 +117,7 @@ sub new {
 #    }
 #
 #   $self->_debug($debug?$debug:0);
-   $self;
+   return $self;
 }                                       # new
 
 =head2 adaptor
@@ -398,10 +386,10 @@ sub add_DBLink {
 
 # convert a string pair to a DBLink
 sub _dbid_to_dblink {
-    my($database, $primary_id) = @_; 
+    my($self,$database, $primary_id) = @_; 
 
     if ($database eq '' || $primary_id eq '') {
-        Bio::Root::RootI->throw("Bio::EnsEMBL::ExternalData::Family::Family::_dbid_to_dblink:  must have both a database and an id");
+        $self->warn("Bio::EnsEMBL::ExternalData::Family::Family::_dbid_to_dblink:  must have both a database and an id $database $primary_id"); 
     }
     my $link = new Bio::Annotation::DBLink();
 
@@ -425,7 +413,7 @@ sub _dbid_to_dblink {
 sub add_member { 
     my ($self, $database, $primary_id) = @_; 
 
-    push @{$self->{_members}}, _dbid_to_dblink($database, $primary_id);
+    push @{$self->{_members}}, $self->_dbid_to_dblink($database, $primary_id);
     undef;
 }
 

@@ -59,19 +59,15 @@ print STDERR "Creating sptrembl description file and fasta file\n";
 
 my ($sptrembl_desc,$sptrembl_fasta) = &print_swiss_format_file('sptrembl',$sptrembl_file);
 
-my $cat_desc = "$swiss_desc $sptrembl_desc";
-
 print STDERR "Creating $desc_file\n";
-system("cat $cat_desc > $desc_file"); 
+system("cat $swiss_desc $sptrembl_desc |gzip -c > $desc_file.gz"); 
 unlink $swiss_desc;
 unlink $sptrembl_desc;
 
 #create blast peptide file
 
-my $cat_pep = "$swiss_fasta $sptrembl_fasta";
-
 print STDERR "Creating peptide file for blasting $pep_file\n";
-system("cat $cat_pep > $pep_file");
+system("cat $swiss_fasta $sptrembl_fasta |gzip -c > $pep_file.gz");
 
 unlink $swiss_fasta;
 unlink $sptrembl_fasta;
@@ -79,29 +75,45 @@ unlink $sptrembl_fasta;
 print STDERR "Setup Completed for peptide files\n";
 
 print "****************************************************************\n";
-print STDERR "Swissprot and Trembl Description file : $desc_file\n";
-print STDERR "Swissprot and Trembl Fasta file       : $pep_file\n";
+print STDERR "Swissprot and Trembl Description file : $desc_file.gz\n";
+print STDERR "Swissprot and Trembl Fasta file       : $pep_file.gz\n";
 
-print STDERR "You may now proceed to cat the ensembl peptides to $pep_file\n";
+print STDERR "You may now proceed to cat the ensembl peptides to $pep_file.gz\n";
 print "****************************************************************\n";
 
 
 
 sub print_swiss_format_file {
     my ($db,$file) = @_;
-    my $sio = Bio::SeqIO->new(-file=>$file,-format=>"swiss");
 
-    my $desc_file = time . ".".int(rand(1000));
-    my $fasta_file = time . ".".int(rand(1000));
+    my $rand = time().rand(1000);
+    
+    if ($file =~ /\.gz/) {
+      open FILE,"gunzip -c $file |" ||
+	die "can't open $file: $!";
+    } else {
+      open FILE,"cat $file |" ||
+	die "can't open $file: $!"; 
+    }
+    my $sio = Bio::SeqIO->new(-fh=>\*FILE,-format=>"swiss");
+    
+    my $desc_file = $file.".".$rand.".desc";
+    my $fasta_file = $file.".".$rand.".pep";
     my $sout = Bio::SeqIO->new(-file=>">$fasta_file",-format=>"fasta");
     open (DESC, ">$desc_file");
-
     while (my $seq = $sio->next_seq){
         my $species = $seq->species;
         if($species){
+	  my $sub_species = "";
+	  if (defined $species->sub_species) {
+	    $sub_species = $species->sub_species;
+	  }
+	  unless (defined $species->common_name) {
+	    $species->common_name("");
+	  }
           my $taxon_str = "taxon_id=".$species->ncbi_taxid.";taxon_genus=".$species->genus.
                           ";taxon_species=".$species->species.";taxon_sub_species=".
-                          $species->sub_species.";taxon_common_name=".
+                          $sub_species.";taxon_common_name=".
                           $species->common_name.";taxon_classification=".join(":",$species->classification);
 
         print DESC $db."\t".$seq->display_id."\t".$seq->desc."\t".$taxon_str."\n";
@@ -109,6 +121,7 @@ sub print_swiss_format_file {
         }
     }
     close DESC;
+    close FILE;
 
     return ($desc_file,$fasta_file);
 }

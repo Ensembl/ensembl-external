@@ -857,25 +857,18 @@ sub _get_count
 
 
 
-sub _link2ensembl
-{
-    
-    my ($self,@diseases)=@_;
-    
-    foreach my $dis (@diseases){ 
+sub _link2ensembl {
+  my ($self,@diseases)=@_;
+  foreach my $dis (@diseases){ 
     foreach my $location($dis->each_Location){ 
-
-        eval {
-        #my $ensembl_gene=$self->_ensdb->get_Gene_by_DBLink ($location->external_gene); 
-        
-        my $ensembl_gene=$self->_ensdb->get_GeneAdaptor->fetch_by_maximum_DBLink($location->external_gene);
+      eval {
+        my $ensembl_gene = $self->_ensdb->get_GeneAdaptor->fetch_by_maximum_DBLink($location->external_gene);
         $location->ensembl_gene($ensembl_gene);
-    };
-        if ($@){print STDERR "problems with ensembl genes\n$@\n";}
+      };
+      if ($@){print STDERR "problems with ensembl genes\n$@\n";}
     }
-    }
-    
-    return @diseases;
+  }
+  return @diseases;
 }
 
 

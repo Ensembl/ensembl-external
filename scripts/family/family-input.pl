@@ -448,4 +448,3 @@ sub load_families {
     }                                   # foreach fam
     warn "inserted $fam_count families, having a total of $mem_count members\n";
 }                                       # load_families
-

@@ -20,7 +20,7 @@
 use Test;
 use strict;
 
-BEGIN { plan tests => 24}
+BEGIN { plan tests => 25}
 
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::Annotation::DBLink;

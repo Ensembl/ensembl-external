@@ -90,14 +90,15 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 sub fetch_all_by_Slice {
   my ($self, $slice, $is_lite) = @_;
 
-  my $slice_start  = $slice->chr_start;
-  my $slice_end    = $slice->chr_end;
+  my $slice_start  = $slice->start;
+  my $slice_end    = $slice->end;
   my $slice_strand = $slice->strand;
 
-  my @haplotypes = $self->fetch_Haplotype_by_chr_start_end($slice->chr_name,
-                                                           $slice_start,
-                                                           $slice_end,
-							   $is_lite );
+  my @haplotypes = $self->fetch_Haplotype_by_chr_start_end(
+						    $slice->seq_region_name,
+                                                    $slice_start,
+                                                    $slice_end,
+						    $is_lite );
 
   #convert assembly coords to slice coords
   if($slice_strand == 1) {

@@ -21,9 +21,9 @@ FamilyAdaptor - DESCRIPTION of Object
 
   use Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor;
 
-  my $famdb = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-user   => 'ensro',
-								       -dbname => 'familydb',
-								       -host   => 'ecs1b');
+  my $famdb = new Bio::EnsEMBL::ExternalData::Family::DBSQL::DBAdaptor(-user   => 'myusername',
+								       -dbname => 'myfamily_db',
+								       -host   => 'myhost');
 
   my $fam_adtor = $famdb->get_FamilyAdaptor;
 
@@ -35,22 +35,22 @@ FamilyAdaptor - DESCRIPTION of Object
   ### You can add the FamilyAdaptor as an 'external adaptor' to the 'main'
   ### Ensembl database object, then use it as:
 
-  $ensdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new( ... );
+  $ensdb = new Bio::EnsEMBL::DBSQL::DBAdaptor->(-user....);
 
-  $ensdb->add_ExternalAdaptor('family', $fam_adtor);
+  $ensdb->add_db_adaptor('MyfamilyAdaptor', $fam_adtor);
 
   # then later on, elsewhere: 
-  $fam_adtor = $ensdb->get_ExternalAdaptor('family');
+  $fam_adtor = $ensdb->get_db_adaptor('MyfamilyAdaptor');
 
   # also available:
-  $ensdb->list_ExternalAdaptors();
-  $ensdb->remove_ExternalAdaptor('family');
+  $ensdb->get_all_db_adaptors;
+  $ensdb->remove_db_adaptor('MyfamilyAdaptor');
 
 =head1 DESCRIPTION
 
 This module is an entry point into a database of protein families,
-clustering SWISSPROT/TREMBL and ensembl protein sets using the TRIBE algorithm by 
-Anton Enright. The clustering neatly follows the SWISSPROT DE-lines, which are 
+clustering SWISSPROT/TREMBL and ensembl protein sets using the TRIBE MCL algorithm.
+The clustering neatly follows the SWISSPROT DE-lines, which are 
 taken as the description of the whole family.
 
 The objects can be read from and write to a family database.
@@ -136,7 +136,8 @@ sub fetch_by_stable_id  {
  Usage   : $fam = $db->fetch_of_dbname_id($dbname,$dbid);
  Function: find the family to which the given database and id belong
  Example : $fam = $db->fetch_of_dbname_id('SPTR', 'P01235');
- Returns : a Family or undef if not found 
+ Returns : an array of Family (could be empty or contain more than
+           one Family in the case of ENSEMBLGENE only)
  Args    : a database name and a member identifier (display_id)
 
 =cut
@@ -154,13 +155,8 @@ sub fetch_by_dbname_id {
              AND edb.name = '$dbname' 
              AND fm.external_member_id = '$extm_id'"; 
 
-    return $self->_get_family($q);
-}
-
-
-sub get_Family_of_Ensembl_gene_id {
-    my ($self, $eid) = @_;
-    $self->fetch_by_dbname_id('ENSEMBLGENE', $eid);
+#    return $self->_get_family($q);
+    return $self->_get_families($q);
 }
 
 =head2 fetch_by_dbname_taxon_member
@@ -169,7 +165,8 @@ sub get_Family_of_Ensembl_gene_id {
  Usage   : $fam = $db->fetch_of_dbname_taxon_member($dbname,$taxon_id,$member_stable_id);
  Function: find the family to which the given database and id belong
  Example : $fam = $db->fetch_of_dbname_taxon_member('ENSEMBLGENE', '9606', 'ENSG000001101002');
- Returns : a Family or undef if not found 
+ Returns : an array of Family (could be empty or contain more than
+           one Family in the case of ENSEMBLGENE only)
  Args    : a database name and a member identifier (display_id)
 
 =cut
@@ -188,7 +185,8 @@ sub fetch_by_dbname_taxon_member {
              AND fm.external_member_id = '$extm_id'
              AND fm.taxon_id = $taxon_id"; 
 
-    return $self->_get_family($q);
+#    return $self->_get_family($q);
+    return $self->_get_families($q);
 }
 
 =head2 fetch_by_description_with_wildcards
@@ -233,7 +231,7 @@ sub fetch_by_description_with_wildcards{
 
  Title   : fetch_all
  Usage   : 
- Function: return all known families (use with care)
+ Function: return all known families
  Example :
  Returns : 
  Args    : 
@@ -328,7 +326,7 @@ sub _get_families {
     $q = $self->prepare($q);
     $q->execute;
 
-    my @fams;
+    my @fams = ();
 
     while (defined (my $rowhash = $q->fetchrow_hashref)) {
         my $fam = new Bio::EnsEMBL::ExternalData::Family::Family;
@@ -398,19 +396,6 @@ sub _known_databases {
   return \@res;
 }
 
-sub _get_each_member {
-  my ($self,$family) = @_;
-
-  $self->throw("Should give a defined family a object as argument\n") unless (defined $family);
-
-  my $family_id = $family->dbID;
-  my $FamilyMemberAdaptor = $self->db->get_FamilyMemberAdaptor();
-  my @members = $FamilyMemberAdaptor->fetch_by_family_id($family_id);
-  foreach my $member (@members) {
-    $family->add_member($member);
-  }
-}
-
 ###############
 # store methods
 
@@ -445,7 +430,7 @@ sub store {
   $fam->dbID($q->{'mysql_insertid'});
 
   my $member_adaptor = $self->db->get_FamilyMemberAdaptor;
-  foreach my $member ($fam->each_member) {
+  foreach my $member ($fam->get_all_members) {
     $self->_store_db_if_needed($member->database);
     $member_adaptor->store($fam->dbID,$member);
   }
@@ -470,3 +455,45 @@ sub _store_db_if_needed {
   }
 }
 
+###########################################
+#
+# Deprecated methods. Will be deleted soon.
+
+sub get_Family_by_id  {
+  my ($self, $id) = @_;
+
+  $self->warn("FamilyAdaptor->get_Family_by_id is a deprecated method!
+Calling FamilyAdaptor->fetch_by_dbID instead!");
+
+  return $self->fetch_by_dbID($id);
+}
+
+sub get_Family_of_Ensembl_gene_id {
+  my ($self, $eid) = @_;
+
+  $self->warn("FamilyAdaptor->get_Family_of_Ensembl_gene_id is a deprecated method!
+Calling FamilyAdaptor->fetch_by_dbname_id instead!");
+
+  return $self->fetch_by_dbname_id('ENSEMBLGENE', $eid);
+}
+
+sub get_Family_of_Ensembl_pep_id {
+  my ($self, $eid) = @_;
+
+  $self->warn("FamilyAdaptor->get_Family_of_Ensembl_pep_id is a deprecated method!
+Calling FamilyAdaptor->fetch_by_dbname_id instead!");
+
+  return $self->fetch_by_dbname_id('ENSEMBLPEP', $eid);
+}
+
+sub all_Families {
+  my ($self) = @_;
+
+  $self->warn("FamilyAdaptor->all_Families is a deprecated method!
+Calling FamilyAdaptor->fetch_all instead!");
+  
+  return $self->fetch_all;
+
+}
+
+1;

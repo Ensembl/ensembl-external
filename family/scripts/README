@@ -14,8 +14,10 @@ mcl (source can be obtained from http://micans.org/mcl/src/)
 	using /nfs/acari/abel/bin/tribe-matrix
 	using /nfs/acari/abel/bin/mcl
 
-2- Choose a workign directory with enough disk space
+2- Choose a working directory with enough disk space
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The family pipeline takes several GB of space (5BG should be sufficient).
 
 mkdir /acari/work4/abel/family_14_1
 cd /acari/work4/abel/family_14_1
@@ -42,7 +44,7 @@ ssh ice.ebi.ac.uk '/ebi/services/pkgs/srs/bin/osf_5/getz -e -sf swiss "((([libs=
 
 4- Format SWISSPROT/SPTREMBL files to get fasta and description file
 
-~/src/ensembl_main/ensembl-external/family/scripts/prepare_protein.pl -swiss metazoa.swissprot -trembl metazoa.sptrembl -fasta metazoa.pep -desc metazoa.desc > ERR/prepare_protein.err 2>&1 &
+~/src/ensembl_main/ensembl-external/family/scripts/GetSeqAndDescription.pl -swiss metazoa.swissprot -trembl metazoa.sptrembl -fasta metazoa.pep -desc metazoa.desc > ERR/prepare_protein.err 2>&1 &
 
 The description file looks like
 
@@ -57,21 +59,23 @@ internal ids...
 
 Update the ensembl-external/modules/Bio/EnsEMBL/ExternalData/Family/FamilyConf.pm file for new taxon_ids
 
-i.e. for human ensembl peptide
 
-echo "show databases like \"%_core_14_%\";"|mysql -h ecs2d -u ensro|awk '!/Database/ {print $1}' > core_dbs                                                      
+Generate a list of the core databases on on ecs2d. If some haven't arrived there yet you may have
+to add them manually:
+mysql -h ecs2d -u ensro -N -B -e 'show databases like "%_core_14_%"' > core_dbs
+
 Modify core_dbs to add assembly type and a prefix name to be used to create the fasta and desc files.
 The file should look like that, 3 columns
 
 > more core_dbs
 anopheles_gambiae_core_14_2 MOZ2 Ag2
-caenorhabditis_briggsae_core_14_25 CBR25 Ce95
+caenorhabditis_briggsae_core_14_25 CBR25 Cb25
 drosophila_melanogaster_core_14_3 DROM3 Dm3
 fugu_rubripes_core_14_2 FUGU2 Fr2
 homo_sapiens_core_14_31 NCBI31 Hs31
 rattus_norvegicus_core_14_2 RGSC2 Rn2
 
-nohup cat core_dbs | awk '!/^#/' | while read i j k;do /nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/dumpTranslation.pl -host ecs2d -dbname $i -path $j -file $k.pep -taxon_file ERR/$k.desc > ERR/$k.dump.err 2>&1 ;done > ERR/alldumps.err 2>&1 &       
+nohup cat core_dbs | awk '!/^#/' | while read i j k;do /nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/dumpTranslation.pl -host ecs2d -dbname $i -path $j -file $k.pep -taxon_file $k.desc > $k.dump.err 2>&1 ;done > alldumps.err 2>&1 &       
 
 check the peptide numbers you get to see if they are what it is expected. Translation like X+ are not kept in the dumps. 
 
@@ -108,14 +112,12 @@ cd /acari/work4/abel/family_14_1/blast
 
  Distribute peptide ids in several files. Each of them will contain 100 ids,
  and would correspond to one blastp job.
+
+~/src/ensembl/ensembl-external/family/scripts/SplitPeptides.pl ../srs/metazoa_14_1.desc
+
+  The created files are named: PeptideSet.1, PeptideSet.2, ..., PeptideSet.n
+  so that they are suitable for LSF job array creation. 
  
-awk -F \t '{print $2}' ../srs/*.desc |split -l 100 -a 4 -
-
- Rename the created file, so they are suitable for LSF jobs array
-
-ls|cat -n|while read i j;do mv $j PeptideSet.$i;done
-
- Obviously a script should run that more cleanly
 
 8- Run blastp with in a LSF jobs array
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -140,32 +142,38 @@ ls|wc -l
 
  will tell you how many jobs have to be run. Just have a try with one to make sure everything is ok.
 
-echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_14_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_14_1.index -dir ../blast_tribe/' | bsub -q acari -Ralpha -JFamilyBlastp"[1]" -o PeptideSet.%I.out
+ It is better to place the output files in a different directory to reduce the burden on the filesystem.
+ (The fewer files per directory the better).
+
+mkdir ../blast_out
+
+echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_14_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_14_1.index -dir ../blast_tribe/' | bsub -q acari -Ralpha -JFamilyBlastp"[1]" -o ../blast_out/PeptideSet.%I.out
 
  In the kind of construction the full path of each file/script is needed.
  The -Ralpha in the busb, is there because the fastafetch and tribe-parse executables were just compiled 
  on alpha machines.
 
- When it is finish well, you should get 3 new files in the directory
+ When it is complete, you should get 2 new files
 
-PeptideSet.1.out
-PeptideSet.1.err
-PeptideSet.1.blast_tribe
+../blast_out/PeptideSet.1.out
+../blast_tribe/PeptideSet.1.blast_tribe.gz
 
- The first 2 are the STDOUT and STDERR from LSF. The latter is the blastp output parsed
+ The first is the STDOUT from LSF. The latter is the blastp output parsed (and zipped)
  in the suitable format needed for the following steps.
 
  To check if the job finished properly
 
+cd ../blast_out
 ls|grep out|while read i;do awk '/^Subject/ && $NF!="Done" {print;exit}' $i;done
 
  If so you should get no output at all :)
 
  Then run the whole lot of jobs
 
-echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_14_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_14_1.index -dir /acari/work4/family_14_1/blast_tribe' | bsub -q acari -Ralpha -JFamilyBlastp"[2-3806]" -o PeptideSet.%I.out -e PeptideSet.%I.err
+cd ../blast
+echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchBlast.pl -idqy PeptideSet.${LSB_JOBINDEX} -fastadb /data/blastdb/Ensembl/family/metazoa_14_1.pep -fastaindex /data/blastdb/Ensembl/family/metazoa_14_1.pep.index -dir /acari/work4/family_14_1/blast_tribe' | bsub -q acari -Rncbi -JFamilyBlastp"[2-3806]" -o ../blast_out/PeptideSet.%I.out -e ../blast_out/PeptideSet.%I.err
 
- Rerun the failed jobs. Do not forget to delete the output files .out .err and .blast_tribe
+ Rerun the failed jobs. Do not forget to delete the output files .out .err and .blast_tribe.gz
 
 9- Build the matrix needed by mcl and check it for symmetry
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -202,14 +210,21 @@ gzip matrix_tribe_14_1
 10- Run mcl
    ~~~~~~~
 
-bsub -q acaritest -n 16 -C0 -R"select[mem>=20000] rusage[mem=20000]" -f "mcl_tribe_14_1 < /tmp/mcl_tribe_14_1" -o mcl.out -e mcl.err /nfs/acari/abel/bin/mcl /tmp/matrix_tribe_14_1 -I 3.0 -t 16 -P 1000 -R 500 -pct 95 -o /tmp/mcl_tribe_14_1
+bsub -q acaritest -n 16 -C0 -R"select[mem>=2000] rusage[mem=2000]" -f "mcl_tribe_14_1 < /tmp/mcl_tribe_14_1" -o mcl.out -e mcl.err /nfs/acari/abel/bin/mcl /tmp/matrix_tribe_14_1 -I 3.0 -t 16 -P 1000 -R 500 -pct 95 -o /tmp/mcl_tribe_14_1
 
-NOTE: something the bsub command keeps the job PENDING for a long time, even if aristotle do not seem busy...I don't know why. So in that case if it stays pending too long, better to run it local outside of LSF.
+NOTE: When setting the number of CPUs to use to 16 LSF seems to multiple the memory requirement by
+the number of processors.  Running the above command with -n 16 and 
+-R"select[mem>=20000] rusage[mem=20000]" results in the job being stuck in the queue indefinately.
+Reducing the memory requirement by 10x to 2000MB seems to solve the problem.  (16*20GB>aristotle's 180GB)
 
 gzip mcl_tribe_14_1
 
 11- Load in a family database
     ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following step needs to run with an older version of BioPerl (0.7) or with a patched version. 
+The Taxon object in more recent versions of bioperl does some excessive validation of species/genus
+information that will cause the following to fail.
 
 nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl -host ecs2d -dbuser ecs2dadmin -dbpass xxxx -dbname ensembl_family_14_1 -release 14_1 mcl_tribe_14_1.gz index_tribe_14_1.gz ../srs/metazoa_14_1.desc > mcl_description_14_1 2> mcl_description_14_1.err &
 
@@ -225,7 +240,7 @@ nohup ~/src/ensembl_main/ensembl-external/family/scripts/parse_mcl.pl -host ecs2
 
        ensembl-external/family/scripts/assemble-consensus.pl
        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-       assemble-consensus.pl cluster.description mcl_description_14_1.SWISSPROT-consensus \
+       assemble-consensus.pl mcl_description_14_1 mcl_description_14_1.SWISSPROT-consensus \
 mcl_description_14_1.SPTREMBL-consensus  > families.out 2> families.err
 
 
@@ -240,12 +255,40 @@ LoadDescriptionInFamily.pl -host ecs2d -dbuser ecs2dadmin -dbpass xxxx -dbname e
 
 echo '/nfs/acari/abel/src/ensembl_main/ensembl-external/family/scripts/LaunchClustalwOnFamilies.pl -host ecs2d -dbname ensembl_family_14_1 -dbuser ecs2dadmin -dbpass TyhRv -family_id ${LSB_JOBINDEX} -fasta_file /data/blastdb/Ensembl/family/metazoa_14_1.pep -fasta_index /data/blastdb/Ensembl/family/metazoa_14_1.pep.index -store' | bsub -q acarichunky -Rncbi -JFamilyClustalw"[1-10000]" -o %I.out
 
-For the 6 or 7 biggest families (usually family_id 1 to 7), the number of sequence is so important that the clustalw will never end. So kill the jobs just before it is time to hand-over the db. That will let the alignment column NULL for all members of those families.
+For the 6 or 7 biggest families (usually family_id 1 to 7), the number of sequence is so important that 
+the clustalw will never end (i.e. they take a _very_ long time). So kill the jobs just before it is time
+ to hand-over the db. That will let the alignment column NULL for all members of those families.
 
-Make sure to use the acarichunky queue, as lots of jobs are very short and make the LSF becomes a bit mad apparently.
+Make sure to use the acarichunky queue, as lots of jobs are very short and make the LSF becomes a bit mad
+ apparently.  The fewer the jobs in each family the faster the multiple alignement will be computed.
+Using the acarichunky queue means that batches of jobs will be run sequentially on a single host in 
+order to reduce the overhead of sending jobs to hosts via LSF.  However, for the largest families this
+approach is unsuitable (they take several days each to align).  The first 50 or so families should be run
+on the normal acari queue and the rest should be run on acarichunky.
 
 14- Insert the gene stable ids
     ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The genome_db table of the family database will have to be populated prior to loading the gene stable
+ids. This can probably just be copied from the last release database or fromi compara, and should look
+like:
+
+mysql> select * from genome_db;
++--------------+----------+-------------------------+----------+
+| genome_db_id | taxon_id | name                    | assembly |
++--------------+----------+-------------------------+----------+
+|            1 |     9606 | Homo sapiens            | NCBI33   |
+|            2 |    10090 | Mus musculus            | NCBIM30  |
+|            3 |    10116 | Rattus norvegicus       | RGSC2    |
+|            4 |    31033 | Fugu rubripes           | FUGU2    |
+|            5 |     7165 | Anopheles gambiae       | MOZ2     |
+|            6 |     7227 | Drosophila melanogaster | DROM3A   |
+|            7 |     6239 | Caenorhabditis elegans  | CEL102   |
+|            8 |     6238 | Caenorhabditis briggsae | CBR25    |
+|            9 |     7955 | Danio rerio             | ZFISH2   |
++--------------+----------+-------------------------+----------+
+
+Once the genome_db is loaded, run the following script to load the gene stable ids:
 
 ~/src/ensembl_main/ensembl-external/family/scripts/InsertGenesInFamilies.pl -host ecs2d -dbname ensembl_family_14_1 -dbuser ecs2dadmin -dbpass TyhRv -conf_file ~/src/ensembl_main/ensembl-compara/modules/Bio/EnsEMBL/Compara/Compara.conf > ../geneLoading 2>&1
 

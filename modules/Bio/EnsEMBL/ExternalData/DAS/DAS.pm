@@ -116,12 +116,13 @@ sub fetch_all_by_Slice {
     my $chr_end    = $slice->chr_end();
     my $chr_strand = $slice->strand();
     my $length     = $chr_end + $offset;
-    my $clone_adaptor = $self->adaptor->db->get_CloneAdaptor();
+    my $db         = $slice->adaptor->db;
+    my $clone_adaptor = $db->get_CloneAdaptor();
 
 
     my %genomic_features;
     
-    my $mapper = $self->db->get_AssemblyMapperAdaptor()->fetch_by_type($slice->assembly_type());
+    my $mapper = $db->get_AssemblyMapperAdaptor()->fetch_by_type($slice->assembly_type());
     
     my @raw_contig_ids = $mapper->list_contig_ids( $chr_name,
 						   $chr_start,
@@ -129,7 +130,7 @@ sub fetch_all_by_Slice {
     
     my @fpccontigs = (undef);
     
-    my $rca = $self->db()->get_RawContigAdaptor();
+    my $rca = $db->get_RawContigAdaptor();
     my $raw_Contig_Hash = $rca->fetch_filled_by_dbIDs( @raw_contig_ids );
     
     # provide mapping from contig names to internal ids
@@ -210,7 +211,7 @@ sub _map_DASSeqFeature_to_chr {
 
     if( $type eq 'contig' ) {
 	my( $coord ) = $mapper->map_coordinates_to_assembly
-	    ($contig_name_hash->{ $sf->seqname() }->dbID(), 
+	    ($contig_hash_ref->{ $sf->seqname() }->dbID(), 
 	     $sf->das_start, 
 	     $sf->das_end, 
 	     $sf->das_strand );

@@ -76,18 +76,71 @@ use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
 
 sub new {
-	my($class,$adaptor) = @_;
-	my $self;
-	$self = {};
-	bless $self, $class;
+  my($class, $adaptor) = @_;
+  my $self;
+  $self = {};
+  bless $self, $class;
 
-	$self->_db_handle($adaptor->_db_handle());
-    $self->_dsn($adaptor->dsn()); 
-    $self->_types($adaptor->types()); 
-    $self->_url($adaptor->url()); 
+  $self->adaptor( $adaptor );
     
-	return $self; # success - we hope!
+  return $self; # success - we hope!
 }
+
+#----------------------------------------------------------------------
+
+=head2 adaptor
+
+  Arg [1]   : Bio::EnsEMBL::ExternalData::DAS::DASAdaptor (optional)
+  Function  : getter/setter for adaptor attribute
+  Returntype: Bio::EnsEMBL::ExternalData::DAS::DASAdaptor
+  Exceptions: 
+  Caller    : 
+  Example   : 
+
+=cut
+
+sub adaptor{
+  my $key = '_adaptor';
+  my $self = shift;
+  if( @_ ){ $self->{$key} = shift }
+  return $self->{$key};
+}
+
+
+=head2 fetch_dsn_info
+
+  Arg [1]   : none
+  Function  : Retrieves a list of DSN objects from registered URL
+  Returntype: 
+  Exceptions: 
+  Caller    : 
+  Example   : 
+
+=cut
+
+sub fetch_dsn_info {
+  my $self = shift;
+  
+  my @sources = ();
+  my $callback = sub{ 
+    my $obj = shift;
+    $obj->isa('Bio::Das::DSN') || return;
+    my $data = {};
+    $data->{url}         = $obj->url;
+    $data->{base}        = $obj->base;
+    $data->{id}          = $obj->id;
+    $data->{dsn}         = $obj->id;
+    $data->{name}        = $obj->name;
+    $data->{description} = $obj->description;
+    $data->{master}      = $obj->master;
+    push @sources, $data;
+  };
+  my $dsn = $self->adaptor->url;
+  my $das = $self->adaptor->_db_handle;
+  $das->dsn( -dsn=>$dsn, -callback=>$callback );
+  return [@sources];
+}
+
 
 
 =head2 fetch_all_by_DBLink_Container
@@ -109,8 +162,8 @@ sub fetch_all_by_DBLink_Container {
    my $id_type    = shift || 'swissprot';
    $id_type = lc( $id_type );
 
-   my $url        = $self->_url;
-   my $dsn        = $self->_dsn;
+   my $url        = $self->adaptor->url;
+   my $dsn        = $self->adaptor->dsn;
 
    $parent_obj->can('get_all_DBLinks') ||
      $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can ".
@@ -169,7 +222,7 @@ sub fetch_all_by_DBLink_Container {
         push(@das_features, $dsf);
    };
 
-   $self->_db_handle->features
+   $self->adaptor->_db_handle->features
      ( -dsn=>"$url/$dsn", 
        -segment=>[keys %ids], 
        -feature_callback=>$callback );
@@ -387,10 +440,10 @@ sub _map_DASSeqFeature_to_chr {
 
 sub get_Ensembl_SeqFeatures_DAS {
     my ($self, $chr_name, $global_start, $global_end, $fpccontig_list_ref, $clone_list_ref, $contig_list_ref, $chr_length) = @_;
-	my $dbh 	   = $self->_db_handle();
-	my $dsn 	   = $self->_dsn();
-	my $types 	   = $self->_types() || [];
-	my $url 	   = $self->_url();
+	my $dbh 	   = $self->adaptor->_db_handle();
+	my $dsn 	   = $self->adaptor->dsn();
+	my $types 	   = $self->adaptor->types() || [];
+	my $url 	   = $self->adaptor->url();
 
     my $DAS_FEATURES = [];
     my $STYLES = [];
@@ -604,77 +657,69 @@ sub forwarded_for {
 
 
 sub _db_handle{
-   my ($self,$value) = @_;
-   if( defined $value) {
-      $self->{'_db_handle'} = $value;
-    }
-    return $self->{'_db_handle'};
-
+  my $caller = join (", ",(caller(0))[1..2] );
+  warn "\033[31m DEPRECATED use adaptor->_db_handle instead: \033[0m $caller"; 
+  my $self = shift;
+  return $self->adaptor->_db_handle(@_);
 }
 
 
 =head2 _types
 
- Title   : _types
- Usage   : $obj->_types($newval)
+ Title   :
+ Usage   : DEPRECATED
  Function:
  Example :
- Returns : value of _types
- Args    : newvalue [ 'type', 'type', ... ] (optional)
+ Returns :
+ Args    :
 
 =cut
 
 
 sub _types {
-   my ($self,$value) = @_;
-   if( defined $value) {
-      $self->{'_types'} = $value;
-    }
-    return $self->{'_types'};
-
+  my $caller = join (", ",(caller(0))[1..2] );
+  warn "\033[31m DEPRECATED use adaptor->types instead: \033[0m $caller"; 
+  my $self = shift;
+  return $self->adaptor->types(@_);
 }
 
 =head2 _dsn
 
- Title   : _dsn
- Usage   : $obj->_dsn($newval)
+ Title   :
+ Usage   : DEPRECATED
  Function:
  Example :
- Returns : value of _dsn
- Args    : newvalue (optional)
+ Returns :
+ Args    :
 
 =cut
 
 
 sub _dsn{
-   my ($self,$value) = @_;
-   if( defined $value) {
-      $self->{'_dsn'} = $value;
-    }
-    return $self->{'_dsn'};
-
+    my $caller = join (", ",(caller(0))[1..2] );
+    warn "\033[31m DEPRECATED use adaptor->dsn instead: \033[0m $caller"; 
+    my $self = shift;
+    return $self->adaptor->dsn(@_);
 }
 
 
 =head2 _url
 
- Title   : _url
- Usage   : $obj->_url($newval)
+ Title   : 
+ Usage   : DEPRECATED
  Function:
  Example :
- Returns : value of _url
- Args    : newvalue (optional)
+ Returns :
+ Args    :
 
 =cut
 
 
 sub _url{
-   my ($self,$value) = @_;
-   if( defined $value) {
-      $self->{'_url'} = $value;
-    }
-    return $self->{'_url'};
-
+    my $caller = join (", ",(caller(0))[1..2] );
+    warn "\033[31m DEPRECATED use adaptor->url instead: \033[0m $caller"; 
+    my $self = shift;
+    return $self->adaptor->url(@_);
 }
 
 
@@ -693,7 +738,7 @@ sub _url{
 
 sub DESTROY {
    my ($obj) = @_;
-
+   $obj->adaptor( undef() );
    if( $obj->{'_db_handle'} ) {
        $obj->{'_db_handle'} = undef;
    }

@@ -539,111 +539,119 @@ sub get_Ensembl_SeqFeatures_clone {
 =cut
 
 sub get_Ensembl_SeqFeatures_clone_web{
-   my ($self,$glob,@acc) = @_;
+    my ($self,$glob,@acc) = @_;
+    
+    if (! defined $glob) {
+        $self->throw("Need to call get_Ensembl_SeqFeatures_clone_web with a globbing parameter and a list of clones");
+    }
+    if (scalar(@acc) == 0) {
+        $self->throw("Calling get_Ensembl_SeqFeatures_clone_web with empty list of clones!\n");
+    }
+    
+    #lists of variations to be returned
+    my @variations;
+    my %hash;
+    my $string;
+    foreach my $a (@acc) {
+        $a =~ /(\S+)\.(\d+)/;
+        $string .= "'$1',";
+        $hash{$1}=$2;
+    }
+    $string =~ s/,$//;
+    my $inlist = "($string)";
+    
+    # db query to return all variation information ; confidence attribute is gone!!
+    
+    my $query = qq{
+        SELECT	p1.start, p1.end, p1.strand,
+        p1.acc,p1.version,p2.id,
+        p2.snptype,p2.mapweight, 
+        p3.handle, p3.altid 
+        FROM   	Hit as p1, RefSNP as p2, SubSNP as p3
+        WHERE  	p1.acc in $inlist
+          AND 	p1.refsnpid = p2.id
+          AND   p3.refsnpid = p1.refsnpid
+        ORDER BY start
+              };
+    
+    
+    my $sth = $self->prepare($query);
+    my $res = $sth->execute();
+    my $snp;
+    my $cl;
+  SNP:
+    while( (my $arr = $sth->fetchrow_arrayref()) ) {
+        
+        my ($begin, $end,$strand,
+            $acc,$ver,$snpuid,$type,$mapweight, 
+            $handle, $altid
+           ) = @{$arr};
+        
+        my $acc_version="$acc.$ver";
+        
+        #snp info not valid
+        next SNP if $type ne 'notwithdrawn';
+        next SNP if $mapweight > 2;
+        
+        if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
+            #ignore snp within glob area
+            next SNP;
+        }
+        
+        next SNP if $hash{$acc} != $ver;
+        #
+        # prepare the output objects
+        #
+        
+        ### mega dodginess here: ideally, a Variation should be allowed to
+        ### have several Locations. However, a Variation is-a SeqFeature,
+        ### which can only have one. So instead, we'll return a list of
+        ### Varations, each with a separate single location, but otherwise
+        ### identical. That's clean-room engineering for you :-) 
+        
+        my $key=$snpuid.$acc;           # for purpose of filtering duplicates
+        my %seen;                       # likewise
+        
+        
+        if ( ! $seen{$key} )  {
+            ## we're grabbing all the necessary stuff from the db in one
+            ## SQL statement for speed purposes, so we have to do some
+            ## duplicate filtering here.
 
-   if (! defined $glob) {
-       $self->throw("Need to call get_Ensembl_SeqFeatures_clone_web with a globbing parameter and a list of clones");
-   }
-   if (scalar(@acc) == 0) {
-       $self->throw("Calling get_Ensembl_SeqFeatures_clone_web with empty list of clones!\n");
-   }
-
-   #lists of variations to be returned
-   my @variations;
-   my %hash;
-   my $string;
-   foreach my $a (@acc) {
-       $a =~ /(\S+)\.(\d+)/;
-       $string .= "'$1',";
-       $hash{$1}=$2;
-   }
-   $string =~ s/,$//;
-   my $inlist = "($string)";
-
-   # db query to return all variation information ; confidence attribute is gone!!
-
-   my $query = qq{
-
-   		SELECT	p1.start, p1.end, p1.strand,
-  	       		p1.acc,p1.version,p2.id,
-           		p2.snptype,p2.mapweight  
-		FROM   	Hit as p1, RefSNP as p2
-  		WHERE  	acc in $inlist
-        AND 	p1.refsnpid = p2.id
-  	    order by start
-	};
-
-
-   my $sth = $self->prepare($query);
-   my $res = $sth->execute();
-   my $snp;
-   my $cl;
- SNP:
-   while( (my $arr = $sth->fetchrow_arrayref()) ) {
-       
-       my ($begin, $end,$strand,
-	   $acc,$ver,$snpuid,$type,$mapweight 
-	   ) = @{$arr};
-       
-       my $acc_version="$acc.$ver";
-
-       #snp info not valid
-       next SNP if $type ne 'notwithdrawn';
-       next SNP if $mapweight > 2;
-
-       if ( defined $snp && $snp->end+$glob >= $begin && $acc_version eq $cl) {
-	   #ignore snp within glob area
-	   next SNP;
-       }
-       
-       next SNP if $hash{$acc} != $ver;
-       #
-       # prepare the output objects
-       #
-       
-       #Variation
-       $snp = new Bio::EnsEMBL::ExternalData::Variation
-	   (-start => $begin,
-	    -end => $end,
-	    -strand => $strand,
-	    -original_strand => $strand,
-	    -score => $mapweight,
-	    -source_tag => 'dbSNP',
-	    );
-       
-       my $link = new Bio::Annotation::DBLink;
-       $link->database('dbSNP');
-       $link->primary_id($snpuid);
-       $link->optional_id($acc_version);
-       #add dbXref to Variation
-       $snp->add_DBLink($link);
-
-	if(1){
-		   my $altquery = qq{
-			   SELECT p1.handle, p1.altid 
-			   FROM   SubSNP as p1
-			   WHERE  p1.refsnpid = "$snpuid"
-		   };
-
-    	   my $sth2 = $self->prepare($altquery);
-    	   my $res2 = $sth2->execute();
-    	   while(my ($handle, $altid) = $sth2->fetchrow_array()){	    
-			   my $link = new Bio::Annotation::DBLink;
-			   $link->database($handle);
-			   $link->primary_id($altid);
-			   #add dbXref to Variation
-			   $snp->add_DBLink($link);
-    	   }
-	 } 
-
-       $cl=$acc_version;
-       # set for compatibility to Virtual Contigs
-       $snp->seqname($acc_version);
-       #add SNP to the list
-       push(@variations, $snp);
-   }
-
-   return @variations;
+            $seen{$key}++;
+            
+            #Variation
+            $snp = new Bio::EnsEMBL::ExternalData::Variation
+              (-start => $begin,
+               -end => $end,
+               -strand => $strand,
+               -original_strand => $strand,
+               -score => $mapweight,
+               -source_tag => 'dbSNP',
+              );
+            
+            my $link = new Bio::Annotation::DBLink;
+            $link->database('dbSNP');
+            $link->primary_id($snpuid);
+            $link->optional_id($acc_version);
+            #add dbXref to Variation
+            $snp->add_DBLink($link);
+            
+            $cl=$acc_version;
+            # set for compatibility to Virtual Contigs
+            $snp->seqname($acc_version);
+            #add SNP to the list
+            push(@variations, $snp);
+        }                               # if ! $seen{$key}
+        
+        my $link = new Bio::Annotation::DBLink;
+        $link->database($handle);
+        $link->primary_id($altid);
+        #add dbXref to Variation
+        $snp->add_DBLink($link);
+    }                                    # while a row from select statement
+    
+    return @variations;
 }
 
 

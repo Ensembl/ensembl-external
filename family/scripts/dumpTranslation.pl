@@ -3,7 +3,7 @@
 use strict;
 
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
-use Bio::EnsEMBL::ExternalData::Family::Conf;
+use Bio::EnsEMBL::ExternalData::Family::FamilyConf;
 
 use Getopt::Long;
 
@@ -62,7 +62,7 @@ my $ChromosomeAdaptor = $db->get_ChromosomeAdaptor;
 my @chromosomes;
 
 my $taxon_id = $db->get_MetaContainer->get_taxonomy_id;
-my %TaxonConf = %Bio::EnsEMBL::ExternalData::Family::Conf::TaxonConf;
+my %TaxonConf = %Bio::EnsEMBL::ExternalData::Family::FamilyConf::TaxonConf;
 
 if (defined $chr_names and $chr_names ne "all") {
   my @chr_names = split /,/, $chr_names;
@@ -109,6 +109,7 @@ foreach my $chr (reverse sort  bychrnum @chromosomes) {
     my @genes = @{$Slice->get_all_Genes};
     
     foreach my $gene (@genes) {
+      next if ($gene->type =~ /^pseudogene$/i);
       if (check_gene_is_on_vc($gene, $Slice)) {
 	foreach my $trans (@{$gene->get_all_Transcripts}) { 
 	  if (defined $trans->stable_id) {

@@ -18,7 +18,7 @@
 
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..20\n"; 
+BEGIN { $| = 1; print "1..21\n"; 
 	use vars qw($loaded); }
 END {print "not ok 1\n" unless $loaded;}
 
@@ -155,3 +155,10 @@ if ($obj->seqname eq 'seqname' ) {
 } else {
     print "not ok 20\n"; 
 }
+
+$obj->position_problem('position_problem'); 
+if ($obj->position_problem eq 'position_problem' ) {
+    print "ok 21\n"; 
+} else {
+    print "not ok 21\n";
+ }

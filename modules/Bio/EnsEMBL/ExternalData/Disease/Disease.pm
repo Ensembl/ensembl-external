@@ -132,10 +132,5 @@ sub each_Location{
    return @{$self->{'_disease_location_array'}};
 }
 
-
-
-
-
-
-
+1;
 

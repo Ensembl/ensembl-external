@@ -265,16 +265,4 @@ sub _set_from_args {
     $self->relative_frequency($relative_frequency);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+1;

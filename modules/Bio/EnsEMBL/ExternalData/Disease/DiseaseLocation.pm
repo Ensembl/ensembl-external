@@ -278,16 +278,4 @@ sub global_position
   return $self->{'global_position'};
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+1;

@@ -12,4 +12,6 @@ warn <<ASDF;
 ASDF
     exit 1;
 }
+
+1;
 0;

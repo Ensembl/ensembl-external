@@ -473,3 +473,4 @@ sub _calculate_gene_coordinates {
 
 }
 
+1;

@@ -203,3 +203,5 @@ sub get_Ensembl_SeqFeatures_clone_web {
     
     return @variations;
 }
+
+1;

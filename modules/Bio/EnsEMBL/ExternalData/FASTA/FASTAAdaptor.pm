@@ -340,3 +340,5 @@ sub DESTROY {
        $self->{'_db_handle'} = undef;
    }
 }
+
+1;

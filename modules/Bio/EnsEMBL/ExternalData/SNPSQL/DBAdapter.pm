@@ -654,7 +654,7 @@ sub get_Ensembl_SeqFeatures_clone {
        #get alternative IDs
        my $primid = $snp->id;
        my $query2 = qq{
-|	   
+	   
 	   SELECT p1.handle, p1.altid 
 	   FROM   SubSNP as p1
            WHERE  p1.refsnpid = "$primid"

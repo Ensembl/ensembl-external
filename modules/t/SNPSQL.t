@@ -74,31 +74,31 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
 #using the method get_Ensembl_SeqFeatures_clone
 
-if ($snpdb->can(get_Ensembl_SeqFeatures_contig)) {
-
-    #AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
-    #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end); AL136106', '2'
-    @variations = $snpdb->get_Ensembl_SeqFeatures_contig('NT_011520', 21 );
-    if ( scalar @variations > 1 ) { 
-	print "ok 5\n"; 
-    }  else {
-	print "not ok 5\n";
-	print STDERR "  Query returned ",  scalar @variations, " variations\n";
-    }
-
-    #$v = $variations[0];
-    if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
-	print "ok 6\n"; 
-    } else {
-	print "not ok 6\n"; 
-    }
-
-
-} else { #using the method get_Ensembl_SeqFeatures_contig
+#if ($snpdb->can(get_Ensembl_SeqFeatures_contig)) {
+#
+#    #AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
+#    #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end); AL136106', '2'
+#    @variations = $snpdb->get_Ensembl_SeqFeatures_contig('NT_011520', 21 );
+#    if ( scalar @variations > 1 ) { 
+#	 print "ok 5\n"; 
+#    }  else {
+#	 print "not ok 5\n";
+#	 print STDERR "  Query returned ",  scalar @variations, " variations\n";
+#    }
+#
+#    #$v = $variations[0];
+#    if (ref $variations[0] eq 'Bio::EnsEMBL::ExternalData::Variation') {
+#	 print "ok 6\n"; 
+#    } else {
+#	 print "not ok 6\n"; 
+#    }
+#
+#
+#} else { #using the method get_Ensembl_SeqFeatures_contig
 
    #AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
     #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end); AL136106', '2'
-    @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AP000933', 3 );
+    @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AC002472', 6 );
     if ( scalar @variations == 1 ) { 
 	print "ok 5\n"; 
     }  else {
@@ -113,7 +113,7 @@ if ($snpdb->can(get_Ensembl_SeqFeatures_contig)) {
 	print "not ok 6\n"; 
     }
  
-}
+#}
 
 #
 # using the method get_SeqFeature_by_id 

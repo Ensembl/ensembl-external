@@ -67,7 +67,8 @@ sub fetch_attributes_only{
   my $sth = $self->prepare('
       SELECT refsnp.internal_id, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
-             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight
+             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight, 
+             ds.version
       FROM   RefSNP refsnp, DataSource ds
       WHERE  refsnp.id = ?
       AND    ds.id = refsnp.datasource
@@ -79,7 +80,7 @@ sub fetch_attributes_only{
 			     "not found in database");
 
   my ($dbID, $snp_class, $snp_type, $alleles, $seq5, $seq3,
-      $het, $hetse, $confirmed, $mapweight) = $sth->fetchrow_array;
+      $het, $hetse, $confirmed, $mapweight, $source_version) = $sth->fetchrow_array;
 
   $sth->finish;
 
@@ -102,10 +103,12 @@ sub fetch_attributes_only{
   $seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
   $seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
 
-  my $snp = Bio::EnsEMBL::SNP->new;
+
+my $snp = Bio::EnsEMBL::SNP->new;
 
   $snp->dbID($dbID);
   $snp->source_tag($source);
+  $snp->source_version($source_version);
   $snp->status($confirmed);
   $snp->alleles($alleles);
   $snp->upStreamSeq($seq5);

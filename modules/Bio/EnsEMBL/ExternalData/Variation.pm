@@ -221,6 +221,15 @@ sub strand {
     return $self->{'_snp_strand'};
 }
 
+sub score {
+    my ($self,$value) = @_;
+
+    if( defined $value ) {
+        $self->{'_snp_score'} = $value;
+    }
+    return $self->{'_snp_score'};
+}
+
 
 =head2 id
 

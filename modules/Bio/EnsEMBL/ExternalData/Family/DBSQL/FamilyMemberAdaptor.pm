@@ -31,7 +31,7 @@ package Bio::EnsEMBL::ExternalData::Family::DBSQL::FamilyMemberAdaptor;
 use vars qw(@ISA);
 use strict;
 
-use Bio::EnsEMBL::ExternalData::Family::Family;
+use Bio::EnsEMBL::ExternalData::Family::FamilyMember;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
@@ -120,6 +120,35 @@ sub fetch_by_family_id {
     $member->adaptor($self);
     $member->dbID($rowhash->{family_member_id});
     $member->family_id($family_id);
+    $member->external_db_id($rowhash->{external_db_id});
+    $member->database($rowhash->{name});
+    $member->stable_id($rowhash->{external_member_id});
+    $member->taxon_id($rowhash->{taxon_id});
+    push @members, $member;
+  }
+  return @members;
+}
+
+sub fetch_by_dbname {
+  my ($self,$dbname) = @_;
+
+  $self->throw("Should give defined databasename as argument\n") unless (defined $dbname);
+
+  my $q = "SELECT fm.family_id,fm.family_member_id, fm.external_db_id, fm.external_member_id, fm.taxon_id, ex.name
+           FROM family_members fm, external_db ex
+           WHERE ex.external_db_id = fm.external_db_id and ex.name = ?";
+
+  $q = $self->prepare($q);
+  $q->execute($dbname);
+  
+  my @members;
+
+  while (defined (my $rowhash = $q->fetchrow_hashref)) {
+    my $member = new Bio::EnsEMBL::ExternalData::Family::FamilyMember();
+
+    $member->adaptor($self);
+    $member->dbID($rowhash->{family_member_id});
+    $member->family_id($rowhash->{family_id});
     $member->external_db_id($rowhash->{external_db_id});
     $member->database($rowhash->{name});
     $member->stable_id($rowhash->{external_member_id});

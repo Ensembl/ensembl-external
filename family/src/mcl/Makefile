@@ -65,8 +65,9 @@ ifeq '$(USR_ARCH)' 'sgi'
 endif
 
 ifeq '$(USR_ARCH)' 'OSF1'
+    arch = ev67  # use 'generic' if you don't know
     CC = /bin/cc 
-    COMPILE_SYS = -D__inline__=""
+    COMPILE_SYS = -D__inline__="" -arch $(arch)
     LINK_SYS = 
     ifeq '$(USR_DEBUG)' 'yes'
     OPTIMIZE  =  -g -DEXTERN__INLINE__DEFINE="static " \

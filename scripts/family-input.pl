@@ -8,17 +8,14 @@
 use DBI;
 use strict;
 
-use vars qw($opt_h $opt_r $opt_U $opt_H $opt_D $opt_C $opt_r $release 
-            $opt_C $ddl $max_desc_len 
-            $ens_pep_dbname $ens_gene_dbname $sp_dbname
-            @word_order);
+use vars qw($opt_h $opt_r $opt_C $opt_E $opt_F);
 
 use Getopt::Std;
 
-$max_desc_len = 255;                    # max length of description
-$ens_pep_dbname = 'ENSEMBLPEP';          # name of EnsEMBL peptides database
-$ens_gene_dbname = 'ENSEMBLGENE';        # name of EnsEMBL peptides database
-$sp_dbname = 'SWISSPROT';               # name of SWISSPROT database
+my $max_desc_len = 255;                    # max length of description
+my $ens_pep_dbname = 'ENSEMBLPEP';          # name of EnsEMBL peptides database
+my $ens_gene_dbname = 'ENSEMBLGENE';        # name of EnsEMBL peptides database
+my $sp_dbname = 'SWISSPROT';               # name of SWISSPROT database
 my $add_ens_pep =1;                     # should ens_peptides be added?
 my $add_ens_gene =1;                    # should ens_genes be added?
 my $add_swissprot =1;                   # should swissprot entries be added?
@@ -26,41 +23,63 @@ my $add_swissprot =1;                   # should swissprot entries be added?
 ## list of regexps tested, in order of increasing desirability, when
 ## deciding which family to assign a gene to in case of conflicts (used in
 ## compare_desc):
-@word_order = qw(UNKNOWN HYPOTHETICAL FRAGMENT CDNA);
+my @word_order = qw(UNKNOWN HYPOTHETICAL FRAGMENT CDNA);
 
 # $fam_id_format= 'ENSF%011d'; 
 
 my $usage = 
-"Usage:\n\n\tfamily-parse.pl [-h(elp) ] -r release [-U user] [-H host] [ -D database-name ] [ -C DDL-file (to create database)] [< ] FILENAME ]\n";
+"Usage:\n\tfamily-parse.pl [-h(elp) ] -r release [ -C ] [ -F famdb ] [-E ensdb ]  [ FILE  ]
+  famdb, ensdb: string like 'database=foo;host=bar;user=jsmith;pass=secret'
+";
 
-my $opts = 'hr:H:U:D:C:';
-getopts($opts) || die $usage;
+my $opts = 'hr:CF:E:';
+getopts($opts) || die $usage; # bugger, getopt docu is wrong, use getopts.
 
 die $usage if $opt_h;
 
-my $user = ($opt_U || 'root');
-my $host = ($opt_H || 'localhost');
-my $database = ($opt_D || 'family');
+my $famdb_connect_string = ($opt_F || 'database=family;host=localhost;user=root');
+my $ensdb_connect_string = ($opt_E || 'database=ens075;host=ecs1b;user=ensro');
+#     my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
+
 my $release = ($opt_r || die " need a release number\n");
-my $ddl = $opt_C;
+my $ddl = undef;
+$ddl = '../sql/family.sql' if $opt_C;
 
-$ddl = '../sql/family.sql' if $ddl == 1;
-
+# just creates empty database, returns nothing.
 sub create_db {
-    my ($dbh) = @_;
-    $dbh->do("CREATE DATABASE $database");
+    my ($conn) = @_;
+
+    my ($database) = ($conn =~ /database=([^;]+);/);
+    # connect to database 'mysql' instead, since $database doesn't exist yet
+    $conn =~ s/database=[^;]+;/database=mysql;/;
+
+    $conn = db_connect($conn);
+    
+    $conn->do("CREATE DATABASE $database");
     warn "problem creating database: " . $DBI::errstr if $DBI::err;
+    $conn->disconnect;
+    undef;
 }
 
-### Aargggh! 
 sub create_tables { 
     my ($dbh, $ddl) = @_;
-    my $q = `cat $ddl`;
 
-    # $dbh->do( "$q" ); # doesn't work @!"@$!
-    my $cmd ="echo source $ddl | mysql -u $user -h $host $database";
-    `$cmd`;
-    warn "problem  creating tables: " . $! if $!;
+## taken from EnsTestDB:
+    open SQL, $ddl or die "Can't read SQL file '$ddl' : $!";
+    my $sql='';
+    while (<SQL>) {
+        s/(#|--).*//;       # Remove comments
+        next unless /\S/;   # Skip lines which are all space
+        $sql .= $_;
+        $sql .= ' ';
+    }
+    close SQL;
+    #Modified split statement, only semicolumns before end of line,
+    #so we can have them inside a string in the statement
+    foreach my $s (grep /\S/, split /;\n/, $sql) {
+        $dbh->do($s) || die $DBI::errstr;
+    }
+    undef;
 }
  
 
@@ -81,14 +100,25 @@ sub get_max_id {
     $id;
 }
 
-sub open_ensembl { 
-warn "using hardcoded host, db and user here";
-#     my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
-     my ($host, $user, $db) = ('ecs1b', 'ensro', 'ens075');
-#     my ($host, $user, $db) = ('ecs1b', 'ensro', 'arne_ensembl_main');
 
-    my $dbh=DBI->connect("DBI:mysql:database=$db;host=$host", $user) ||
-      die "couldn't connect to $db at $host as $user:" . $DBI::errstr;
+## slightly more general function, which takes string that looks like
+## "database=foo;host=bar;user=jsmith;passwd=secret", connects to mysql
+## and return the handle
+sub db_connect { 
+    my ($dbcs) = @_;
+
+    my %keyvals= split('[=;]', $dbcs);
+    my $user=$keyvals{'user'};
+    my $paw=$keyvals{'password'};
+#    $dbcs =~ s/user=[^;]+;?//g;
+#    $dbcs =~ s/password=[^;]+;?//g;
+# (mysql doesn't seem to mind the extra user/passwd values, leave them)
+
+    my $dsn = "DBI:mysql:$dbcs";
+
+    my $dbh=DBI->connect($dsn, $user, $paw) ||
+      die "couldn't connect using dsn $dsn, user $user, password $paw:" 
+         . $DBI::errstr;
     $dbh;
 }
 
@@ -151,37 +181,28 @@ sub main {
 
     my $fam_count = 0;
     my $mem_count =0;
-    my $dsn;
-    my $dbh;
+    my $famdb;
 
     my $internal_id;
 
-    if ($ddl) {
+    if ($ddl) {                         # create database
         warn "creating...";
-        $dsn = "DBI:mysql:database=mysql;host=$host";
-        $dbh = DBI->connect("$dsn",'root') ||
-          die "couldn't connect using $dsn and 'root':" . $DBI::errstr;
-        create_db($dbh, $ddl);
-        $dbh->disconnect;
-
-        $dsn = "DBI:mysql:database=$database;host=$host";
-        $dbh = DBI->connect("$dsn",'root') ||
-          die "couldn't connect using $dsn and 'root':" . $DBI::errstr;
-        create_tables($dbh, $ddl);
-
-        warn "created...";
+        create_db($famdb_connect_string);
     }
 
-    $dsn = "DBI:mysql:database=$database;host=$host";
-    $dbh = DBI->connect($dsn,$user) ||
-      die "couldn't connect using $dsn and user $user:" . $DBI::errstr;
-    $dbh->{autocommit}++;
+    $famdb = db_connect($famdb_connect_string);
+                                        # create tables
+    if ($ddl) { 
+        create_tables($famdb, $ddl);
+    }
+
+    $famdb->{autocommit}++;
 
 
     # separate handle for looking up translation from ens_pep to ens_gene:
-    my $ensdb = open_ensembl();
+    my $ensdb = db_connect($ensdb_connect_string);
 
-    $internal_id = get_max_id($dbh) +1;
+    $internal_id = get_max_id($famdb) +1;
 ### queries:
     my $fam_q = 
       "INSERT INTO family(internal_id, id, description, release, 
@@ -189,14 +210,14 @@ sub main {
        VALUES(?,            ?,         ?,        ?,        ?)\n";
 ###            $internal_id, '$fam_id', '$descr', $release, $score);
 
-    $fam_q = $dbh->prepare($fam_q) || die $dbh->errstr;
+    $fam_q = $famdb->prepare($fam_q) || die $famdb->errstr;
 
     my $mem_q = 
       "INSERT INTO family_members(family, db_name, db_id)
                            VALUES(?,      ?,       ?)\n";
 ###                         $internal_id, '$db_name', '$mem'
 
-    $mem_q = $dbh->prepare($mem_q) || die $dbh->errstr;
+    $mem_q = $famdb->prepare($mem_q) || die $famdb->errstr;
 
     # to check for existence
     my $pep_q = "SELECT id from translation where id = ?";
@@ -214,7 +235,7 @@ sub main {
       "DELETE FROM family_members
        WHERE db_name = '$ens_gene_dbname'
          AND db_id = ?";
-    $del_q = $dbh->prepare($del_q) || die $dbh->errstr;
+    $del_q = $famdb->prepare($del_q) || die $famdb->errstr;
 ### end of queries
 
     my %gene_fam = undef;
@@ -322,7 +343,8 @@ sub main {
         $fam_count++;
     }                                   # foreach fam
 
-    $dbh->disconnect;
+    $famdb->disconnect;
+    $ensdb->disconnect;
     warn "inserted $fam_count families, having a total of $mem_count members\n";
 }                                       # main
 

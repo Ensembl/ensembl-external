@@ -21,13 +21,12 @@ use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::Haplotype;
 
-$hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
+$hapdb = Bio::EnsEMBL::ExternalData::Haplotype::DBAdaptor->new(
                                              -user   => 'ensro',
                                              -dbname => 'haplotype_5_28',
                                              -host   => 'ecs3d',
-                                             -driver => 'mysql',
-                                            );
-my $hap_adtor = Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor->new($hapdb);
+                                             -driver => 'mysql');
+my $hap_adtor = $hapdb->get_HaplotypeAdaptor;
 
 $hap  = $hap_adtor->get_Haplotype_by_id('B10045');  # Haplotype id
 
@@ -67,18 +66,55 @@ package Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor;
 use vars qw(@ISA);
 use strict;
 
-# Object preamble - inheriets from Bio::Root::Object
 
-use Bio::Root::Object;
-use DBI;
-
-use Bio::DBLinkContainerI;
-use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Haplotype::Haplotype;
 use Bio::EnsEMBL::ExternalData::Haplotype::Pattern;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
+
+
+=head2 fetch_all_by_Slice
+
+  Arg [1]    : Bio::EnsEMBL::Slice $slice
+  Arg [2]    : (optional) boolean $is_lite
+               Flag indicating if 'light weight' haplotypes should be obtained
+  Example    : @haplotypes = @{$haplotype_adaptor->fetch_all_by_Slice($slice)};
+  Description: Retrieves a list of haplotypes on a slice in slice coordinates 
+  Returntype : Bio::EnsEMBL::ExternalData::Haplotype::Haplotype
+  Exceptions : none
+  Caller     : Bio::EnsEMBL::Slice::get_all_Haplotypes
+
+=cut
+
+sub fetch_all_by_Slice {
+  my ($self, $slice, $is_lite) = @_;
+
+  my $slice_start  = $slice->chr_start;
+  my $slice_end    = $slice->chr_end;
+  my $slice_strand = $slice->strand;
+
+  my @haplotypes = $self->fetch_Haplotype_by_chr_start_end($slice->chr_name,
+                                                           $slice_start,
+                                                           $slice_end);
+
+  print STDERR "Got " . scalar @haplotypes . " back\n";
+
+  #convert assembly coords to slice coords
+  if($slice_strand == 1) {
+    foreach my $h (@haplotypes) {
+      $h->start($h->start - $slice_start + 1);
+      $h->end(  $h->start - $slice_start + 1);
+    }
+  } else {
+    foreach my $h (@haplotypes) {
+      $h->start( $slice_end - $h->end   + 1);
+      $h->end(   $slice_end - $h->start + 1);
+    }
+  }
+
+  return \@haplotypes;
+}
 
 
 =head2 fetch_Haplotype_by_chr_start_end
@@ -276,7 +312,7 @@ sub fetch_Haplotype_by_id {
 		#	next HOP;
 		#}
 		
-        my $pat = new Bio::EnsEMBL::ExternalData::Haplotype::Pattern($self->adaptor, $pattern_id, $count, $pattern);
+        my $pat = new Bio::EnsEMBL::ExternalData::Haplotype::Pattern($self, $pattern_id, $count, $pattern);
         # ....next we get the classified  patterns for this consensus block
         $pat->block_id($bid);
         my $q3 = qq( select sample_id, pattern_id, haplotype_string 
@@ -328,48 +364,5 @@ sub fetch_Haplotype_by_id {
     return($hap);
 }
 
-# set/get handle on ensembl database
-sub _ensdb {
 
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_ensdb'} = $value;}
-  
-  return $self->{'_ensdb'};
-}
-
-
-# get/set handle on haplotype database
-sub _hapdb {
-
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_hapdb'} = $value;}
-  
-  return $self->{'_hapdb'};
-}
-
-# get/set handle on haplotype database
-sub adaptor {
-
-  my ($self,$value) = @_;
-  if( defined $value) {
-    $self->{'_adaptor'} = $value;
-  }
-  return $self->{'_adaptor'};
-}
-
-# set/get handle on haplotype database
-sub _db_handle {
-
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_db_handle'} = $value;}
-  return $self->{'_db_handle'};
-}
-
-sub DESTROY {
-
-   my ($self) = @_;
-   if( $self->{'_db_handle'} ) {
-       $self->{'_db_handle'}->disconnect;
-       $self->{'_db_handle'} = undef;
-   }
-}
+1;

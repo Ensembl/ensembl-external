@@ -52,9 +52,8 @@ use strict;
 
 use Bio::EnsEMBL::Root;
 use Bio::Das;
-use Bio::EnsEMBL::DBDAS::BaseAdaptor;
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DBDAS::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::BaseAdaptor);
 
 sub new {
 	my($pkg, @args) = @_;

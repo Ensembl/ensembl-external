@@ -14,7 +14,6 @@ DAS - DESCRIPTION of Object
 
 =head1 SYNOPSIS
 
-use Bio::EnsEMBL::DBDAS::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::DAS::DASAdaptor;
 use Bio::EnsEMBL::ExternalData::DAS::DAS;
 

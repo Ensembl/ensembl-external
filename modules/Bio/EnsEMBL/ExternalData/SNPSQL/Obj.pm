@@ -220,7 +220,7 @@ sub get_SeqFeature_by_id {
 
 	select p1.SNP_ID,  p1.SNP_USERID, p1.SNP_CONFIDENCE, 
  	       p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN,  p1.CLIQUE_POSITION,
-	       p1.DBSNP_ID,
+	       p1.CLIQUE_ID, p1.DBSNP_ID,
                p2.Sub_Start, p2.Sub_END,
                p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
         from   TBL_SNP_INFO as p1 
@@ -236,7 +236,7 @@ sub get_SeqFeature_by_id {
  	        
         select p1.SNP_ID, p1.SNP_USERID, p1.SNP_CONFIDENCE,
                p1.SNP_CONFIRMED, p1.SNP_WITHDRAWN, p1.CLIQUE_POSITION,
-               p1.DBSNP_ID,
+               p1.CLIQUE_ID p1.DBSNP_ID,
                p2.Sub_Start, p2.Sub_END,
                p2.Qry_Start, p2.Qry_END, p2.Sub_ACC_version
         from TBL_SNP_INFO as p1
@@ -260,13 +260,14 @@ sub get_SeqFeature_by_id {
 	my $strand = '1';
 
 	my ($snpid,  $snpuid, $confidence, $confirmed, 
-	    $snp_withdrawn, $q_pos, $dbsnpid,
+	    $snp_withdrawn, $q_pos, $cliqueid, $dbsnpid,
 	    $t_start, $t_end, $q_start, $q_end, $acc_version
 	    ) = @{$arr};
 
         #snp info not valid
 	$self->throw("SNP withdrawn!") if $snp_withdrawn eq 'Y';
 
+	my ($seq_problem) = ''; 
         #coordinate system change from clique -> clone
         if ($acc_version) {
            if ($q_start < $q_end) {
@@ -276,9 +277,33 @@ sub get_SeqFeature_by_id {
               $allele_pos = $t_start + $q_start - $q_pos;
               $strand = -1;
  	   }
+
+	   #
+	   # check if there are known problems in mapping into clone coordiantes
+	   # 
+	
+	   my $query4 = qq{
+	    
+	    	select p4.SEQ_OK
+	    	from   TBL_CLIQUE_INFO  as p4
+	    	where  p4.CLIQUE_ID = "$cliqueid"
+			
+	   };  
+
+	   my $sth4 = $self->prepare($query4);
+	   my $res4 = $sth4->execute();
+
+	   while( (my $arr4 = $sth4->fetchrow_arrayref()) ) {
+	    
+	      my ($seq_ok) = @{$arr4};
+	      $seq_problem = "The position of the SNP in the clone might not be reliable" 
+		  if $seq_ok eq 'N';
+	    
+	   }
+
 	}
 
-	# use the right vocabulary for the SNP status
+	# use the 'standard' vocabulary for the SNP status
 	if ($confirmed eq 'N') {
 	    $confirmed = "suspected";
 	}
@@ -350,6 +375,7 @@ sub get_SeqFeature_by_id {
 		$snp->start($allele_pos);
 		$snp->end($allele_pos);
 		$snp->strand($strand);
+		$snp->position_problem($seq_problem) if $seq_problem;
 	}
 	$snp->source_tag('The SNP Consortium');
 	$snp->score($confidence);    

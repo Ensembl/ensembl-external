@@ -9,8 +9,13 @@ use DBI;
 use strict;
 
 use vars qw($opt_h $opt_r $opt_U $opt_H $opt_D $opt_C $opt_r $release 
-            $opt_C $ddl);
+            $opt_C $ddl $max_desc_len $enspep_name $fam_id_format);
+
 use Getopt::Std;
+
+$max_desc_len = 255; 
+$enspep_name = 'ENSEMBLPEP';
+$fam_id_format= 'ENSF%011d';
 
 my $usage = 
 "Usage:\n\n\tfamily-parse.pl [-h(elp) ] -r release [-U user] [-H host] [ -D database-name ] [ -C DDL-file (to create database)] [< ] FILENAME ]\n";
@@ -64,7 +69,7 @@ sub _get_max_id {
 # create id for format
 sub _format_fam_id {
     my $num = shift;
-    sprintf "ENSF%011d", $num;
+    sprintf $fam_id_format, $num;
 }
 
 sub main {
@@ -98,7 +103,6 @@ sub main {
 
     $internal_id = _get_max_id($dbh) +1;
 
-    my $max_desc_len  = 255;
 
     my $fam_q = 
       "INSERT INTO family(internal_id, id, description, release, 
@@ -118,6 +122,14 @@ sub main {
     while(<>) {
         chomp;
         my ($num, $descr, $dummy, $score, $mems)= split '\t';
+        
+        ## work around bug in format:
+        if ($score =~ /^ENSP/) {
+            warn "correcting score for ENSEMBLPEP-only cluster\n";
+            $mems = $score;
+            $score = 0;
+        }
+
         my @mems = split(':', $mems);
 
 
@@ -132,7 +144,7 @@ sub main {
           || die "couldn't insert line $.:\n$_\n " . $fam_q->errstr;
         
         foreach my $mem (@mems) {
-            my $db_name = ( $mem =~ /^ENSP/ )? 'ENSEMLPEP' : 'SWISSPROT';
+            my $db_name = ( $mem =~ /^ENSP/ )? $enspep_name : 'SWISSPROT';
                                         # or SPTREMBL, or SPALL ? 
 
             $mem_q->execute($internal_id, $db_name, $mem)

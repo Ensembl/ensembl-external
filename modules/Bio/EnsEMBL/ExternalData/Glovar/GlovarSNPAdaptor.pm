@@ -236,7 +236,6 @@ sub fetch_SNP_by_chr_start_end  {
 
 sub fetch_SNP_by_id  {
     my ($self, $id) = @_;
-    &eprof_start('fetch_SNP_by_id');
     
     ## get assembly name and version from DNA db
     my $dnadb;
@@ -367,9 +366,6 @@ sub fetch_SNP_by_id  {
         push @snps, $snp;
     }
 
-    &eprof_end('fetch_SNP_by_id');
-    &eprof_dump(\*STDERR);
-    
     return \@snps;
 }
 

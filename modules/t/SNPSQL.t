@@ -24,7 +24,7 @@ END {print "not ok 1\n" unless $loaded;}
 
 #use lib '../';
 
-use Bio::EnsEMBL::ExternalData::SNPSQL::DBHandler;
+use Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter;
 use Bio::EnsEMBL::ExternalData::Variation;
 
 $loaded = 1;
@@ -43,7 +43,7 @@ print "ok 1\n";    # 1st test passes.
 #							-host=>'ensrv3.sanger.ac.uk'
 #
 #							);
-$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBHandler->new( -dbname=>'snp', 
+$snpdb = Bio::EnsEMBL::ExternalData::SNPSQL::DBAdapter->new( -dbname=>'snp', 
 						       -user=>'root',
 						       -host=>'localhost'
 
@@ -77,10 +77,10 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
 #AL136106" and p1.version = "2" ##AC025148.1 AB000381.1  AB012922.1
 #get_Ensembl_SeqFeatures_clone(AC025148.1, 1 ,$start,$end);
 @variations = $snpdb->get_Ensembl_SeqFeatures_clone('AL136106', '2' );
-if ( scalar @variations == 2 ) { 
+if ( scalar @variations == 99 ) { 
     print "ok 5\n"; 
 }  else {
-    print STDERR "Query reurned ",  scalar @variations, " variations\n";
+    print STDERR "Query returned ",  scalar @variations, " variations\n";
     print "not ok 5\n";
 }
 

@@ -147,6 +147,40 @@ sub disease_by_name
 
 
 
+
+=head2 disease by omim id
+
+ Title   : disease_by_omim_id
+ Usage   : my $disease=$diseasedb->disease_by_omim_id("201810");
+ Function: gets disease by omim id 
+ Example :
+ Returns : Bio::EnsEMBL::ExternalData::Disease::Disease object
+ Args    :
+
+
+=cut
+
+
+
+
+sub disease_by_omim_id
+{
+    my ($self,$omim_id)=@_;
+
+ my $query_string= "select d.disease,g.id,g.gene_symbol,g.omim_id,g.start_cyto,g.end_cyto,
+                    g.chromosome from disease as d,gene as g where d.id = g.id
+                    and g.omim_id='$omim_id'";
+
+    return $self->_get_disease_objects($query_string);
+
+}
+
+
+
+
+
+
+
 =head2 disease by ensembl gene
 
  Title   : disease_by_ensembl_gene

@@ -160,16 +160,23 @@ sub _map_DASSeqFeature_to_chr {
 	$type = 'contig';
     } elsif( $seqname =~ /chr(\d+|X|Y|I{1,3}|I?V|[23][LR]|_scaffold_\d+|_\w+\d+)/io || # Hs/Mm/Dm/Ag/Fr/Rn/Ce/Dr
              $seqname =~ /^cb\d{2}\.fpc\d{4}$/io ||                            # Cb
-             $seqname =~ /^([0-2]?[0-9]|I{1,3}|I?V|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
+             $seqname =~ /^(6_DR5[12]|[0-2]?[0-9]|Un_\w+|I{1,3}|I?V|X|Y|[23][LR])$/io ) {                # Hs/Mm/Dm/Ag/Rn/Ce
 	$type = 'chromosome';
     } elsif( $seqname =~ /ctg\d+|NT_\d+/i) {
 	$type = 'fpc';
 	# This next Regex is for ensembl mouse denormalised contigs
     } elsif( $seqname =~ /\w{1,2}\d+/i) {
-	my $clone = $clone_adaptor->fetch_by_accession($seqname);
+	my $clone;
+        eval {
+          $clone = $clone_adaptor->fetch_by_accession($seqname);
+        };
 	#we only use finished clones. finished means there is only
 	#one contig on the clone and it has an offset of 1
 	# Could we have a method on clone saying "is_finished"?
+        if( $@ ) { 
+          warn( "DAS CLONE error $@" ); return 0;
+        }
+        return 0 unless $clone;
 	my @contigs = @{$clone->get_all_Contigs};
 	if(scalar(@contigs) == 1 && $contigs[0]->embl_offset == 1) {
 	    # sneaky. Finished clones have one contig - by setting this as the seqname

@@ -2,7 +2,8 @@
 # $Id$
 
 # Submits all the blast jobs to the queue. This script also does the
-# consistency checking and/or resubmitting (when asked; see Usage). 
+# consistency checking and/or resubmitting (when asked; see Usage), and 
+# some decrufting (using parse, see $parse variable). 
 
 use strict;
 $|=1;

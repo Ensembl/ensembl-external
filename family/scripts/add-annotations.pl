@@ -1,6 +1,9 @@
 #!/usr/local/bin/perl
 # $Id$
 
+### This produces one big file with database name, cluster_id, accession,
+### and description. It is the input for the consensifier.pl script.
+
 use strict;
 use Getopt::Std;
 

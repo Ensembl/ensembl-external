@@ -1,4 +1,5 @@
 $Id$
 
 Little program to convert the output of clean-blast.pl into a form usable by
-mcl.
+mcl. That is, going from seqid's + e-values to numbers. Later on this is put
+back together using parse_mcl.pl

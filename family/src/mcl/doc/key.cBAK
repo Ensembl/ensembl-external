@@ -1,0 +1,515 @@
+
+
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#include "doc/key.h"
+#include "util/txt.h"
+#include "util/array.h"
+#include "util/hash.h"
+
+
+static   mcxTxt      key_and_args_g[10];
+static   mcxTxt*     key_g             =  key_and_args_g+0;
+static   mcxTxt*     arg1_g            =  key_and_args_g+1;
+static   mcxTxt*     arg2_g            =  key_and_args_g+2;
+static   mcxTxt*     arg3_g            =  key_and_args_g+3;
+
+static   int         n_args_g;
+
+static   yamTables*  tables_g          =  NULL;
+
+static   const char* arg_padding_g[10] =  {  "#0" , "#1" , "#2"
+                                          ,  "#3" , "#4" , "#5"
+                                          ,  "#6" , "#7" , "#8"
+                                          ,  "#9"
+                                          }  ;
+
+static   const char* arg_tag_g[10]     =  {  "\\0" , "\\1" , "\\2"
+                                          ,  "\\3" , "\\4" , "\\5"
+                                          ,  "\\6" , "\\7" , "\\8"
+                                          ,  "\\9"
+                                          }  ;
+
+
+yamSlice*  dokey
+(  yamSlice *slice
+)  ;
+
+
+yamSlice*   expandkey
+(  yamSlice*   slice
+)  ;
+
+
+int   findkey
+(  yamSlice  *snt
+)  ;
+
+
+int  parsekey
+(  yamSlice    *line
+)  ;
+
+
+void setkey
+(  void
+)  ;
+
+
+void  yamSliceFree
+(  yamSlice*   slice
+)  ;
+
+
+int   closingcurly
+(
+   mcxTxt      *txt
+,  int         offset
+)  ;
+
+
+int   tagoffset
+(
+   mcxTxt      *txt
+,  int         argnum
+,  int         offset
+)  ;
+
+
+int   tagoffset
+(
+   mcxTxt      *txt
+,  int         argnum
+,  int         offset
+)
+   {
+      char* s     =  txt->str
+   ;  char  n     =  (char) ('0' + argnum)
+   ;  int   esc   =  0
+   ;  int   i
+
+   ;  for (i=offset; i<txt->len; i++)
+      {
+         char  c  =  s[i]
+
+      ;  if (esc)
+         {
+            if (c == n)
+            return (i-1)
+         ;  else
+            esc   =  0
+      ;  }
+         else if (c == '\\')
+         esc      =  1
+   ;  }
+
+   ;  return(-1)
+;  }
+
+
+/*
+ *    txt->str[offset] must be '{'.
+ *    returns l such that txt->str[offset+l] == '}'.
+*/
+
+int   closingcurly
+(
+   mcxTxt      *txt
+,  int         offset
+)
+   {
+      int   i     =  offset
+   ;  char  *s    =  txt->str
+   ;  int   n     =  1           /* 1 open bracket */
+   ;  int   esc   =  0
+
+   ;  if (s[i] != '{')
+         fprintf(stderr, "[closingcurly PBD] no curly no currency\n")
+      ,  exit(1)
+
+   ;  while(i++ < txt->len)
+      {
+         char  c  =  s[i]
+      ;  if (esc)
+         {  esc   =  0           /* no checks for validity */
+         ;  continue
+      ;  }
+         else if (c == '\\')
+         esc++
+      ;  else
+            switch(c)
+            {  case  '{'
+            :  n++
+            ;  break
+            ;  
+               case  '}'
+            :  n--
+         ;  }
+
+      ;  if (!n)
+         return(i-offset)
+   ;  }
+   ;  return(-1)
+;  }
+
+
+/*
+ *    Sets slice offset to slash introducing keyword.
+*/
+
+int   findkey
+(
+   yamSlice    *slice
+)
+   {
+      int   i
+   ;  const char  *s =  slice->txt->str
+   ;  int   offset   =  slice->offset
+   ;  int   esc      =  s && (s[offset] == '\\')
+   ;  int   found    =  0
+
+   ;  for (i=offset+1; i<slice->txt->len; i++)
+      {
+         char  c     =  s[i]
+
+      ;  if (esc)                               /* a backslash, that is */
+         {
+            if (isalpha(c))
+            {
+               found =  1
+            ;  slice->offset     =  i-1
+            ;  break
+         ;  }
+            else
+               switch(c)
+               {  case  '\\'  :  case  '}'   :  case  '{'
+               :  
+                  esc   =  0
+               ;  break
+               ;
+                  case '@'
+               :  esc   =  0     /* hierverder this must skip curlyscope */
+               ;  break
+               ;
+                  default
+               :  fflush(stdout)
+               ;  fprintf
+                  (  stderr
+                  ,  "[findkey] [%d, %d] illegal escape sequence <%c%c>\n"
+                  ,  offset, i-1
+                  ,  s[i-1], c
+                  )
+               ;  exit(1)
+            ;  }
+      ;  }
+         else if (c == '\\')
+         esc      =  1
+   ;  }
+
+   ;  return (found ? slice->offset : -1)
+;  }
+
+
+/*
+ *    expects offset to match a slash introducing a keyword.
+ *    Sets slice offset beyond keyword + args.
+ *    sets n_args_g, and fills key_and_args_g.
+ *    padds key with the number of arguments.
+*/
+
+int  parsekey
+(
+   yamSlice    *slice
+)
+   {
+      int      o        =  slice->offset
+   ;  int      i        =  o                    /* n0t a typ0 */
+                     
+   ;  char*    s        =  slice->txt->str
+   ;  int      z        =  slice->txt->len
+   ;  int      ok       =  0
+   ;  int      n_args   =  0
+
+   ;  if (s[i] != '\\')
+         fprintf(stderr, "[parsekey PBD] no slash no rose\n")
+      ,  exit(1)
+
+   ;  if (i+1 >= z || (!isalpha(s[i+1]) && s[i+1] != '_'))
+         fprintf(stderr, "[parsekey PBD] no alphanumerunderscore\n")
+      ,  exit(1)
+
+   ;  while(++i < z && (isalpha(s[i]) || s[i] == '_'))
+      ;
+         
+   ;  mcxTxtNWrite(key_g, s+o, i-o)
+
+;if(0)printf("[parsekey] key equals [%d][%s]\n", key_g->len, key_g->str)
+
+   ;  while (i<z && s[i] == '{')
+      {  
+         int   cc       =  closingcurly(slice->txt, i)
+
+      ;  if (cc<0)
+            fprintf(stdout, "[parsekey] error parsing arg\n")
+         ,  exit(1)
+
+      ;  if (++n_args>9)
+            fprintf(stdout, "too many arguments for key %s\n", key_g->str)
+         ,  exit(1)
+
+      ;  mcxTxtNWrite((key_and_args_g+n_args),s+i+1, cc-1)
+      ;  i              =  i+cc+1    /* position beyond closing curly */
+   ;  }
+
+   ;  mcxTxtAppend(key_g, arg_padding_g[n_args])
+
+   ;  n_args_g          =  n_args
+   ;  slice->offset     =  i
+
+;if(0)printf("[parsekey] key <%s> slice %d offset %d\n"
+   , key_g->str, slice->idx, slice->offset)
+
+   ;  return 0
+;  }
+
+
+yamSlice*  dokey
+(
+   yamSlice *slice
+)
+   {
+      int   status   =  parsekey(slice)
+
+   ;  if (status)
+      {  fprintf(stdout, "[dokey error: %s]\n", "parsekey")
+      ;  return(NULL)
+   ;  }
+
+   ;  return expandkey(slice)
+;  }
+
+
+/*
+ *    Is called after parsekey in dokey. parsekey fills key_and_args_g
+ *    and updates slice->offset.
+ *    Pops a new slice onto the stack.
+*/
+
+yamSlice*  expandkey
+(
+   yamSlice *slice
+)
+   {
+      int         i
+   ;  yamSlice*   newslice   =  NULL
+   ;  mcxTxt     *repl       =  NULL
+ 
+   ;  if (!strcmp(key_g->str, "\\set#3"))
+      {  
+         setkey()
+      ;  return slice
+   ;  }
+      else
+      {
+         mcxKV*   kv
+         =  (mcxKV*) mcxHashSearch
+            (  key_g
+            ,  *(tables_g->tables+0)
+            ,  DATUM_FIND
+            )
+
+      ;  if (!kv)
+            fprintf
+            (  stderr
+            ,  "[expandkey] key [%d]<%s> not found  in hash %p\n"
+            ,  key_g->len
+            ,  key_g->str
+            ,  *(tables_g->tables+0)
+            )
+         ,  exit(1)
+
+      ;  else
+         {
+            repl           =  mcxTxtNew( ((mcxTxt*) (kv->val))->str )
+         ;  newslice       =  yamSliceNew(repl)
+
+         ;  for (i=1;i<=n_args_g;i++)
+            {
+              /*
+               *     expansion will not construct
+               *     an illegal key because bsbs remains bsbs.
+              */
+
+               int   o     =  0
+
+            ;  while( (o = tagoffset(repl, i, o)) > 0)
+               {
+                  mcxTxtSplice
+                  (  repl
+                  ,  (const char**) &((key_and_args_g+i)->str)
+                  ,  o                                /* offset oh         */
+                  ,  2                                /* delete 2          */
+                  ,  0                                /* offset zero       */
+                  ,  (key_and_args_g+i)->len          /* insert this much  */
+                  )
+               ;  if(0)printf("[expandkey] repl <%s>\n", repl->str)
+            ;  }
+         ;  }
+      ;  }
+      ;  newslice->next    =  slice
+      ;  newslice->idx     =  slice->idx + 1
+
+;if(0)printf("[expandkey]  offset %d\n", newslice->offset)
+
+      ;  return newslice
+   ;  }
+
+   ;  return NULL
+;  }
+
+
+void  yamSliceFree
+(
+   yamSlice*   slice
+)
+   {
+      mcxTxtFree(&slice->txt)
+   ;  free(slice)
+;  }
+
+
+yamSlice*  yamSliceNew
+(
+   mcxTxt*  txt
+)
+   {
+      yamSlice*   slice    =  (yamSlice*)  malloc(sizeof(yamSlice))
+   ;  slice->txt           =  txt
+   ;  slice->offset        =  0
+   ;  slice->stack_size    =  0
+   ;  slice->idx           =  0
+   ;  slice->next          =  NULL
+   ;  return slice
+;  }
+
+
+void setkey
+(
+   void
+)
+   {
+      mcxKV*   kv
+   ;  mcxTxt*  key      =  mcxTxtNew(arg1_g->str)
+   ;  int      keylen   =  key_g->len
+   ;  int      n_args   =  0
+
+   ;  if (n_args_g != 3)
+         fprintf(stderr, "[setkey] \\set takes three arguments\n")
+      ,  exit(1)
+
+   ;  n_args            =  *(arg2_g->str) - '0'
+   ;  if (n_args < 0 || n_args > 9)
+         fprintf(stderr, "[setkey] argument argument <%d> invalid\n", n_args)
+      ,  exit(1)
+
+   ;  mcxTxtAppend(key, arg_padding_g[n_args])
+
+   ;  kv    =        mcxHashSearch
+                     (  key
+                     ,  *(tables_g->tables+0)
+                     ,  DATUM_INSERT
+                     )
+
+   ;  if (!kv)
+         fprintf(stderr, "[setkey panic] cannot insert key\n")
+      ,  exit(1)
+
+   ;  else
+      {
+         if (kv->key != key)
+            fprintf(stderr, "[setkey warning] overwriting key <%s>\n",key->str)
+         ,  mcxTxtFree(&key)
+
+      ;  if (kv->val)
+         mcxTxtWrite((mcxTxt*) (kv->val), arg3_g->str)
+      ;  else
+         kv->val  =  mcxTxtNew(arg3_g->str)
+   ;  }
+
+
+   ;  if(0)printf
+      (  "[setkey] made key-val [%d]<%s><%s> in %p\n"
+      ,  ((mcxTxt*) (kv->key))->len
+      ,  ((mcxTxt*) (kv->key))->str
+      ,  ((mcxTxt*) (kv->val))->str
+      ,  *(tables_g->tables+0)
+      )
+;  }
+
+
+int   filter_html
+(
+   mcxTxt*     txt
+,  int         offset
+,  int         bound
+)
+   {
+
+      char     c        =  *(txt->str+bound)
+   ;  char    *d        =  txt->str+offset
+
+   ;  *(txt->str+bound) =  '\0'
+
+   ;  printf("%s", d)
+   ;  *(txt->str+bound) =  c
+   ;  return (0)
+;  }
+
+
+/*
+ *    if filter is NULL do not produce output.
+ *
+*/
+
+int   digest
+(
+   yamTables   *stack                            /* read/write symbols   */
+,  yamSlice    *slice                            /* interpret slice        */
+,  int         filter(mcxTxt* txt, int offset, int bound)
+)
+   {
+
+      int      offset         =  slice->offset
+   ;  int      i
+
+   ;  tables_g              =  stack
+
+   ;  for(i=0;i<10;i++)  
+      mcxTxtInit(key_and_args_g+i)
+
+   ;  while(slice)
+      {
+         int         old_offset  =  slice->offset
+      ;  yamSlice*   old_slice   =  slice
+
+      ;  if ((offset = findkey(slice)) >= 0)
+         {
+            filter(slice->txt, old_offset, offset)
+         ;  slice                =  dokey(slice)
+      ;  }
+
+         else
+         {
+            filter(slice->txt, old_offset, slice->txt->len)
+         ;  slice               =  slice->next
+         ;  yamSliceFree(old_slice)
+      ;  }
+   ;  }
+
+   ;  return   0
+;  }
+
+

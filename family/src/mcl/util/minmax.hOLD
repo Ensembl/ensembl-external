@@ -1,0 +1,73 @@
+/*
+// minmax.h          Inline min/max functions
+*/
+
+#ifndef MINMAX_H
+#define MINMAX_H
+
+#ifdef __unix__
+long max(long x, long y);
+long min(long x, long y);
+#endif
+
+void* maxp(void* x, void* y);
+void* minp(void* x, void* y);
+
+float maxf(float x, float y);
+float minf(float x, float y);
+
+double maxd(double x, double y);
+double mind(double x, double y);
+
+#ifdef __unix__
+extern  __inline__ long max
+(  long x
+,  long y
+)  {  return (x > y) ? x : y
+;  }
+
+extern __inline__ long min
+(  long x
+,  long y
+)  { return (y > x) ? x : y
+;  }
+#endif
+
+extern __inline__ void* maxp
+(  void* x
+,  void* y
+)  {  return (x > y)  ? x :  y
+;  }
+
+extern  __inline__ void* minp
+(  void* x
+,  void* y
+)  { return  (y > x)  ? x :  y
+;  }
+
+extern  __inline__ float maxf
+(  float x
+,  float  y
+)  { return (x >  y) ? x : y
+;  }
+
+extern __inline__ float minf
+(  float  x
+,  float  y
+)  {  return (y >  x) ? x  : y
+;  }
+
+extern __inline__ double  maxd
+(  double x
+,  double y
+)  { return (x > y) ? x : y
+;  }
+
+extern __inline__  double mind
+(  double x
+,  double y
+)  { return (y > x) ? x : y
+;  }
+
+#endif   /* MINMAX_H */
+

@@ -1,0 +1,32 @@
+
+ The first versions of the vital matrix library (currently named nonema for NOn
+ NEgative MAtrices, but this name will not stick) were designed jointly by
+ Stijn van Dongen and Annius Groenink in the period Oktober 1998 - May 1999.
+ Its data structures were largely derived from an earlier prototype MCL
+ implementation in Perl -- although it is not as if the abstract MCL algorithm
+ leaves much room for variation here.  During that period I learned a great
+ deal about C coding from Annius.  The efficient matrix-vector multiplication
+ routine was written by Annius. He contributed many other lines of code, but
+ this routine is without significant changes still one of the cornerstones of
+ this MCL implementation.
+
+ Since May 1999 all MCL libraries have seen much development and redesign by
+ yours truly. Matrix-matrix multiplication has been rewritten several times
+ to take full advantage of the sparseness properties of the stochastic
+ matrices brought forth by the MCL algorithm. This mostly concerns the issue
+ of pruning --  removal of small elements in a stochastic column in order to
+ keep matrices sparse.
+
+ Very instructive was that around April 2001 Rob Koopman pointed out that
+ selecting the k largest elements out of a collection of n is best done using a
+ min-heap.  This was the key to the second major rewrite (now counting three)
+ of the MCL pruning schemes, resulting in much faster code, generally producing
+ a more accurate computation of the MCL process.
+
+ In May 2001 Anton Enright initiated the parallellization of the MCL code and
+ did a large part of the pthread coding. This was great, as MCL's data
+ structures and operands (normal matrix multiplication and Hadamard
+ multiplication) just beg for parallellization.
+
+Stijn van Dongen
+

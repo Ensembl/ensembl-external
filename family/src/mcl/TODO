@@ -1,0 +1,773 @@
+
+   This file is large. Many a thought has come here to a quiet rest.
+
+         main issues:
+
+   o  manual pages ??
+      use /usr/man/man1/par.1.gz as example
+
+   o  think hard about splice interface.
+   o  enable precise memory allocation in txt.
+
+   o  work towards debianization of these libs.
+   o  can I speed up computing the initial destination vector?
+   o  purge old stuff Makefile, understand more about make.
+   o  mcx-ize intalg (renaming).
+   o  introduce mcxSplice in intalg, testing mcxSplice some more.
+   o  check header files includes.
+   o  make arguments const where appropriate.
+   o  use the integer types mcxbool mcxstatus mcxflags mcxmode mcxOnFail
+      (yep that's an ugly bunch)
+   o  wrap hard mallocs and reallocs.
+   o  insert mcxiostreamopenfailure calls where appropriate.
+   o  propagate hard exit's in mcxIOstream library where appropriate.
+   o  audit vector.[ch] on NULL consistency (should be ok).
+   o  make clmdist take vararg list.
+
+         ideas that could be fun:
+
+   o  registering streams like verbose, track, log etc.
+
+
+==============================================================================
+=current
+
+   mcxHashFree (aparte routines voor keys en values),
+   die een ** free'en (kunnen tegen nul pointers).
+
+
+==============================================================================
+=todo
+
+Urgency runs from 1 (most urgent) to 5 (least urgent).
+Dimensions are among
+
+ audit            check code for certain phenonemom (usually bug nephew search)
+ consider         consider an issue/idea
+ consider_design  consider a design issue
+ consider_legacy  consider a legacy issue
+ contemplate      contemplate - consider with less ideas.
+ doc_terminology
+ fix              fix something which is probably not totally broken
+ future idea      idea from the future?
+ implement        implement
+ organization     code layering/modularization issue
+ reconsider       consider undoing something
+ run_through      do a tiresome find of all occurrences of some little detail.
+ test             test
+ upgrade          rewrite code to make it better.
+
+ noted            record a (train of) thought
+ considered       record a (train of) thought
+
+==============================================================================
+
+ audit 1
+ run through 1
+ design  1
+               FREE/RELEASE/DESTROY NEW ROUTINES
+,
+   free routines that take addres of variable.
+   free routines that take void* args (which is address of variable).
+   maybe I should make two flavours (both void* and type**).
+
+   take note, such routines can not free arrays of object(s) (pointers)
+   allocated on the heap, as these have only malloc handle.
+   maybe free should be destroy.
+
+   mcxArrayRelease kan dus niet zo'n obDestroy nemen ipv
+   obRelease. Daarom is het belangrijk dat ie in een consistente
+   staat geinitialiseerd wordt.
+
+   Free of Destroy moet tegenover New routine staan, gaat allemaal
+   over single objecten die niet op stack zijn gealloceerd.
+
+   vectorCreate   ->    vectorNew
+   txtEnsure      ->    txtSetLength?
+
+   New            ->    returns single object, makes useful state.
+   Init           ->    possibly allocs, makes consistent state (array).
+   Instantiate    ->    library workhorse, new may wrap around it.
+   Release        ->    release all memory except for the object itself (array).
+   Destroy        ->    takes address of single object, releases all memory.
+
+   make a lot of the txt routines type void.
+   insert, append, splice, nwrite ..
+
+
+ consider
+,
+   implementing a routine that initializes an array. seems handy.
+   a la dedup etc.
+   takes size, obinit, n et voila.
+   than I will probably make the mcxArray links in hash a true mcxLinks* type.
+
+
+ fix
+,
+   I removed some __inline__ from txt because testing failed otherwise.
+   this is my shallow understanding of make.
+   try to find which those were, move them back, and understand make.
+
+
+ fix 1
+,
+   splice moet af van die rare base2 interface.
+   voorstel: maak functie mcxSpliceOverlapping() die een vlag zet.
+   die vlag wordt automatisch teruggezet.
+   mcxSpliceOverlappingDefault() verhindert dat laatste.
+   beetje lelijk, toegegeven.
+
+
+ doc_terminology
+,
+   terminology about "number of entries of a vector" does probably not
+   match anyones mindset.  vector size = nr of positive entries entry =
+   positive entry.  use this and explain, or use other words?
+
+ 
+ implement
+,
+   enable -v and -V with minimum prefix capacities. mmm. should I?
+   or even with minimum substring capacities :)
+   then report (unless --silent) what expansion yielded.
+
+
+ implement 2
+,
+   warn user if first arg starts with -[whatever]+
+
+
+ upgrade 2
+,
+   check io. can i do without printf?  make routines cleaner.  make sure
+   that nr_chars has true value also for non-stochastic data.  (with %n
+   in printf)
+
+
+ implement 1
+,
+   make clmdist take vararg list, same as clminfo and mcxmorph.
+
+
+ implement 1
+,
+   check whether ascii input column is not sorted or contains duplicates.
+   Only in those cases sort and merge.
+
+
+ consider_design 5
+,
+   vectorBinary and other vector routines, confusion over src en dst argument.
+   There seems to be a split between create routines and input/output
+   routines, which is perhaps fine.
+
+
+ consider 2
+,
+   enabling the Hadamard power in mcxmorph.
+
+
+ run_through 3
+,
+   implement mcxbool's where used. tiresome.
+
+
+ consider 2
+,
+   pthread_create requires cast of (void *) ??  Conflicts good coding
+   standards I believe. Why is it not simply cast in the prototype?
+
+
+ implement 2
+,
+   make general inlines for mcxAppend, mcxDelete, and mcxInsert.
+   let mcxTxtAppend etc inherit from those.
+ reconsider
+   the strange base1 base2 interface.
+
+
+ consider 3
+,
+   behaviour of kbarselect when requested nr is larger than vec size.
+   it currently returns a bar of -1.0.
+
+
+ fix 2
+,
+   minmax, I should go for the plain stuff. Disadvantage; multiply
+   evaluated expression. Mgrr.
+
+
+ consider 3
+,
+      (DONE) util/types.h, not iface.h
+   Should I also prefix my files?  There are other unprefixed types out
+   there I believe.  Should I prefix EXIT_ON_FAIl etcetera like mcxFALSE
+   and mcxTRUE?  the mcxTRUE looks stupid, I do this because of potential
+   crosslinking difficulties. Dumb?
+
+
+ audit 2
+,
+   should always use pointer arithmetic for ivps or the while (--k) idiom.
+   Run through vector.c
+
+
+ consider 3
+,
+   being able to read in a tagged matrix.  requires probably just a
+   branch in mcxmatrixreadascii (or whatever it is called).
+
+
+ fix 3
+,
+   what is printValue in mcl/mcl.c? (seems to be boolean doPrintValue).
+
+
+ contemplate 5
+,
+   What about doing setMerge, setMinus, setMeet also for integer lists.
+   Does this mean I should do it in general?
+
+   If there are two ordered lists of the same type which have
+   a mapping property like mcxVector this can be useful.
+   Requires comparison test on the mapping domain.
+   and a binary function on the mapping range.
+
+   There is a reason why this is overkill. Thought of it the other day.
+
+
+ contemplate 3
+,
+   added    mcxTxtInteger
+            ilVA
+            ilVectorFromIlist
+
+
+ contemplate 3
+,
+   changed txtInit behaviour to initialize to empty string.
+   previous setup was wrong, because initialization str=NULL && len=0
+   did not satisfy the invariant *(str+len) == '\0'
+   A bit of a pity to do the malloc for 1 element.
+
+   Did this break any code (unlikely though it may be)?
+
+   Changed mcxTxtEnsure to write a '\0' byte at length position.
+   Does this break things?
+
+
+ consider 1
+,
+   changing member name 'list' of ilist to 'ints'
+   ilRange(left, right), ilInterval(left, right) {non-inclusive}
+
+
+ consider 2
+,
+   implement mcxVectorFromIlist and mcxIlistFromVector?
+   I do not want mutual dependencies in the archives I believe.
+   Should both go in a separate archive, which must always be listed
+   before the other two?
+   Right now I will just put them in intalg/la.[ch]
+
+
+ consider 2
+,
+   Some standard notation for
+   *addresses of variables containing pointers to memory on the heap*
+   The variables themselves are usually structure members.
+
+   mempptr currently.
+   memptraddr would be ugly
+
+   ANSI prototyping seems to require I call these void* (whereas void**
+   is what I feel to be natural), I then have to cast these to char** type.
+   Well the void** has it's disadvantages. Perhaps there is much wisdom
+   in void*.
+
+
+ implement 2
+,
+   insert mcxIOstreamOpenFailure(stderr, "mcxMatrixMaskedRead", xfIn)
+   etc in the right places.
+
+   ;  if (!xfIn->fp && mcxIOstreamOpen(xfIn, ON_FAIL) != STATUS_OK)
+      {  mcxIOstreamOpenFailure(stderr, "mcxMatrixMaskedRead", xfIn)
+      ;  return NULL
+   ;  }
+
+   Cool idiom!
+   Check all ON_FAIL instances, see whether idiom can be shortened.
+
+
+ fix 2
+,
+   la.c:genclustering speaks of gargabe cluster vector. Ughh.
+
+
+ audit implement 1
+,
+   mcx-ize intalg library. Dust on this section, inspection severly
+   needed.  consistency list==NULL, n=0.  permutation functionality.
+   general audit.
+
+   ilStore very strange functionality.  ilResize funnily
+   implemented. Resize should probably not try to be smart and look at
+   sizes. It's not like mcxTxtShrink & Ensure, it's like vectorResize.
+
+   ilCon should be ilAppend should wrap mcxSplice, and so should ilInsert
+   etcetera.
+
+
+ test 4
+,
+   Other utilities with checker.  Test more computation paths for mcl.
+   Make facilities for testing. Test suites and test modes.
+
+
+ fix 1
+,
+   remove instances of assert calls.
+
+
+ fix 1
+,
+   mcxIOstreamRewind suggests something it does not (it only resets
+   counters to initial state).  perhaps add wrappers around fseek and
+   ftell that preserve mcxIOstream counter state.
+
+
+ consider 3
+,
+   Thresholding an input graph (and possibly making it characteristic)
+   using the parametrized mass center and a weight. Putting this in
+   mcxmorph? -center <f> -centerweight <i>
+
+
+ consider 1
+,
+   mcxIOstream section.  streamOpen contains raw exits but should
+   consider ON_FAIL directive.  Different modes of failure seem to be
+   present. Introduce them in file.h?
+
+
+ run_through 1
+,
+   exits. Clearly mark PBD's and MEM and other stuff.
+   SNH (should not happen) which is kind of an incomprehensible PBD.
+
+ 
+ audit 1
+,
+   readascii contains/contained check on return value of instantiate.
+   Sigh, errorchecking, how and why.
+   I tend to do checking wheneverafter interaction with the environment,
+   mainly IO, not malloc.
+
+
+ audit 3
+,
+   Check vector.[ch] on the condition n_ivps==0 and ivps==NULL.
+   Check ilist.[ch] idem.
+   Check code voor malloc(0) (if semantics ok change to rqRealloc(0)).
+   What happens when vectorresize(0)?
+
+   Allow this everywhere.
+
+   Sum of a vector with ivps==NULL is simply 0.0, this is consistent
+   with the MCL sparse matrix/vector paradigm.
+
+   At some places a condition like while(ivp<ivpmax).
+   Translates to while(0<0) according to the standard.
+   so I guess this is ok. Still scrutinize for trying to access
+   ivps->0
+
+   mcxVectorCreate(0) induces rqRealloc(0) call, and that is ok.
+
+
+ audit 3
+,
+   Redundant and missing includes in header files en source files.
+   What about these .a libraries, it seems you can't have mututal
+   dependencies (remember having this problem once).
+
+
+ fix 2
+,
+   AllocZero(N_cols, N_rows) interface (change arguments)
+   Submatrix
+   MatrixComplete
+   MatrixPermute?
+
+
+ consider 5
+,
+   xfStdout
+   xfStderr
+   xfStdin
+   xfVerbose
+   xfTrack
+               in util/iface.[ch]
+   pooling, registering, managing, whatever. Think of something clueful.
+
+
+ consider_legacy 1
+,
+   rethink structure mcl section. dpsd, interpret, clm.  some legacy
+   routines in there.
+
+
+ implement 1
+,
+   mcxVectorWriteAscii
+   mcxVectorDump
+      not yet ported to mcxIOstream and ACTION_ON_FAIL.
+      dump interface is ugly as a nightmare in hell (or would that
+      be dreaming of heaven?). Remedy?
+
+
+ consider 2
+,
+   caller argument yes or no? Perhaps not in combination with ON_FAIL,
+   because  if caller wants to have a say she should use RETURN_ON_FAIL.
+
+   Which routines take the name of their caller as argument?
+
+
+ consider 5
+,
+  mcxCheck type for check routines return value?
+  mmm, probably not.
+
+
+ audit 2
+,
+   return values and interaction of routines in nonema/io.c, parse.c.
+
+
+ implement 1
+,
+   mcxMatrixDiag should take vector as argument.
+
+
+ consider 5
+,
+   A multiplicative -a variant acting on existing loop weights.
+   This because loops are present in cluster-cluster matrices
+   in a natural way.
+
+   Clustering coarsened matrices has not yet proven to
+   be very effective, but this could still come about.
+
+
+ implement 1
+,
+   Did remove ugly 0,0,0,0 (defining window) from mcxMatrixNrofEntries,
+   because we now have mcxSubMatrixNrofEntries.
+   Ugly windows are still present in mcxMatrixList and mcxVectorList
+
+
+ consider 5
+,
+   Massive testing for NULL arguments, possibly with RUNTIME ifdefs.
+   Consider e.g. trying to store a value in a NULL distribution.
+   This should surely generate a runtime warning, or an exit?
+
+
+ organization 1
+,
+   intalg/la.c idxShare. Strange location.
+
+
+ consider 5
+,
+   --square does not add loops. Document this. (present in mcl -h I think).
+
+
+ consider 3
+,
+   allow distrNew 0 argument.  Initialize member db then as null, N as 0.
+   obsolete thought?
+
+
+ consider 3
+,
+   mcxMatrixWriteTable
+
+   Default ivp indices will not be printed, vector indices problably will
+   indeed.  No EOV character. Column separator optionally yes.
+   mcltype table?
+   Intention: create something that is easily parseable for unknown purposes.
+
+
+ consider 3
+,
+   Does writeAscii in some sense suppose stochastic input,
+   leading to ugly formatting for other data?
+   I believe yes indeed.
+
+
+ audit 5
+,
+   floats and doubles. doubles in math functions.  low priority.
+   change everything to `mcxReal' ?
+
+
+ consider 1
+,
+   how big can inhomogeneity get?  If it is N times some maximum then it could
+   get very big if there is a column (0.3,0.7). (-> 0.7  -0.58 = 0.12)
+
+
+ consider 1
+,
+   If vector I/O is ever seriously re-implemented,
+   consider making them matrices. (or do I want to be implicit about range?)
+
+ 
+ future idea 5
+,
+   Right now it is difficult to work with induced submatrices; these can
+   only exist as the full thing, this is a pity of memory and results
+   in things like a lot of singleton clusters if you start clustering
+   the induced subgraph.
+
+   It may be an idea to include two maps (ilist permutations) in the
+   definition of a matrix, resulting in the idea of a mapped matrix. This
+   requires also members mapped_N_rows en mapped_N_cols.
+
+   Which routines suffer from complexity? Compose routines for sure ..
+   Add routines also. Vector compose routine.
+   Idx inquiry, but this is simple.
+
+
+ consider 5
+,
+   mcxIOstream: wrap bc,lc,lo in struct. introduce data/text dichotomy.
+
+
+ consider 4
+,
+   VectorCountCmpBar should use bsearch with idxcmp argument.
+   This option is currently nowhere used.  Needs idx sorted vectors then.
+
+
+==============================================================================
+=done
+
+
+ noted
+
+   mcxIOstream now only accepts `-' as token for both stdin and stdout.
+   Name of stream is changed appropriately only after a call to Open,
+   meaning that Open sort of has a delayed side effect relative to New.
+   If a file name is inquired inbetween these two calls, the result
+   is inconsistent. Inquirers for file names do have to think of the
+   `std stream' possibility though, so maybe this is not entirely an
+   issue.
+
+   Of course, inquiry should be a method in this case, and callers
+   should in critical cases not poll the streamname directly.
+
+
+ considered
+
+   Matrix o (from i/o) in mcx binaries is ascii everhwere.
+   should allow binary. How? Flags? Or script setting environment variable?
+
+   Not important for clm binaries, cluster matrices are sparse, O(N).
+
+   ++++++++
+   mcxmorph now accepts -b. Perhaps this is sufficient.
+
+
+ considered
+
+   mcxTxtEnsure returns new mcxTxt struct if given a null mcxTxt.
+   Possibility that callers forget to use return value when passing
+   text argument that equals NULL is quite real.
+
+   Solution: define wrapper for functionality "gimme a new txt with that
+   capacity". Name?  mcxTxtNewCapacity
+
+   Did this, then removed it. Confusing that NewCapacity also takes
+   a txt as argument. Had something to do with EmptyString I believe,
+   which now uses mcxTxtEnsure, which is a lousy name also by the way.
+
+
+ considered
+
+   giving mcxBuf structure a pointer to the number of elements
+   currently in use. This should always be possible, as caller
+   must keep track of this.
+
+   Did not do this because .. the advantages are not clear.
+   What if people accidentally fiddle with it?
+   Right now finalization yields the final count.
+
+ @
+   vectorGetNrofEntries
+      overlappende functionaliteit met vectorCountCmpBar,
+      behalve dat de laatste alleen halfopen bereiken
+      accepteert.
+
+      Misschien moet vectorSelectCmpBar een vectorSelectCmpBars
+      worden, met een cmp die drie argumenten neemt.
+      Mogelijkheid om een `window' uit te snijden.
+
+      Alleen, hoe vermijd je dat het een wildgroei aan cmps wordt?
+
+
+==============================================================================
+=verbosity
+
+                  Verbosity dimensions and defaults
+   
+   This document is mainly to clarify my own thoughts about matters. The
+   interaction and interdependence of defaults with user supplied
+   settings drive me nuts when the thing being tuned is verbosity output.
+   I believe this is indeed a difficult subject, though I might also
+   be just dumb. It is a major PITA to adjust the interaction when the
+   defaults are changed, there is the added difficulty of behaviour that
+   is regulated/triggered by multiple flags, and overloading flags to
+   code special behaviour is not helping either (e.g. giving the '0'
+   argument special meaning, as is the case with the -progress flag).
+
+   Probably this project is just too small to find a good solution.
+
+   The interaction of the defaults below is ruled by judgment on
+   whether or not different kinds of output look nice together, and
+   on considerations of the strain on time usage.  Actually there are
+   probably only two or three rules.  It is hard to code them otherwise
+   than ad hocly, and this causes pains when changing the defaults. It
+   would probably be easier if there were a hundred rules.
+
+                           no
+verbosity      |  threads  threads  requires flag
+dimensions     |  default  default  mutex
+------------------------------------------------------------------
+io             |  yes      yes      no       -v io
+mcl            |  yes      yes      no       -v mcl
+vector progress|  no       yes      yes      -v progress, -progress i
+matrix progress|  yes      no       no       -progress 0
+pruning        |  no       no       yes      -v pruning
+
+
+   By default matrix progress replaces vector progress when using threads,
+   because vector progress is more expensive timewise and requires the
+   use of a mutex.
+
+   By default, when using `-v pruning', the progress counter is stripped
+   from the iteration index argument and from the inhomogeneity measure.
+
+   matrix progress and vector progress are mutually exclusive.
+
+   The goal is that all verbosity flags are sensitive to order of use.
+   They are indeed. However, setting '-progress 0 --silent' currently
+   does not give the expected result.
+
+
+==============================================================================
+=totodo (old todo's not yet checked and converted to new format)
+
+
+ warning_guts
+   _E_GutsShouldNotHappen
+
+    een warning in de low level routines
+    die eigenlijk al eerder afgevangen had moeten worden.
+    NULL argumenten vallen hier in principe niet onder?
+
+WARNING_NEWCODE
+   _E_NewCodeShouldNotHappen
+
+   (safety checks voor nieuwe code die nog onder veel
+    berekeningspaden getest moet worden)
+
+WARNING_IFACE_VIOLATION
+   _E_NullArgument
+   _E_ArgumentOutOfDomain
+   _E_ArgumentsConflict
+
+ @
+   distr netter maken, in ieder geval eens inspecteren.
+
+ @
+   inhomogeneity is nu hardwired 0.001e
+   haak.
+
+ @
+   -C 1:1 analoog aan -A 1:1
+   Vergt dat mclCenterMatrix een mxDiag als argument neemt.
+   -A en -C vlaggen zijn overigens onhandig, want dit wil je niet
+   grootschalig op de cline doen.  Hier zou eigenlijk een input vector
+   als argument moeten fungeren.
+
+   -a 1 -A 3:10 zou ik de rechter waarde willen laten prevaleren.
+   Is niet helemaal logisch te definieren, aangezien functie van waarde 0.0
+   onduidelijk is: Wat betekent -A 0:0 en hoe te onderscheiden van
+   *niet* gespecificeerde -A x:? waardes.
+
+ @
+   mclCluster verwijderd input matrix uit geheugen.
+   In toekomstige scenario's niet ok.
+
+ @
+   Dan: -dump cls losweken van de mclVerbose vlag.
+   (?)
+
+ @
+   ascii interface voor permutaties?
+
+   (mclheader
+    mcltype permutation
+   )
+
+   (mclpermutation
+    0 1 2 3 4 5
+   )
+
+
+
+\set{\bf}{1}{<b>\1</b>}
+\set{\bf}{1}{\n.fb \1}
+....
+think about including *formatting* code for the html/man/etc/ output.
+this would mostly concern:
+   tabbing
+   breaks (newlines)
+   paragraphs
+
+
+   \split{
+   \@man{ }
+   \@html{ }
+   \@else{ }
+   }
+
+   \set
+   \xpd
+   \setnow
+   \xpdnow
+
+\bf
+\it
+\items
+\item
+\section1
+\section2
+\n    break (like <br> in html, \\ in tex)
+\s    nonbreaking space (like &nbsp; in html, ~ in tex)
+
+
+how to do items properly ? Depends a bit on support in output format.
+\items{long}
+\items{short}
+\items{roman}
+\items{alpha}
+\items{Roman}
+\items{bullet}
+
+

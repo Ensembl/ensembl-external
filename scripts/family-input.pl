@@ -209,6 +209,8 @@ sub compare_desc {
 }                                       # compare_desc
 
 sub fill_in_member_count {
+## add the numbers of enspep members (==family_size) per family into
+## family. Returns total number of enspepts.
     my ($dbh) = @_;
 
     my $q = "SELECT family as famid, COUNT(*) as n
@@ -236,10 +238,14 @@ sub fill_in_member_count {
 sub do_stats { 
     my ($dbh) = @_;
 
-    my $tot_n = fill_in_member_count($dbh);
+    my $totn_enspepts = fill_in_member_count($dbh);
 
-    ### temporary table for the distribution
+    ### temporary histogram (family_size, occurrences) for the
+    ### distribution:
     my $distr_table= "tmp_distr_enspep_$$";
+
+    ## note: we can't use a CREATE TEMPORARY TABLE here, since MySQL
+    ## doesn't allow self-joins on tmp tables ...
     my $q = "CREATE TABLE $distr_table
              SELECT num_ens_pepts as n, COUNT(id) as cnt
              FROM  family
@@ -248,8 +254,11 @@ sub do_stats {
     $q = "ALTER TABLE $distr_table ADD INDEX idx_$distr_table (n)";
     $dbh->do($q);
 
+    ## find the fractional cumulative distribution ('running totals') of
+    ## this. This uses a nifty SQL construct called a theta self-join. We
+    ## know the total number of members, so we can divide by it straight away
     $q = "INSERT INTO cumulative_distrib
-          SELECT d1.n, d1.cnt, (SUM(d2.cnt*d2.n))/$tot_n
+          SELECT d1.n, d1.cnt, (SUM(d2.cnt*d2.n))/$totn_enspepts
           FROM $distr_table d1, $distr_table d2
           WHERE d1.n >= d2.n
           GROUP by d1.n, d1.cnt";

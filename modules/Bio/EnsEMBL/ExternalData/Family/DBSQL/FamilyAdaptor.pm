@@ -83,6 +83,33 @@ use Bio::EnsEMBL::ExternalData::Family::Taxon;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
+=head2 list_familyIds
+
+  Arg [1]    : none
+  Example    : @family_ids = $family_adaptor->list_familyIds();
+  Description: Gets an array of internal ids for all families in the current db
+  Returntype : list of ints
+  Exceptions : none
+  Caller     : ?
+
+=cut
+
+sub list_familyIds {
+   my ($self) = @_;
+
+   my @out;
+   my $sth = $self->prepare("SELECT family_id FROM family");
+   $sth->execute;
+
+   while (my ($id) = $sth->fetchrow) {
+       push(@out, $id);
+   }
+
+   $sth->finish;
+
+   return \@out;
+}
+
 =head2 fetch_by_dbID
 
  Arg [1]    : int $dbID

@@ -35,8 +35,10 @@ package Bio::EnsEMBL::ExternalData::Glovar::GlovarSNPAdaptor;
 
 use strict;
 
-use Bio::EnsEMBL::ExternalData::Glovar::SNP;
-use Bio::Annotation::DBLink;
+use Bio::EnsEMBL::Variation::VariationFeature;
+use Bio::EnsEMBL::Variation::Variation;
+use Bio::EnsEMBL::Variation::TranscriptVariation;
+use Bio::EnsEMBL::Transcript;
 use Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw(eprof_start eprof_end eprof_dump);
 use Bio::EnsEMBL::Registry;
@@ -44,143 +46,26 @@ use Bio::EnsEMBL::Registry;
 use vars qw(@ISA);
 @ISA = qw(Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor);
 
-=head2 fetch_all_by_Slice
+# map Glovar validation states to Ensembl ones
+our %VSTATE_MAP = (
+        'Observed'          => 'observed',
+        'Sanger Verified'   => 'submitter',
+        'Verified'          => 'submitter',
+        'Two-hit'           => 'doublehit',
+        'Non-polymorphic'   => 'non-polymorphic',
+        'HapMap Verified'   => 'hapmap',
+);
 
-  Arg [1]    : Bio::EnsEMBL::Slice $slice
-  Arg [2]    : (optional) boolean $is_lite
-               Flag indicating if 'light weight' variations should be obtained
-  Example    : @list = @{$glovar_adaptor->fetch_all_by_Slice($slice)};
-  Description: Retrieves a list of variations on a slice in slice coordinates 
-  Returntype : Listref of Bio::EnsEMBL::SNP objects
-  Exceptions : none
-  Caller     : Bio::EnsEMBL::Slice::get_all_ExternalFeatures
-
-=cut
-
-sub XX_fetch_all_by_Slice {
-  my ($self, $slice, $is_light) = @_;
-
-  unless($slice->assembly_name() && $slice->assembly_version()){
-      warn("Cannot determine assembly name and version from Slice in GlovarAdaptor!\n");
-      return([]);
-  }
-
-  return $self->fetch_SNP_by_chr_start_end($slice);
-}
-
-=head2 fetch_SNP_by_chr_start_end
-
-  Arg [1]    : Bio::EnsEMBL::Slice
-  Example    : @list = @{$glovar_adaptor->fetch_SNP_by_chr_start_end($slice)};
-  Description: Retrieves a list of SNPs on a slice in slice coordinates.
-  Returntype : Listref of Bio::EnsEMBL::SNP objects
-  Exceptions : none
-  Caller     : $self->fetch_all_by_Slice
-
-=cut
-
-sub fetch_SNP_by_chr_start_end  {
-    my ($self, $slice) = @_; 
-    my $slice_chr    = $slice->chr_name();
-    my $slice_start  = $slice->chr_start();
-    my $slice_end    = $slice->chr_end();
-    my $slice_strand = $slice->strand();
-    my $ass_name     = $slice->assembly_name();
-    my $ass_version  = $slice->assembly_version();
-
-    &eprof_start('glovar_snp');
-
-    my $q = qq(
-        SELECT
-                ss.ID_SNP                       as INTERNAL_ID,
-                ss.DEFAULT_NAME                 as ID_DEFAULT,
-                mapped_snp.POSITION + seq_seq_map.START_COORDINATE - 1
-                                                as CHR_START,
-                mapped_snp.END_POSITION + seq_seq_map.START_COORDINATE - 1
-                                                as CHR_END,
-                seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
-                scd.DESCRIPTION                 as VALIDATED,
-                ss.ALLELES                      as ALLELES,
-                svd.DESCRIPTION                 as SNPCLASS,
-                seq_seq_map.CONTIG_ORIENTATION  as CONTIG_ORI,
-                ss.IS_PRIVATE                   as PRIVATE
-        FROM    chrom_seq,
-                database_dict,
-                seq_seq_map,
-                mapped_snp,
-                snp,
-                snpvartypedict svd,
-                snp_confirmation_dict scd,
-                snp_summary ss
-        WHERE   chrom_seq.DATABASE_SEQNAME= '$slice_chr'
-        AND     database_dict.DATABASE_NAME = '$ass_name'
-        AND     database_dict.DATABASE_VERSION = '$ass_version'
-        AND     database_dict.ID_DICT = chrom_seq.DATABASE_SOURCE
-        AND     chrom_seq.ID_CHROMSEQ = seq_seq_map.ID_CHROMSEQ
-        AND     seq_seq_map.SUB_SEQUENCE = mapped_snp.ID_SEQUENCE
-        AND     mapped_snp.ID_SNP = ss.ID_SNP
-        AND     ss.ID_SNP = snp.ID_SNP
-        AND     snp.VAR_TYPE = svd.ID_DICT
-        AND     ss.CONFIRMATION_STATUS = scd.ID_DICT
-        AND     mapped_snp.POSITION
-        BETWEEN
-                ($slice_start - seq_seq_map.START_COORDINATE - 99)
-                AND 
-                ($slice_end - seq_seq_map.START_COORDINATE + 1)
-        ORDER BY
-                CHR_START
-
-    );
-
-    my $sth;
-    eval {
-        $sth = $self->prepare($q);
-        $sth->execute();
-    }; 
-    if ($@){
-        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
-        return([]);
-    }
-
-    my @snps = ();
-    while (my $row = $sth->fetchrow_hashref()) {
-        return([]) unless keys %{$row};
-        #next if $row->{'PRIVATE'};
-
-        ## NT_contigs should always be on forward strand
-        warn "Contig is in reverse orientation. THIS IS BAD!"
-            if ($row->{'CONTIG_ORI'} == -1);
-        
-        $row->{'CHR_END'} ||= $row->{'CHR_START'};
-        my $snp = Bio::EnsEMBL::SNP->new_fast(
-            {
-                '_snpid'        =>    $row->{'ID_DEFAULT'},
-                'dbID'          =>    $row->{'INTERNAL_ID'},
-                '_gsf_start'    =>    $row->{'CHR_START'} - $slice_start + 1,
-                '_gsf_end'      =>    $row->{'CHR_END'} - $slice_start + 1,
-                '_snp_strand'   =>    $row->{'CHR_STRAND'},
-                '_validated'    =>    $row->{'VALIDATED'},
-                '_raw_status'   =>    $row->{'VALIDATED'},
-                '_ambiguity_code' =>  $self->_ambiguity_code($row->{'ALLELES'}),
-                'alleles'       =>    $row->{'ALLELES'},
-                '_snpclass'     =>    $row->{'SNPCLASS'},
-                '_source'       =>    'Glovar',
-                '_source_tag'   =>    'glovar',
-                '_consequence'  =>    $row->{'CONSEQUENCE'},
-                '_type'         =>    $row->{'POS_TYPE'},
-            });
-
-        ## DBLinks and consequences
-        $self->_get_DBLinks($snp);
-        $self->_get_consequences($snp);
-        
-        push (@snps, $snp); 
-    }
-
-    &eprof_end('glovar_snp');
-    
-    return(\@snps);
-}                                       
+# map Glovar consequence and position type to Ensembl consequence type
+our %CONSEQUENCE_TYPE_MAP = (
+        'Coding Synonymous'             => 'SYNONYMOUS_CODING',
+        'Coding Non-synonymous'         => 'NON_SYNONYMOUS_CODING',
+        'Coding Sop gained'             => 'STOP_GAINED',
+        'Coding Stop lost'              => 'STOP_LOST',
+        'Non-coding exonic Non-coding'  => 'UTR',
+        'Intronic Non-coding'           => 'INTRONIC',
+        'Upstream Non-coding'           => 'UPSTREAM',
+);
 
 =head2 fetch_all_by_clone_accession
 
@@ -200,41 +85,11 @@ sub fetch_all_by_clone_accession {
     my ($self, $embl_acc, $embl_version, $cl_start, $cl_end) = @_;
 
     #&eprof_start('clone_sql');
-
-    ## get info on clone
-    my $q1 = qq(
-        SELECT
-                ss.database_seqnname,
-                csm.id_sequence,
-                csm.start_coordinate,
-                csm.end_coordinate,
-                csm.contig_orientation
-        FROM    clone_seq cs,
-                clone_seq_map csm,
-                snp_sequence ss
-        WHERE   cs.database_seqname = '$embl_acc'
-        AND     cs.id_cloneseq = csm.id_cloneseq
-        AND     csm.id_sequence = ss.id_sequence
-        AND     ss.is_current = 1
-    );
-    my $sth;
-    eval {
-        $sth = $self->prepare($q1);
-        $sth->execute();
-    }; 
-    if ($@){
-        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
-        return([]);
-    }
-    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
-    my $i;
-    while (my @res = $sth->fetchrow_array) {
-        ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @res;
-        $i++;
-    }
-    if ($i > 1) {
-        $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
-    }
+    
+    # get info on clone
+    my @cloneinfo = $self->fetch_clone_by_accession($embl_acc);
+    return([]) unless (@cloneinfo);
+    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @cloneinfo;
 
     ## temporary hack for SNP density script: skip vega-specific clones
     #unless ($nt_name =~ /^NT/) {
@@ -242,7 +97,7 @@ sub fetch_all_by_clone_accession {
     #    return ([]);
     #}
 
-    ## now get the SNPs on this clone
+    # now get the SNPs on this clone
     # get only features in the desired region of the clone
     my ($q_start, $q_end);
     if ($clone_strand == 1) {
@@ -290,6 +145,7 @@ sub fetch_all_by_clone_accession {
         AND     ms.position BETWEEN $q_start AND $q_end
     );
 
+    my $sth;
     eval {
         $sth = $self->prepare($q2);
         $sth->execute($self->consequence_exp, $id_seq);
@@ -299,7 +155,7 @@ sub fetch_all_by_clone_accession {
         return([]);
     }
 
-    my (%snps, %cons);
+    my (%varfeats, %cons);
     while (my $row = $sth->fetchrow_hashref()) {
         return([]) unless keys %{$row};
         warn "WARNING: private data!" if $row->{'PRIVATE'};
@@ -319,45 +175,45 @@ sub fetch_all_by_clone_accession {
         }
 
         ## if SNP has multiple consequences, use the most important one
-        my %mapping = (
-            'Coding' => '01:coding',
-            'Non-coding exonic' => '02:utr',
-            'Intronic' => '03:intron',
-            'Upstream' => '04:local',
-        );
         my $strand = $row->{'SNP_STRAND'}*$clone_strand;
         my $key = join(":", $row->{'ID_DEFAULT'}, $start, $end, $strand);
-        my $pos_type = $self->_map_position_type($row->{'POS_TYPE'});
-        if (! $cons{$key} or $pos_type le $cons{$key}) {
-            $cons{$key} = $pos_type;
-            my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new_fast(
+        my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}} || '_';
+        my $cons_rank = $Bio::EnsEMBL::Variation::VariationFeature::CONSEQUENCE_TYPES{uc($consequence_type)};
+        if (! $cons{$key} or $cons_rank le $cons{$key}) {
+            # VariationFeature
+            my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
                 {
-                    'dbID'          =>  $row->{'INTERNAL_ID'},
-                    'display_id'    =>  $row->{'ID_DEFAULT'},
-                    'start'         =>  $start,
-                    'end'           =>  $end,
-                    'strand'        =>  $strand,
-                    'raw_status'    =>  $row->{'VALIDATED'},
-                    '_ambiguity_code'=>  $self->_ambiguity_code($row->{'ALLELES'}),
-                    'alleles'       =>  $row->{'ALLELES'},
-                    'snpclass'      =>  $row->{'SNPCLASS'},
-                    'source'        =>  'Glovar',
-                    'source_tag'    =>  'glovar',
-                    'consequence'   =>  $row->{'CONSEQUENCE'},
-                    'type'          =>  $pos_type,
+                    'dbID'              => $row->{'INTERNAL_ID'},
+                    'adaptor'           => $self,
+                    'variation_name'    => $row->{'ID_DEFAULT'},
+                    'start'             => $start,
+                    'end'               => $end,
+                    'strand'            => $strand,
+                    'allele_string'     => $row->{'ALLELES'},
+                    'source'            => 'Glovar',
+                    'validation_code'   => [ $VSTATE_MAP{$row->{'VALIDATED'}} ],
+                    'consequence_type'  => $consequence_type,
                 });
 
-            ## DBLinks and consequences
-            $self->_get_DBLinks($snp);
+            # add minimal Variation object (needed for DBLinks)
+            my $var = Bio::EnsEMBL::Variation::Variation->new(
+                    -dbID               => $row->{'INTERNAL_ID'},
+                    -ADAPTOR            => $self,
+                    -NAME               => $row->{'ID_DEFAULT'},
+                    -SOURCE             => 'Glovar',
+            );
+            $self->_get_DBLinks($var);
+            $varfeat->variation($var);
             
-            $snps{$key} = $snp; 
+            $cons{$key} = $cons_rank;
+            $varfeats{$key} = $varfeat; 
         }
     }
 
     #&eprof_end('clone_sql');
     #&eprof_dump(\*STDERR);
     
-    return [values %snps];
+    return [values %varfeats];
 }                                       
 
 =head2 fetch_SNP_by_id
@@ -426,8 +282,8 @@ sub fetch_SNP_by_id  {
         return([]);
     }
 
-    ## loop over all SNP mappings found and pick one; mappings to clones
-    ## take preference over mappings to NT_contigs
+    # loop over all SNP mappings found and pick one; mappings to clones
+    # take preference over mappings to NT_contigs
     my (@seq_nt, @seq_clone);
     while (my $r = $sth1->fetchrow_hashref()) {
         return([]) unless keys %{$r};
@@ -477,7 +333,8 @@ sub fetch_SNP_by_id  {
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return([]);
     }
-    my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new;
+    my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new(-dbID => $row->{'INTERNAL_ID'});
+    my $var = Bio::EnsEMBL::Variation::Variation->new(-dbID => $row->{'INTERNAL_ID'});
     my $j;
     while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
         $j++;
@@ -495,69 +352,65 @@ sub fetch_SNP_by_id  {
 
         ## map to chromosome
         my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
-        $snp->slice($clone);
-        $snp->start($start);
-        $snp->end($end);
-        $snp->strand($row->{'SNP_STRAND'}*$clone_strand);
-        $snp = $snp->transform('chromosome');
+        $varfeat->slice($clone);
+        $varfeat->start($start);
+        $varfeat->end($end);
+        $varfeat->strand($row->{'SNP_STRAND'}*$clone_strand);
+        $varfeat = $varfeat->transform('chromosome');
 
         ## try next clone if we couldn't map the SNP
-        #last if ($snp->start && $snp->end);
+        #last if ($varfeat->start && $varfeat->end);
     }
     warn "WARNING: Multiple clones ($j) returned" if ($j > 1);
     
-    $snp->dbID($row->{'INTERNAL_ID'});
-    $snp->display_id($id);
-    $snp->seq_region_name($row->{'CHR_NAME'});
-    $snp->original_strand($row->{'SNP_STRAND'});
-    $snp->source_tag('Glovar');
-    $snp->snpclass($row->{'SNPCLASS'});
-    $snp->raw_status($row->{'VALIDATED'});
-    $snp->alleles($row->{'ALLELES'});
+    $varfeat->variation_name($id);
+    $var->name($id);
+    $varfeat->seq_region_name($row->{'CHR_NAME'});
+    $varfeat->source('Glovar');
+    $var->source('Glovar');
+    $var->adaptor($self);
+    
+    # alleles
+    $varfeat->allele_string($row->{'ALLELES'});
+    # temporary hack; change sql query to get data from snp_variation,
+    # allele_frequency, population
+    foreach my $al (split(/\|/, $row->{'ALLELES'})) {
+        my $allele = Bio::EnsEMBL::Variation::Allele->new(-allele => $al);
+        $var->add_Allele($allele);
+    }
 
-    ## get flanking sequence from core
+    # get flanking sequence from core
     my $slice = $dnadb->get_SliceAdaptor->fetch_by_region(
         'chromosome',
         $row->{'CHR_NAME'},
-        $snp->start - 25,
-        $snp->end + 25,
+        $varfeat->start - 25,
+        $varfeat->end + 25,
     );
     $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
     my $seq = $slice->seq;
 
-    ## determine end of upstream sequence depending on range type (in-dels
-    ## of type "between", i.e. start !== end, are actually inserts)
+    # determine end of upstream sequence depending on range type (in-dels
+    # of type "between", i.e. start !== end, are actually inserts)
     my $up_end = 25;
-    $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($snp->start ne $snp->end));
-    $snp->upStreamSeq(substr($seq, 0, $up_end));
-    $snp->dnStreamSeq(substr($seq, 26));
+    $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($varfeat->start ne $varfeat->end));
+    $var->five_prime_flanking_seq(substr($seq, 0, $up_end));
+    $var->three_prime_flanking_seq(substr($seq, 26));
     
-    ## consequences and  DBLinks
-    $self->_get_consequences($snp);
-    $self->_get_DBLinks($snp);
+    # consequences and  DBLinks
+    $self->_get_consequences($varfeat);
+    $self->_get_DBLinks($var);
+
+    # validation state
+    $varfeat->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
+    $var->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
+
+    # add variation to variationFeature
+    $varfeat->variation($var);
 
     #&eprof_end('fetch_snp_by_id');
     #&eprof_dump(\*STDERR);
 
-    return [$snp];
-}
-
-=head2 _ambiguity_code
-
-  Arg[1]      : String - alleles
-  Example     : my $ambig = $self->_ambituity_code('A|T');
-  Description : returns the ambiguity code for a variation
-  Return type : String - ambiguity code
-  Exceptions  : none
-  Caller      : $self
-
-=cut
-
-sub _ambiguity_code {
-    my ($self, $alleles) = @_;
-    my %ambig = qw(AC M ACG V ACGT N ACT H AG R AGT D AT W CG S CGT B CT Y GT K);
-    return $ambig{ join '', sort split /\|/, $alleles };
-
+    return [$varfeat];
 }
 
 =head2 _get_DBLinks
@@ -573,7 +426,7 @@ sub _ambiguity_code {
 =cut
 
 sub _get_DBLinks {
-    my ($self, $snp) = @_;
+    my ($self, $var) = @_;
     my $q = qq(
         SELECT
                 snp_name.SNP_NAME               as NAME,
@@ -587,7 +440,7 @@ sub _get_DBLinks {
     my $sth;
     eval {
         $sth = $self->prepare($q);
-        $sth->execute($snp->dbID);
+        $sth->execute($var->dbID);
     }; 
     if ($@){
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
@@ -595,16 +448,14 @@ sub _get_DBLinks {
     }
 
     while (my $xref = $sth->fetchrow_hashref()) {
-        my $link = new Bio::Annotation::DBLink(-database => $xref->{'TYPE'},
-                                               -primary_id => $xref->{'NAME'});
-        $snp->add_DBLink($link);
+        $var->add_synonym($xref->{'TYPE'}, $xref->{'NAME'});
     }
 }
 
 =head2 _get_consequences
 
-  Arg[1]      : Bio::EnsEMBL::SNP object
-  Example     : $glovar_adaptor->_get_consequences($snp);
+  Arg[1]      : Bio::EnsEMBL::Variation::Variation object
+  Example     : $glovar_adaptor->_get_consequences($var);
   Description : adds consequences (position type, consequence) to snp object
   Return type : none
   Exceptions  : none
@@ -613,12 +464,13 @@ sub _get_DBLinks {
 =cut
 
 sub _get_consequences {
-    my ($self, $snp) = @_;
+    my ($self, $varfeat) = @_;
     my $q = qq(
         SELECT
-                distinct(sgc.id_snp)    as id_snp,
                 ptd.description         as pos_type,
-                sgc_dict.description    as consequence
+                sgc_dict.description    as consequence,
+                cs.name                 as transcript_stable_id,
+                sgc.transcript_position as cdna_start
         FROM    
                 coding_sequence cs,
                 snp_gene_consequence sgc
@@ -633,47 +485,30 @@ sub _get_consequences {
     my $sth;
     eval {
         $sth = $self->prepare($q);
-        $sth->execute($snp->dbID, $self->consequence_exp);
+        $sth->execute($varfeat->{'dbID'}, $self->consequence_exp);
     }; 
     if ($@){
         warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
         return;
     }
 
-    ## get the most important consequence
-    my %cons;
-    while (my (undef, $pos_type, $cons) = $sth->fetchrow_array) {
-        $cons{$self->_map_position_type($pos_type)} = $cons;
+    while (my $row = $sth->fetchrow_hashref) {
+        # add consequence
+        my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}};
+        $varfeat->add_consequence_type($consequence_type);
+
+        # add TranscriptVariation object
+        my $trans = Bio::EnsEMBL::Transcript->new(
+            -STABLE_ID => $row->{'TRANSCRIPT_STABLE_ID'},
+        );
+        my $tvar = Bio::EnsEMBL::Variation::TranscriptVariation->new_fast({
+            transcript          => $trans,
+            cdna_start          => $row->{'CDNA_START'},
+            cdna_end            => $row->{'CDNA_START'},
+            consequence_type    => $consequence_type,
+        });
+        $varfeat->add_TranscriptVariation($tvar);
     }
-    my ($best) = sort keys %cons;
-    if ($best) {
-        $snp->type($best);
-        $snp->consequence($cons{$best});
-    }
-}
-
-=head2 _map_position_type
-
-  Arg[1]      : String - position type
-  Example     : my $type = $glovar_adaptor->_map_position_type($glovar_type);
-  Description : maps glovar position types to ensembl naming convention
-                also prefixes a priority tag which allows picking the position
-                type that is most important
-  Return type : String - position type
-  Exceptions  : none
-  Caller      : $self
-
-=cut
-
-sub _map_position_type {
-    my ($self, $type) = @_;
-    my %mapping = (
-        'Coding' => '01:coding',
-        'Non-coding exonic' => '02:utr',
-        'Intronic' => '03:intron',
-        'Upstream' => '04:local',
-    );
-    return $mapping{$type} || '05:';
 }
 
 =head2 consequence_exp
@@ -694,6 +529,21 @@ sub consequence_exp {
         $self->{'consequence_exp'} = $exp;
     }
     return $self->{'consequence_exp'};
+}
+
+=head2 get_source_version
+
+  Example     : my $version = $glovar_adaptor->get_source_version;
+  Description : This method is just for compatibility with
+                Bio::EnsEMBL::Variation API.
+  Return type : undef
+  Exceptions  : none
+  Caller      : general
+
+=cut
+
+sub get_source_version {
+    return undef;
 }
 
 =head2 coordinate_systems

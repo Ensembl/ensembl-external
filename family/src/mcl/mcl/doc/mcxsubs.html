@@ -1,0 +1,269 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- Copyright (c) 2002 Stijn van Dongen -->
+  <head>
+    <style type="text/css">
+      body {text-align: justify}
+      body { color: #001111 ; background: white; }
+      body { margin-left: 8%; margin-right: 8%; }
+      a:link { text-decoration: none; }
+      a:active { text-decoration: none; }
+      a:visited { text-decoration: none; }
+    </style>
+    <title>The mcxsubs manual
+    </title>
+  </head>
+<body>
+<p style="text-align:right">
+22 Feb 2002&nbsp;&nbsp;&nbsp;<b>mcxsubs</b> version 1.00
+</p>
+<dl compact>
+<dt>1.<dd><a href="#name">NAME</a>
+<dt>2.<dd><a href="#synopsis">SYNOPSIS</a>
+<dt>3.<dd><a href="#description">DESCRIPTION</a>
+<dt>4.<dd><a href="#options">OPTIONS</a>
+<dt>5.<dd><a href="#spec">SUBMATRIX SPECIFICATIONS</a>
+<dt>6.<dd><a href="#author">AUTHOR</a>
+<dt>7.<dd><a href="#sealso">SEE ALSO</a>
+</dl>
+
+<a name="name"></a>
+<h2>NAME</h2>
+
+<p>
+mcxsubs - extract submatrices (subgraphs) of a matrix (graph)
+corresponding with index sets and sets of clusters. This can be used to
+inspect local cluster structure in a graph, for example by looking at the
+subgraph induced by a single cluster or a couple of clusterings, or the
+edge set where all tail nodes are from a set of clusters and all head
+nodes are from the complement of this set, and many other variants and
+refinements.
+
+<a name="synopsis"></a>
+<h2>SYNOPSIS</h2>
+
+<p>
+<b>mcxsubs</b> <b>-imx</b> &lt;fname&gt; [options] &lt;specs&gt;+
+
+<p>
+<b>mcxsubs</b> <b>-imx</b> &lt;fname&gt; (<i>input matrix</i>)
+<a href="#opt-icl"><b>[-icl</b> &lt;fname&gt; (<i>input clustering</i>)<b>]</b></a>
+<a href="#opt-stem"><b>[-stem</b> str (<i>for output files</i>)<b>]</b></a>
+<a href="#opt-digits"><b>[-digits</b> k (<i>set precision</i>)<b>]</b></a>
+<a href="#opt--tag"><b>[--tag</b> (<i>tag nodes</i>)<b>]</b></a>
+<a href="#opt-spec-defs"><b>[-spec-defs</b> (<i>show spec syntax</i>)<b>]</b></a>
+&lt;specs&gt;+
+
+<a name="description"></a>
+<h2>DESCRIPTION</h2>
+
+<p>
+<b>mcxsubs</b> lets you extract submatrices/subgraphs corresponding with index
+sets and (possibly) sets of clusters from a given clustering. Columns and
+rows of the target submatrix can be specified both independently and
+simultaneously, and can be specified as unions of simple index and cluster
+ranges and complements of these.
+
+<p>
+Because a submatrix or subgraph specification is composed of type,
+location, column, row, index, and set specifications,
+the word specification is
+abbreviated as spec. Multiple submatrices can be specified
+simultaneously. A submatrix is created for each submatrix spec. Everything
+encountered after the <b>mcxsubs</b> options are exhausted should be a spec.
+The syntax of specs is described in the
+<a href="#spec">SUBMATRIX SPECIFICATIONS</a> section.
+
+<a name="options"></a>
+<h2>OPTIONS</h2>
+
+<dl compact>
+<dt><a name="opt-imx"></a><b>-imx</b> &lt;fname&gt; (<i>(input matrix)</i>)
+<dd>
+Submatrices will all be selected from the matrix in file <code>&lt;fname&gt;</code>.
+This option is obligatory.
+<br>
+<br>
+<dt><a name="opt-icl"></a><b>-icl</b> &lt;fname&gt; (<i>(input clustering)</i>)
+<dd>
+Submatrices are specified in terms of sets of
+indices. These sets are specified as (the label of) clusters
+from the clustering given by this option.
+<br>
+<br>
+<dt><a name="opt-stem"></a><b>-stem</b> str (<i>for output files</i>)
+<dd>
+Each generated submatrix is written to a file which is named after
+its spec or a tag appended to the spec (see
+the
+<a href="#spec">SUBMATRIX SPECIFICATIONS</a> section). In both cases, the identifying string
+(spec or tag) is prefixed with a fixed string which is by
+default "out.sub-". This prefix can be changed using this option.
+<br>
+<br>
+<dt><a name="opt-digits"></a><b>-digits</b> k (<i>set precision</i>)
+<dd>
+Matrices are currently output in ascii format, with a precision of three
+digits. This option changes the precision. Setting <b>-digits</b>&nbsp;<b>-1</b>
+disables the output of values altogether - only the node indices
+are written.
+<br>
+<br>
+<dt><a name="opt--tag"></a><b>--tag</b> (<i>tag nodes</i>)
+<dd>
+Each node in the column (tail node) listing of the matrix (graph)
+spec is tagged with the cluster it is in. This requires
+the use of the <b>-icl</b> option.
+This output mode, called <i>tagged matrix</i>, is currently not
+recognized by any of the <b>mcl</b>/<b>mcx</b> input routines. It is present
+to facilitate easier visual inspection of clustering results.
+<br>
+<br>
+<dt><a name="opt-spec-defs"></a><b>-spec-defs</b> (<i>show spec syntax</i>)
+<dd>
+Show a description of the submatrix spec syntax.
+<br>
+<br>
+</dl>
+
+<a name="spec"></a>
+<h2>SUBMATRIX SPECIFICATIONS</h2>
+
+<p>
+A submatrix or subgraph spec consists of at most two spec parts,
+namely the <b>column spec</b> (or
+tail node part) and the <b>row spec</b> (or head node part). If there are
+two parts, they are simply concatenated. Each part consists of a colon
+separated pair, the <i>type</i> spec and the <i>location</i> spec.
+If the two parts have the same location spec, they can be collapsed by
+merging the type specs and using a single shared location spec. A shared
+location spec can occur in two cases: i) the spec of a principal submatrix
+or equivalently a subgraph, and ii) the spec of all edges between a set of
+nodes to the complement of that set. Examples of these are:
+
+<dl compact>
+<dt><code>cr:i0-6,10,11-14</code>
+<dd>
+Principal submatrix on indices 0-6, 10, and 11-14 - all column and row
+indices are from this set. Equivalently, this encodes the subgraph on
+nodes 0-6, 10, 11-14. The 'c' stands for column, the 'r' for row, and the
+'i' for index. After the colon it is also allowed to specify an 's' part
+(standing for sets/clusters), this is shown further below.
+
+<p>
+The c/r/C/R part is the type part of a column/row spec, indicating whether
+it pertains to columns, rows, or both. The i/s/I/S part is the location
+part.
+<br>
+<br>
+<dt><code>c:i0-6,10,11-14r:i1-6,10,11-14</code>
+<dd>
+Equivalent (but less clear) spec of the above.
+<br>
+<br>
+<dt><code>cR:i0-6,10,11-14</code>
+<dd>
+Matrix with column indices in 0-6, 10, 11-14, and row indices
+in the complement of this set. Corresponds with all edges going
+<i>out</i> from the set 0-6, 10, 11-14. Complements are triggered
+by the use of a capital; see the next examples.
+<br>
+<br>
+<dt><code>c:i0-6,10,11-14R:i1-6,10,11-14</code>
+<br>
+<br>
+<dt><code>c:i0-6,10,11-14r:I1-6,10,11-14</code>
+<dd>
+Both these examples are equivalent to the previous one.
+In the last example, the capital 'I' indicates that the complement
+should be taken. In this example, 'r' combined with 'I' has the
+same effect as 'R' combined with 'i'. This is no longer true
+if the location spec uses set specs as well: see the
+next examples.
+<br>
+<br>
+<dt><code>c:s3,5-9r:s8-14i10-30</code>
+<dd>
+Column indices are taken from the clusters 3, 5-9 (from the
+clustering specified by <b>-icl</b>), row indices are taken
+from clusters 8-14 plus the indices 10-30.
+<br>
+<br>
+<dt><code>cR:s0-2</code>
+<dd>
+Column indices are all indices from clusters 0-2, row indices
+are all other indices. This gives all edges going <i>out</i>
+from clusters 0-2.
+
+<p>
+The use of 'S' is analogous to that of 'C', 'R', and 'I'.
+Thus, <code>S0-3,8,21-30</code> specifies all indices which are in the
+complement of the set formed by taking the union of
+clusters 0-3,8,21-30.
+<br>
+<br>
+</dl>
+
+<p>
+As seen above, indices (either representing themselves or clusters) are
+entered as comma-separated lists of single indices or ranges of indices
+(ranges may overlap). The union of the corresponding elements is taken and
+passed along. Before anything else, the result set is replaced by its
+complement if 'I' is specified (for simple indices) or 'S' is specified
+(for clusters). If there is both an index and a set spec string, the
+union of the results of both is taken and passed along. If the latter
+result is passed to either 'C' or 'R', it is replaced by its complement.
+
+<p>
+If a column or row spec is missing, it is implicitly understood
+that <i>all</i> nodes should be taken for the missing type. A totally empty
+type spec (which is the case if the first character in the
+spec is the colon) indicates that the subgraph on all nodes must be
+taken, which is identical to the original graph. As an aside, this empty
+type spec renders any location spec useless, as it is
+ignored. This behaviour may still be useful in conjunction with the
+<b>--tag</b> option.
+
+<p>
+Additionally, a tag '#xyz' or '##xyz' may be concatenated to
+the spec (where the <code>xyz</code> part is up to your choice).
+Normally, a generated submatrix is written to a file the name of
+which contains the spec as a substring. If the '#xyz' tag is
+present, the submatrix is written to the file 'stemxyz', where 'stem' can
+be set with the <a href="#opt-stem"><b>-stem</b> option</a>.
+If the '##xyz' tag is present, the submatrix is simply written to
+the file 'xyz'. Examples:
+
+<dl compact>
+<dt><code>cR:s0-2</code>
+<dd>
+The submatrix is written to the file <b>out.sub-cR:s0-2</b>.
+<br>
+<br>
+<dt><code>cR:s0-2</code>#foo
+<dd>
+The submatrix is written to the file <b>out.sub-foo</b>, or the
+file <b>xyzfoo</b> if xyz is the argument to the <b>-stem</b> flag.
+<br>
+<br>
+<dt><code>cR:s0-2</code>##foo
+<dd>
+The submatrix is written to the file <b>foo</b>.
+<br>
+<br>
+</dl>
+
+<a name="author"></a>
+<h2>AUTHOR</h2>
+
+<p>
+Stijn van Dongen.
+
+<a name="sealso"></a>
+<h2>SEE ALSO</h2>
+<a href="mcx.html">mcx</a>,
+<a href="mcl.html">mcl</a>,
+<a href="mcxformat.html">mcxformat</a>.
+
+</body>
+</html>

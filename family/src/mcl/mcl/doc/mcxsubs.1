@@ -1,0 +1,178 @@
+.\" Copyright (c) 2002 Stijn van Dongen
+.TH mcxsubs 1 "22 Feb 2002" "mcxsubs 1\&.00" "USER COMMANDS"
+.SH NAME
+
+mcxsubs \- extract submatrices (subgraphs) of a matrix (graph)
+corresponding with index sets and sets of clusters\&. This can be used to
+inspect local cluster structure in a graph, for example by looking at the
+subgraph induced by a single cluster or a couple of clusterings, or the
+edge set where all tail nodes are from a set of clusters and all head
+nodes are from the complement of this set, and many other variants and
+refinements\&.
+.SH SYNOPSIS
+
+\fBmcxsubs\fP \fB-imx\fP <fname> [options] <specs>+
+
+\fBmcxsubs\fP \fB-imx\fP <fname> (\fIinput matrix\fP)
+\fB[-icl\fP <fname> (\fIinput clustering\fP)\fB]\fP
+\fB[-stem\fP str (\fIfor output files\fP)\fB]\fP
+\fB[-digits\fP k (\fIset precision\fP)\fB]\fP
+\fB[--tag\fP (\fItag nodes\fP)\fB]\fP
+\fB[-spec-defs\fP (\fIshow spec syntax\fP)\fB]\fP
+<specs>+
+.SH DESCRIPTION
+
+\fBmcxsubs\fP lets you extract submatrices/subgraphs corresponding with index
+sets and (possibly) sets of clusters from a given clustering\&. Columns and
+rows of the target submatrix can be specified both independently and
+simultaneously, and can be specified as unions of simple index and cluster
+ranges and complements of these\&.
+
+Because a submatrix or subgraph specification is composed of type,
+location, column, row, index, and set specifications,
+the word specification is
+abbreviated as spec\&. Multiple submatrices can be specified
+simultaneously\&. A submatrix is created for each submatrix spec\&. Everything
+encountered after the \fBmcxsubs\fP options are exhausted should be a spec\&.
+The syntax of specs is described in the \fBSUBMATRIX SPECIFICATIONS\fP section\&.
+.SH OPTIONS
+.nr mi \n(.iu
+.TP
+\fB-imx\fP <fname> (\fI(input matrix)\fP)
+Submatrices will all be selected from the matrix in file \fC<fname>\fR\&.
+This option is obligatory\&.
+.TP
+\fB-icl\fP <fname> (\fI(input clustering)\fP)
+Submatrices are specified in terms of sets of
+indices\&. These sets are specified as (the label of) clusters
+from the clustering given by this option\&.
+.TP
+\fB-stem\fP str (\fIfor output files\fP)
+Each generated submatrix is written to a file which is named after
+its spec or a tag appended to the spec (see
+the \fBSUBMATRIX SPECIFICATIONS\fP section)\&. In both cases, the identifying string
+(spec or tag) is prefixed with a fixed string which is by
+default "out\&.sub-"\&. This prefix can be changed using this option\&.
+.TP
+\fB-digits\fP k (\fIset precision\fP)
+Matrices are currently output in ascii format, with a precision of three
+digits\&. This option changes the precision\&. Setting \fB-digits\fP\ \fB-1\fP
+disables the output of values altogether \- only the node indices
+are written\&.
+.TP
+\fB--tag\fP (\fItag nodes\fP)
+Each node in the column (tail node) listing of the matrix (graph)
+spec is tagged with the cluster it is in\&. This requires
+the use of the \fB-icl\fP option\&.
+This output mode, called \fItagged matrix\fP, is currently not
+recognized by any of the \fBmcl\fP/\fBmcx\fP input routines\&. It is present
+to facilitate easier visual inspection of clustering results\&.
+.TP
+\fB-spec-defs\fP (\fIshow spec syntax\fP)
+Show a description of the submatrix spec syntax\&.
+.in \n(miu
+.SH SUBMATRIX SPECIFICATIONS
+
+A submatrix or subgraph spec consists of at most two spec parts,
+namely the \fBcolumn spec\fP (or
+tail node part) and the \fBrow spec\fP (or head node part)\&. If there are
+two parts, they are simply concatenated\&. Each part consists of a colon
+separated pair, the \fItype\fP spec and the \fIlocation\fP spec\&.
+If the two parts have the same location spec, they can be collapsed by
+merging the type specs and using a single shared location spec\&. A shared
+location spec can occur in two cases: i) the spec of a principal submatrix
+or equivalently a subgraph, and ii) the spec of all edges between a set of
+nodes to the complement of that set\&. Examples of these are:
+.nr mi \n(.iu
+.TP
+\fCcr:i0-6,10,11-14\fR
+Principal submatrix on indices 0-6, 10, and 11-14 \- all column and row
+indices are from this set\&. Equivalently, this encodes the subgraph on
+nodes 0-6, 10, 11-14\&. The \&'c\&' stands for column, the \&'r\&' for row, and the
+\&'i\&' for index\&. After the colon it is also allowed to specify an \&'s\&' part
+(standing for sets/clusters), this is shown further below\&.
+
+The c/r/C/R part is the type part of a column/row spec, indicating whether
+it pertains to columns, rows, or both\&. The i/s/I/S part is the location
+part\&.
+.TP
+\fCc:i0-6,10,11-14r:i1-6,10,11-14\fR
+Equivalent (but less clear) spec of the above\&.
+.TP
+\fCcR:i0-6,10,11-14\fR
+Matrix with column indices in 0-6, 10, 11-14, and row indices
+in the complement of this set\&. Corresponds with all edges going
+\fIout\fP from the set 0-6, 10, 11-14\&. Complements are triggered
+by the use of a capital; see the next examples\&.
+.TP
+\fCc:i0-6,10,11-14R:i1-6,10,11-14\fR
+.TP
+\fCc:i0-6,10,11-14r:I1-6,10,11-14\fR
+Both these examples are equivalent to the previous one\&.
+In the last example, the capital \&'I\&' indicates that the complement
+should be taken\&. In this example, \&'r\&' combined with \&'I\&' has the
+same effect as \&'R\&' combined with \&'i\&'\&. This is no longer true
+if the location spec uses set specs as well: see the
+next examples\&.
+.TP
+\fCc:s3,5-9r:s8-14i10-30\fR
+Column indices are taken from the clusters 3, 5-9 (from the
+clustering specified by \fB-icl\fP), row indices are taken
+from clusters 8-14 plus the indices 10-30\&.
+.TP
+\fCcR:s0-2\fR
+Column indices are all indices from clusters 0-2, row indices
+are all other indices\&. This gives all edges going \fIout\fP
+from clusters 0-2\&.
+
+The use of \&'S\&' is analogous to that of \&'C\&', \&'R\&', and \&'I\&'\&.
+Thus, \fCS0-3,8,21-30\fR specifies all indices which are in the
+complement of the set formed by taking the union of
+clusters 0-3,8,21-30\&.
+.in \n(miu
+
+As seen above, indices (either representing themselves or clusters) are
+entered as comma-separated lists of single indices or ranges of indices
+(ranges may overlap)\&. The union of the corresponding elements is taken and
+passed along\&. Before anything else, the result set is replaced by its
+complement if \&'I\&' is specified (for simple indices) or \&'S\&' is specified
+(for clusters)\&. If there is both an index and a set spec string, the
+union of the results of both is taken and passed along\&. If the latter
+result is passed to either \&'C\&' or \&'R\&', it is replaced by its complement\&.
+
+If a column or row spec is missing, it is implicitly understood
+that \fIall\fP nodes should be taken for the missing type\&. A totally empty
+type spec (which is the case if the first character in the
+spec is the colon) indicates that the subgraph on all nodes must be
+taken, which is identical to the original graph\&. As an aside, this empty
+type spec renders any location spec useless, as it is
+ignored\&. This behaviour may still be useful in conjunction with the
+\fB--tag\fP option\&.
+
+Additionally, a tag \&'#xyz\&' or \&'##xyz\&' may be concatenated to
+the spec (where the \fCxyz\fR part is up to your choice)\&.
+Normally, a generated submatrix is written to a file the name of
+which contains the spec as a substring\&. If the \&'#xyz\&' tag is
+present, the submatrix is written to the file \&'stemxyz\&', where \&'stem\&' can
+be set with the \fB-stem\fP option\&.
+If the \&'##xyz\&' tag is present, the submatrix is simply written to
+the file \&'xyz\&'\&. Examples:
+.nr mi \n(.iu
+.TP
+\fCcR:s0-2\fR
+The submatrix is written to the file \fBout\&.sub-cR:s0-2\fP\&.
+.TP
+\fCcR:s0-2\fR#foo
+The submatrix is written to the file \fBout\&.sub-foo\fP, or the
+file \fBxyzfoo\fP if xyz is the argument to the \fB-stem\fP flag\&.
+.TP
+\fCcR:s0-2\fR##foo
+The submatrix is written to the file \fBfoo\fP\&.
+.in \n(miu
+.SH AUTHOR
+
+Stijn van Dongen\&.
+.SH SEE ALSO
+\fBmcx(1)\fP,
+\fBmcl(1)\fP,
+\fBmcx(5)\fP\&.

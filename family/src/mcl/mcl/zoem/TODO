@@ -1,0 +1,147 @@
+
+usefulness of meta 'o' (output) option is very unclear
+since copy works with 'x'.
+The main thing is that 'x' works only with digest mode
+(e.g. setx, dsetx) or with output mode under copy filter.
+
+If an error occurs during  preprocessing, then zoem crashes
+because hdidx_g is -1.
+
+Different file names can refer to the same file (i.e ./foo, foo).
+Right now zoem hashes by file name. Is there a thing that is
+constant as long as the generic name is constant, i.e. the inode
+or file descriptor?
+
+how about appendx, dappendx etc.
+
+make sure that '_' is captured as a token, not as some
+undefined user key.
+
+how about general 'defined' macro that works on both data and keys.
+then change ifdef{foo}{}{}
+to ifeq{defined{foo}}{}{}
+What if I want to check for counters or other name-spaces?
+
+made \! that digests to \ and
+\!{<...>} that digests to <...>.
+1. is this context sensitivity ugly?
+   1.a is there a conceivable use for \!{ digesting to \{ -- ?
+   1.b is the sensitivy too ugly anyway?
+2. added a flags member to yamSeg just so that expandBang0/1
+   can let findkey know that the segment should be skipped.  Other option is to
+   use a global flag.  How would I do this when designing everything from
+   scratch?  The same? The output and digest loops are rather tight and neat ..
+   is a simple and adequate modification in the setup possible?
+
+whitespace not allowed in meta vararg like in other varargs.
+meta could append the #k tag and let it be parsed by parsekey.
+
+need to have a 'countscopes' routine, so that meta etc can check
+validity.
+
+maybe I need a way to enforce match between block #k and
+nr of args of apply. nother primitive?
+
+perhaps make syntax that enables (in a general fashion)
+to write html more directly in zoem, retaining macro power
+(i.e. supplying key-value pairs as zoem key-value pairs),
+and refraining from \@{..} scope.
+
+the idea of protect#1 keeps coming back (as a sibling to meta#1),
+although meta does probably everything I need.
+read about protect and expandafter in TeX.
+
+make stacking depth command line option (default 30)
+upto a compile time option (default 1000).
+
+yamKeyGet does not return a const Ting. Why not?
+it should be clear which routines return the *real thing* and
+which return a *copy*.
+
+the many empty [>] filters are a bit annoying (all squashing ws).
+think of a way to show a one-line initial prefix of what's filtered,
+especially wrt ws.
+
+should I have \defx#2, and \ddef#2 and \ddefx#2 ?
+
+in the light of set, setx, dset,  and dsetx, consider
+the expansion rules such as for apply#2.
+
+how about enabling global change of default output file and
+filter?
+\redirect{stdout}{txt}    \: changes FILE and filter
+\redirect{}{copy}         \: changes only filter.
+\redirect{--}{--}         \: changes to previous values.
+looks cool, but would it be useful?
+
+
+consider syntax where \+ is changed when expanded
+to a genuine backslash, possibly with offset cheating.
+would there be a benefit over meta#3?
+consider \++foo ....
+
+traceput c argument is funny. better (symbolic) interface needed.
+
+adding (various?) 'strict' behaviour; e.g. in relationship to
+the data tree (warn if access fails).
+
+candidate primitive: \skim#1, which does only level 0 expansion.
+
+Can I make zoem recover from errors (for interactive mode)?
+low priority this.
+
+[is there a place for depth first or inside out expansion?
+ macro processing is different from programming in that one works
+ with strings: so ((x+1)^2+2)^2 is very different from the
+ usual string substitution desiderata.
+]
+
+ownership of the mcxTing objects, is a fountain for bugs.
+so far i seem to do ok. sth like a design, or rules, or documentation
+would be cool though. I have hinted at ownership at some places, for a start.
+
+why do openscope and endscope differ wrt to ting and char* argument?
+
+in \begin and \end, should I check for forbidden characters?
+
+make clean functions in certain modules. For example, the entry function may
+want to let the key module complain when not all opened scopes have been
+closed.
+
+make yamYelp analogous to yamExit.
+many of the fprintf(stderr, "___ ..) I believe.
+
+try to reduce the number of special backslash tokens.
+however, the situation is not so bad.
+
+\@{} is simply shorthand for sth often used.
+\${}{} idem.
+\~ \- \| \, are glyph-like, convenient and simple.
+\: is convenient and simple.
+\"" is convenient and simple.
+
+\! is for power users / usually hidden / somewhat magical.
+\% is usually hidden / somewhat magical / for power users.
+\= is somewhat magical / for power users / usually hidden.
+
+
+   '\meta{1}{o}{}'                           werkt niet (device)
+   '\meta{1}{x}{}'                           werkt wel (device) (skip message).
+
+   '\write{stdout}{copy}{\meta{1}{o}{}}'     werkt wel.
+   '\write{stdout}{device}{\meta{1}{o}{}}'   werkt niet.
+   '\write{stdout}{txt}{\meta{1}{o}{}}'      werkt niet.
+
+   '\write{stdout}{copy}{\meta{1}{x}{}}'     werkt wel.
+   '\write{stdout}{device}{\meta{1}{x}{}}'   werkt wel (skip message).
+   '\write{stdout}{txt}{\meta{1}{x}{}}'      werkt niet.
+
+   copy werkt wel omdat die gewoon alles print en niks vertraagd
+   als backslash.
+
+   wat er gebeurt met \meta{1}{o}{}:
+   die krijgt drie segmenten, en de backslash in het eerste segment
+   wordt vertraagd en niet emit. Which is entirely reasonable.
+
+   wat er gebeurt met \meta{1}{x}{}:
+   daar wordt alles aan elkaar geplakt.

@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- Copyright (c) 2002 Stijn van Dongen -->
+  <head>
+    <style type="text/css">
+      body {text-align: justify}
+      body { color: #001111 ; background: white; }
+      body { margin-left: 8%; margin-right: 8%; }
+      a:link { text-decoration: none; }
+      a:active { text-decoration: none; }
+      a:visited { text-decoration: none; }
+    </style>
+    <title>The mcxconvert manual
+    </title>
+  </head>
+<body>
+<p style="text-align:right">
+22 Feb 2002&nbsp;&nbsp;&nbsp;<b>mcxconvert</b> version 1.00
+</p>
+<dl compact>
+<dt>1.<dd><a href="#name">NAME</a>
+<dt>2.<dd><a href="#synopsis">SYNOPSIS</a>
+<dt>3.<dd><a href="#description">DESCRIPTION</a>
+<dt>4.<dd><a href="#author">AUTHOR</a>
+<dt>5.<dd><a href="#sealso">SEE ALSO</a>
+</dl>
+
+<a name="name"></a>
+<h2>NAME</h2>
+
+<p>
+mcxconvert - convert between mcx storage types.
+
+<a name="synopsis"></a>
+<h2>SYNOPSIS</h2>
+
+<p>
+<b>mcxconvert</b> &lt;input file name&gt; &lt;output file name&gt;
+
+<a name="description"></a>
+<h2>DESCRIPTION</h2>
+
+<p>
+The <b>mcl</b> libraries make extensive use of matrices. Matrices
+are used to encode graphs, matrices and clusterings.
+They can be stored either in ascii or in binary format. The latter is
+somewhat more efficient in storage and faster in both reading and writing,
+but the default is ascii format.
+
+<p>
+The <b>mcl</b> input routines recognize the type of storage they are dealing
+with. If you want to convert a matrix to the other storage type,
+simply specify the file name of the matrix you want to convert.
+<b>mcxconvert</b> will recognize its type, and write the other type
+to the file specified as the second argument.
+
+<p>
+In the future <b>mcxconvert</b> will probably be generalized towards
+other objects such as vectors.
+
+<a name="author"></a>
+<h2>AUTHOR</h2>
+
+<p>
+Stijn van Dongen.
+
+<a name="sealso"></a>
+<h2>SEE ALSO</h2>
+<a href="mcx.html">mcx</a>,
+<a href="mcl.html">mcl</a>,
+<a href="mcxformat.html">mcxformat</a>.
+
+</body>
+</html>

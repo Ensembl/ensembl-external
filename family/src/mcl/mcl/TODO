@@ -1,0 +1,17 @@
+
+o  like to test with '-Wall -pedantic -ansi' c flags
+   how to do that properly?
+
+o   -I. -I. -I.. -I..
+
+o  not all binaries need -lpthread
+
+o  Not really a todo item, but rather recording a thought:
+   I would like it best if
+
+   aclocal.m4 bootstrap depcomp install-sh mkdinstalldirs stamp-h stamp-h.in
+
+   Where all in a separate directory say named 'auto'.  Would that conflict
+   with the standard setup of autotools, or would it be relatively painless to
+   achieve?
+

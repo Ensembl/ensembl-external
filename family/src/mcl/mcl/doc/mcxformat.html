@@ -1,0 +1,373 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- Copyright (c) 2002 Stijn van Dongen -->
+  <head>
+    <style type="text/css">
+      body {text-align: justify}
+      body { color: #001111 ; background: white; }
+      body { margin-left: 8%; margin-right: 8%; }
+      a:link { text-decoration: none; }
+      a:active { text-decoration: none; }
+      a:visited { text-decoration: none; }
+    </style>
+    <title>The mcl matrix format specification
+    </title>
+  </head>
+<body>
+<p style="text-align:right">
+22 Feb 2002&nbsp;&nbsp;&nbsp;<b>mcxformat</b> version 1.00
+</p>
+
+<a name="name"></a>
+<h2>NAME</h2>
+
+<p>
+mcxformat - the format specification for matrix input and output
+in the mcl family.
+
+<a name="description"></a>
+<h2>DESCRIPTION</h2>
+This document describes the matrix format used in the mcl libaries. A
+remark on the sloppy naming conventions used for <b>mcl</b> and its sibling
+utilities may be in order here.
+
+<p>
+The prefix <b>mcx</b> is used for generic matrix functionality, the prefix
+<b>clm</b> is used for generic cluster functionaliy. The <i>utility</i> <b>mcx</b> is
+a general purpose interpreter for manipulating matrices (and grahps, sets,
+and clusterings). The set of all <b>mcl</b> siblings (i.e. <b>mcl</b> plus <b>mcx</b>,
+<b>mcxconvert</b>, <b>mcxsubs</b>, <b>clmdist</b>, <b>clminfo</b>, <b>clmmeet</b>, <b>clmconf</b>) is loosely
+refered to as the mcl family, which makes use of the mcl libraries (rather
+than the mcx libraries).
+
+<p>
+The remainder of this document contains the following sections.
+<dl compact>
+<dt>3.<dd><a href="#representation">Representing matrices and graphs</a>
+<dt>4.<dd><a href="#binary">Mcl ascii and binary matrix format</a>
+<dt>5.<dd><a href="#asciiheader">Ascii header information and matrix specification</a>
+<dt>6.<dd><a href="#asciicolumn">Ascii node/edge, column specification</a>
+<dt>7.<dd><a href="#clusteroutput">Clusterings are output in matrix format</a>
+<dt>8.<dd><a href="#asciiexamples">Ascii format examples, input and output</a>
+</dl>
+
+<a name="representation"></a>
+<h2>Representing matrices and graphs</h2>
+
+<p>
+In the MCL setting, square matrices and graphs are exactly the same
+thing in different languages. This is because matrices are always
+assumed to be nonnegative, and graphs can be directed and weighted
+with positive weight function, and are allowed to have loops. This
+is somewhat elaborated upon below.
+
+<p>
+A matrix is a rectangular array with K rows and L columns. In the
+<b>mcl</b> library, matrices are always nonnegative. This means that
+entries in the array are real numbers represented by nonnegative
+floats. The representation used is <i>sparse</i>, that is, zero entries
+are not stored. The routines in the <b>mcl</b> library are tailored to the
+particular data-structures that encode matrices and vectors as sparse
+objects. Moreover the <b>mcl</b> routines assume (and sometimes check)
+whether matrix entries are indeed nonnegative; negative entries may
+cause errors.
+
+<p>
+In <b>mcl</b> a matrix is stored as a listing of columns. For each column,
+the list of row entries is maintained for which the corresponding
+matrix entries are positive -- together with the entry itself. The
+smallest building block is a so called Index Value Pair, which is
+implementation-wise a struct with one int member and one float
+member. A column (vector) is a list of index value pairs, and a
+matrix is a list of column vectors.
+
+<p>
+A graph is a set of nodes with (directed) edges going from one node,
+the tail node, to a second node, the head node (which may equal the
+tail node). Each edge has a positive weight, and is fully defined
+by the weight and the tail node and head node. A standard way of
+representing a graph as a matrix is by enumerating the nodes 0,..,K-1
+and by creating a matrix M of dimensions K&nbsp;x&nbsp;K where M[i,j] == 0
+iff there is no edge from j to i, and where M[i,j] == w(i,j) iff
+there is an edge from j to i with weight w(i,j). Note that for most
+purposes in graph theory, it is generally true that one may identify
+the absence of an edge between two nodes with the presence of an edge
+with weight zero. Vice versa, a nonnegative matrix can be identified
+with a weighted graph by appropriately letting positive matrix
+entries induce edges between the tail node (identified by the column
+index) and the head node (identified by the row index). In this
+setup, column j corresponds with all edges and edge weights that have
+j as tail node.
+
+<p>
+Matrices are thus used for encoding graphs in the obvious, well
+established manner. They are also used for other purposes, e.g. for
+encoding transition matrices (again obvious) and also for encoding
+cluster output (perhaps slightly less obvious - see below).
+
+<a name="binary"></a>
+<h2>Mcl ascii and binary matrix format</h2>
+
+<p>
+There are two formats for matrices: ascii format and binary format.
+The binary format includes a `magic number' at the start of file. The
+binary format is useful for very large graphs, as input/output is
+then a lot faster. A format conversion program for matrices exists
+and is called mcxconvert; it recognizes the format of its first
+argument, and writes the same matrix in the other format to the file
+name found in the second argument.
+
+<p>
+Note that <b>mcl</b> does not suppose or support file extensions. It is
+able to see whether a file is in binary format or in ascii format.
+You are totally free to choose your own conventions, for example to
+distinguish mcl output from mcl input.
+
+<a name="asciiheader"></a>
+<h2>Ascii header information and matrix specification</h2>
+
+<p>
+The matrix ascii specificiation consists of two parts, the header and
+the matrix itself. The start of the header is indicated by the string
+
+<pre>
+`(mclheader'
+</pre>
+
+<p>
+It should preferably be at the beginning of a new line. The end of
+the header is indicated by a closing parenthesis at the beginning of
+a line,
+
+<pre>
+`)'
+</pre>
+
+<p>
+The lines inbetween consist of a key string and a value string,
+separated by whitespace. The order of listing is arbitrary. Two
+key/value pairs must be specified. These are
+
+<pre>
+`mcltype matrix'
+`dimensions &lt;int K&gt;x&lt;int L&gt;'
+</pre>
+
+<p>
+A valid header is thus
+
+<pre>
+(mclheader
+mcltype  matrix
+dimensions  12x12
+)
+</pre>
+
+<p>
+For graphs K and L must be equal. In the more general case, K denotes
+the number of rows, and L denotes the number of columns of the matrix
+(note that matrices are stored column-wise in the mcl library).
+
+<p>
+Other information can be stored in the header, <b>mcl</b> cares only about
+keys it recognizes. Note that other keys might become meaningful in
+the future though.
+
+<p>
+The matrix itself is specified by the sequence
+
+<pre>
+(mclmatrix
+begin
+_____ Node/edge specification, described below, Examples
+_____ are also given below.
+_____
+_____ The matrix specification should be closed by a
+_____ parenthesis on a line by itself, just like the header.
+)
+</pre>
+
+<a name="asciicolumn"></a>
+<h2>Ascii node/edge, column specification</h2>
+
+<p>
+If the dimensions are KxL, then column indices must be in the range
+of integers 0,..,K-1, and row indices must be in the range 0,..,L-1.
+The ascii specification can be worded either in terms of graphs (in
+which case it is demanded that K equals L), or in terms of matrices.
+Please note:
+
+<p>
+<i>The rule in mcl matrix encoding</i> is that the set of all edges
+originating from a given tail node corresponds with a matrix column.
+
+<p>
+<b>Graph formulation</b><br>
+In ascii format, edges are specified relative to the tail node. The
+`begin' keyword in the `(mclmatrix' part is followed by a list of
+listings, where the primary list ranges over all nodes in the graph,
+and where each secondary lists encodes all the edges that have the
+corresponding node as tail node.
+
+<p>
+For each tail node i, all the nodes j reached by i are listed,
+together with the weight of the corresponding edge. A tail node
+listing starts with the index i of the tail node itself, and is
+closed with the `$' character.
+
+<p>
+An edge specification for a given node j (where j is an index, c.q.
+an integer) reached by tail node i (which is part of the listing for
+i) looks either as `j:f', where f denotes a nonnegative real, or
+simply as `j'. In the first case, the weight of the edge from i to
+j equals f, in the latter case, this weight will by default equal
+1. These two types of edge specification may be mixed (though this
+is strongly advised against because it is confusing). See below for
+examples.
+
+<p>
+<b>Matrix formulation</b><br>
+In ascii format, a matrix M is specified column-wise. The `begin'
+keyword in the `(mclmatrix' part is followed by a list of listings,
+where the primary list ranges over all columns in M, and where each
+secondary lists encodes all positive entries in the corresponding
+column. A secondary list (or matrix column) starts with the index c
+of the column, and then contains a listing of all row entries in c
+(these are matrix entries M[r,c] for varying r). The entry M[r,c] is
+specified either as `r' or as `r:f', where f is a float. In the first
+case, the entry M[r,c] defaults to 1.0, in the second case, it is set
+to f. The secondary list is closed with the `$' character.
+
+<a name="clusteroutput"></a>
+<h2>Clusterings are output in matrix format</h2>
+
+<p>
+Clusterings are output in matrix format. Each column of the matrix is
+the characteristic vector of a particular cluster in the clustering.
+Now suppose the output is in ascii format. The quantity M in the
+dimension specification denotes the number of rows. In this case, the
+number of rows is the range in which cluster elements exist, which is
+exactly the number of nodes in the input graph. The quantity M is the
+number of columns, and this is precisely the number of clusters, as
+each column represents one cluster. Below you will find an example.
+
+<p>
+The following are two examples of ascii format for the same simple
+graph. They are followed by the clustering output (in ascii format)
+resulting from applying mcl with default parameters to this graph.
+
+<a name="asciiexamples"></a>
+<h2>Ascii format examples, input and output</h2>
+
+<pre>
+---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8
+
+   This comment may appear in the ascii matrix source. The
+   following graph is used several times in the reports at
+   http://www.cwi.nl/static/publications/reports/INS-2000.ht
+   ml It is named small.mci in the directories graphs and
+   test. A picture of this graph is found in graphs/small.ps
+   and graphs/small.png.
+
+(mclheader
+mcltype matrix
+dimensions 12x12
+)
+
+(mclmatrix
+begin
+0 1 5 6 9 $
+1 0 2 4 $
+2 1 3 4 $
+3 2 7 8 10 $
+4 1 2 6 7 $
+5 0 9 $
+6 0 4 9 $
+7 3 4 8 10 $
+8 3 10 7 11 $
+9 0 5 6 $
+10 3 7 8 11 $
+11 10 8 $
+)
+
+---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8---&gt;8
+
+   This comment may appear in the ascii matrix source. The
+   following graph is used several times in the reports at
+   http://www.cwi.nl/static/publications/reports/INS-2000.ht
+   ml It is named small.mci in the directories graphs and
+   test. A picture of this graph is found in graphs/small.ps
+   and graphs/small.png.
+
+   The line `0 1:1.0 5:1.0 6:1.0 9:1.0 $' means that node
+   0 has neighbours 1, 5, 6, and 9, and each arc going to
+   these neighbours has weight 1.0 attached to it. Changing
+   the line to `0 1:1.34 5:10.3 6:0.00001 9:1 $' means the
+   obvious thing.
+
+(mclheader
+mcltype matrix
+dimensions 12x12
+)
+
+(mclmatrix
+begin
+0 1:1.0 5:1.0 6:1.0 9:1.0 $
+1 0:1.0 2:1.0 4:1.0 $
+2 1:1.0 3:1.0 4:1.0 $
+3 2:1.0 7:1.0 8:1.0 10:1.0 $
+4 1:1.0 2:1.0 6:1.0 7:1.0 $
+5 0:1.0 9:1.0 $
+6 0:1.0 4:1.0 9:1.0 $
+7 3:1.0 4:1.0 8:1.0 10:1.0 $
+8 3:1.0 10:1.0 7:1.0 11:1.0 $
+9 0:1.0 5:1.0 6:1.0 $
+10 3:1.0 7:1.0 8:1.0 11:1.0 $
+11 10:1.0 8:1.0 $
+)
+
+---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;
+
+   !¯¯!  This matrix embodies example mcl output   !¯¯!
+   !__!  It cannot be used as example mcl input    !__!
+
+   This comment may appear in the ascii matrix source.
+   This is the clustering resulting from applying mcl with
+   default parameters to the graph above, in mcl matrix
+   encoding.
+
+(mclheader
+mcltype matrix
+dimensions 12x3
+)
+(mclmatrix
+begin
+0    1  2  4 $
+1    0  5  6  9 $
+2    3  7  8 10 11 $
+)
+---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;---8&lt;
+
+</pre>
+
+<p>
+<b>mcl</b> writes a matrix file which represents a clustering.
+Each column of this matrix represents a cluster.
+Theoretically, it can happen that an mcl limit induces a
+clustering with overlap in it. This will almost surely
+not happen for real-life cases. If it happens <b>mcl</b> will
+by default remove the overlap, ensuring that the output
+clustering is strictly a partition of the node set (each
+node is in exactly one cluster). It does so by assigning
+a node in overlap to the cluster ranked first by index
+- an arbitrary choice of deterministic behaviour. This
+behaviour can be changed using the --overlap flag,
+causing <b>mcl</b> to output the clustering exactly as found.
+
+<p>
+One can direct cluster output to stdout by setting "-o -".
+This will send the matrix representing the clustering
+to stdout in ascii format.
+
+</body>
+</html>

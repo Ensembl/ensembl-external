@@ -1,0 +1,51 @@
+\def{"man::synstyle"}{long}
+\def{"man::defstyle"}{long}
+\import{mcx.zmm}
+
+\set{"man::name"}{mcxconvert}
+\set{"man::html-title"}{The mcxconvert manual}
+\set{"man::author"}{Stijn van Dongen}
+\set{"man::section"}{1}
+\set{"man::version"}{1.00}
+
+\"man::preamble"
+\${html}{\"man::maketoc"}
+
+\sec{name}{NAME}
+   \par
+   mcxconvert \- convert between mcx storage types.
+
+\sec{synopsis}{SYNOPSIS}
+   \par
+   \mcxconvert <input file name> <output file name>
+
+\sec{description}{DESCRIPTION}
+
+\par
+   The \mcl libraries make extensive use of matrices. Matrices
+   are used to encode graphs, matrices and clusterings.
+   They can be stored either in ascii or in binary format. The latter is
+   somewhat more efficient in storage and faster in both reading and writing,
+   but the default is ascii format.
+
+\par
+   The \mcl input routines recognize the type of storage they are dealing
+   with. If you want to convert a matrix to the other storage type,
+   simply specify the file name of the matrix you want to convert.
+   \mcxconvert will recognize its type, and write the other type
+   to the file specified as the second argument.
+
+\par
+   In the future \mcxconvert will probably be generalized towards
+   other objects such as vectors.
+\sec{author}{AUTHOR}
+\par
+   Stijn van Dongen.
+
+\sec{sealso}{SEE ALSO}
+   \sib{mcx},
+   \sib{mcl},
+   \mcx5ref.
+
+\"man::postamble"
+

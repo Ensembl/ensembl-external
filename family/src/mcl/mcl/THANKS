@@ -1,0 +1,26 @@
+
+Thanks to:
+
+   Anton Enright
+      for co-implementing threading and his interest and enthousiasm for mcl.
+   Joost van Baal
+      for packaging mcl and doing all the stuff I find dreadful but
+      which he seems to like somehow. You know, system administration,
+      making it work :) -- specifically, for autotooling mcl and
+      setting up and maintaining the CVS tree.
+   Jan van der Steen
+      for sharing his very useful mempool routines, for exchanging
+      and discussing ideas, and his comments on C programming at large.
+      and for contributing the smart stuff in the zoem troff macros.
+   Philip Lijnzaad
+      for a useful bug report and giving advice.
+   Rob Koopman
+      for putting heap-selection to my attention, when I was using a
+      less than dumb algorithm.
+   Shawn Hoon
+      for a useful bug report.
+   Wouter Hanegraaf
+      for making my Debian system run :)
+   The Free Software Community
+      for making the world a better place, software wise.
+

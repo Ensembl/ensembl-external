@@ -1,0 +1,84 @@
+\def{"man::synstyle"}{long}
+\def{"man::defstyle"}{long}
+\import{mcx.zmm}
+
+\set{"man::name"}{clmconf}
+\set{"man::html-title"}{The clmconf manual}
+\set{"man::author"}{Stijn van Dongen}
+\set{"man::section"}{1}
+\set{"man::version"}{1.00}
+
+\"man::preamble"
+\${html}{\"man::maketoc"}
+
+\sec{name}{NAME}
+   \par
+   clmconf \- create confidence measures for individual nodes and clusters
+
+\sec{synopsis}{SYNOPSIS}
+   \par
+   \clmconf <options>
+
+   \par
+   options, all obligatory:
+
+   \par
+      \bf{-icl} <fname> (\it{input cluster file})\|
+      \bf{-imx} <fname> (\it{input matrix/graph file})\|
+      \bf{-ncm} <fname> (\it{output node confidence file})\|
+      \bf{-ccm} <name>  (\it{output cluster confidence file})
+
+\sec{description}{DESCRIPTION}
+
+   \par
+      \clmconf shows how well each node fits in the cluster
+      it is in and how cohesive each cluster is.
+      This lets you compare the quality of the clusters in a clustering
+      relative to each other, and may help in identifying both interesting
+      areas and areas for which cluster structure is hard to find
+      or perhaps absent.
+
+   \par
+      \clmconf abuses the \mcl matrix format a little
+      by using it for storing tables.
+
+   \par
+      The \bf{node confidence matrix}, stored in the file specified by
+      the \genopt{-ncm} option, has the following structure.
+      The columns range over all elements in the graph as specified
+      by the \genopt{-imx} option. Each row consists of two elements only,
+      confiding characteristics of \it{c} relative to the graph and
+      the clustering specified by the \genopt{-icl} option.
+
+      Given a node \it{c},
+      the entry in row zero shows the mass fraction of edges that have \it{c}
+      as tail and for which the head is in the same cluster as \it{c}, relative
+      to the mass of all edges that have \it{c} as tail.  The entry in row one
+      lists the number of edges originating from \it{c}.
+
+   \par
+      The \bf{cluster confidence matrix}, stored in the file specified by
+      the \genopt{-ccm} option, has the following structure.
+      The columns range over all clusters in the clustering as specified
+      by the \genopt{-icl} option. Each row consists of two elements.
+
+      Given a cluster \it{C}, the entry in row zero shows the average of the
+      node confidence (defined above) for all nodes \it{c} in \it{C}.  The
+      entry in row one lists the number of nodes in \it{C}.
+
+\sec{author}{AUTHOR}
+\par
+   Stijn van Dongen.
+
+\sec{sealso}{SEE ALSO}
+
+\par
+   \sib{mcl},
+   \sib{mcx},
+   \sib{clmdist},
+   \sib{clminfo},
+   \sib{clmmeet},
+   \mcx5ref.
+
+\"man::postamble"
+

@@ -1,0 +1,282 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- Copyright (c) 2002 Stijn van Dongen -->
+  <head>
+    <style type="text/css">
+      body {text-align: justify}
+      body { color: #001111 ; background: white; }
+      body { margin-left: 8%; margin-right: 8%; }
+      a:link { text-decoration: none; }
+      a:active { text-decoration: none; }
+      a:visited { text-decoration: none; }
+    </style>
+    <title>The clmdist manual
+    </title>
+  </head>
+<body>
+<p style="text-align:right">
+22 Feb 2002&nbsp;&nbsp;&nbsp;<b>clmdist</b> version 1.00
+</p>
+<dl compact>
+<dt>1.<dd><a href="#name">NAME</a>
+<dt>2.<dd><a href="#synopsis">SYNOPSIS</a>
+<dt>3.<dd><a href="#description">DESCRIPTION</a>
+<dt>4.<dd><a href="#examples">EXAMPLES</a>
+<dt>5.<dd><a href="#author">AUTHOR</a>
+<dt>6.<dd><a href="#sealso">SEE ALSO</a>
+<dt>7.<dd><a href="#references">REFERENCES</a>
+</dl>
+
+<a name="name"></a>
+<h2>NAME</h2>
+
+<p>
+clmdist - compute the split/join distance <b>sjd</b> between two partitions (clusterings).
+
+<a name="synopsis"></a>
+<h2>SYNOPSIS</h2>
+
+<p>
+<b>clmdist</b> &lt;file name&gt; &lt;file name&gt;+
+
+<a name="description"></a>
+<h2>DESCRIPTION</h2>
+
+<p>
+<b>clmdist</b> computes the split/join distance <b>sjd</b> between two clusterings.
+It can compute this distance for all pairs of distances in a set of clusterings.
+Clusterings must be in the mcl matrix format (Cf. <a href="mcxformat.html">mcxformat</a>),
+and are supplied on the command line as the names of the files in which
+they are stored.
+
+<p>
+<b>sjd</b> is very handy in computing the consistency of two or more
+clusterings of the same graph, or comparing clusterings made with different
+resource (but otherwise identical) parameters. The latter is for finding out
+whether you can settle for cheaper <b>mcl</b> settings, or whether you need to
+switch to more expensive settings. The former is for finding out whether
+clusterings are identical, conflicting, or whether one is (almost) a
+subclustering of the other - mostly for comparing a set of clusterings of
+different granularity, made by letting the <b>mcl</b> parameter <b>-I</b> vary.
+The
+<a href="#examples">EXAMPLES</a> section contains examples of all these <b>clmdist</b> uses,
+and the use of <a href="clminfo.html">clminfo</a> and <a href="clmmeet.html">clmmeet</a> is also
+discussed there.
+
+<p>
+<b>sjd</b> is a metric distance on the space of partitions of
+a set of a given fixed cardinality. It has the following linearity
+property. Let <b>P1</b> and <b>P2</b> be partitions, then
+
+<p>
+<b>sjd</b>(<b>P1</b>, <b>P2</b>) = <b>sjd</b>(<b>P1</b>, <b>D</b>) + <b>sjd</b>(<b>P2</b>, <b>D</b>)
+
+<p>
+where <b>D</b> (for Dutch Doorsnede)
+is the intersection of <b>P1</b> and <b>P2</b>, i.e. the unique clustering
+that is both a subclustering of <b>P1</b> and <b>P2</b> <i>and</i> a superclustering of
+all other subclusterings of <b>P1</b> and <b>P2</b>. Sloppily worded, <b>D</b> is the largest
+subclustering of both <b>P1</b> and <b>P2</b>. See the
+<a href="#references">REFERENCES</a> section for
+a pointer to the technical report in which <b>sjd</b> was first defined (and in
+which the non-trivial triangle inequality is proven).
+
+<p>
+Because it is useful to know whether one partition (or clustering)
+is almost a subclustering of the other, <b>clmdist</b> returns the
+two constituents <b>sjd</b>(<b>P1</b>,<b>D</b>) and <b>sjd</b>(<b>P2</b>,<b>D</b>).
+
+<p>
+The output of <b>clmdist</b> is slightly different depending on whether two or
+more than two clusterings are given. In the first case, one pair of numbers
+is returned (the <b>sjd</b> constituents). In the latter case, an array is
+returned for which the upper triangular part contains all possible
+distances. The array is extended with the (file) names of the clusterings.
+
+<p>
+Let <b>P1</b> and <b>P2</b> be two clusterings of a graph of cardinality <b>N</b>,
+and suppose <b>clmdist</b> returns the integers <b>d1</b> and <b>d2</b>. You can think of
+<b>100 * (d1 + d2) / N</b> as the percentage that <b>P1</b> and <b>P2</b> differ.
+This interpretation is in fact slightly conservative.
+The numerator is the number of nodes that need to be exchanged in order to
+transform one into the other. This number may grow as large as
+<b>2*N - 2*sqrt(N)</b>, so it would be justified to take 50 as a scaling
+factor rather than 100.
+
+<p>
+For example, if <b>A</b> and <b>B</b> are both clusterings of a graph
+on a set of 9058 nodes and <b>clmdist</b> returns [38, 2096], this conveys
+that <b>A</b> is almost a subclustering of <b>B</b> (by splitting 38 nodes
+in <b>A</b> we obtain a clustering <b>D</b> that is a subclustering of <b>B</b>),
+and that <b>B</b> is much less granular than <b>A</b>. The latter is
+because we can obtain <b>B</b> from <b>D</b> by <i>joining</i> 2096 nodes
+in some way.
+
+<a name="examples"></a>
+<h2>EXAMPLES</h2>
+
+<p>
+The following is an example of several <b>mcl</b> validation tools
+applied to a set of clusterings on a protein graph of 9058 nodes.
+In the first experiment, six
+different clusterings were generated for different values of the inflation
+parameter, which was respectively set to 1.2, 1.6, 2.0, 2.4, 2.8, and 3.2.
+It should be noted that protein graphs seem somewhat special in that an
+inflation parameter setting as low as 1.2 still produces a very acceptable
+clustering. The six clusterings are scrutinized using <b>clmdist</b>,
+<b>clminfo</b>, and <b>clmmeet</b>.
+In the second experiment, four different clusterings were generated
+with identical flow (i.e. inflation) parameter, but
+with different resource parameters. <b>clmdist</b> is used to choose
+a sufficient resource level.
+
+<p>
+High <b>-P/-S/-R</b> values make <b>mcl</b> more accurate but also
+more time and memory consuming. Run <b>mcl</b> with different settings for these
+parameters, holding other parameters fixed. If the expensive and supposedly
+more accurate clusterings are very similar to the clusterings resulting from
+cheaper settings, the cheaper setting is sufficient. If the distances
+between cheaper clusterings and more expensive clusterings are large, this
+is an indication that you need the expensive settings. In that case, you may
+want to increase the <b>-P/-S/-R</b> parameters (or simply the
+<b>-scheme</b> parameter) until associated
+clusterings at nearby resource levels are very similar.
+
+<p>
+In this particular example, the validation tools do not reveal that one
+clustering in particular can be chosen as 'best', because all clusterings
+seem at least acceptable. They do aid however in showing the relative
+merits of each clusterings. The most important issue in this respect is
+cluster granularity. The table below shows the output of <a href="clminfo.html">clminfo</a>.
+
+<pre>
+     Efficiency  Mass frac  Area frac  Cl weight  Mx link weight
+1.2   0.42364     0.98690    0.02616    52.06002    50.82800
+1.6   0.58297     0.95441    0.01353    55.40282    50.82800
+2.0   0.63279     0.92386    0.01171    58.09409    50.82800
+2.4   0.65532     0.90702    0.01091    59.58283    50.82800
+2.8   0.66854     0.84954    0.00940    63.19183    50.82800
+3.2   0.67674     0.82275    0.00845    66.10831    50.82800
+</pre>
+
+<p>
+This data shows that there is exceptionally strong cluster structure present
+in the input graph. The 1.2 clustering captures almost all edge mass using
+only 2.5 percent of 'area'. The 3.2 clustering still captures 82 percent of
+the mass using less than 1 percent of area. We continue with looking at the
+mutual consistency of the six clusterings. Below is a table that shows all
+pairwise distances between the clusterings.
+
+<pre>
+    |   1.6  |   2.0  |   2.4  |   2.8  |   3.2  |   3.6
+-----------------------------------------------------------.
+1.2 |2096,38 |2728,41 |3045,48 |3404,45 |3621,43 |3800, 42 |
+-----------------------------------------------------------|
+1.6 |        | 797,72 |1204,76 |1638,78 |1919,70 |2167, 69 |
+-----------------------------------------------------------|
+2.0 |        |        | 477,68 | 936,78 |1235,85 |1504, 88 |
+-----------------------------------------------------------|
+2.4 |        |        |        | 498,64 | 836,91 |1124,103 |
+-----------------------------------------------------------|
+2.8 |        |        |        |        | 384,95 | 688,119 |
+-----------------------------------------------------------|
+3.2 |        |        |        |        |        | 350,110 |
+-----------------------------------------------------------.
+</pre>
+
+<p>
+The table shows that the different clusterings are pretty consistent with
+each other, because for two different clusterings it is generally true that
+one is almost a subclustering of the other. The interpretation for the
+distance between the 1.6 and the 3.2 clustering for example, is that by
+rearranging 43 nodes in the 3.2 clustering, we obtain a subclustering of the
+1.6 clustering. The table shows that for any pair of clusterings, at most
+119 entries need to be rearranged in order to make one a subclustering of
+the other.
+
+<p>
+The overall consistency becomes all the more clear by looking at the meet of
+all the clusterings:
+
+<pre>
+clmmeet -o meet out12 out16 out20 out24 out28 out32
+clmdist meet out12 out16 out20 out24 out28 out32
+</pre>
+
+<p>
+results in the following distances between the respective clusterings
+and their meet.
+
+<pre>
+    |   1.2  |    1.6 |  2.0   |   2.4  |  2.8   |  3.2    |  
+-------------- --------------------------------------------.
+meet|  0,3663|  0,1972| 0,1321 |  0,958 | 0,559  | 0,283   |
+-------------- --------------------------------------------.
+</pre>
+
+<p>
+This shows that by rearranging only 283 nodes in the 3.2 clustering,
+one obtains a subclustering of all other clusterings.
+
+<p>
+In the last experiment, <b>mcl</b> was run with inflation parameter 1.4,
+for each of the four different preset pruning schemes <code>k=1,2,3,4</code>.
+The <b>clmdist</b> distances between the different clusterings
+are shown below.
+
+<pre>
+    |  k=2   |   k=3  |   k=4  |
+-------------------------------.
+k=1 |  17,17 |  16,16 |  16,16 |
+-------------------------------.
+k=2 |        |   3,3  |   5,5  |
+-------------------------------.
+k=3 |        |        |   4,4  |
+-------------------------------.
+</pre>
+
+<p>
+This example is a little boring in that the cheapest scheme seems adequate.
+If anything, the gaps between the <code>k=1</code> scheme and the rest are a little
+larger than the three gaps between the <code>k=2</code>, <code>k=3</code>, and <code>k=4</code>
+clusterings. Had all distances been much larger, then such an observation
+would be reason to choose the <code>k=2</code> setting.
+
+<p>
+Note that you need not feel uncomfortable with the clusterings
+still being different at high resource levels, if ever so slightly.
+In all likelihood, there are anyway nodes which are not in any core of
+attraction, and that are on the boundary between two or more clusterings.
+They may go one way or another, and these are the nodes which
+will go different ways even at high resource levels.
+Such nodes may be stable in clusterings obtained for lower inflation
+values (i.e. coarser clusterings), in which the different clusters
+to which they are attracted are merged.
+
+<a name="author"></a>
+<h2>AUTHOR</h2>
+
+<p>
+Stijn van Dongen.
+
+<a name="sealso"></a>
+<h2>SEE ALSO</h2>
+
+<p>
+<a href="mcl.html">mcl</a>,
+<a href="mcx.html">mcx</a>,
+<a href="clminfo.html">clminfo</a>,
+<a href="clmmeet.html">clmmeet</a>,
+<a href="clmconf.html">clmconf</a>,
+<a href="mcxformat.html">mcxformat</a>.
+
+<a name="references"></a>
+<h2>REFERENCES</h2>
+
+<p>
+<b>Performance criteria for graph clustering and
+Markov cluster experiments</b> (technical report)<br>
+<a href="http://www.cwi.nl/ftp/CWIreports/INS/INS-R0012.ps.Z">http://www.cwi.nl/ftp/CWIreports/INS/INS-R0012.ps.Z</a>
+
+</body>
+</html>

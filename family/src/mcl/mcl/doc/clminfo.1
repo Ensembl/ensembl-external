@@ -1,0 +1,61 @@
+.\" Copyright (c) 2002 Stijn van Dongen
+.TH clminfo 1 "22 Feb 2002" "clminfo 1\&.00" "USER COMMANDS"
+.SH NAME
+
+clminfo \- Compute performance measures for
+(possibly multiple) clusterings relative to some graph\&.
+.SH SYNOPSIS
+
+\fBclminfo\fP <graph file> <cluster file> <cluster file>*
+.SH DESCRIPTION
+
+\fBclminfo\fP computes several numbers indicative for the efficiency with
+with a clustering captures the edge mass of a given graph\&.
+Use it in conjunction with \fBclmdist\fP to determine which clusterings
+you accept\&. See the EXAMPLES section in \fBclmdist(1)\fP
+for an example of \fBclmdist\fP and \fBclminfo\fP (and \fBclmmeet\fP) usage\&.
+Output can be generated for multiple clusterings at the same time\&.
+
+The first number is called the \fBefficiency\fP and is described in [1] (see
+the \fBREFERENCES\fP section)\&. It tries to balance the dual aims of
+capturing a lot of edges or edge weights and keeping the cluster footprint
+or area fraction small\&. The efficiency number has several appealing
+mathematical properties, cf\&. [1]\&. It is related to, but not derivable from,
+the second and third numbers, the \fImass fraction\fP and the
+\fIarea fraction\fP\&.
+
+The second number is the mass fraction, which is defined as follows\&.
+Let \fBe\fP be an edge of the graph\&. The clustering \fIcaptures\fP \fBe\fP
+if the two nodes associated with \fBe\fP are in the same cluster\&.
+Now the mass fraction is the joint weight of all captured edges divided
+by the joint weight of all edges in the input graph\&.
+
+The third number is the area fraction, which is roughly the sum of the
+squares of all cluster sizes for all clusters in the clustering, divided by
+the square of the number of nodes in the graph\&. It says \fIroughly\fP,
+because the actual formula uses the quantity \fBN\fP*(\fBN-1\fP) wherever it
+says square (of \fBN\fP) above\&. A low/high area fraction indicates a
+fine-grained/coarse clustering\&.
+
+The fourth number is the cluster link weight, which is the average
+edge weight over all edges captured by the clustering\&.
+
+The fifth number is the graph link weight, which is the average weight
+over all edges in the graph\&.
+.SH AUTHOR
+
+Stijn van Dongen\&.
+.SH SEE ALSO
+
+\fBmcl(1)\fP,
+\fBmcx(1)\fP,
+\fBclmdist(1)\fP,
+\fBclmmeet(1)\fP,
+\fBclmconf(1)\fP,
+\fBmcx(5)\fP\&.
+.SH REFERENCES
+
+[1] \fBPerformance criteria for graph clustering and
+Markov cluster experiments\fP (technical report)
+.br
+http://www\&.cwi\&.nl/ftp/CWIreports/INS/INS-R0012\&.ps\&.Z

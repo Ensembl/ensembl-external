@@ -86,6 +86,34 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
+
+fetch_by_dbID
+
+=head2 fetch_by_dbID
+
+ Title   : fetch_by_dbID
+ Usage   :
+ Function:
+ Example :
+ Returns : 
+ Args    :
+
+
+=cut
+
+sub fetch_by_dbID{
+   my ($self,$fid) = @_;
+
+   my $q = 
+       "SELECT family_id, stable_id, description, release, 
+              annotation_confidence_score
+       FROM family f
+       WHERE family_id = $fid";
+   
+   $self->_get_family($q);
+}    
+
+
 =head2 fetch_by_stable_id
 
  Title   : fetch_by_stable_id

@@ -196,33 +196,16 @@ sub disease_by_omim_id
 sub disease_name_by_ensembl_gene
 {                          
     my ($self,$gene)=@_;
-    my $seen=0;
+    $self->throw("$gene is not a Bio::EnsEMBL::Gene object!") unless $gene->isa('Bio::EnsEMBL::Gene');
 
-    if (!$gene->isa('Bio::EnsEMBL::Gene')) {
-    $self->throw("$gene is not a Bio::EnsEMBL::Gene object!");
-    }
-    my $hugo='(';
-
-    foreach my $dblink ($gene->each_DBLink) {
-    if ($dblink->database eq 'HUGO') {
-        $seen=1;
-        $hugo.="'".$dblink->primary_id."',";
-
-    }
-    }
+    my @genes = map { $_->primary_db } grep { $_->database eq 'HUGO' } $gene->each_DBLink;
+    return 0 unless @genes;
     
-    chop($hugo);
-    $hugo.=')';
-
-
-    #If no HUGO links found, return 0, i.e. no disease link!
-    if (!$seen) {
-    return 0;
-    }
-
-    my $query_string="select  d.disease from disease as d,gene as g where d.id = g.id and g.gene_symbol in $hugo";
-
-    return $self->_get_disease_names($query_string);
+    return $self->_get_disease_names(
+        "select d.disease
+           from disease as d,gene as g
+          where d.id = g.id and g.gene_symbol in (".join(',',@genes) .")"
+        );
 }
 
 

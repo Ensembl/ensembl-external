@@ -174,7 +174,6 @@ sub fetch_all_by_clone_accession {
             $end = $clone_end -$row->{'SNP_START'} + 1;
         }
 
-        ## if SNP has multiple consequences, use the most important one
         my $strand = $row->{'SNP_STRAND'}*$clone_strand;
         my $key = join(":", $row->{'ID_DEFAULT'}, $start, $end, $strand);
         my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}} || '_';
@@ -357,9 +356,6 @@ sub fetch_SNP_by_id  {
         $varfeat->end($end);
         $varfeat->strand($row->{'SNP_STRAND'}*$clone_strand);
         $varfeat = $varfeat->transform('chromosome');
-
-        ## try next clone if we couldn't map the SNP
-        #last if ($varfeat->start && $varfeat->end);
     }
     warn "WARNING: Multiple clones ($j) returned" if ($j > 1);
     

@@ -114,8 +114,8 @@ sub prepare_locus_entry
 	}
 	if ($to =~ /^(\d+)$/){$band_end=$1;}
 	if ($to =~ /(\d+|[X,Y])(cent)$/){$band_end=0;}		   
-	if ($to =~ /^(\w)(\d+)$/){$band_end=$2;}
 	if ($to =~ /^(\w+)$/){$band_end=$to;}
+	if ($to =~ /^(\w)(\d+)$/){$band_end=$2;}
 	if ($to eq 'qter'){$band_end='ter';}
 	if ($to eq 'pter'){$band_end='ter';}
 	if ($to =~ /^(\w)(\d+)[.](\d+)$/){$band_end=$2.'.'.$3;}

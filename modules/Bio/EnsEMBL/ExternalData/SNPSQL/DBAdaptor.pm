@@ -376,27 +376,27 @@ sub get_Ensembl_SeqFeatures_clone {
     #sanity checks
 
     if ( ! defined $acc) {
-	$self->throw("Two arguments are requided: embl_accession number and version_number!");
+		$self->throw("Two arguments are requided: embl_accession number and version_number!");
     }
     if ( ! defined $ver) {
-	$self->throw("Two arguments are required: embl_accession number and version_number!");
+		$self->throw("Two arguments are required: embl_accession number and version_number!");
     }
     if (defined $start) {
-	$start = 1 if $start eq "";
-	if ( $start !~ /^\d+$/  and $start > 0) {
-	    $self->throw("$start is not a valid start");
-	}
+		$start = 1 if $start eq "";
+		if ( $start !~ /^\d+$/  and $start > 0) {
+	    	$self->throw("$start is not a valid start");
+		}
     }
     if (defined $stop) {
-	$start = 1 if not defined $start;
-	if ( $stop !~ /^\d+$/ and $stop > 0 ) {
-	    $self->throw("$stop is not a valid stop");
-	}
+		$start = 1 if not defined $start;
+		if ( $stop !~ /^\d+$/ and $stop > 0 ) {
+	    	$self->throw("$stop is not a valid stop");
+		}
     }
     if (defined $start and defined $stop) {
-	if ($stop < $start) {
-	    $self->throw("$stop is smaller than $start not a valid start");
-	}
+		if ($stop < $start) {
+	    	$self->throw("$stop is smaller than $start not a valid start");
+		}
     }
 
     my $acc_version = uc "$acc.$ver";
@@ -405,124 +405,123 @@ sub get_Ensembl_SeqFeatures_clone {
    # db query to return all variation information ; confidence attribute is gone!!
    my $query = qq{
 
-       SELECT  p1.start, p1.end, p1.type, p1.strand,
+       	SELECT  p1.start, p1.end, p1.type, p1.strand,
   	       p2.id, p2.snpclass,  p2.snptype,
   	       p2.observed, p2.seq5, p2.seq3,
   	       p2.het, p2.hetse,
                p2.validated, p2.mapweight
-  	FROM   Hit as p1, RefSNP as p2
-  	WHERE  p1.acc = "$acc" and p1.version = "$ver"
+  		FROM   Hit as p1, RefSNP as p2
+  		WHERE  p1.acc = "$acc" and p1.version = "$ver"
   	       AND p1.refsnpid = p2.id
 	       };
 
    my $sth = $self->prepare($query);
    my $res = $sth->execute();
 
- SNP:
+   SNP:
    while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
-       my $allele_pos = 0;
+		my $allele_pos = 0;
 
-       my ($begin, $end, $hittype, $strand,
-	   $snpuid, $class, $type,
-	   $alleles, $seq5, $seq3, $het, $hetse,
-	   $confirmed, $mapweight,
-           $subsnpid, $handle 
-	   ) = @{$arr};
+		my ($begin, $end, $hittype, $strand,
+		$snpuid, $class, $type,
+		$alleles, $seq5, $seq3, $het, $hetse,
+		$confirmed, $mapweight,
+		$subsnpid, $handle 
+		) = @{$arr};
 
-       #snp info not valid
-       next SNP if $type ne 'notwithdrawn';
-       next SNP if $mapweight > 2;
+		#snp info not valid
+		next SNP if $type ne 'notwithdrawn';
+		next SNP if $mapweight > 2;
 
 
-       #exclude SNPs outside the given $start-$end range
-       if (defined $start) {
-	   next SNP if $begin < $start;
-       }
-       if (defined $stop) {
-	   next SNP if $end > $stop;
-       }
+		#exclude SNPs outside the given $start-$end range
+		if (defined $start) {
+			next SNP if $begin < $start;
+		}
+		if (defined $stop) {
+			next SNP if $end > $stop;
+		}
 
-        # use the right vocabulary for the SNP status
-        if ($confirmed eq 'no-info') {
-	    $confirmed = "suspected";
-        } else {
-	    $confirmed =~ s/-/ /;
-	    $confirmed = "proven $confirmed";
+		# use the right vocabulary for the SNP status
+		if ($confirmed eq 'no-info') {
+			$confirmed = "suspected";
+		} else {
+			$confirmed =~ s/-/ /;
+			$confirmed = "proven $confirmed";
+		}
+
+		# the allele separator should be  '|'
+		$alleles =~ s/\//\|/g;
+
+		#prune flank sequences to 25 nt
+		$seq5 = substr($seq5, -25, 25);
+		$seq3 = substr($seq3, 0, 25);
+
+		#add Ns to length of 25;
+		$seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
+		$seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
+
+		#
+		# prepare the output objects
+		#
+
+		#Variation
+		my $snp = new Bio::EnsEMBL::ExternalData::Variation
+			   (-start => $begin,
+	    		-end => $end,
+	    		-strand => $strand,
+	    		-original_strand => $strand,
+	    		-source_tag => 'dbSNP',
+	    		-score  => $mapweight,
+	    		-status => $confirmed,
+	    		-alleles => $alleles,
+            		-subsnpid => $subsnpid,
+	    		);
+		$snp->upStreamSeq($seq5);
+		$snp->dnStreamSeq($seq3);
+		$snp->het($het);
+		$snp->hetse($hetse); 
+
+		# set for compatibility to Virtual Contigs
+		$snp->seqname($acc_version);
+
+		#DBLink
+		my $link = new Bio::Annotation::DBLink;
+		$link->database('dbSNP');
+		$link->primary_id($snpuid);
+		$link->optional_id($acc_version);
+		#add dbXref to Variation
+		$snp->add_DBLink($link);
+
+		#get alternative IDs
+		my $primid = $snp->id;
+		my $query2 = qq{ 
+			SELECT p1.handle, p1.altid 
+			FROM   SubSNP as p1
+			WHERE  p1.refsnpid = "$primid"
+		};
+
+		my $sth2 = $self->prepare($query2);
+		my $res2 = $sth2->execute();
+		while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
+			my ($handle, $altid) = @{$arr2};
+
+			my $link = new Bio::Annotation::DBLink;
+
+			print STDERR "Adding DBLink for $altid\n";
+
+			$link->database($handle);
+			$link->primary_id($altid);
+
+			#add dbXref to Variation
+			$snp->add_DBLink($link);
+		}
+		#add SNP to the list
+		push(@variations, $snp);
 	}
-	
-       # the allele separator should be  '|'
-       $alleles =~ s/\//\|/g;
 
-       #prune flank sequences to 25 nt
-       $seq5 = substr($seq5, -25, 25);
-       $seq3 = substr($seq3, 0, 25);
-
-       #add Ns to length of 25;
-       $seq3 .= 'N' x ( 25 - length $seq3 ) if length($seq3) < 25 ;
-       $seq5 = ('N' x ( 25 - length $seq5 ) ). $seq5 if length($seq5) < 25 ;
-       
-       #
-       # prepare the output objects
-       #
-
-       #Variation
-       my $snp = new Bio::EnsEMBL::ExternalData::Variation
-	   (-start => $begin,
-	    -end => $end,
-	    -strand => $strand,
-	    -original_strand => $strand,
-	    -source_tag => 'dbSNP',
-	    -score  => $mapweight,
-	    -status => $confirmed,
-	    -alleles => $alleles,
-            -subsnpid => $subsnpid,
-	    );
-       $snp->upStreamSeq($seq5);
-       $snp->dnStreamSeq($seq3);
-       $snp->het($het);
-       $snp->hetse($hetse); 
-
-       # set for compatibility to Virtual Contigs
-       $snp->seqname($acc_version);
-
-       #DBLink
-       my $link = new Bio::Annotation::DBLink;
-       $link->database('dbSNP');
-       $link->primary_id($snpuid);
-       $link->optional_id($acc_version);
-       #add dbXref to Variation
-       $snp->add_DBLink($link);
-
-       #get alternative IDs
-       my $primid = $snp->id;
-       my $query2 = qq{
-	   
-	   SELECT p1.handle, p1.altid 
-	   FROM   SubSNP as p1
-           WHERE  p1.refsnpid = "$primid"
-
-       };
-
-       my $sth2 = $self->prepare($query2);
-       my $res2 = $sth2->execute();
-       while( (my $arr2 = $sth2->fetchrow_arrayref()) ) {
-	    
-	   my ($handle, $altid
-	       ) = @{$arr2};
-	   
-	   my $link = new Bio::Annotation::DBLink;
-	   $link->database($handle);
-	   $link->primary_id($altid);
-	   
-	   #add dbXref to Variation
-	   $snp->add_DBLink($link);
-       }
-       #add SNP to the list
-       push(@variations, $snp);
-   }
-
-   return @variations;
+	return @variations;
 }
 
 
@@ -619,7 +618,7 @@ sub get_Ensembl_SeqFeatures_clone_web{
        #add dbXref to Variation
        $snp->add_DBLink($link);
 
-	if(0){
+	if(1){
 		   my $altquery = qq{
 			   SELECT p1.handle, p1.altid 
 			   FROM   SubSNP as p1

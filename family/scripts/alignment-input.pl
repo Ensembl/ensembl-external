@@ -32,10 +32,11 @@ my $dbh=db_connect("database=$dbname;host=$dbhost;user=$dbuser;pass=$dbpass");
 
 warn "Using internal id's for the families !\n";
 
-# my $insertq = <<__ENDOFQUERY__;
-# insert into alignments values(?, ?)
-# __ENDOFQUERY__
-# ;
+my $insertq = <<__ENDOFQUERY__;
+insert into alignments values(?, ?)
+__ENDOFQUERY__
+;
+$insertq = $dbh->prepare($insertq) || die  $DBI::errstr;
 
 my $checkq = <<__ENDOFQUERY__;
 SELECT count(*) 
@@ -44,17 +45,16 @@ WHERE fm.db_id = ?
   AND fm.family = ?
 __ENDOFQUERY__
 ;
-$checkq = $dbh->prepare($checkq);
-
+$checkq = $dbh->prepare($checkq) || die  $DBI::errstr;
 
 $|=1;
 
 my $proc = "mysql -u $dbuser -h $dbhost -p$dbpass $dbname";
 # using a pipe since had trouble with passing really long strings using perl
 # note that we'll only 
-my $logfile = "/tmp/loadalign.$$.log";
-open (PROC,"| $proc > $logfile 2>&1 ") || die "$proc: $!";
-select(PROC);$|=1;
+# my $logfile = "/tmp/loadalign.$$.log";
+# open (PROC,"| $proc > $logfile 2>&1 ") || die "$proc: $!";
+# select(PROC);$|=1;
 
 foreach my $file (@alignment_files)  {
     chomp($file);
@@ -78,16 +78,18 @@ foreach my $file (@alignment_files)  {
     }
     close(FILE) || die "$f:$!";
     
-    print PROC "INSERT INTO alignments VALUES ($famid,\'$alignment\')\;\n";
+    $insertq->execute($famid, $alignment ) || warn $DBI::errstr;
+    
+#    print PROC "INSERT INTO alignments VALUES ($famid,\'$alignment\')\;\n";
     print STDERR "done $file, size: ",length($alignment),"\n";
 }                                       # foreach file
-close(PROC) || do { 
-    warn "something wrong during loading; $proc: $!\n";
-    warn "logfile is:\n";
-    `cat $logfile >&2`;
-    warn "Note: may well be more than just this error (e.g. duplicates warnings)\n";
-    unlink($logfile); 
-};
+# close(PROC) || do { 
+#     warn "something wrong during loading; $proc: $!\n";
+#     warn "logfile is:\n";
+#     `cat $logfile >&2`;
+#     warn "Note: may well be more than just this error (e.g. duplicates warnings)\n";
+#     unlink($logfile); 
+# };
 
 sub isa_fam_member {
     my($famid, $mem) = @_;

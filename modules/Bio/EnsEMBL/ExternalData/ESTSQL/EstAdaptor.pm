@@ -39,10 +39,10 @@ use Bio::EnsEMBL::FeaturePair;
 use Bio::EnsEMBL::SeqFeature;
 use Bio::EnsEMBL::DBSQL::AnalysisAdaptor;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
-use Bio::Root::RootI;
+use Bio::EnsEMBL::Root;
 use vars qw(@ISA);
 
-@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
 
 my $NO_EXTERNAL = 1;
 BEGIN {

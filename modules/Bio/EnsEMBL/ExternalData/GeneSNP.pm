@@ -88,9 +88,10 @@ methods. Internal methods are usually preceded with a _
 package Bio::EnsEMBL::ExternalData::GeneSNP;
 use vars qw(@ISA );
 use strict;
+use Bio::EnsEMBL::Root;
 
 # Object preamble - inheritance
-@ISA = qw ( Bio::Root::RootI );
+@ISA = qw ( Bio::EnsEMBL::Root );
 
 #use Carp;
 use Bio::Variation::SeqDiff;

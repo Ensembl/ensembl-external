@@ -38,9 +38,10 @@ The rest of the documentation details each of the object methods. Internal metho
 package Bio::EnsEMBL::ExternalData::CodingSNP;
 use vars qw(@ISA );
 use strict;
+use Bio::EnsEMBL::Root;
 
 # Object preamble - inheritance
-@ISA = qw ( Bio::Root::RootI );
+@ISA = qw ( Bio::EnsEMBL::Root );
 
 #use Carp;
 use Bio::Variation::SeqDiff;

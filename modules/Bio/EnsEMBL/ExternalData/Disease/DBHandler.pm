@@ -59,12 +59,12 @@ package Bio::EnsEMBL::ExternalData::Disease::DBHandler;
 
 use strict;
 use DBI;
-use Bio::Root::RootI;
+use Bio::EnsEMBL::Root;
 use Bio::EnsEMBL::ExternalData::Disease::Disease;
 use Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation;
 use vars qw(@ISA);
 
-@ISA = qw(Bio::Root::RootI);
+@ISA = qw(Bio::EnsEMBL::Root);
 
 
 

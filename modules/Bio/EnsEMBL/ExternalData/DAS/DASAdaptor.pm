@@ -48,13 +48,13 @@ package Bio::EnsEMBL::DBDAS::DASAdaptor;
 use vars qw(@ISA);
 use strict;
 
-# Object preamble - inherits from Bio::Root::RootI
+# Object preamble
 
-use Bio::Root::RootI;
+use Bio::EnsEMBL::Root;
 use Bio::Das;
 use Bio::EnsEMBL::DBDAS::BaseAdaptor;
 
-@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DBDAS::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DBDAS::BaseAdaptor);
 
 sub new {
 	my($pkg, @args) = @_;

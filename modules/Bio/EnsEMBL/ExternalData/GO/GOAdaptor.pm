@@ -73,8 +73,9 @@ use DBI;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use GO::AppHandle;
+use Bio::EnsEMBL::Root;
 
-@ISA = qw(Bio::Root::RootI GO::AppHandle);
+@ISA = qw(Bio::EnsEMBL::Root GO::AppHandle);
 
 sub new {
     my($class,@args) = @_;

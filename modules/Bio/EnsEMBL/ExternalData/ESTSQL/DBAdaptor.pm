@@ -36,12 +36,12 @@ package Bio::EnsEMBL::ExternalData::ESTSQL::DBAdaptor;
 
 use Bio::EnsEMBL::ExternalData::ESTSQL::EstAdaptor;
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
-use Bio::Root::RootI;
+use Bio::EnsEMBL::Root;
 use DBI;
 
 use vars qw(@ISA);
 
-@ISA = qw(Bio::Root::RootI Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::DB::ExternalFeatureFactoryI);
 
 
 

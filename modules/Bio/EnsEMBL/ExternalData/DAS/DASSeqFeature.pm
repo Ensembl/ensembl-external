@@ -49,9 +49,9 @@ use strict;
 
 
 use Bio::EnsEMBL::SeqFeature;
-use Bio::Root::RootI;
+use Bio::EnsEMBL::Root;
 
-@ISA = qw( Bio::EnsEMBL::SeqFeature  Bio::Root::RootI);
+@ISA = qw(Bio::EnsEMBL::SeqFeature Bio::EnsEMBL::Root);
 
 ## Why not use AUTOLOAD?
 ## Becasue I want to tie the API calls to a version of the DAS spec (1.01)

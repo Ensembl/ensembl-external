@@ -92,7 +92,7 @@ use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
-warn "``WHERE ... db_name <> 'ENSMUSPEP' '' is hard-coded!";
+# warn "``WHERE ... db_name <> 'ENSMUSPEP' '' is hard-coded!";
 
 =head2 get_Family_by_id
 

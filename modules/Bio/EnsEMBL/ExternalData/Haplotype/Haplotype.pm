@@ -20,7 +20,6 @@ HaplotypeAdaptor - DESCRIPTION of Object
 use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor;
 use Bio::EnsEMBL::ExternalData::Haplotype::Haplotype;
-use Bio::AlignIO;
 
 $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
                                              -user   => 'ensro',
@@ -31,7 +30,6 @@ $hapdb = Bio::EnsEMBL::DBSQL::DBAdaptor->new(
 my $hap_adtor = Bio::EnsEMBL::ExternalData::Haplotype::HaplotypeAdaptor->new($hapdb);
 
 $hap  = $hap_adtor->get_Haplotype_by_id('B10045');  # Haplotype id
-@haps = $hap_adtor->all_Haplotypes();
 
 ### You can add the HaplotypeAdaptor as an 'external adaptor' to the 'main'
 ### Ensembl database object, then use it as:
@@ -74,11 +72,9 @@ use strict;
 # Object preamble - inheriets from Bio::Root::Object
 
 use Bio::Root::Object;
-use Bio::DBLinkContainerI;
-use Bio::Annotation::DBLink;
 
 
-@ISA = qw(Bio::Root::Object Bio::DBLinkContainerI);
+@ISA = qw(Bio::Root::Object);
 
 =head2 new
 
@@ -112,7 +108,7 @@ sub new {
 sub id {
     my ($self,$value) = @_;
     if( defined $value) {
-	$self->{'id'} = $value;
+		$self->{'id'} = $value;
     }
     return $self->{'id'};
 }
@@ -130,7 +126,7 @@ sub id {
 sub chr_name {
     my ($self,$value) = @_;
     if( defined $value) {
-	$self->{'chr_name'} = $value;
+		$self->{'chr_name'} = $value;
     }
     return $self->{'chr_name'};
 }
@@ -209,8 +205,9 @@ sub local_start {
     unless ($self->{'local_start'}){
         my $id = $self->id();
         my $q = qq(
-        select first_reference_position from block 
-        where block_id = "$id");
+        	select first_reference_position from block 
+        	where block_id = "$id"
+		);
         my $sth = $self->adaptor->prepare($q);
         $sth->execute();
         ($self->{'local_start'}) = $sth->fetchrow_array()
@@ -237,8 +234,9 @@ sub local_end {
     unless ($self->{'local_end'}){
         my $id = $self->id();
         my $q = qq(
-        select last_reference_position from block 
-        where block_id = "$id");
+        	select last_reference_position from block 
+        	where block_id = "$id"
+		);
         my $sth = $self->adaptor->prepare($q);
         $sth->execute();
         ($self->{'local_end'}) = $sth->fetchrow_array()
@@ -281,7 +279,7 @@ sub snp_info {
     unless ($self->{'snp_info'}->{$value}){
         my $q = qq(
             select 
-                 position,ref_base,alt_base,ref_calls,alt_calls
+                 position,ref_base,alt_base,ref_calls,mut_calls
             from 
                 polymorphism
             where 

@@ -1,4 +1,3 @@
-#$Id$
 #
 # BioPerl module for Bio::EnsEMBL::ExternalData::Variation
 #
@@ -470,12 +469,30 @@ sub hetse {
 }
 
 
+sub submitter_id {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'_submitter_id'} = $value;
+  }
+   if( ! exists $obj->{'_submitter_id'} ) {
+       return undef;
+   }
+   return $obj->{'_submitter_id'};
+
+}
 
 
+sub submitter_institute {
+   my ($obj,$value) = @_;
+   if( defined $value) {
+      $obj->{'_submitter_institute'} = $value;
+  }
+   if( ! exists $obj->{'_submitter_institute'} ) {
+       return undef;
+   }
+   return $obj->{'_submitter_institute'};
 
-
-
-
+}
 
 
 sub _reversed {

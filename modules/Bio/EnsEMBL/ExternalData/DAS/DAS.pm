@@ -125,7 +125,7 @@ sub get_Ensembl_SeqFeatures_contig_list{
 	my $dbh 	= $self->_db_handle();
 	my $dsn 	= $dbh->dsn();
 
-	print STDERR "Fetching features for $dsn...\n";
+	#print STDERR "Fetching features for $dsn...\n";
 
 
 	my $url = "features?" . join(";",@contig_ids) ;
@@ -133,8 +133,19 @@ sub get_Ensembl_SeqFeatures_contig_list{
 	my $base = URI::URL->new(join '/',$dbh->base());
 	my $url = $base . "/" . $url;
 	my $request = HTTP::Request->new(GET => "$url");
-	my $reply = $ua->request($request);
 
+    #$ua->request(POST 'http://somewhere/foo', [foo => bar, bar => foo]);
+    #$ua->request(GET 'http://www.sn.no/');
+
+	#my @contig_ids = map { $_->id() } @contigs;
+	#print STDERR "@contig_ids\n";
+	#$request = HTTP::Request->new(POST 'http://servlet.sanger.ac.uk:8080?features',
+	#					[segment => \@contig_ids]);
+	#print STDERR $request->as_string() , "\n";
+
+
+
+	my $reply = $ua->request($request);
 	my @lines = split ("\n", $reply->content);
 	
 	my $out = undef;

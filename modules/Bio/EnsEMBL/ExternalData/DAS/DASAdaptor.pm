@@ -51,9 +51,10 @@ use strict;
 # Object preamble
 
 use Bio::EnsEMBL::Root;
+use Bio::EnsEMBL::ExternalData::BaseAdaptor;
 use Bio::Das;
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::ExternalData::BaseAdaptor);
 
 sub new {
 	my($pkg, @args) = @_;

@@ -255,6 +255,13 @@ sub annotation_confidence_score {
 #     $self->throw("not yet implemented");
 # }
 
+sub num_ens_pepts {
+    my ($self,$value) = @_;
+    if( defined $value) {
+	$self->{'num_ens_pepts'} = $value;
+    }
+    return $self->{'num_ens_pepts'};
+}
 
 =head2 size
 
@@ -270,7 +277,9 @@ sub size {
  my ($self, $db_name) = @_; 
 
  if  ( defined $db_name) { return int($self->each_member_of_db($db_name)); }
- else { return int(@{$self->{'_members'}}) };
+ if ( defined $self->{'_members'} ) { return int(@{$self->{'_members'}}); }
+ # else: empty. 
+ return 0;
 }
 
 =head2 each_ens_pep_member
@@ -320,6 +329,19 @@ sub each_member_of_db {
 
   # might be slowish; do we need to change this, e.g., go to database? 
 
+  if ( defined($self->{mems_per_db}->{$db}) ) {
+      return @{$self->{mems_per_db}->{$db}};
+  }
+  my @mems = $self->_each_member_of_db($db);
+  $self->{mems_per_db}->{$db}= \@mems;
+  return @mems;
+}
+
+sub _each_member_of_db {
+  my ($self, $db) = @_;
+
+  # might be slowish; do we need to change this, e.g., go to database? 
+
   my @mems = ();
 
   foreach my $mem ($self->each_DBLink()) {  
@@ -344,7 +366,8 @@ sub each_member_of_db {
 sub each_DBLink{
    my ($self) = @_;
 
-  return @{$self->{'_members'}};
+ if ( defined $self->{'_members'} ) { return @{$self->{'_members'}}; }
+ return ();
 }
 
 =head2 add_DBLink

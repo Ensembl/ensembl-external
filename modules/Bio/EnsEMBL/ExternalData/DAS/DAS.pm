@@ -294,6 +294,24 @@ sub fetch_all_by_Slice {
 
   # Get all coord systems this Ensembl DB knows about
   my $csa = $slice->coord_system->adaptor;
+ my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
+
+# The following bit has been put to investigate why we get error messages in the error log saying that fetch_all can not be called on an undefined value
+  if (! defined($csa)) {
+		my @ca = caller(2);
+		use Data::Dumper;
+		warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+		warn("SLICE:".Dumper($slice));
+
+
+		if (! defined($csa2)) {
+		    warn("CSA2 is empty");
+		    return [];
+		} else {
+		    $csa = $csa2;
+		}
+
+  }
   my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 
   # Get the slice representation for each coord system. 

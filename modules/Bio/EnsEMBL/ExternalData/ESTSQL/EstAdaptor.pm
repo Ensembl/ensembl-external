@@ -87,8 +87,6 @@ sub new {
 sub get_Ensembl_SeqFeatures_contig {
    my ($self,$internal_id,$contig) = @_;
 
-	print STDERR "Fetching ESTs for contig $internal_id... HELOOOOO\n";
-
    if (!defined($contig)) {
        $self->throw("No contig entered for get_Ensembl_SeqFeatures_contig");
    }

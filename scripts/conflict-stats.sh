@@ -1,8 +1,8 @@
-#!/bin/sh
-
+#!/usr/bin/env bash
+# $Id$
 ### do statistics on the conflicts found when loading TRIBE families:
 
-usage="Usage: $0 file-with-output-from-family-input.pl"
+usage="Usage: $0 file-with-log-output-from-family-input.pl"
 if [ $# -ne 1  ]; then
      echo $usage; exit 1;
 fi
@@ -12,22 +12,22 @@ file=$1
 echo -n Totals:
 grep "^inserted" $file
 
-echo -n Total number of conflicts:
+echo -n 'Total number of "one gene, several family" conflicts':
 grep "^### assigning" $file| wc -l
 
-echo -n "UNKNOWN, replaced by other description:"
-grep "^### replacing previous.*, desc: UNKNOWN" $file | wc -l
-echo -n "other, _not_ replaced by UNKNOWN:"
-grep "^### alternative would be: UNKNOWN" $file | wc -l
+echo -n "conflicts resolved by choosing second (or later) assignment:"
+grep "^### replacing " $file | wc -l
 
-echo -n "other, replaced by (hopefully better) descriptions:"
-grep "^### replacing previous.*, desc: " $file | grep -v UNKNOWN | wc -l
+leaving=`grep "^### leaving " $file | wc -l`
+notbetter=`grep "^### alternative " $file | wc -l`
+echo "conflicts resolved by choosing first assignment:" $notbetter
+echo "undecided conflicts (first assignment kept)" $[leaving - notbetter]
 
-echo -n "other, _not_ replaced by (probably worse, but not UNKNOWN) others:"
-grep "^### alternative would be:" $file  | grep -v UNKNOWN | wc -l
+echo
+echo "Histogram of family sizes"
 
-echo -n "remaining UNKNOWN":
-grep "^### leaving as is; desc: UNKNOWN" $file | wc -l
+# for i in ...;
+echo "select '11 - 100', sum(occurrences) from cumulative_distrib where family_size between 11 and 100" |\
+ mysql -u $user -h $host $dbname | grep -v 'sum'
 
-echo -n "remaining not-UNKNOWNs (i.e., different families with same annots)":
-grep "^### leaving as is; desc:" $file | grep -v "UNKNOWN" | wc -l
+

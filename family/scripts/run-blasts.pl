@@ -1,8 +1,9 @@
 #!/usr/local/bin/perl
 # $Id$
 
-# submits all the blast jobs to the queue. NOTE:This script is also called by 
-# consistency.pl. (Maybe merge it into here).
+# Submits all the blast jobs to the queue. This script also does the
+# consistency checking and/or resubmitting. (Formerly done by
+# consistency.p)
 
 use strict;
 $|=1;

@@ -315,7 +315,9 @@ sub _map_DASSeqFeature_to_pep{
   if( ! $dblink->can( 'get_mapper' ) ){ return 0 }
 
   # Map
-  my @coords = $dblink->map_feature( $dsf );# Investigate this method
+  my @coords = ();
+  eval{ @coords = $dblink->map_feature( $dsf ) };
+  if( $@ ){ warn( $@ ) }
 
   @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
   @coords || return 0;

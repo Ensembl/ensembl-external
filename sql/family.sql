@@ -16,6 +16,12 @@ CREATE TABLE family (
    UNIQUE KEY(id)
 );
 
+CREATE TABLE alignments (
+  family              int(10) NOT NULL,
+  alignment           mediumtext NOT NULL,
+  PRIMARY KEY(FAMILY)
+);
+
 CREATE TABLE family_members (
   family	      int(10) NOT NULL,
   db_name             varchar(12) NOT NULL, 

@@ -328,7 +328,7 @@ sub _get_alignment {
     my ($self, $fam) = @_; 
 
     my $internal_id = $fam->internal_id();
-    my $q= "SELECT alignments
+    my $q= "SELECT alignment
             FROM alignments 
             WHERE family = $internal_id";
 

@@ -21,7 +21,7 @@ CREATE TABLE frequency (
 #
 CREATE TABLE key_word (
   key_id int(10) unsigned NOT NULL auto_increment,
-  key_word varchar(20),
+  key_word varchar(20) DEFAULT '' NOT NULL,
   PRIMARY KEY (key_id),
   KEY key_word (key_word)
 );
@@ -57,7 +57,7 @@ CREATE TABLE library (
 CREATE TABLE seqtag (
   seqtag_id int(10) unsigned NOT NULL auto_increment,
   source int(10),
-  name varchar(15),
+  name varchar(15) default '' not null,
   PRIMARY KEY (seqtag_id),
   KEY name (name)
 );

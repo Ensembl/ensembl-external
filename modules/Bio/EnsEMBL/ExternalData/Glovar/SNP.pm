@@ -75,6 +75,22 @@ sub display_id {
     return $self->{'display_id'};
 }
 
+=head2 display_name
+
+  Arg[1]      : (optional) String - Id to set
+  Example     : $self->display_name('rs303');
+  Description : alias for display_id
+  Return type : String
+  Exceptions  : none
+  Caller      : general
+
+=cut
+
+sub display_name {
+    my $self = shift;
+    return $self->display_id(@_);
+}
+
 =head2 alleles
 
   Arg[1]      : (optional) String - Alleles

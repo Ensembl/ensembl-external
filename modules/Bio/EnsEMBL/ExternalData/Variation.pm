@@ -376,6 +376,27 @@ sub status {
    return $obj->{'status'};
 }
 
+=head2 consequence
+
+ Title   : consequence
+ Usage   : $obj->consequence()
+ Function: Getter/setter for the consequence of the variation object.
+ Example : $obj->consequence('synonymous');
+ Returns : scalar
+ Args    : (optional) String
+
+
+=cut
+
+sub consequence {
+    my ($self,$value) = @_;
+ 
+    if( defined $value ) {
+        $self->{'_consequence'} = $value;
+    }
+    return $self->{'_consequence'};
+}
+
 =head2 raw_status
 
  Title   : raw_status

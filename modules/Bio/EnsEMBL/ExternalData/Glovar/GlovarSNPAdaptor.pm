@@ -111,15 +111,18 @@ sub fetch_Light_SNP_by_chr_start_end  {
     my $slice_strand = $slice->strand();
     my $ass_name     = $slice->assembly_name();
     my $ass_version  = $slice->assembly_version();
+    warn "$slice_chr, $ass_name, $ass_version, $slice_start, $slice_end";
 
     my $q = qq(
         SELECT
                 snp_summary.ID_SNP              as INTERNAL_ID,
                 snp_summary.DEFAULT_NAME        as ID_DEFAULT,
                 snp_name.SNP_NAME               as DB_ID,
-                mapped_snp.POSITION + seq_seq_map.START_COORDINATE - 1
+                (seq_seq_map.contig_orientation * mapped_snp.POSITION)
+                    + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
-                mapped_snp.END_POSITION + seq_seq_map.START_COORDINATE - 1
+                (seq_seq_map.contig_orientation * mapped_snp.END_POSITION)
+                    + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_END,
                 seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
                 scd.DESCRIPTION                 as VALIDATED,
@@ -251,9 +254,11 @@ sub fetch_SNP_by_id  {
         SELECT
                 snp_summary.ID_SNP              as INTERNAL_ID,
                 snp_summary.DEFAULT_NAME        as ID_DEFAULT,
-                mapped_snp.POSITION + seq_seq_map.START_COORDINATE - 1
+                (seq_seq_map.contig_orientation * mapped_snp.POSITION)
+                    + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_START,
-                mapped_snp.END_POSITION + seq_seq_map.START_COORDINATE - 1
+                (seq_seq_map.contig_orientation * mapped_snp.END_POSITION)
+                    + seq_seq_map.START_COORDINATE - 1
                                                 as CHR_END,
                 seq_seq_map.CONTIG_ORIENTATION  as CHR_STRAND,
                 scd.DESCRIPTION                 as VALIDATED,

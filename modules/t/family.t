@@ -11,7 +11,7 @@ BEGIN {
     }
     use Test;
     use vars qw($NTESTS);
-    $NTESTS = 22;
+    $NTESTS = 30;
     plan tests => $NTESTS;
 }
 
@@ -87,7 +87,7 @@ ok $fam->size,4,"Got unexpected family size";
 #test 8
 ok $fam->size_by_dbname('ENSEMBLGENE'),2,"Unexpected family size by database name";
 #test 9
-ok $fam->size_by_dbname_taxon_id('ENSEMBLGENE',9606),1,"Unexpected family size by database name";
+ok $fam->size_by_dbname_taxon('ENSEMBLGENE',9606),1,"Unexpected family size by database name";
 
 
 my $got = length($fam->get_alignment_string());
@@ -124,7 +124,7 @@ my $id = $famad->store($fam);
 #test 14
 ok $id,4,"Tried to store existing family, and did not get correct dbid back";
 $fam->stable_id('test');
-foreach my $member ($fam->each_DBLink) {
+foreach my $member ($fam->each_member) {
   $member->stable_id($member->stable_id."_test");
 }
 
@@ -173,3 +173,15 @@ ok $fam->dbID,1,"not the good family picked up\n";
 
 #test 22
 ok $fam->stable_id,"ENSF00000000001","Not the good family stable_id\n";
+
+#test 23->25
+ok $fam->each_member_of_db('SPTR'),2,"Not the good number of SPTR";
+ok $fam->each_member_of_db('ENSEMBLGENE'),2,"Not the good number of ENSEMBLGENE";
+ok $fam->each_member_of_db('ENSEMBLPEP'),2,"Not the good number of ENSEMBLPEP";
+
+#test 26->30
+ok $fam->each_member_of_db_taxon('SPTR',0),2,"Not the good number of SPTR taxon:0";
+ok $fam->each_member_of_db_taxon('ENSEMBLGENE',9606),1,"Not the good number of ENSEMBLGENE taxon:9606";
+ok $fam->each_member_of_db_taxon('ENSEMBLGENE',10090),1,"Not the good number of ENSEMBLGENE taxon:10090";
+ok $fam->each_member_of_db_taxon('ENSEMBLPEP',9606),1,"Not the good number of ENSEMBLPEP taxon:9606";
+ok $fam->each_member_of_db_taxon('ENSEMBLPEP',10090),1,"Not the good number of ENSEMBLPEP taxon:10090";

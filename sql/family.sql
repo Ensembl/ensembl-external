@@ -16,16 +16,6 @@ CREATE TABLE family (
    KEY(release)
 );
 
-CREATE TABLE family_totals (
-   family_id		int(10) NOT NULL, #foreign key to family table
-   external_db_id	int(10) NOT NULL, #foreign key to external_db table 
-   taxon_id		int(10) NOT NULL, # foreign key from taxon table
-   members_total	int(10) NOT NULL,
-
-   PRIMARY KEY (family_id,external_db_id,taxon_id),
-   KEY (members_total)
-);
-
 CREATE TABLE external_db (
   external_db_id	int(10) NOT NULL auto_increment,
   name varchar(40) 	NOT NULL,
@@ -63,18 +53,30 @@ CREATE TABLE taxon (
   KEY(common_name)
 );
 
-CREATE TABLE cumulative_distrib (
-  family_size int(10) NOT NULL,
-  occurrences int(10) NOT NULL,
-  cum_fraction_of_peptides float(4) NOT NULL, 
-  PRIMARY KEY(family_size)
-); 
-
 CREATE TABLE alignments (
   family_id  int(10) NOT NULL, #foreign key to family table
   alignment  mediumtext NOT NULL,
   PRIMARY KEY(family_id)
 );
+
+#### deprecated ##########
+#CREATE TABLE cumulative_distrib (
+#  family_size int(10) NOT NULL,
+#  occurrences int(10) NOT NULL,
+#  cum_fraction_of_peptides float(4) NOT NULL, 
+#  PRIMARY KEY(family_size)
+#); 
+
+#### deprecated ##########
+#CREATE TABLE family_totals (
+#   family_id		int(10) NOT NULL, #foreign key to family table
+#   external_db_id	int(10) NOT NULL, #foreign key to external_db table 
+#   taxon_id		int(10) NOT NULL, # foreign key from taxon table
+#   members_total	int(10) NOT NULL,
+#
+#   PRIMARY KEY (family_id,external_db_id,taxon_id),
+#   KEY (members_total)
+#);
 
 #### deprecated ##########
 #CREATE TABLE meta (

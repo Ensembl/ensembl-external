@@ -240,7 +240,7 @@ sub fetch_all_by_clone_accession {
         $q_start = $clone_end - $cl_end - 1;
         $q_end = $clone_end - $cl_start + 1;
     }
-    #warn join("|", $clone_start, $clone_end, $cl_start, $cl_end, $q_start, $q_end, "\n");
+    #warn join("|", $clone_start, $clone_end, $cl_start, $cl_end, $q_start, $q_end, $clone_strand, "\n");
     my $q2 = qq(
         SELECT
                 distinct(sgc.id_snp)    as id_snp,
@@ -302,8 +302,8 @@ sub fetch_all_by_clone_accession {
             $start = $row->{'SNP_START'} - $clone_start + 1;
             $end = $row->{'SNP_END'} - $clone_start + 1;
         } else {
-            $start = $clone_end -$row->{'SNP_START'} + 1;
-            $end = $clone_end - $row->{'SNP_END'} + 1;
+            $start = $clone_end - $row->{'SNP_END'} + 1;
+            $end = $clone_end -$row->{'SNP_START'} + 1;
         }
         
         my $snp = Bio::EnsEMBL::ExternalData::Glovar::SNP->new_fast(
@@ -326,6 +326,9 @@ sub fetch_all_by_clone_accession {
         ## DBLinks
         $self->_get_DBLinks($snp, $row->{'INTERNAL_ID'});
         
+        if ($start > $end) {
+            warn join("|", "snp", $start, $end, $snp->strand, "\n");
+        }
         push (@snps, $snp); 
     }
 
@@ -395,6 +398,7 @@ sub fetch_SNP_by_id  {
         AND     ss.id_snp = snp.id_snp
         AND     snp.var_type = svd.id_dict
         AND     ss.confirmation_status = scd.id_dict
+        AND     sseq.is_current = 1
     );
 
     my @snps = ();
@@ -409,11 +413,14 @@ sub fetch_SNP_by_id  {
         return([]);
     }
 
+    my $i;
     while (my $row = $sth1->fetchrow_hashref()) {
         return([]) unless keys %{$row};
+        $i++;
 
         $row->{'SNP_END'} ||= $row->{'SNP_START'};
         my $snp_start = $row->{'SNP_START'};
+        
         my $id_seq = $row->{'NT_ID'};
         my $q2 = qq(
             SELECT
@@ -447,8 +454,8 @@ sub fetch_SNP_by_id  {
                 $start = $row->{'SNP_START'} - $clone_start + 1;
                 $end = $row->{'SNP_END'} - $clone_start + 1;
             } else {
-                $start = $clone_end - $row->{'SNP_START'} + 1;
-                $end = $clone_end - $row->{'SNP_END'} + 1;
+                $start = $clone_end - $row->{'SNP_END'} + 1;
+                $end = $clone_end - $row->{'SNP_START'} + 1;
             }
             next if ($start < 0);
 
@@ -458,6 +465,9 @@ sub fetch_SNP_by_id  {
             $snp->end($end);
             $snp->strand($row->{'SNP_STRAND'});
             $snp = $snp->transform('chromosome');
+
+            ## try next clone if we couldn't map the SNP
+            last if ($snp->start && $snp->end);
         }
         
         $snp->dbID($row->{'INTERNAL_ID'});
@@ -498,6 +508,9 @@ sub fetch_SNP_by_id  {
         
         push @snps, $snp;
     }
+
+    ## if we get more than one results, then snp_sequence.is_current is wrong
+    warn "WARNING: Multiple SNP mappings ($i) returned" if ($i > 1);
 
     &eprof_end('fetch_snp_by_id');
     #&eprof_dump(\*STDERR);

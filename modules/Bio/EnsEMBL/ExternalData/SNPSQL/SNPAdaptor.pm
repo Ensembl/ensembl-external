@@ -419,8 +419,37 @@ sub fetch_freqs_by_pop_SNP_id {
   return \@freqs;
 }
 
+=head2 fetch_slice_strand_by_ssid
 
+  Arg 1      : int $ssid
+  Arg 2      : $slice
+               Use $ssid and $slice to retrieve the slice strand of
+               given $ssid
+  Example    : my $slice_strand = $snp_adaptor->fetch_slice_strand_by_ssid($ssid,$slice)
+  Description: Retreives slice strand for a given SubSNP id
+  Returntype : int $slice_strand
+  Exceptions : none
+  Caller     : internal
 
+=cut
+
+sub fetch_slice_strand_by_ssid {
+  my ($self, $ssid, $slice) = @_;
+  my $slice_name = $slice->name;
+  my @names = split /\:/, $slice_name;
+  my $slice_strand = $names[-1];
+  my $sth = $self->prepare('
+      SELECT ch.strand as ref_strand, ss.strand as ss_strand
+      FROM   ContigHit ch, SubSNP ss
+      WHERE  ch.internal_id = ss.internal_id and ss.id = ?;');
+
+  $sth->execute($ssid)|| $self->throw("The corresponding refsnpid or ssid don't have strand info");
+
+  my ($ref_strand, $ss_strand) = $sth->fetchrow;
+  my $ssid_slice_strand = $slice_strand * $ref_strand * $ss_strand;
+
+  return $ssid_slice_strand;
+}
 
 =head2 fetch_by_clone_accession_vesion
 

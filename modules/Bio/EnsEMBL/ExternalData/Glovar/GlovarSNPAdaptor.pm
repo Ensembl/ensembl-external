@@ -237,8 +237,8 @@ sub fetch_all_by_clone_accession {
         $q_start = $clone_start + $cl_start - 1;
         $q_end = $clone_start + $cl_end + 1;
     } else{
-        $q_start = $clone_start - $cl_end - 1;
-        $q_end = $clone_start - $cl_start + 1;
+        $q_start = $clone_end - $cl_end - 1;
+        $q_end = $clone_end - $cl_start + 1;
     }
     #warn join("|", $clone_start, $clone_end, $cl_start, $cl_end, $q_start, $q_end, "\n");
     my $q2 = qq(
@@ -280,19 +280,27 @@ sub fetch_all_by_clone_accession {
         return([]) unless keys %{$row};
         warn "WARNING: private data!" if $row->{'PRIVATE'};
 
+        ## hack for SNPs without strand -> remove once db has been fixed
+        next unless $row->{'SNP_STRAND'};
+
         ## calculate coords depending on clone orientation
         my ($start, $end);
         $row->{'SNP_END'} ||= $row->{'SNP_START'};
-        $start = $clone_strand * ($row->{'SNP_START'} - $clone_start) + 1;
-        $end = $clone_strand * ($row->{'SNP_END'} - $clone_start) + 1;
-
+        if ($clone_strand == 1) {
+            $start = $row->{'SNP_START'} - $clone_start + 1;
+            $end = $row->{'SNP_END'} - $clone_start + 1;
+        } else {
+            $start = $clone_end -$row->{'SNP_START'} + 1;
+            $end = $clone_end - $row->{'SNP_END'} + 1;
+        }
+        
         my $snp = Bio::EnsEMBL::SNP->new_fast(
             {
                 '_snpid'        =>    $row->{'ID_DEFAULT'},
                 'dbID'          =>    $row->{'INTERNAL_ID'},
                 '_gsf_start'    =>    $start,
                 '_gsf_end'      =>    $end,
-                '_snp_strand'   =>    $row->{'SNP_STRAND'}*$clone_strand,
+                '_snp_strand'   =>    $row->{'SNP_STRAND'},
                 '_validated'    =>    $row->{'VALIDATED'},
                 '_raw_status'   =>    $row->{'VALIDATED'},
                 '_ambiguity_code' =>  $self->_ambiguity_code($row->{'ALLELES'}),
@@ -384,12 +392,11 @@ sub fetch_SNP_by_id  {
 
     while (my $row = $sth1->fetchrow_hashref()) {
         return([]) unless keys %{$row};
-        #next if $row->{'PRIVATE'};
 
         $row->{'SNP_END'} ||= $row->{'SNP_START'};
         my $snp_start = $row->{'SNP_START'};
         my $id_seq = $row->{'NT_ID'};
-        warn Data::Dumper::Dumper($row);
+        #warn Data::Dumper::Dumper($row);
         my $q2 = qq(
             SELECT
                     cs.database_seqname     as embl_acc,
@@ -400,15 +407,8 @@ sub fetch_SNP_by_id  {
                     clone_seq_map csm
             WHERE   csm.id_sequence = '$id_seq'
             AND     cs.id_cloneseq = csm.id_cloneseq
-            AND ((
-                    csm.contig_orientation = 1 AND
-                    ((csm.start_coordinate < $snp_start) AND
-                    (csm.end_coordinate > $snp_start))
-                ) OR (
-                    csm.contig_orientation = '-1' AND
-                    ((csm.start_coordinate > $snp_start) AND
-                    (csm.end_coordinate < $snp_start))
-                ))
+            AND     (csm.start_coordinate < $snp_start)
+            AND     (csm.end_coordinate > $snp_start)
         );
         my $sth2;
         eval {
@@ -421,12 +421,17 @@ sub fetch_SNP_by_id  {
         }
         my @mapped;
         while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
-            warn join("|", $embl_acc, $clone_start, $clone_end, $clone_strand);
+            #warn join("|", $embl_acc, $clone_start, $clone_end, $clone_strand);
             
             ## calculate clone coordinates for SNP
             my ($start, $end);
-            $start = $clone_strand * ($row->{'SNP_START'} - $clone_start) + 1;
-            $end = $clone_strand * ($row->{'SNP_END'} - $clone_start) + 1;
+            if ($clone_strand == 1) {
+                $start = $row->{'SNP_START'} - $clone_start + 1;
+                $end = $row->{'SNP_END'} - $clone_start + 1;
+            } else {
+                $start = $clone_end - $row->{'SNP_START'} + 1;
+                $end = $clone_end - $row->{'SNP_END'} + 1;
+            }
             next if ($start < 0);
 
             ## map to chromosomal coordinates
@@ -443,18 +448,20 @@ sub fetch_SNP_by_id  {
             #if maps to multiple locations in assembly, skip feature
             next if(@mapped > 1);
 
+            warn join ("|", $clone_strand, $row->{'SNP_STRAND'});
+
             #try next clone if mapped to gap
-            warn $mapped[0]->start;
+            #warn $mapped[0]->start;
             last unless($mapped[0]->isa('Bio::EnsEMBL::Mapper::Gap'));
         }
         ## hack: skip if we don't get clones from NT_contig
         next unless @mapped;
-        
+
         my $snp = Bio::EnsEMBL::SNP->new;
         $snp->start($mapped[0]->start);
         $snp->end($mapped[0]->end);
-        $snp->strand($mapped[0]->strand);
-        $snp->original_strand($mapped[0]->strand);
+        $snp->strand($row->{'SNP_STRAND'});
+        $snp->original_strand($row->{'SNP_STRAND'});
 
         $snp->dbID($row->{'INTERNAL_ID'});
         $snp->chr_name($row->{'CHR_NAME'});
@@ -465,7 +472,7 @@ sub fetch_SNP_by_id  {
         $snp->seqname($acc_version);
 
         $snp->source_tag('Glovar');
-        $snp->snpclass('SNP');
+        $snp->snpclass($row->{'SNPCLASS'});
         $snp->raw_status($row->{'VALIDATED'});
 
         $snp->alleles($row->{'ALLELES'});
@@ -475,10 +482,15 @@ sub fetch_SNP_by_id  {
            $row->{'CHR_NAME'},
            $mapped[0]->start - 25,
            $mapped[0]->end + 25,
-           $mapped[0]->strand
         );
+        $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
         my $seq = $slice->seq;
-        $snp->upStreamSeq(substr($seq, 0, 25));
+
+        ## determine end of upstream sequence depending on range type (in-dels
+        ## of type "between", i.e. start !== end, are actually inserts)
+        my $up_end = 25;
+        $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($mapped[0]->start ne $mapped[0]->end));
+        $snp->upStreamSeq(substr($seq, 0, $up_end));
         $snp->dnStreamSeq(substr($seq, 26));
         
         ## these attributes are on ensembl SNPs, but are not available in Glovar
@@ -564,11 +576,9 @@ sub _get_DBLinks {
 
   Arg[1]      : Bio::EnsEMBL::SNP object
   Arg[2]      : glovar SNP ID (ID_SNP)
-  Arg[3]      : name of the consequence experiment
-  Example     : $glovar_adaptor->_get_consequences($snp, '104567', 'ensembl_vega);
-  Description : adds consequences (position type, consequence) to snp object;
-                these are stored as anonymous arrayrefs in snp->type and
-                snp->consequence
+  Arg[3]      : ID of the consequence experiment
+  Example     : $glovar_adaptor->_get_consequences($snp, '104567', 0246);
+  Description : adds consequences (position type, consequence) to snp object
   Return type : none
   Exceptions  : none
   Caller      : $self
@@ -603,8 +613,6 @@ sub _get_consequences {
         return;
     }
 
-    # this is a bit hacky, since it abuses Variation::type and
-    # Variation::consequence to store an anonymous arrayref instead of a string
     my (undef, $pos_type, $cons) = $sth->fetchrow_array;
     $snp->type($self->_map_position_type($pos_type));
     $snp->consequence($cons);

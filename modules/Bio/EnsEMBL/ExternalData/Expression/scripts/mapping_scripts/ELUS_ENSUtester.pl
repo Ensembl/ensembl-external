@@ -1,3 +1,10 @@
+#
+# this is a quality control script
+#
+# usage perl ELUS_ENSUtester.pl how_many_to_compare
+#
+#
+
 use strict;
 use English;
 
@@ -5,7 +12,7 @@ my $counter = 0;
 my $positive = 0;
 my $all = 0;
 
-open (ENSU, $ARGV[0]) || die "cannot open $ARGV[0]\n";
+open (ENSU, ENSUmapper.dat) || die "cannot open ENSUmapper.dat\n";
 while (<ENSU>)  
       {
       $all++;
@@ -30,7 +37,7 @@ else {#print  "$enst $unigene $unigene2 \n";
            }
         }
       close ELUS; 
-      last if $all == $ARGV[1]; 
+      last if $all == $ARGV[0]; 
       }
 close ENSU; 
 print "all: $all, known: $counter, known_correct $positive\n";

@@ -1,3 +1,9 @@
+#
+# this is a postprocessor to be run on the ENSU mapping output file
+# it implements two filters: score cut-off and redundancy cut-off 
+#
+#
+#
 
 use strict;
 use English;
@@ -7,7 +13,7 @@ my %hash = ();
 
 # filter 1: $score has to be above 300
 
-open (ENSU, "input_data/ENSUmapper.dat") || die "cannot open ENSUmapper.dat\n";
+open (ENSU, "ENSUmapper.dat") || die "cannot open ENSUmapper.dat\n";
 while (<ENSU>)  
       {
       chomp;
@@ -20,7 +26,7 @@ while (<ENSU>)
 
 
 foreach my $unigene (keys %hash) {
-if (@{$hash{$unigene}} < 6)
+if (@{$hash{$unigene}} < 15)
    {
    while (@{$hash{$unigene}}) 
          {

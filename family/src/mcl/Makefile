@@ -6,10 +6,10 @@
 #	begin user configurable options
 #
 
-USR_DEBUG = yes
-USR_INTEGRITY =	no
-USR_PROFILE = no
-USR_ARCH = $(shell uname)
+USR_OPT := yes
+USR_INTEGRITY :=	no
+USR_PROFILE := no
+USR_ARCH := $(shell uname)
 
 #
 #	end user configurable options
@@ -39,48 +39,51 @@ COMPILE_SYS = \
 	-Wstrict-prototypes \
 	-Wwrite-strings
 
-### additional optimization/debugging options:
-ifeq '$(USR_DEBUG)' 'yes'
-	OPTIMIZE = -g -DEXTERN__INLINE__DEFINE="static " \
-		       -DEXTERN__INLINE__DECLARE="static "
-# following should work on any compiler
-	STRIP			= chmod 755 $@
-else
+### additional optimization/debugging options (for gcc):
+ifeq ($(strip $(USR_OPT)),yes)
 	LINK_DEBUG		=
-# following is GNU specific:
-	OPTIMIZE		= -DEXTERN__INLINE__DEFINE="extern __inline__ "\
+	OPTIMIZE		:= -DEXTERN__INLINE__DEFINE="extern __inline__ "\
 				  -DEXTERN__INLINE__DECLARE="" \
 	 			  -O3 -fomit-frame-pointer
 	STRIP			= chmod 755 $@; strip $@
+else
+	LINK_DEBUG		=
+	OPTIMIZE := -g -DEXTERN__INLINE__DEFINE="static " \
+		       -DEXTERN__INLINE__DECLARE="static "
+# following should work on any compiler
+	STRIP			= chmod 755 $@
 endif
 
 ### override any of the above CC, COMPILE_SYS, OPTIMIZE assignments:
-ifeq '$(USR_ARCH)' 'sgi'
-# COMPILE_SYS  = <archicture/compiler specific options>
-    ifeq '$(USR_DEBUG)' 'yes'
-    # OPTIMIZE  = <archicture/compiler specific debugging options>
+ifeq ($(strip $(USR_ARCH)),sgi)
+#   COMPILE_SYS  = <archicture/compiler specific options>
+    ifeq ($(strip $(USR_OPT)),yes)
+#       OPTIMIZE  := <archicture/compiler specific optimization options>
     else
-    # OPTIMIZE  = <archicture/compiler specific optimization options>
+	OPTIMIZE := haha
+# 	OPTIMIZE  = <archicture/compiler specific debugging options>
     endif
 endif
 
-ifeq '$(USR_ARCH)' 'OSF1'
+### etc. for other architectures
+
+ifeq ($(strip $(USR_ARCH)),OSF1)
     arch = ev67  # use 'generic' if you don't know
     CC = /bin/cc 
     COMPILE_SYS = -D__inline__="" -arch $(arch)
     LINK_SYS = 
-    ifeq '$(USR_DEBUG)' 'yes'
-    OPTIMIZE  =  -g -DEXTERN__INLINE__DEFINE="static " \
-                    -DEXTERN__INLINE__DECLARE="static "
+    ifeq ($(strip $(USR_OPT)),yes)
+# 	following not working/debugged yet:	
+	OPTIMIZE  := -O4  -DEXTERN__INLINE__DEFINE="static " \
+			 -DEXTERN__INLINE__DECLARE="static "
     else
-    # following not working/debugged yet:
-    OPTIMIZE  = -O4  -DEXTERN__INLINE__DEFINE="static " \
-                     -DEXTERN__INLINE__DECLARE="static "
+	OPTIMIZE  :=  -g -DEXTERN__INLINE__DEFINE="static " \
+			-DEXTERN__INLINE__DECLARE="static "
     endif
 endif
 
 ### profiling flags:
-ifeq '$(USR_PROFILE)' 'yes'
+ifeq ($(strip $(USR_PROFILE)),yes)
 	COMPILE_PROFILE	=	-pg
 	LINK_PROFILE		=	-pg
 else
@@ -89,7 +92,7 @@ else
 endif
 
 # additional check flags:
-ifeq '$(USR_INTEGRITY)' 'yes'
+ifeq ($(strip $(USR_INTEGRITY)),yes)
 	COMPILE_INTEGRITY =	-DRUNTIME_VECTOR_INTEGRITY
 else
 	COMPILE_INTEGRITY =
@@ -286,5 +289,5 @@ bin/yam: doc/yam.o doc/key.o util/txt.o lib/libutil.a
 #	$(STRIP)
 
 testmake:
-	echo $(USR_ARCH) $(CC) $(OPTIMIZE) 
+	echo USR_ARCH=$(USR_ARCH) USR_OPT=$(USR_OPT) CC=$(CC) OPTIMIZE=$(OPTIMIZE) 
 

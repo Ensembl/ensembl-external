@@ -1,0 +1,4 @@
+$Id$
+
+Little program to convert the output of clean-blast.pl into a form usable by
+mcl.

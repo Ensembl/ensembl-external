@@ -55,12 +55,15 @@ if ($ddl) {                         # create database
     create_db($famdb_connect_string);
 }
 my $famdb = db_connect($famdb_connect_string);
-create_tables($famdb, $ddl) if $ddl;
 $famdb->{autocommit}++;
+$famdb->{RaiseError}++; # so we can forget about all '|| die' s
+create_tables($famdb, $ddl) if $ddl;
+
 my $ensdb = db_connect($ensdb_connect_string);
+$ensdb->{RaiseError}++;
 
 warn "loading families";
-# &load_families($famdb, $ensdb);
+&load_families($famdb, $ensdb);
 warn "doing statistics tables\n";
 &do_stats($famdb);
 warn "done with statistics\n";
@@ -100,7 +103,7 @@ sub create_tables {
     #Modified split statement, only semicolumns before end of line,
     #so we can have them inside a string in the statement
     foreach my $s (grep /\S/, split /;\s*\n/, $sql) {
-        $dbh->do($s) || die $DBI::errstr;
+        $dbh->do($s);
     }
 }                                       # create_tables
  
@@ -153,7 +156,7 @@ sub ens_find {
     while ( $rowhash = $q->fetchrow_hashref) {
         push @results, $rowhash->{id};
     }
-    die "couldn't execute:" . $q->err if $q->errstr;
+
     if (@results != 1) {
         if (@results){
             warn "for $pepid, I got: " 
@@ -171,7 +174,6 @@ sub ens_find {
 sub delete_prev_assign {
     my ($q) = @_; 
     $q->execute($q);
-    die $q->errstr if $q->err;
 }                                       # delete_prev_assign
 
 # return -1 if description a worse than b, 0 if equal, 1 if better
@@ -198,37 +200,27 @@ sub compare_desc {
 
 sub fill_in_member_count {
     my ($dbh) = @_;
-die "this is so slow it needs redoing (with one SQL statement)";
-    my $q= "SELECT internal_id from family";
-    $q = $dbh->prepare($q) || die $dbh->errstr;
-    $q->execute || die $dbh->errstr;
 
-    my $ids = $q->fetchall_arrayref;
-    die $dbh->errstr if $dbh->err;
-    die "no ids found" if @$ids == 0;
-
-    $q = "SELECT COUNT(*) 
+    my $q = "SELECT family as famid, COUNT(*) as n
           FROM family_members 
-          WHERE family = ? 
-            AND db_name = '$ens_pep_dbname'";
-    $q = $dbh->prepare($q) || die $dbh->errstr;
+          WHERE db_name = '$ens_pep_dbname'
+          GROUP BY famid";
+    $q = $dbh->prepare($q);
+    $q->execute;
 
     my $u = "UPDATE family SET num_ens_pepts = ? WHERE internal_id = ?";
-    $u = $dbh->prepare($u) || die $dbh->errstr;
+    $u = $dbh->prepare($u);
 
     my $tot_n=0;
-    foreach my $row ( @$ids ) { 
-        my $famid= $$row[0];
-        
-        $q->execute($famid) || die $q->errstr;
-        my $n= $q->fetchrow_array();
+ 
+    while ( my @row = $q->fetchrow ) {
+        my ($famid, $n) = @row;
         $tot_n += $n;
-        die $q->errstr if $q->err;
-
-        $u->execute($n, $famid) || die $u->errstr;
+        $u->execute($n, $famid);
     }
     return $tot_n;
-}
+}                                       # fill_in_member_count
+
 
 ## 
 sub do_stats { 
@@ -242,17 +234,19 @@ sub do_stats {
              SELECT num_ens_pepts as n, COUNT(id) as cnt
              FROM  family
              GROUP BY n";
-    $q   = $dbh->do($q) || die $dbh->errstr;
+    $dbh->do($q);
+    $q = "ALTER TABLE $distr_table ADD INDEX idx_$distr_table (n)";
+    $dbh->do($q);
 
     $q = "INSERT INTO cumulative_distrib
           SELECT d1.n, d1.cnt, (SUM(d2.cnt*d2.n))/$tot_n
           FROM $distr_table d1, $distr_table d2
           WHERE d1.n >= d2.n
           GROUP by d1.n, d1.cnt";
-    $q= $dbh->do($q) || die $dbh->errstr;
+    $dbh->do($q);
 
     $q = "DROP TABLE $distr_table"; 
-    $q   = $dbh->do($q) || die $dbh->errstr;
+    $dbh->do($q);
 }                                       # do_stats
 
 sub load_families {
@@ -273,18 +267,18 @@ sub load_families {
        VALUES(?,            ?,         ?,        ?,        ?)\n";
 ###            $internal_id, '$fam_id', '$descr', $release, $score);
 
-    $fam_q = $famdb->prepare($fam_q) || die $famdb->errstr;
+    $fam_q = $famdb->prepare($fam_q);
 
     my $mem_q = 
       "INSERT INTO family_members(family, db_name, db_id)
                            VALUES(?,      ?,       ?)\n";
 ###                         $internal_id, '$db_name', '$mem'
 
-    $mem_q = $famdb->prepare($mem_q) || die $famdb->errstr;
+    $mem_q = $famdb->prepare($mem_q);
 
     # to check for existence
     my $pep_q = "SELECT id from translation where id = ?";
-    $pep_q = $ensdb->prepare($pep_q) || die $ensdb->errstr;
+    $pep_q = $ensdb->prepare($pep_q);
 
     my $gene_q = 
       "SELECT g.id 
@@ -292,18 +286,21 @@ sub load_families {
        WHERE tl.id = ? 
            AND tl.id = tc.translation and tc.gene = g.id";
 
-    $gene_q = $ensdb->prepare($gene_q) || die $ensdb->errstr;
+    $gene_q = $ensdb->prepare($gene_q);
 
     my $del_q = 
       "DELETE FROM family_members
        WHERE db_name = '$ens_gene_dbname'
          AND db_id = ?";
-    $del_q = $famdb->prepare($del_q) || die $famdb->errstr;
+    $del_q = $famdb->prepare($del_q);
 ### end of queries
 
     my %gene_fam = undef;
     my %fam_desc = undef;
     my %fam_score = undef;
+
+#    $famdb->{RaiseError}=0; doesn't work !?!$?!@~@
+#    $ensdb->{RaiseError}=0;
 
     while(<>) {
         next if /^#/;
@@ -331,17 +328,16 @@ sub load_families {
         
         # my $fam_id = format_fam_id $num; now in file.
         
-        $fam_q->execute($internal_id, $fam_id, $desc, $release, $score)
-          || die "couldn't insert line $.:\n$_\n " . $fam_q->errstr;
+        $fam_q->execute($internal_id, $fam_id, $desc, $release, $score);
 
         my %seen_gene = undef;          # just for filtering transcripts
+
       MEM:
         foreach my $mem (@mems) {
             if ( grep $mem =~ /^$_/,@id_prefixes ) {
                 
                 if ($add_ens_pep)  {
-                    $mem_q->execute($internal_id, $ens_pep_dbname, $mem)
-                      || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
+                    $mem_q->execute("$internal_id", $ens_pep_dbname, $mem);
                     $mem_count++;
                 }
                 
@@ -393,23 +389,19 @@ sub load_families {
                         warn "### replacing previous $prev_fam, score: $prev_score; desc: $prev_desc\n";
                         warn "### with $fam_id, score: $score; desc: $desc\n\n";
                         $del_q->execute($ens_gene_id);
-                        die $del_q->errstr if $del_q->err;
                     }
                     $gene_fam{$ens_gene_id} = $fam_id;
                     $seen_gene{$ens_gene_id}=$mem;
                     
-                    if ( ! $mem_q->execute($internal_id, $ens_gene_dbname, 
-                                         $ens_gene_id)) {
-                        # duplicate ensembl gene
-                        die "couldn't insert line $.:\n$_\n " . $mem_q->errstr; 
-                    }
+                    # if this fails, we have duplicate ensembl gene
+                    $mem_q->execute($internal_id, $ens_gene_dbname, 
+                                    $ens_gene_id);
                     $mem_count++;
                 }                       # if add_ens_gene
-            } else {                    # this must be swissprot
+            } else {                    # this must be a swissprot
                 if ($add_swissprot) { 
-                    if ( ! $mem_q->execute($internal_id, $sp_dbname, $mem) ) {
-                        warn "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
-                    }
+                    # if this fails, we have duplicate swissprot pept
+                    $mem_q->execute($internal_id, $sp_dbname, $mem);
                     $mem_count++;
                 }
             }

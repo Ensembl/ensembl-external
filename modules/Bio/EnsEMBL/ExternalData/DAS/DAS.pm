@@ -310,15 +310,7 @@ sub _map_DASSeqFeature_to_pep{
   if( ! $dblink->can( 'get_mapper' ) ){ return 0 }
 
   # Map
-  #warn( $dsf->das_type.":".$dsf->das_start."-".$dsf->das_end );
-  my $mapper = $dblink->get_mapper;
-  #warn Data::Dumper::Dumper( $mapper );
-  my @coords = $mapper->map_coordinates( 'TRANSLATION_ID',
-					 $dsf->das_start      || 1, 
-					 $dsf->das_end        || 1,
-					 1, 'ensembl' );
-
-  #my @coords = $dblink->map_feature( $dsf ); Investigate this method
+  my @coords = $dblink->map_feature( $dsf );# Investigate this method
 
   @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
   @coords || return 0;

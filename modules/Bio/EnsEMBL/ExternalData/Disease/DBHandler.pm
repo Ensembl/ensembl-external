@@ -19,7 +19,6 @@ my $diseasedb = new Bio::EnsEMBL::ExternalData::Disease::DBHandler(
                               -host=>'sol28.ebi.ac.uk',
                               -port=>'3307',
                               -ensdb=>$ensembldb,
-                              -mapdb=>$mapdb);
 
 
 
@@ -73,7 +72,7 @@ sub new
     my($class,@args) = @_;
     my $self = bless {}, $class;
     
-    my ($db,$host,$port,$driver,$user,$password,$debug,$ensdb,$mapdb) = 
+    my ($db,$host,$port,$driver,$user,$password,$debug,$ensdb) = 
       $self->_rearrange([qw(DBNAME
                 HOST
                 PORT
@@ -82,7 +81,6 @@ sub new
                 PASS
                 DEBUG
                 ENSDB
-                MAPDB
                 )],@args);
     
 
@@ -92,10 +90,8 @@ sub new
     $db     || ( $db = 'disease' );
     $user   || ( $user = 'ensembl' );   
     $ensdb  || $self->throw("I need ensembl db obj");
-    $mapdb  || $self->throw("I need map db obj");
    
     $self->_ensdb($ensdb); 
-    $self->_mapdb($mapdb); 
     
     my $dsn = "DBI:$driver:database=$db;host=$host;port=$port";
     if( $debug && $debug > 10 ) {
@@ -787,7 +783,6 @@ while ( my $rowhash = $sth->fetchrow_hashref)
 
 
 if (defined $self->_ensdb){@diseases=$self->_link2ensembl(@diseases);}
-if (defined $self->_mapdb){@diseases=$self->_link2maps(@diseases);}
 
 
 return @diseases;
@@ -864,24 +859,6 @@ sub _link2ensembl
 
 
 
-sub _link2maps
-{
-
-    my ($self,@diseases)=@_;
-
-    foreach my $dis (@diseases){ 
-    foreach my $location($dis->each_Location){
-        
-        # do sth with a map obj and set global coordinates  
-        $location->global_position("555555 ");      
-    }
-    }
-    
-    return @diseases;
-
-}
-
-
 sub _db_handle 
 {
   my ($self,$value) = @_;
@@ -913,14 +890,6 @@ sub _ensdb
   return $self->{'_ensdb'};
 }
 
-
-sub _mapdb 
-{
-  my ($self,$value) = @_;
-  if( defined $value) {$self->{'_mapdb'} = $value;}
-  
-  return $self->{'_mapdb'};
-}
 
 
 

@@ -153,6 +153,11 @@ sub all_diseases
 
 
 
+
+
+
+
+
 sub diseases_on_chromosome 
 {                          
     my ($self,$chromosome_no)=@_;
@@ -345,6 +350,52 @@ return @diseases;
 
 
                        
+
+=head2 all disease names limit
+
+ Title   : all_disease_names_limit
+ Usage   : my @diseases=$diseasedb->all_disease_names_limit(90,2);
+ Function: gets all disease names from the database limites by offset and count
+ Example :
+ Returns : an array of disease names (strings)
+ Args    :
+
+
+=cut
+
+
+
+
+
+
+
+sub all_disease_names_limit 
+{
+    my ($self,$offset,$count)=@_;
+
+    $offset || $self->throw("I need two parameters: offset and count");
+    $count || $self->throw("I need two parameters: offset and count");
+
+    my $query_string="select disease from disease limit $offset,$count;";
+
+    my $sth=$self->_db_handle->prepare($query_string);
+    $sth->execute;
+
+
+    my @diseases;
+
+    while ( my $rowhash = $sth->fetchrow_hashref) 
+    {
+	push @diseases,$rowhash->{'disease'};	
+    }
+
+    return @diseases;
+
+} 
+                         
+
+
+
 
 sub _link2ensembl
 {

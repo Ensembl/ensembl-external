@@ -58,11 +58,106 @@ use Bio::Annotation::DBLink;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor);
 
+=head2 fetch_clone_by_accession
+
+  Arg[1]      : String $embl_acc - EMBL accession of the clone
+  Example     : my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = $glovar_adaptor->fetch_clone_by_accession('AL123456');
+  Description : Fetches clone info from Glovar by accession
+  Return type : List of
+                    sequence name the clone is mapped to
+                    dbID of this sequence
+                    start coordinate of clone mapping
+                    end coordinate of clone mapping
+                    strand of clone mapping
+  Exceptions  : thrown if data fetching error occurs
+  Caller      : usually subclasses of GlovarAdaptor
+
+=cut
+
+sub fetch_clone_by_accession {
+    my ($self, $embl_acc) = @_;
+
+    ## get info on clone
+    my $q1 = qq(
+        SELECT
+                ss.database_seqnname,
+                csm.id_sequence,
+                csm.start_coordinate,
+                csm.end_coordinate,
+                csm.contig_orientation,
+                ss.database_source,
+                ss.is_current
+        FROM    clone_seq cs,
+                clone_seq_map csm,
+                snp_sequence ss
+        WHERE   cs.database_seqname = '$embl_acc'
+        AND     cs.id_cloneseq = csm.id_cloneseq
+        AND     csm.id_sequence = ss.id_sequence
+        AND     ss.is_current = 1
+    );
+    my $sth;
+    eval {
+        $sth = $self->prepare($q1);
+        $sth->execute();
+    }; 
+    if ($@){
+        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+        return();
+    }
+    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
+    my (@cloneinfo, $i);
+    while (my @res = $sth->fetchrow_array) {
+        @cloneinfo = @res;
+        warn "current: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
+        $i++;
+    }
+    if ($i > 1) {
+        $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
+    }
+
+    # HACK: if we didn't find a mapping to the current sequences, try to get it
+    # from NCBI35
+    unless ($i) {
+        my $q1a = qq(
+            SELECT
+                    ss.database_seqnname,
+                    csm.id_sequence,
+                    csm.start_coordinate,
+                    csm.end_coordinate,
+                    csm.contig_orientation,
+                    ss.database_source,
+                    ss.is_current
+            FROM    clone_seq cs,
+                    clone_seq_map csm,
+                    snp_sequence ss
+            WHERE   cs.database_seqname = '$embl_acc'
+            AND     cs.id_cloneseq = csm.id_cloneseq
+            AND     csm.id_sequence = ss.id_sequence
+            AND     ss.database_source = 314
+        );
+        my $sth;
+        eval {
+            $sth = $self->prepare($q1a);
+            $sth->execute();
+        }; 
+        if ($@){
+            warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+            return();
+        }
+        while (my @res = $sth->fetchrow_array) {
+            @cloneinfo = @res;
+            warn "NCBI35: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
+        }
+    }
+
+    # return result list
+    return (@cloneinfo);
+}
+
 sub track_name {
     my ($self) = @_;    
     die("ERROR: track_name called on Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor!\n
         It should be implemented by a derived class!\n");
 }
-
 
 1;

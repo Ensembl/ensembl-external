@@ -61,42 +61,12 @@ use vars qw(@ISA);
 sub fetch_all_by_clone_accession {
     my ($self, $embl_acc, $embl_version, $cl_start, $cl_end) = @_;
 
-    ## get info on clone
-    my $q1 = qq(
-        SELECT
-                ss.database_seqnname,
-                csm.id_sequence,
-                csm.start_coordinate,
-                csm.end_coordinate,
-                csm.contig_orientation
-        FROM    clone_seq cs,
-                clone_seq_map csm,
-                snp_sequence ss
-        WHERE   cs.database_seqname = '$embl_acc'
-        AND     cs.id_cloneseq = csm.id_cloneseq
-        AND     csm.id_sequence = ss.id_sequence
-        AND     ss.is_current = 1
-    );
-    my $sth;
-    eval {
-        $sth = $self->prepare($q1);
-        $sth->execute();
-    }; 
-    if ($@){
-        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
-        return([]);
-    }
-    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
-    my $i;
-    while (my @res = $sth->fetchrow_array) {
-        ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @res;
-        $i++;
-    }
-    if ($i > 1) {
-        $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
-    }
+    # get info on clone
+    my @cloneinfo = $self->fetch_clone_by_accession($embl_acc);
+    return([]) unless (@cloneinfo);
+    my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand) = @cloneinfo;
 
-    ## now get the SNPs on this clone
+    # now get the STSs on this clone
     # get only features in the desired region of the clone
     my ($q_start, $q_end);
     if ($clone_strand == 1) {
@@ -110,8 +80,8 @@ sub fetch_all_by_clone_accession {
     # (assumes a max STS length of 1000 bp)
     $q_start -= 1000;
     
-    ## NOTE:
-    ## This query only gets ExoSeq STSs (sts_summary.assay_type = 8).
+    # NOTE:
+    # This query only gets ExoSeq STSs (sts_summary.assay_type = 8).
     my $q2 = qq(
         SELECT 
                 ss.id_sts                           as internal_id,
@@ -136,6 +106,7 @@ sub fetch_all_by_clone_accession {
         AND     ms.start_coordinate BETWEEN $q_start AND $q_end
     );
     
+    my $sth;
     eval {
         $sth = $self->prepare($q2);
         $sth->execute($id_seq);

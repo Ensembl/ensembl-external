@@ -86,13 +86,15 @@ sub open_ensembl {
 warn "using hardcoded host, db and user here";
      my ($host, $user, $db) = ('ensrv3', 'ensro', 'simon_oct07');
 #     my ($host, $user, $db) = ('ecs1b', 'ensro', 'arne_ensembl_main');
+#     my ($host, $user, $db) = ('ecs1b', 'ensro', 'ens075');
 
     my $dbh=DBI->connect("DBI:mysql:database=$db;host=$host", $user) ||
       die "couldn't connect to $db at $host as $user:" . $DBI::errstr;
     $dbh;
 }
 
-sub ens_gene_of {
+# find peptide or gene back in ensembl
+sub ens_find {
     my ($q, $pepid) = @_;
     $q->execute($pepid);
 
@@ -104,21 +106,21 @@ sub ens_gene_of {
     die "couldn't execute:" . $q->err if $q->errstr;
     if (@results != 1) {
         if (@results){
-            warn "for $pepid, I got these genes: " 
+            warn "for $pepid, I got: " 
               . join(':', @results), "\n"; 
-            die "not exactly one gene";
+            die "expected exactly one";
         } else {
-            warn "for $pepid, I got no genes\n";
+            # warn "for $pepid, I got no genes\n";
             # die "not exactly one gene"; # ignore for now
         }
     }
     my $id =     $results[0];
-    warn "gene  is: $id \n";
     $id;
 }
 
 sub main {
-warn "checking for /^COBP/ too ...";
+    warn "checking for /^COBP/ too ...";
+
     my $fam_count = 0;
     my $mem_count =0;
     my $dsn;
@@ -167,6 +169,9 @@ warn "checking for /^COBP/ too ...";
 
     $mem_q = $dbh->prepare($mem_q) || die $dbh->errstr;
 
+    # to check for existence
+    my $pep_q = "SELECT id from translation where id = ?";
+    $pep_q = $ensdb->prepare($pep_q) || die $ensdb->errstr;
 
     my $gene_q = 
       "SELECT g.id 
@@ -174,37 +179,45 @@ warn "checking for /^COBP/ too ...";
        WHERE tl.id = ? 
            AND tl.id = tc.translation and tc.gene = g.id";
 
-    $gene_q = $ensdb->prepare($gene_q) || die $dbh->errstr;
+    $gene_q = $ensdb->prepare($gene_q) || die $ensdb->errstr;
 
                                               
     my %gene_fam = undef;
+    my %fam_desc = undef;
+
     while(<>) {
+        next if /^#/;
         chomp;
-        my ($num, $descr, $dummy, $score, $mems)= split '\t';
-        
-        ## work around bug in format:
-        if ($score =~ /^ENSP/ || $score =~ /^COBP/) {
-            warn "correcting score for ENSEMBLPEP-only cluster\n";
-            $mems = $score;
-            $score = 0;
+        my ($fam_id, $descr, $score, $mems, $dummy, $mems2)= split '\t';
+
+        ### work around bug in format:
+        if ( $mems !~ /^:/) {
+            my $s = "$mems $dummy $mems2";
+            ($mems) = ( $s =~ /(:.*)$/);
         }
 
         my @mems = split(':', $mems);
+        shift @mems;                    # superfluous ':' at start.
 
+        die "didn't find members for family $fam_id, line $.:\n$_\n" if (@mems < 1);
 
         if (length($descr) > $max_desc_len) {
             warn "Description longer than $max_desc_len; truncating it\n";
             $descr = substr($descr, 0, $max_desc_len);
         }
         
-        my $fam_id = format_fam_id $num;
+        $fam_desc{$fam_id} = $descr;
+        
+        # my $fam_id = format_fam_id $num; now in file.
         
         $fam_q->execute($internal_id, $fam_id, $descr, $release, $score)
           || die "couldn't insert line $.:\n$_\n " . $fam_q->errstr;
 
         my %seen_gene = undef;          # just for filtering transcripts
+      MEM:
         foreach my $mem (@mems) {
             if ($mem =~ /^ENSP/ || $mem =~ /^COBP/ ) {
+
                 if ($add_ens_pep)  {
                     $mem_q->execute($internal_id, $enspep_dbname, $mem)
                       || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
@@ -212,38 +225,39 @@ warn "checking for /^COBP/ too ...";
                 }
                 
                 if ($add_ens_gene) {
-                    my $ens_gene_id = ens_gene_of($gene_q, $mem);
+                    if ( ens_find($pep_q, $mem) eq '' ) {
+                        warn "couldn't find peptide $mem - database mismatch? Can't find gene, continuing\n";
+                        next MEM;
+                    }
+
+                    my $ens_gene_id = ens_find($gene_q, $mem);
 
                     if ( ! $ens_gene_id ) {
-                        warn '#' x 72, "\n";
-                        warn '#' x 72, "\n";
-                        warn "### did not find gene of $mem\n";
-                        warn '#' x 72, "\n";
-                        warn '#' x 72, "\n";
+                        warn "### did not find gene of $mem; continuing\n";
+                        next MEM;
                     } elsif ( defined $seen_gene{$ens_gene_id}) {
-                        warn "have seen $ens_gene_id already (first for: $seen_gene{$ens_gene_id}); probably OK.\n";
+                        ;
                     } else { 
+                        
+                        ### check to see if this gene was previously assigned
+                        ### to another family; if so, try to correct
+                        if ( defined( $gene_fam{$ens_gene_id} )
+                             &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
+                            warn "### assigning gene $ens_gene_id (peptide: $mem) to $fam_id; already assigned to: $gene_fam{$ens_gene_id}; continuing\n";
+                            next MEM;
+                        } else { 
+                            $gene_fam{$ens_gene_id} = $fam_id;
+                        }
+                        
                         $seen_gene{$ens_gene_id}=$mem;
+                        
+                        
                         $mem_q->execute($internal_id, $ensgene_dbname, 
                                         $ens_gene_id)
-                          || die "couldn't insert line $.:\n$_\n " . $mem_q->errstr;
+                          || die "couldn't insert line $.:\n$_\n " 
+                            . $mem_q->errstr;
                         $mem_count++;
                     }
-
-                    ### check to see if this gene was previously assigned
-                    ### to another family; if so, that means trouble
-                    if ( defined( $gene_fam{$ens_gene_id} )
-                         &&       $gene_fam{$ens_gene_id} ne $fam_id ) {
-                        warn '#' x 72, "\n";
-                        warn '#' x 72, "\n";
-                        warn "### gene $ens_gene_id was previously assigned to: $gene_fam{$ens_gene_id}\n";
-                        warn "### do different transcripts of gene end up in different protein families???\n";
-                        warn '#' x 72, "\n";
-                        warn '#' x 72, "\n";
-                     } else { 
-                        $gene_fam{$ens_gene_id} = $fam_id;
-                    }
-
                 }
             } else {                    # swissprot entry
                 $mem_q->execute($internal_id, $sp_dbname, $mem)

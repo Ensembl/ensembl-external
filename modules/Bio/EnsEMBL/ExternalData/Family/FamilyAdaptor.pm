@@ -357,7 +357,7 @@ sub get_Alignment {
   print STDERR "ALignmnet $alignstr\n";
   # Not sure that this is the best way to do this.
   open(ALN,"echo \'$alignstr\' |");
-  my $alnfh     = Bio::AlignIO->newFh(-format => "clustalw",-fh => \*ALN);
+  my $alnfh     = Bio::AlignIO->newFh('-format' => "clustalw",-fh => \*ALN);
 
   my ($align) = <$alnfh>;
 

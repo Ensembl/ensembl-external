@@ -1,16 +1,14 @@
-
 #
-# ensembl120 version
 #
-
-
+# ensembl_130 version
+#
 
 use strict;
-use Bio::EnsEMBL::DBSQL::Obj;
+use Bio::EnsEMBL::DBSQL::DBAdaptor;
 use Bio::EnsEMBL::DBSQL::StaticGoldenPathAdaptor;
 
-my $db=Bio::EnsEMBL::DBSQL::DBAdaptor->new(-dbname=>"homo_sapiens_core_120",-user=>"ensro",-host=>"ensrv1"); 
-$db->static_golden_path_type('UCSC');
+my $db=Bio::EnsEMBL::DBSQL::DBAdaptor->new(-dbname=>"homo_sapiens_core_130",-user=>"ensro",-host=>"ecs1d"); 
+$db->static_golden_path_type('NCBI_26');
 
 my $stadaptor = $db->get_StaticGoldenPathAdaptor();
 my $file="/nfs/acari/lh1/work/sage/for_release/chr.dat";
@@ -19,9 +17,8 @@ while (<FH>){
         chomp;
     /^\#/ && next;
     print STDERR "chromosome ",$_,"\n";
-    my $contig=$stadaptor->fetch_VirtualContig_by_chr_name("$_");
+    my $contig=$stadaptor->fetch_VirtualContig_by_chr_name($_);
     print STDERR "fetched vc\n";
-    
     my @transcripts=sort {$a->start <=> $b->start}$contig->get_all_VirtualTranscripts_startend();
     print STDERR "sorted transcripts ",$#transcripts,"\n";
 
@@ -42,14 +39,13 @@ while (<FH>){
       print STDERR $_,"\t",$transcript->gene->dbID,"\t",$transcript_counter,"\t",$#transcripts,"\n";  # where are we now? report to SDTERR
 
 my $u = 0;      
-    UNIGENE:for($i = $index_pos; $i <= $#unigenes; $i++)
+        UNIGENE:for($i = $index_pos; $i <= $#unigenes; $i++)
         {
-	  $u++;
+	$u++;
         my $unigene   = $unigenes[$i];
         my $id        = $unigene->id;
 	my $score     = $unigene->score; 	
-        if (($unigene->start >= $transcript->start && $unigene->end <= $transcript->end))
-# || ($unigene->end >= $transcript->start && $unigene->end <= $transcript->end))
+        if (($unigene->start >= $transcript->start && $unigene->start <= $transcript->end) || ($unigene->end >= $transcript->start && $unigene->end <= $transcript->end))
 	        {
                 if ($score > $top_score)   
 		   {
@@ -70,9 +66,6 @@ my $u = 0;
            next TRANSCRIPT;           
 	   }
         }
-        
-    
-        
       }
 }
 print STDERR "I have finished!\n";

@@ -1,12 +1,9 @@
-#####################################################################
-# This script is a part of SAGE mapping
-# It was created by Lukasz Huminiecki 
-######################################################################
 
-###
-#extracts unigene_locuslink mapping from an NCBI's Hs. file
-#download the NCBI's file from the NCBI's ftp
-###
+
+
+#extracts unigene_locuslink mapping from the NCBI's Hs.all file
+
+
 
 while (<>)
 {

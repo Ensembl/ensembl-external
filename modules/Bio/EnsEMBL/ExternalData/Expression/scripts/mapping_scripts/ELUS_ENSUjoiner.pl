@@ -1,7 +1,5 @@
 use strict;
-#use English;
 my $counter = 0;
-#my $positive = 0;
 
 
 my $known_file="ELUSmapper.dat";
@@ -30,7 +28,6 @@ while (<ENSU>)
       my ($enst, $unigene, $score) = split /\t/;
    
       if (exists $known_hash{$enst}){
-#	  print $enst,"\t",$known_hash{$enst}," printing known\n";
 	  next; 
      }else {
 	  print TEMP "$enst\t$unigene\n";

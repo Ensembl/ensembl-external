@@ -88,6 +88,7 @@ use DBI;
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use Bio::EnsEMBL::ExternalData::Family::Family;
+use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 

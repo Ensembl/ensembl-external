@@ -67,7 +67,7 @@ sub fetch_attributes_only{
   my $sth = $self->prepare('
       SELECT refsnp.internal_id, refsnp.snpclass,  refsnp.snptype,
 	     refsnp.observed, refsnp.seq5, refsnp.seq3,
-             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight, 
+             refsnp.het, refsnp.hetse, refsnp.validated, refsnp.mapweight, refsnp.hapmap_snp
              ds.version
       FROM   RefSNP refsnp, DataSource ds
       WHERE  refsnp.id = ?
@@ -80,7 +80,7 @@ sub fetch_attributes_only{
 			     "not found in database");
 
   my ($dbID, $snp_class, $snp_type, $alleles, $seq5, $seq3,
-      $het, $hetse, $confirmed, $mapweight, $source_version) = $sth->fetchrow_array;
+      $het, $hetse, $confirmed, $mapweight, $hapmap_snp, $source_version) = $sth->fetchrow_array;
 
   $sth->finish;
 
@@ -116,7 +116,8 @@ my $snp = Bio::EnsEMBL::SNP->new;
   $snp->score($mapweight); 
   $snp->het($het);
   $snp->hetse($hetse);
-    
+  $snp->hapmap_snp($hapmap_snp);
+
   #DBLink
   my $link = new Bio::Annotation::DBLink;
   $link->database('dbSNP');

@@ -561,6 +561,17 @@ sub original_strand {
 }
 
 
+sub hapmap_snp {
+  my ($obj, $value) = @_;
+
+  if(defined $value) {
+    $obj->{'hapmap_snp'} = $value;
+  }
+  if( ! exists $obj->{'hapmap_snp'} ) {
+       return undef;
+   }
+  return $obj->{'hapmap_snp};
+}
 
 
 

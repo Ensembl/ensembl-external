@@ -71,10 +71,15 @@ my %overlap;                            # cache for the overlap matrix
 # them off, then go on.
 my @unmapped_old=();
 my $current=0;
+
+#put header on log file so it's intelligeble:
+details_blurp('# new_id', 'old_id', 'percentage', 'database', 'new-description', 'new-score', 'new-n_ens_pepts', 'new-n_all', 
+              'old-description', 'old-score', 'old-n_ens_pepts', 'old-n_all');
+
 while( my $old = shift @oldfams ) {
     print STDERR "$current/$old_n "; $current++;
 #    warn "working on old ", $old->id, "\n";
-    my ($bestfam, $bestn, $perc)  = find_best($old, \@newfams);
+    my ($bestfam, $bestn, $perc, $bestdb)  = find_best($old, \@newfams);
     if ($perc > $minperc) {                   # overlap percentage
 
         if ($perc < $minperc + 10) {
@@ -94,11 +99,18 @@ while( my $old = shift @oldfams ) {
         ### later on.
         
         ### if you're curious about the annotations themselves:
-        my ($newd, $news, $oldd, $olds) = 
+        my ($newd, $news, $newne, $newna, 
+            $oldd, $olds, $oldne, $oldna) = 
           (substr($bestfam->description, 0, 30), 
            $bestfam->annotation_confidence_score, 
-           substr($old->description, 0, 30), $old->annotation_confidence_score);
-        print STDERR " ", $bestfam->id, "\t", $old->id, " $perc % ($newd [$news] $oldd [$olds])\n";
+           $bestfam->num_ens_pepts, $bestfam->size,
+           # and old:
+           substr($old->description, 0, 30), 
+           $old->annotation_confidence_score, 
+           $old->num_ens_pepts, $old->size);
+
+        details_blurp($bestfam->id, "\t", $old->id, " $perc % ($bestdb) $newd [$news] $newne/$newna -> $oldd [$olds] $oldne/$oldna) \n");
+
         # (this completes the line started at top of while loop)
     } else { 
         # these are the loosers, won't map them, sniff.
@@ -131,16 +143,17 @@ sub find_best {
 # returns the best match + index for easy removal
     my ($oldfam, $new_listref)=@_;
 
-    my ($i, $besti, $bestoverlap) = (0, 0, -999);
+    my ($i, $besti, $bestoverlap, $bestdb) = (0, 0, -999, 'nowhere');
     my $bestfam;
 
   FAM:
     foreach my $fam ( @$new_listref ) { 
-        my $overlap=calc_overlap($oldfam, $fam);
+        my ($overlap, $db)=calc_overlap($oldfam, $fam);
         if ($overlap  > $bestoverlap) {
             $bestoverlap=$overlap;
             $bestfam=$fam;
             $besti=$i;
+            $bestdb = $db;
         }
         if ($overlap >= 50) {           # can't be bettered; 3 x speedup
 #            warn "found > 50\n";
@@ -148,7 +161,7 @@ sub find_best {
         }
         $i++;
     }
-    return ($bestfam, $besti, $bestoverlap);
+    return ($bestfam, $besti, $bestoverlap, $bestdb);
 }
 
 # returns the percentage overlap (as (A intersect B) / (A union B)).
@@ -165,7 +178,7 @@ sub calc_overlap {
 
     if ($perc >= 50) {                 # can't be bettered
 #        warn "SPTR>50\n";
-        return $perc;
+        return ($perc, 'SPTR');
     } # can't be bettered
     
     my ($perc2);
@@ -176,7 +189,7 @@ sub calc_overlap {
 #    printf STDERR  "\tENS: old:$old new:$new union:$union intersect:$intersect perc:%.3g\n"
 #      , $perc2;
     
-    return ($perc2 > $perc)? $perc2 : $perc;
+    return ($perc2 > $perc)? ($perc2,'ENSEMBLPEP') : ($perc, 'SPTR') ;
 }
 
 sub overlap_per_db {
@@ -193,6 +206,15 @@ sub overlap_per_db {
         $perc=0;
     }
     return ( $old, $new, $union, $intersect, $perc);
+}
+
+
+sub details_blurp {
+    my ($new_id, $old_id, $perc, $based_on, 
+        $new_desc, $new_score, $new_num_ens_pepts, $new_size, 
+        $old_desc, $old_score, $old_num_ens_pepts, $old_size) = @_;
+
+    print STDERR "$new_id\t$old_id $perc % ($based_on) $new_desc \[$new_score] $new_num_ens_pepts/$new_size -> $old_desc \[$old_score] $old_num_ens_pepts/$old_size\n";
 }
 
 # sizes of sets contained in listrefs $a, $b, union($a, $b), intersection($a,$b)

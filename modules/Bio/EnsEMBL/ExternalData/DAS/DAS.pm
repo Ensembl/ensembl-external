@@ -181,7 +181,6 @@ sub _map_DASSeqFeature_to_chr {
 	$type = 'error';
     } elsif( $seqname eq '') {
 	#suspicious
-	warn ("Got a DAS feature with an empty seqname! (discarding it)\n");
 	return 0;
     } else {
 	warn ("Got a DAS feature with an unrecognized segment type: >$seqname< >", $sf->das_type_id(), "<\n");
@@ -281,6 +280,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 
     my $callback =  sub {
         my $f = shift;
+        return unless $f->isa('Bio::Das::Feature'); ## Bug in call back code means this is called for wrong DAS types
         my $CURRENT_FEATURE = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
         $CURRENT_FEATURE->das_feature_id($f->id());

@@ -537,12 +537,14 @@ sub get_Ensembl_SeqFeatures_DAS {
 #        return ($DAS_FEATURES);
 #    }
 
+#     warn "GRABBING STYLE SHEET FOR $dsn";
      $response = $dbh->stylesheet(
        -dsn => "$url/$dsn",
        -callback => $callback_stylesheet
      );
-    # warn $response;
-    # warn( Data::Dumper->Dump( [$STYLES] ) );
+#     warn $response;
+#     warn( Data::Dumper->Dump( [$STYLES] ) );
+#     warn "STYLESHEET STORED @{$STYLES}";
      if(@$types) {
         $response = $dbh->features(
                     -dsn    =>  "$url/$dsn",

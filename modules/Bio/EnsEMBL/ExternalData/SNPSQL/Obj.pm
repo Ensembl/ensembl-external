@@ -104,6 +104,8 @@ package Bio::EnsEMBL::ExternalData::SNPSQL::Obj;
 
 use Bio::Root::Object;
 use Bio::EnsEMBL::DB::ExternalFeatureFactoryI;
+use Bio::EnsEMBL::ExternalData::Variation;
+use Bio::Annotation::DBLink;
 use DBI; 
 use vars qw(@ISA);
 use strict;
@@ -176,8 +178,6 @@ sub get_Ensembl_SeqFeatures_contig{
    my ($self) = @_;
    my @tmp;
    
-#   $self->throw("Method get_Ensembl_SeqFeatures_contig returns an empty list.");
-
    return @tmp;
 
 }
@@ -256,7 +256,7 @@ sub get_Ensembl_SeqFeatures_clone {
               p2.SNP_CONFIRMED, p2.SNP_WITHDRAWN,  p2.CLIQUE_POSITION,
       	      p2.DBSNP_ID,
       	      p1.Sub_Start, p1.Sub_END, 
-      	      p1.Qry_Start, p1.Qry_END, p1.Withdraw_code
+      	      p1.Qry_Start, p1.Qry_END
        from   TBL_INSILICO_RESULTS as p1,
        	      TBL_SNP_INFO as p2
        where  p1.Sub_ACC_version = "$embl_ver" and
@@ -269,18 +269,18 @@ sub get_Ensembl_SeqFeatures_clone {
 
  SNP:
    while( (my $arr = $sth->fetchrow_arrayref()) ) {
-       
+
        my $allele_pos = 0;
        my $strand = 1;
        
        my ($snpid,  $snpuid, $confidence, $confirmed, 
 	   $snp_withdrawn, $q_pos, $dbsnpid,
 	   $t_start, $t_end, 
-	   $q_start, $q_end, $result_withdrawn
+	   $q_start, $q_end
 	   ) = @{$arr};
 
        #snp info not valid or in-silico result not valid
-       next SNP if $snp_withdrawn eq 'Y' or $result_withdrawn ne 'N';
+       next SNP if $snp_withdrawn eq 'Y';
 
        #coordinate system change from clique -> clone
        if ($q_start < $q_end) {
@@ -339,7 +339,7 @@ sub get_Ensembl_SeqFeatures_clone {
        #
 
        #Variation
-       my $snp = new Bio::SeqFeature::Variation
+       my $snp = new Bio::EnsEMBL::ExternalData::Variation
 	   (-start => $allele_pos, 
 	    -end => $allele_pos,
 	    -strand => $strand, 
@@ -350,7 +350,7 @@ sub get_Ensembl_SeqFeatures_clone {
 	    );
        
        #DBLink
-       my $link = new Bio::Annotation::DBLink();
+       my $link = new Bio::Annotation::DBLink;
        $link->database('TSC');
        $link->primary_id($snpuid);
 
@@ -360,7 +360,7 @@ sub get_Ensembl_SeqFeatures_clone {
        #dbSNP id is given
        if ( $dbsnpid ) {
 
-	   my $link2 = new Bio::Annotation::DBLink();
+	   my $link2 = new Bio::Annotation::DBLink;
 	   $link2->database('dbSNP');
 	   $link2->primary_id($dbsnpid);
 
@@ -370,15 +370,13 @@ sub get_Ensembl_SeqFeatures_clone {
        #add SNP to the list
        push(@variations, $snp);
 
-       print join (" ", $snpuid, $confidence, $confirmed, 
-       		    $dbsnpid, "|", $strand,
-       		    $allele_pos, $alleles,
-       		    #$t_start, $t_end, $q_start, $q_end
-       		    "\n");
+       #print join (" ", $snpuid, $confidence, $confirmed, 
+       #		    $dbsnpid, "|", $strand,
+       #		    $allele_pos, $alleles,
+       #		    #$t_start, $t_end, $q_start, $q_end
+       #		    "\n");
 
    }
-   
-   #$dbh->disconnect;
    
    return @variations;
 }

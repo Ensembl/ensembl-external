@@ -76,6 +76,7 @@ sub _initialize {
     $self->{_locuslink_file} = undef; #locus link file for searching (LL.out)
     $self->{_path} = undef;           #location of locally stored LL.out
     $self->{_accession} =undef;       #accession number (for searching EMBL)
+    $self->{_match} = undef;          #flag for match found in LL.out
     
     #set operations
     $self->set_agent(); 
@@ -157,6 +158,15 @@ sub name {
         $self->{_name} = $name;
     }
     return $self->{_name};
+}
+
+sub matched {
+    my ($self, $flag) = @_;
+    if ($flag)
+    {
+        $self->{_match} = $flag;
+    }
+    return $self->{_match};
 }
 
 sub llid {
@@ -262,6 +272,7 @@ sub parse_locus {
         $self->fullname($default_name);
         $self->species($tax_id);
         $self->gdbid($id);
+        $self->matched('True');
     }    
 }
 
@@ -326,13 +337,12 @@ sub web_fetch {
     else
         { $searchstring = $self->gdbid; }
     #run search and set variables if match is found
-    $self->grep_locuslink($self->locuslink_file, $searchstring);
-    print $self->name." grepped\n";            
+    $self->grep_locuslink($self->locuslink_file, $searchstring);          
 }
 
 sub printace {
 my ($self, $name) = @_;
-    if ($self->name)
+    if ($self->matched)
     {
         print "\n";
         print "Locus \"".$self->name."\"\n";    #object name

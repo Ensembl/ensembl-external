@@ -36,6 +36,12 @@ clustering SWISSPROT using Anton Enright's algorithm. The clustering
 neatly follows the SWISSPROT DE-lines, which are taken as the description
 of the whole family.
 
+The object is a bit bare, still; dbxrefs (i.e., family to family) are not
+implemented, and SWSISSPROT keywords aren't there yet either. 
+
+The objects can only be read from the database, not written. (They are
+loaded ussing a separate perl script).
+
 For more info, see Family.pm
 
 =head1 CONTACT
@@ -220,7 +226,7 @@ sub get_Families_described_as{
 =cut
 
 
-sub all_Families() { 
+sub all_Families { 
     my ($self) = @_; 
     
     my $q = 

@@ -137,11 +137,11 @@ sub fetch_attributes_only{
   }
     # Add Genotypes (Variation objects) to the SNP
     # fc1 & jws 2004
-#  eval {
-#    foreach my $genotype (@{$self->fetch_genotype_by_SNP_id($snp->id)}){
-#      $snp->add_genotype($genotype);
-#    }
-#  };
+  eval {
+    foreach my $genotype (@{$self->fetch_genotype_by_SNP_id($snp->id)}){
+      $snp->add_genotype($genotype);
+    }
+  };
 
 
   # Add Population and Frequency (allele frequency) objects to the SNP
@@ -296,7 +296,6 @@ sub fetch_by_SNP_id {
 sub fetch_genotype_by_SNP_id {
 
   my ($self, $refsnpid) = @_;
-  
   my $sth = $self->prepare('
       SELECT refsnp.id, Strain.ssid, Strain.name, Strain.allele, 
              GTInd.sex, GTInd.source, GTInd.source_ind_id
@@ -304,15 +303,12 @@ sub fetch_genotype_by_SNP_id {
      WHERE   refsnp.internal_id = Strain.internal_id and Strain.ind_id = GTInd.ind_id
       AND    refsnp.id = ?');
 
-  $sth->execute("$refsnpid");
-
-  $sth->rows || $self->throw("$refsnpid not in database or don't have genotype data");
+  $sth->execute("$refsnpid") || $self->throw("$refsnpid not in database or don't have genotype data");
 
   my $arr;
   my @snps = ();
   while ($arr = $sth->fetchrow_arrayref) { 
     my ($refsnpid, $ssid, $strain_name, $strain_alleles, $sex, $gt_source, $gt_source_ind_id ) = @$arr;
-
     my $snp = new Bio::EnsEMBL::ExternalData::Variation;
     $snp->snpid($refsnpid);
     $snp->ssid($ssid);
@@ -365,7 +361,6 @@ sub fetch_pops_by_SNP_id {
     $pop->sample_size($sample_size);
     push @pops, $pop;
   }
-
   return \@pops;
 }
 

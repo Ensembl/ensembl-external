@@ -439,11 +439,11 @@ sub fetch_slice_strand_by_ssid {
   my @names = split /\:/, $slice_name;
   my $slice_strand = $names[-1];
   my $sth = $self->prepare('
-      SELECT ch.strand as ref_strand, ss.strand as ss_strand
+      SELECT ch.strand as ref_strand, ss.strand_to_rs as ss_strand
       FROM   ContigHit ch, SubSNP ss
       WHERE  ch.internal_id = ss.internal_id and ss.id = ?;');
 
-  $sth->execute($ssid)|| $self->throw("The corresponding refsnpid or ssid don't have strand info");
+  $sth->execute($ssid)|| $self->throw("The SubSNP table don't have strand_to_rs column?");
 
   my ($ref_strand, $ss_strand) = $sth->fetchrow;
   my $ssid_slice_strand = $slice_strand * $ref_strand * $ss_strand;

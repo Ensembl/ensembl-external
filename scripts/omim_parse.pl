@@ -1,15 +1,20 @@
-
-
-
 use DBI;
 use strict;
 
 
-my $dsn = "DBI:mysql:database=disease;host=sol28";
-my $db = DBI->connect("$dsn",'ensembl');
-open(FH,"morbidmap"); 
+my $dsn = "DBI:mysql:database=disease;host=ensrv3.sanger.ac.uk";
+my $db = DBI->connect("$dsn",'root');
+
+my $file='morbidmap.new';
+
+open(FH,$file) || die "cant open $file"; 
 
 my $entry_counter;
+
+my $sth = $db->prepare("insert into last_update (disease) values (now())");    
+$sth->execute();
+
+
     
 while (<FH>){
     $entry_counter++;
@@ -22,12 +27,9 @@ while (<FH>){
    
 
 
-
-
-
     print $omim_id,"\n";
     my ($chromosome,$arm,$band_start,$sub_band_start,$band_end,$sub_band_end)=&prepare_locus_entry($location);
-    print $location," ",$chromosome," ",$arm," ",$band_start," ",$sub_band_start," ",$band_end," ",$sub_band_end,"\n";
+#    print $location," ",$chromosome," ",$arm," ",$band_start," ",$sub_band_start," ",$band_end," ",$sub_band_end,"\n";
     my $start=$arm.$band_start;
     if (defined $sub_band_start){$start=$start.'.'.$sub_band_start;}
     my $end=$arm.$band_end;
@@ -39,7 +41,16 @@ while (<FH>){
     my $sth = $db->prepare("select id,disease from disease where disease = '$disease'");    
     $sth->execute();
 
-	while( my $rowhash = $sth->fetchrow_hashref) {		
+
+    my $sth4 = $db->prepare("select LAST_INSERT_ID()");
+    $sth4->execute();
+    
+    my $arr = $sth4->fetchrow_arrayref();
+    my $last_id = $arr->[0];
+
+
+
+#	while( my $rowhash = $sth->fetchrow_hashref) {		
 
 		my @array=split (/,/,$genes);
 
@@ -49,10 +60,10 @@ while (<FH>){
 
 		    my $marker_ins = $db->prepare
 			("insert into gene (id,gene_symbol,omim_id,start_cyto,end_cyto,chromosome) 
-                         values (' $rowhash->{'id'}','$gene','$omim_id','$start','$end','$chromosome')");
+                         values ('$last_id','$gene','$omim_id','$start','$end','$chromosome')");
 		    $marker_ins->execute();
 		}				
-	    }
+	    #}
 
 
 
@@ -155,6 +166,14 @@ sub prepare_locus_entry
 		    #print "$band_end \n";
 		}		   
 		
+		if ($to =~ /^(\w)(\d+)$/)
+		{
+		    $band_end=$2;  
+		    # print "map locus: $map_locus\n";    
+		    
+		    #print "TO $band_end \n";
+		}
+
 	    }
 	    
 	    
@@ -195,7 +214,7 @@ sub prepare_locus_entry
 		    #print "$chromosome $arm $band_start\n";
 		    
 		    
-	    }
+		}
 		
 		
 		
@@ -211,6 +230,8 @@ sub prepare_locus_entry
 		
 	    }	
 	    
+	    #print "BAND END $band_end\n";
+
 	    my @locus_list=($chromosome,$arm,$band_start,$sub_band_start,$band_end,$sub_band_end);
 	    return @locus_list;
 	}

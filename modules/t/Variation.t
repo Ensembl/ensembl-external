@@ -18,7 +18,7 @@
 
 
 ## We start with some black magic to print on failure.
-BEGIN { $| = 1; print "1..16\n"; 
+BEGIN { $| = 1; print "1..20\n"; 
 	use vars qw($loaded); }
 END {print "not ok 1\n" unless $loaded;}
 
@@ -146,4 +146,12 @@ if ($obj->id eq 'TSC::TSC0000030') {
     print "ok 19\n"; 
 } else {
     print "not ok 19\n"; 
+}
+
+
+$obj->seqname('seqname');
+if ($obj->seqname eq 'seqname' ) {
+    print "ok 20\n"; 
+} else {
+    print "not ok 20\n"; 
 }

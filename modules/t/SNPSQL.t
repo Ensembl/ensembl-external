@@ -68,7 +68,7 @@ while( (my $arr = $sth->fetchrow_arrayref()) ) {
 
 # using the method get_SeqFeature_by_id
 
-my $id = "TSC::TSC0000002";
+my $id = "TSC::TSC0000003";
 my $snp = $snpdb->get_SeqFeature_by_id($id);
 if( $id eq $snp->id) {
     print "ok 5\n";

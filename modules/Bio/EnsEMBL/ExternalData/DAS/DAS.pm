@@ -191,7 +191,6 @@ sub fetch_all_by_DBLink_Container {
        my $f = shift;
        $f->isa('Bio::Das::Feature') || return;
        my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
-       warn( "===>",$f->note );
        $dsf->id                ( $ensembl_id );
        $dsf->das_feature_id    ( $f->id() );
        $dsf->das_feature_label ( $f->label() );
@@ -517,12 +516,11 @@ sub get_Ensembl_SeqFeatures_DAS {
         $CURRENT_FEATURE->das_note($f->note());
 
 
-        print STDERR "adding feature for $dsn.... @{[$f->id]}\n";
+        warn ("adding feature for $dsn.... @{[$f->id]}") if 0;
         push(@{$DAS_FEATURES}, $CURRENT_FEATURE);
     };
 
     my $response;
-	
      # Test POST echo server to request debugging
      if($ENV{'ENSEMBL_DAS_WARN'}) { 
            print STDERR "URL/DSN: $url/$dsn\n\n";

@@ -3,10 +3,10 @@ use DBI;
 use strict;
 
 
-my $dsn = "DBI:mysql:database=disease;host=ensrv3.sanger.ac.uk";
+my $dsn = "DBI:mysql:database=disease;host=ecs1c.sanger.ac.uk";
 my $db = DBI->connect("$dsn",'root');
 
-my $file='morbidmap.new';
+my $file='morbidmap.feb';
 open(FH,$file) || die "cant open $file"; 
 
 
@@ -37,8 +37,7 @@ while (<FH>){
     
     
 
-    my $marker_ins = $db->prepare
-	("insert into disease (disease) values ('$disease')");
+    my $marker_ins = $db->prepare("insert into disease (disease) values ('$disease')");
     $marker_ins->execute();
     
     
@@ -51,16 +50,19 @@ while (<FH>){
     
     my @array=split (/,/,$genes);
     
-    foreach my $gene(@array){
-	$gene =~s/^\s+//;
-	$gene =~s/\s+$//;
+    #foreach my $gene(@array){
+	
+    my $gene=$array[0];
+ 
+    $gene =~s/^\s+//;
+    $gene =~s/\s+$//;
 	
 	my $marker_ins = $db->prepare
 	    ("insert into gene (id,gene_symbol,omim_id,start_cyto,end_cyto,chromosome) 
               values ('$last_id','$gene','$omim_id','$start','$end','$chromosome')");
 	$marker_ins->execute();
-    }				
-    print $omim_id,"\n";	
+    #}				
+    print "$omim_id\t$chromosome\t$arm\t$band_start\t$sub_band_start\t$band_end\t$sub_band_end\n";	
 }
 
 print "entry counter: $entry_counter\n";
@@ -89,6 +91,13 @@ sub prepare_locus_entry
 	$status=1;  
 	
 	
+	if ($from =~ /(\d+|[X,Y])(\w+)$/)
+	{
+	    $chromosome =$1;
+	    $arm =$2;		    		    
+	}	
+	
+
 	if ($from =~ /(\d+|[X,Y])(\w)(\d+)[.](\d+)$/)
 	{
 	    $chromosome =$1;
@@ -102,6 +111,9 @@ sub prepare_locus_entry
 	    $arm =$2;
 	    $band_start=$3;		    		    
 	}		
+
+	
+
 	if ($to =~ /(\d+|[X,Y])(\w)(\d+)[.](\d+)$/)
 	{
 	    $band_end=$3;
@@ -124,8 +136,18 @@ sub prepare_locus_entry
     
     
     else 
-    {						
-	if ($map_locus =~ /(\d+|[X,Y])(\w)(\d+)[.](\d+)$/)
+    {		
+
+
+	if ($map_locus =~ /^(\d+|[X,Y])(\w+)$/)
+	{
+	    $chromosome =$1;
+	    $arm =$2;	
+	    $status=1;	    		    
+	}	
+
+				
+	if ($map_locus =~ /^(\d+|[X,Y])(\w)(\d+)[.](\d+)$/)
 	{    
 	    $chromosome =$1;
 	    $arm =$2;
@@ -135,7 +157,7 @@ sub prepare_locus_entry
 	    $band_end=$band_start;
 	    $sub_band_end=$sub_band_start;
 	}		
-	if ($map_locus =~ /(\d+|[X,Y])(\w)(\d+)$/)
+	if ($map_locus =~ /^(\d+|[X,Y])(\w)(\d+)$/)
 	{	   
 	    $chromosome =$1;
 	    $arm =$2;
@@ -144,12 +166,20 @@ sub prepare_locus_entry
 	    $status=1;		    
 	}
 	
+
+	if ($map_locus =~ /^Chr[.](\d+)$/)
+	{
+	    $chromosome =$1;		    		    
+	    $status=1;
+	}	
+
+
 	
 	# all the rest
 	elsif ( $status==0)
 	{
-	    # print "map locus: $map_locus\n";		    
-	    #print "weired NOT dONE\n";
+#	     print "map locus: $map_locus\n";		    
+#	    print "weired NOT dONE\n";
 	}
 	
     }	
@@ -161,6 +191,11 @@ sub prepare_locus_entry
 }	
 
  
+
+
+
+
+
 
 
 

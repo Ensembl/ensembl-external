@@ -254,7 +254,9 @@ sub store {
 
   $member->dbID( $sth->{'mysql_insertid'} );
   $member->adaptor($self);
-
+  if (defined $member->taxon) {
+    $self->db->get_TaxonAdaptor->store_if_needed($member->taxon);
+  }
   return $member->dbID;
 }
 

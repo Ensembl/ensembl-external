@@ -11,7 +11,7 @@ BEGIN {
     }
     use Test;
     use vars qw($NTESTS);
-    $NTESTS = 16;
+    $NTESTS = 17;
     plan tests => $NTESTS;
 }
 
@@ -101,13 +101,12 @@ my @pair = ('SPTR', 'O15520');
 $fam = $famad->fetch_by_dbname_id(@pair);
 
 ok $fam->isa('Bio::EnsEMBL::ExternalData::Family::Family'),1,"Could not fetch family for @pair";
-
 my $id = $famad->store($fam);
 ok $id,4,"Tried to store existing family, and did not get correct dbid back";
 $fam->stable_id('test');
 $famad->store($fam);
-#ok $@ =~ /already in database/,'',"Got $@";
-#,1,"adaptor did not throw exception $@ for family already in db";
+my $fam = $famad->fetch_by_stable_id('test');
+ok $fam->size('ENSEMBLPEP'),9,"Got wrong size for specific database";
 
 $id = 'growth factor';
 my @fams = $famad->fetch_by_description_with_wildcards($id,1);

@@ -46,7 +46,7 @@ CREATE TABLE family_members (
   external_db_id        int(10) NOT NULL, #foreign key to family_db table 
   external_member_id  varchar(40) NOT NULL, ##  e.g., ENSP000001234
   PRIMARY KEY(family_id, external_db_id, external_member_id),
-  UNIQUE KEY(external_db_id, external_member_id),
+  KEY(external_db_id, external_member_id),
   KEY(external_db_id),
   KEY(family_id,external_db_id)
 );

@@ -143,11 +143,26 @@ sub store{
    foreach my $member ($fam->each_DBLink) {
        my $dbid = $self->_store_db_if_needed($member->database);
        $q = "INSERT INTO family_members (family_id, external_db_id, external_member_id) 
-            VALUES (".$fid.",".$dbid.",'".$member->primary_id."')";
+            VALUES ($fid,$dbid,'".$member->primary_id."')";
        $q = $self->prepare($q);
        $q->execute();
    }
+   $self->_populate_totals($fid);
    return $fid;
+}
+
+sub _populate_totals {
+    my ($self,$fid) = @_;
+    
+    my $q = "SELECT external_db_id,count(external_member_id) as total FROM family_members WHERE family_id = ".$fid." GROUP BY external_db_id";
+    $q = $self->prepare($q);
+    $q->execute();
+    
+    while (my $rowhash = $q->fetchrow_hashref) {
+	my $q = "INSERT INTO family_totals (family_id,external_db_id,members_total) VALUES($fid,".$rowhash->{external_db_id}.",".$rowhash->{total}.")";
+	$q = $self->prepare($q);
+	$q->execute();
+    }
 }
 
 sub _store_db_if_needed {
@@ -161,7 +176,7 @@ sub _store_db_if_needed {
 	return $rowhash->{external_db_id};
     }
     else {
-	$q = "INSERT INTO external_db (external_db_id,name) VALUES(NULL,'".$db."')";
+	$q = "INSERT INTO external_db (external_db_id,name) VALUES(NULL,'$db')";
 	$q = $self->prepare($q);
 	$q->execute();
 	return $self->get_last_id();
@@ -318,9 +333,9 @@ sub _get_members {
 
     my $fid = $fam->dbID;
     my $q = 
-      "SELECT external_db_id, external_member_id
-         FROM family_members
-        WHERE family_id = $fid";
+      "SELECT db.name as dbname, fm.external_member_id as id
+         FROM family_members fm, external_db db
+        WHERE fm.family_id = $fid and db.external_db_id = fm.external_db_id";
 
     $q = $self->prepare($q);
     $q->execute;
@@ -330,8 +345,8 @@ sub _get_members {
     while ( $rowhash = $q->fetchrow_hashref) {
 	my $link = new Bio::Annotation::DBLink();
 
-	$link->database($rowhash->{external_db_id});
-	$link->primary_id($rowhash->{external_member_id});
+	$link->database($rowhash->{dbname});
+	$link->primary_id($rowhash->{id});
         $fam->add_member($link);
         $n++;
     }

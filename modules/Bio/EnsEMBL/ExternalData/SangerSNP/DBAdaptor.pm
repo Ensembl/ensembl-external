@@ -119,8 +119,8 @@ sub new {
 sub get_available_adaptors{
   my %pairs = (
 #    "SangerSNPBase"       => "Bio::EnsEMBL::ExternalData::SangerSNP::SangerSNPBaseAdaptor",
-    "Variation"           => "Bio::EnsEMBL::ExternalData::SangerSNP::Variation",
-    "TranscriptVariation" => "Bio::EnsEMBL::ExternalData::SangerSNP::TranscriptVariation",
+    "Variation"           => "Bio::EnsEMBL::ExternalData::SangerSNP::VariationAdaptor",
+    "TranscriptVariation" => "Bio::EnsEMBL::ExternalData::SangerSNP::TranscriptVariationAdaptor",
   );
   return (\%pairs);
 }

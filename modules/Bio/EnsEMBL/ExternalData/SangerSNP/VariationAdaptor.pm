@@ -75,9 +75,10 @@ ORDER BY MAPPED_SNP.ID_SNP, SNPPOS
 
   my $sth = $self->prepare($query);
 
-  print $sth->{Statement} . "\n";
+  # print $sth->{Statement} . "\n";
+
   $sth->execute;
-  print "Query finished\n";
+  # print "Query finished\n";
 
   my @snps;
 

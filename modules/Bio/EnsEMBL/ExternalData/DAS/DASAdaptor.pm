@@ -70,6 +70,9 @@ BEGIN{
 sub new {
     my($pkg, @args) = @_;
 
+#	 my @edata = caller(3);
+#	 warn("EDATA: @edata");
+
     my $self = bless {}, $pkg;
 
     my ( $url,
@@ -94,8 +97,10 @@ sub new {
 	 $stylesheet,
 	 $conftype,
 	 $active,
+	 $description,
 	 $types,
 	 $on,
+	 $enable,
 	 $fasta ) = $self->_rearrange([qw( URL
 					   DSN
 					   ENSDB
@@ -118,8 +123,10 @@ sub new {
 					   STYLESHEET
 					   CONFTYPE
 					   ACTIVE
+					   DESCRIPTION
 					   TYPES
 					   ON
+					   ENABLE
 					   FASTA)],@args);
 
 
@@ -154,8 +161,10 @@ sub new {
     $stylesheet && $self->stylesheet( $stylesheet );
     $conftype   && $self->conftype( $conftype );
     $active     && $self->active( $active );
+    $description     && $self->description( $description );
     # These are parsed to arrayrefs
     $on        && $self->on( $on );
+    $enable        && $self->enable( $enable );
     $fasta     && $self->fasta( $fasta );
 
     return $self; # success - we hope!
@@ -695,6 +704,26 @@ sub active{
 
 #----------------------------------------------------------------------
 
+=head2 description
+
+  Arg [1]   : scalar active (optional)
+  Function  : Getter/setter for active meta data
+  Returntype: scalar active
+  Exceptions: 
+  Caller    : 
+  Example   : $active_copy = $das_adapt->description($description);
+
+=cut
+
+sub description{
+   my $key = '_description';
+   my $self = shift;
+   if( @_ ){ $self->{$key} = shift }
+   return $self->{$key};
+}
+
+#----------------------------------------------------------------------
+
 =head2 on
 
   Arg [1]   : scalar on (optional)
@@ -708,6 +737,26 @@ sub active{
 
 sub on{
    my $key = '_on';
+   my $self = shift;
+   if( @_ ){ $self->{$key} = shift }
+   return $self->{$key};
+}
+
+#----------------------------------------------------------------------
+
+=head2 enable
+
+  Arg [1]   : scalar enable (optional)
+  Function  : Getter/setter for enable meta data
+  Returntype: scalar enable
+  Exceptions: 
+  Caller    : 
+  Example   : $on_copy = $das_adapt->enable($enable);
+
+=cut
+
+sub enable{
+   my $key = '_enable';
    my $self = shift;
    if( @_ ){ $self->{$key} = shift }
    return $self->{$key};

@@ -31,28 +31,16 @@ use strict;
 
 package Bio::EnsEMBL::ExternalData::SNPSQL::SNPAdaptor;
 
-use Bio::EnsEMBL::DBSQL::SNPAdaptorI;
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 use Bio::EnsEMBL::ExternalData::Variation;
 use Bio::EnsEMBL::Utils::Eprof qw( eprof_start eprof_end);
 
 use vars '@ISA';
 
-@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::SNPAdaptorI);
-
-#implement the SNPAdaptorI interface 
-use implements qw(Bio::EnsEMBL::DBSQL::SNPAdaptorI);
-
+@ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor);
 
 
 #use constructor inherited from Bio::EnsEMBL::BaseAdaptor
-
-
-sub fetch_by_Slice() {
-  my ($self, $slice) = @_;
-
-  $self->throw("Not yet implemented\n");
-}
 
 
 =head2 fetch_by_SNP_id

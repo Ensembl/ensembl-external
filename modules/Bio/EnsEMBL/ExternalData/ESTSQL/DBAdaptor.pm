@@ -70,26 +70,16 @@ sub get_AnalysisAdaptor {
 sub get_RawContigAdaptor {
   my $self = shift;
 
-  my $core = $self->core_DBAdaptor();
+  my $core = $self->get_db_adaptor('core');;
 
   unless(defined $core) {
     $self->throw("No core database is attached to the ESTDatabase.  The EST "
 		 . "database does not contain any contig information\n");
   }
+
   #if the core database is available use its raw contigs
   return $core->get_RawContigAdaptor();
 }
-
-sub core_DBAdaptor {
-  my ($self, $arg) = @_;
-
-  if(defined $arg) {
-    $self->{'_core_dbadaptor'} = $arg;
-  }
-
-  return $self->{'_core_dbadaptor'};
-}
-
 
 
 1;

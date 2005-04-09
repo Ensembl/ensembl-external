@@ -42,6 +42,8 @@ our %CONSEQUENCE_TYPE_MAP = (
         'Coding Non-synonymous'         => 'NON_SYNONYMOUS_CODING',
         'Coding Stop gained'            => 'STOP_GAINED',
         'Coding Stop lost'              => 'STOP_LOST',
+# Coding Indel might NOT be frameshift
+        'Coding Indel'                  => 'FRAMESHIFT_CODING',
         'Non-coding exonic Non-coding'  => 'UTR',
         'Intronic Non-coding'           => 'INTRONIC',
         'Upstream Non-coding'           => 'UPSTREAM',
@@ -61,16 +63,19 @@ sub fetch_all_by_VariationFeatures {
   }
 
   my %vf_by_id;
+  my %v_by_id;
 
-  %vf_by_id = map {$_->dbID(), $_ } @$vf_ref;
-  my $instr = join (",",keys( %vf_by_id));
+  %vf_by_id = map {$_->dbID() . ":" . ($_->start + $_->slice->start - 1), $_ } @$vf_ref;
+  %v_by_id = map {$_->dbID(), $_ } @$vf_ref;
+  my $instr = join (",",keys( %v_by_id));
   my $q = qq(
       SELECT
               sgc.id_snp              as idsnp,
               ptd.description         as pos_type,
               sgc_dict.description    as consequence,
               cs.name                 as transcript_stable_id,
-              sgc.transcript_position as cdna_start
+              sgc.transcript_position as cdna_start,
+              sgc.genomic_position    as gen_pos
       FROM    
               coding_sequence cs,
               snp_gene_consequence sgc,
@@ -105,27 +110,33 @@ sub fetch_all_by_VariationFeatures {
   while (my $row = $sth->fetchrow_hashref) {
     #add to the variation feature object all the transcript variations
     my $conskey = $row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'};
+    #print "conskey = $conskey\n";
     my $consequence_type = $CONSEQUENCE_TYPE_MAP{$conskey};
     #print " idsnp = " . $row->{IDSNP} . "\n";
-    $vf_by_id{ $row->{IDSNP} }->add_consequence_type($consequence_type);
 
-    # add TranscriptVariation object
-    my $tsid = $row->{'TRANSCRIPT_STABLE_ID'};
-    if (!exists($trans_hash{$tsid})) {
-      #print "fetching transcript $tsid\n";
-      $trans_hash{$tsid} = $self->ensembl_db->get_TranscriptAdaptor->fetch_by_stable_id($tsid);
+    my $vfkey = $row->{IDSNP} . ":" . $row->{GEN_POS};
+
+    if (exists($vf_by_id{$vfkey})) {
+      $vf_by_id{$vfkey}->add_consequence_type($consequence_type);
+  
+      # add TranscriptVariation object
+      my $tsid = $row->{'TRANSCRIPT_STABLE_ID'};
+      if (!exists($trans_hash{$tsid})) {
+        #print "fetching transcript $tsid\n";
+        $trans_hash{$tsid} = $self->ensembl_db->get_TranscriptAdaptor->fetch_by_stable_id($tsid);
+      }
+  
+      my $tvar = Bio::EnsEMBL::Variation::TranscriptVariation->new_fast({
+             transcript          => $trans_hash{$tsid},
+             cdna_start          => $row->{'CDNA_START'},
+             cdna_end            => $row->{'CDNA_START'},
+             consequence_type    => $consequence_type,
+         });
+  
+  
+      $vf_by_id{$vfkey}->add_TranscriptVariation( $tvar );
+      push @tvs,$tvar;
     }
-
-    my $tvar = Bio::EnsEMBL::Variation::TranscriptVariation->new_fast({
-           transcript          => $trans_hash{$tsid},
-           cdna_start          => $row->{'CDNA_START'},
-           cdna_end            => $row->{'CDNA_START'},
-           consequence_type    => $consequence_type,
-       });
-
-
-    $vf_by_id{ $row->{IDSNP} }->add_TranscriptVariation( $tvar );
-    push @tvs,$tvar;
   }
   #print "Finished making features\n";
   return \@tvs;
@@ -140,7 +151,8 @@ sub fetch_all_by_postype_consequence {
               ptd.description         as pos_type,
               sgc_dict.description    as consequence,
               cs.name                 as transcript_stable_id,
-              sgc.transcript_position as cdna_start
+              sgc.transcript_position as cdna_start,
+              sgc.genomic_position    as gen_pos
       FROM    
               coding_sequence cs,
               snp_gene_consequence sgc,
@@ -182,29 +194,32 @@ sub fetch_all_by_postype_consequence {
     }
 
     my $vfid = $row->{IDSNP};
-    if (!exists($vf_hash{$vfid})) {
-      #print "fetching variation $vfid\n";
-      $vf_hash{$vfid} = $self->db->get_VariationAdaptor->fetch_by_dbID_position_range($vfid,$trans_hash{$tsid}->seq_region_name, $trans_hash{$tsid}->start, $trans_hash{$tsid}->end);
+    my $vfkey = $row->{IDSNP} . ":" . $row->{GEN_POS};
+
+    if (!exists($vf_hash{$vfkey})) {
+      #print "fetching variation $vfid at " . $row->{GEN_POS} . "\n";
+      $vf_hash{$vfkey} = $self->db->get_VariationAdaptor->fetch_by_dbID_position_range($vfid,$trans_hash{$tsid}->seq_region_name, 
+                                                                                      $row->{GEN_POS}, $row->{GEN_POS});
     }
 
-    if (defined($vf_hash{$vfid})) {
+    if (defined($vf_hash{$vfkey})) {
       my $tvar = Bio::EnsEMBL::Variation::TranscriptVariation->new_fast({
              transcript          => $trans_hash{$tsid},
              cdna_start          => $row->{CDNA_START},
              cdna_end            => $row->{CDNA_START},
              consequence_type    => $consequence_type,
-             variation_feature   => $vf_hash{$vfid},
+             variation_feature   => $vf_hash{$vfkey},
          });
   
   
-      $vf_hash{$vfid}->add_TranscriptVariation( $tvar );
-      $vf_hash{$vfid}->add_consequence_type($consequence_type);
+      $vf_hash{$vfkey}->add_TranscriptVariation( $tvar );
+      $vf_hash{$vfkey}->add_consequence_type($consequence_type);
   
       push @tvs,$tvar;
     } else {
       print "Missing variation feature " . $row->{IDSNP} . " for transcript " . $tsid . 
             " " . $trans_hash{$tsid}->seq_region_name . " " . $trans_hash{$tsid}->start . " " . 
-            $trans_hash{$tsid}->end . "\n";
+            $trans_hash{$tsid}->end . " at " . $row->{GEN_POS} . "\n";
     }
   }
   #print "Finished making features\n";
@@ -220,7 +235,8 @@ sub fetch_all_by_transcript_stable_id {
               ptd.description         as pos_type,
               sgc_dict.description    as consequence,
               cs.name                 as transcript_stable_id,
-              sgc.transcript_position as cdna_start
+              sgc.transcript_position as cdna_start,
+              sgc.genomic_position    as gen_pos
       FROM    
               coding_sequence cs,
               snp_gene_consequence sgc,
@@ -261,9 +277,12 @@ sub fetch_all_by_transcript_stable_id {
     }
 
     my $vfid = $row->{IDSNP};
+    my $vfkey = $row->{IDSNP} . ":" . $row->{GEN_POS};
+
     if (!exists($vf_hash{$vfid})) {
       #print "fetching variation $vfid\n";
-      $vf_hash{$vfid} = $self->db->get_VariationAdaptor->fetch_by_dbID_position_range($vfid,$trans_hash{$tsid}->seq_region_name, $trans_hash{$tsid}->start, $trans_hash{$tsid}->end);
+      $vf_hash{$vfkey} = $self->db->get_VariationAdaptor->fetch_by_dbID_position_range($vfid,$trans_hash{$tsid}->seq_region_name, 
+                                                                                       $row->{GEN_POS},$row->{GEN_POS});
     }
 
     if (defined($vf_hash{$vfid})) {
@@ -272,18 +291,18 @@ sub fetch_all_by_transcript_stable_id {
              cdna_start          => $row->{CDNA_START},
              cdna_end            => $row->{CDNA_START},
              consequence_type    => $consequence_type,
-             variation_feature   => $vf_hash{$vfid},
+             variation_feature   => $vf_hash{$vfkey},
          });
   
   
-      $vf_hash{$vfid}->add_TranscriptVariation( $tvar );
-      $vf_hash{$vfid}->add_consequence_type($consequence_type);
+      $vf_hash{$vfkey}->add_TranscriptVariation( $tvar );
+      $vf_hash{$vfkey}->add_consequence_type($consequence_type);
   
       push @tvs,$tvar;
     } else {
       print "Missing variation feature " . $row->{IDSNP} . " for transcript " . $tsid . 
             " " . $trans_hash{$tsid}->seq_region_name . " " . $trans_hash{$tsid}->start . " " . 
-            $trans_hash{$tsid}->end . "\n";
+            $trans_hash{$tsid}->end . " at " . $row->{GEN_POS} . "\n";
     }
   }
   #print "Finished making features\n";

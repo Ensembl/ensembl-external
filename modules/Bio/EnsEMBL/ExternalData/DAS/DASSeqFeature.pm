@@ -309,7 +309,29 @@ sub das_link {
   if( $arg) {
     $self->{'das_link'} = $arg;
   }
+  if (ref($self->{'das_link'}) eq 'ARRAY') {
+      return $self->{'das_link'}->[0];
+  }
   return $self->{'das_link'};
+}
+
+sub das_links {
+  my $self = shift;
+  if( @_) {
+    push @{$self->{'das_link'}}, @_;
+  }
+  return [] if (! defined($self->{'das_link'}));
+  return @{$self->{'das_link'}};
+}
+
+sub das_link_labels {
+  my $self = shift;
+  if( @_) {
+    push @{$self->{'das_link_label'}}, @_;
+  }
+  return [] if (! defined($self->{'das_link_label'}));
+#  return [$self->{'das_link_label'}] if ref($self->{'das_link_label'}) ne 'ARRAY';
+  return @{$self->{'das_link_label'}};
 }
 
 sub das_link_label {

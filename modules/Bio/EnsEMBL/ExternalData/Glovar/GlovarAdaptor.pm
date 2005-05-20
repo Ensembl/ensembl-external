@@ -78,7 +78,6 @@ sub fetch_clone_by_accession {
     my ($self, $embl_acc) = @_;
 
     # get info on clone
-    # HACK (1): try to get it from NCBI35 first
     my $q1 = qq(
         SELECT
                 ss.database_seqnname,
@@ -94,7 +93,7 @@ sub fetch_clone_by_accession {
         WHERE   cs.database_seqname = '$embl_acc'
         AND     cs.id_cloneseq = csm.id_cloneseq
         AND     csm.id_sequence = ss.id_sequence
-        AND     ss.database_source = 314
+        AND     ss.is_current = 1
     );
     my $sth;
     eval {
@@ -106,49 +105,18 @@ sub fetch_clone_by_accession {
         return();
     }
     my ($nt_name, $id_seq, $clone_start, $clone_end, $clone_strand);
-    my (@cloneinfo, $i);
+    my @cloneinfo;
+    my %stats = map { $_ => 0 } qw(NT clone);
     while (my @res = $sth->fetchrow_array) {
+        if ($res[0] =~ /NT_/) {
+            $stats{'NT'}++;
+        } else {
+            $stats{'clone'}++;
+        }
         @cloneinfo = @res;
-        #warn "NCBI35: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
-        $i++;
     }
-    if ($i > 1) {
-        $self->warn("Clone ($embl_acc) maps to more than one ($i) NTs and/or clones.");
-    }
-
-    # HACK (2): if we didn't find a mapping to NCBI35, try to get it from
-    # is_current snp_sequence
-    unless ($i) {
-        my $q1a = qq(
-            SELECT
-                    ss.database_seqnname,
-                    csm.id_sequence,
-                    csm.start_coordinate,
-                    csm.end_coordinate,
-                    csm.contig_orientation,
-                    ss.database_source,
-                    ss.is_current
-            FROM    clone_seq cs,
-                    clone_seq_map csm,
-                    snp_sequence ss
-            WHERE   cs.database_seqname = '$embl_acc'
-            AND     cs.id_cloneseq = csm.id_cloneseq
-            AND     csm.id_sequence = ss.id_sequence
-            AND     ss.is_current = 1
-        );
-        my $sth;
-        eval {
-            $sth = $self->prepare($q1a);
-            $sth->execute();
-        }; 
-        if ($@){
-            warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
-            return();
-        }
-        while (my @res = $sth->fetchrow_array) {
-            @cloneinfo = @res;
-            #warn "current: " . join(" | ", $embl_acc, $res[1], $res[0], $res[6], $res[7]) . "\n";
-        }
+    if (($stats{'NT'} + $stats{'clone'}) > 1) {
+        $self->warn("Clone ($embl_acc) maps to more than one NTs ($stats{NT}) and/or clones ($stats{clones}).");
     }
 
     # return result list

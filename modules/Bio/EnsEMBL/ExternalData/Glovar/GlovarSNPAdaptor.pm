@@ -111,7 +111,6 @@ sub fetch_all_by_clone_accession {
         $q_start = $clone_end - $cl_end - 1;
         $q_end = $clone_end - $cl_start + 1;
     }
-    #warn join("|", $clone_start, $clone_end, $cl_start, $cl_end, $q_start, $q_end, $clone_strand, "\n");
     my $q2 = qq(
         SELECT
                 distinct(sgc.id_snp)    as id_snp,
@@ -125,6 +124,7 @@ sub fetch_all_by_clone_accession {
                 svd.description         as snpclass,
                 ss.is_private           as private,
                 ptd.description         as pos_type,
+                cs.design_entry         as expt_id,
                 sgc_dict.description    as consequence
         FROM    
                 mapped_snp ms,
@@ -132,15 +132,16 @@ sub fetch_all_by_clone_accession {
                 snpvartypedict svd,
                 snp_confirmation_dict scd,
                 snp_summary ss
-        LEFT JOIN
-                snp_gene_consequence sgc on sgc.id_snp = ss.id_snp
-        LEFT JOIN
-                coding_sequence cs on sgc.id_codingseq = cs.id_codingseq
-                AND cs.design_entry = ?
+        LEFT JOIN (
+                snp_gene_consequence sgc
+                INNER JOIN
+                    coding_sequence cs on sgc.id_codingseq = cs.id_codingseq
+                    AND cs.design_entry = ?
+                INNER JOIN
+                    sgc_dict on sgc.consequence = sgc_dict.id_dict
+                ) on sgc.id_snp = ss.id_snp
         LEFT JOIN
                 position_type_dict ptd on sgc.position_description = ptd.id_dict
-        LEFT JOIN
-                sgc_dict on sgc.consequence = sgc_dict.id_dict
         WHERE   ms.id_sequence = ?
         AND     ms.id_snp = ss.id_snp
         AND     ss.id_snp = snp.id_snp
@@ -182,7 +183,8 @@ sub fetch_all_by_clone_accession {
         my $key = join(":", $row->{'ID_DEFAULT'}, $start, $end, $strand);
         my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}} || '_';
         my $cons_rank = $Bio::EnsEMBL::Variation::VariationFeature::CONSEQUENCE_TYPES{uc($consequence_type)} || 99;
-        if (! $cons{$key} or $cons_rank le $cons{$key}) {
+
+        if ((!$cons{$key}) or ($cons_rank < $cons{$key})) {
             # VariationFeature
             my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new_fast(
                 {
@@ -254,7 +256,8 @@ sub fetch_SNP_by_id  {
                 svd.description             as snpclass,
                 cd.chromosome               as chr_name,
                 sseq.id_sequence            as nt_id,
-                sseq.database_seqnname      as seq_name
+                sseq.database_seqnname      as seq_name,
+                sseq.database_source        as database_source
         FROM    
                 snp_sequence sseq,
                 mapped_snp ms,
@@ -307,113 +310,132 @@ sub fetch_SNP_by_id  {
             . ")."
         );
     }
-    my $row = $seq_clone[0] || $seq_nt[0];
 
-    $row->{'SNP_END'} ||= $row->{'SNP_START'};
-    my $snp_start = $row->{'SNP_START'};
-    my $id_seq = $row->{'NT_ID'};
+    # loop over all mappings returned; try clones first; you're done once
+    # you've managed to transform to chromosomal coords successfully
+    my $varfeat;
+    SEQ:
+    foreach my $row (@seq_clone, @seq_nt) {
+        $row->{'SNP_END'} ||= $row->{'SNP_START'};
+        my $snp_start = $row->{'SNP_START'};
+        my $id_seq = $row->{'NT_ID'};
 
-    ## get clone the SNP is on
-    my $q2 = qq(
-        SELECT
-                cs.database_seqname     as embl_acc,
-                csm.start_coordinate    as clone_start,
-                csm.end_coordinate      as clone_end,
-                csm.contig_orientation  as clone_strand
-        FROM    clone_seq cs,
-                clone_seq_map csm
-        WHERE   csm.id_sequence = '$id_seq'
-        AND     cs.id_cloneseq = csm.id_cloneseq
-        AND     (csm.start_coordinate < $snp_start)
-        AND     (csm.end_coordinate > $snp_start)
-    );
-    my $sth2;
-    eval {
-        $sth2 = $self->prepare($q2);
-        $sth2->execute();
-    }; 
-    if ($@){
-        warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
-        return([]);
-    }
-    my $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new(-dbID => $row->{'INTERNAL_ID'});
-    my $var = Bio::EnsEMBL::Variation::Variation->new(-dbID => $row->{'INTERNAL_ID'});
-    my $j;
-    while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
-        $j++;
-        
-        ## calculate clone coordinates for SNP
-        my ($start, $end);
-        if ($clone_strand == 1) {
-            $start = $row->{'SNP_START'} - $clone_start + 1;
-            $end = $row->{'SNP_END'} - $clone_start + 1;
-        } else {
-            $start = $clone_end - $row->{'SNP_END'} + 1;
-            $end = $clone_end - $row->{'SNP_START'} + 1;
+        # get clone the SNP is on
+        my $q2 = qq(
+            SELECT
+                    cs.database_seqname     as embl_acc,
+                    csm.start_coordinate    as clone_start,
+                    csm.end_coordinate      as clone_end,
+                    csm.contig_orientation  as clone_strand
+            FROM    clone_seq cs,
+                    clone_seq_map csm
+            WHERE   csm.id_sequence = '$id_seq'
+            AND     cs.id_cloneseq = csm.id_cloneseq
+            AND     (csm.start_coordinate < $snp_start)
+            AND     (csm.end_coordinate > $snp_start)
+        );
+        my $sth2;
+        eval {
+            $sth2 = $self->prepare($q2);
+            $sth2->execute();
+        }; 
+        if ($@){
+            warn("ERROR: SQL failed in " . (caller(0))[3] . "\n$@");
+            return([]);
         }
-        next if ($start < 0);
+        my $j;
+        CLONE:
+        while (my ($embl_acc, $clone_start, $clone_end, $clone_strand) = $sth2->fetchrow_array()) {
+            $j++;
+            ## map to chromosome
+            # you might get more than one clone back from Glovar, since it
+            # contains the whole clones, not only the golden parts; if you
+            # managed to transform to chromosome, you already had the right
+            # one, so skip
+            next CLONE if ($varfeat);
+            
+            # get clone from core db
+            # if no clone was found, you've picked the wrong snp_sequence
+            # try the next one
+            my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
+            next CLONE unless ($clone);
+            
+            # calculate clone coordinates for SNP
+            my ($start, $end);
+            if ($clone_strand == 1) {
+                $start = $row->{'SNP_START'} - $clone_start + 1;
+                $end = $row->{'SNP_END'} - $clone_start + 1;
+            } else {
+                $start = $clone_end - $row->{'SNP_END'} + 1;
+                $end = $clone_end - $row->{'SNP_START'} + 1;
+            }
+            next CLONE if ($start < 0);
 
-        ## map to chromosome
-        my $clone = $dnadb->get_SliceAdaptor->fetch_by_region('clone', $embl_acc);
-        $varfeat->slice($clone);
-        $varfeat->start($start);
-        $varfeat->end($end);
-        $varfeat->strand($row->{'SNP_STRAND'}*$clone_strand);
-        $varfeat = $varfeat->transform('chromosome');
+            $varfeat = Bio::EnsEMBL::Variation::VariationFeature->new(-dbID => $row->{'INTERNAL_ID'});
+            $varfeat->slice($clone);
+            $varfeat->start($start);
+            $varfeat->end($end);
+            $varfeat->strand($row->{'SNP_STRAND'}*$clone_strand);
+            $varfeat = $varfeat->transform('chromosome');
+        }
+        warn "WARNING: Multiple clones ($j) returned" if ($j > 1);
+        
+        # try next snp_sequence if you couldn't transform this one
+        next SEQ unless $varfeat;
+        
+        my $var = Bio::EnsEMBL::Variation::Variation->new(-dbID => $row->{'INTERNAL_ID'});
+        $varfeat->variation_name($id);
+        $var->name($id);
+        $varfeat->seq_region_name($row->{'CHR_NAME'});
+        $varfeat->source('Glovar');
+        $var->source('Glovar');
+        $var->adaptor($self);
+        
+        # alleles
+        $varfeat->allele_string($row->{'ALLELES'});
+        # temporary hack; change sql query to get data from snp_variation,
+        # allele_frequency, population
+        foreach my $al (split(/\|/, $row->{'ALLELES'})) {
+            my $allele = Bio::EnsEMBL::Variation::Allele->new(-allele => $al);
+            $var->add_Allele($allele);
+        }
+
+        # get flanking sequence from core
+        my $slice = $dnadb->get_SliceAdaptor->fetch_by_region(
+            'chromosome',
+            $row->{'CHR_NAME'},
+            $varfeat->start - 25,
+            $varfeat->end + 25,
+        );
+        $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
+        my $seq = $slice->seq;
+
+        # determine end of upstream sequence depending on range type (in-dels
+        # of type "between", i.e. start !== end, are actually inserts)
+        my $up_end = 25;
+        $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($varfeat->start ne $varfeat->end));
+        $var->five_prime_flanking_seq(substr($seq, 0, $up_end));
+        $var->three_prime_flanking_seq(substr($seq, 26));
+        
+        # consequences and  DBLinks
+        $self->get_consequences($varfeat);
+        $self->get_DBLinks($var);
+
+        # validation state
+        $varfeat->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
+        $var->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
+
+        # population genotypes
+        # $self->get_population_genotypes($var);
+
+        # add variation to variationFeature
+        $varfeat->variation($var);
     }
-    warn "WARNING: Multiple clones ($j) returned" if ($j > 1);
-    
-    $varfeat->variation_name($id);
-    $var->name($id);
-    $varfeat->seq_region_name($row->{'CHR_NAME'});
-    $varfeat->source('Glovar');
-    $var->source('Glovar');
-    $var->adaptor($self);
-    
-    # alleles
-    $varfeat->allele_string($row->{'ALLELES'});
-    # temporary hack; change sql query to get data from snp_variation,
-    # allele_frequency, population
-    foreach my $al (split(/\|/, $row->{'ALLELES'})) {
-        my $allele = Bio::EnsEMBL::Variation::Allele->new(-allele => $al);
-        $var->add_Allele($allele);
-    }
-
-    # get flanking sequence from core
-    my $slice = $dnadb->get_SliceAdaptor->fetch_by_region(
-        'chromosome',
-        $row->{'CHR_NAME'},
-        $varfeat->start - 25,
-        $varfeat->end + 25,
-    );
-    $slice = $slice->invert if ($row->{'SNP_STRAND'} == -1);
-    my $seq = $slice->seq;
-
-    # determine end of upstream sequence depending on range type (in-dels
-    # of type "between", i.e. start !== end, are actually inserts)
-    my $up_end = 25;
-    $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($varfeat->start ne $varfeat->end));
-    $var->five_prime_flanking_seq(substr($seq, 0, $up_end));
-    $var->three_prime_flanking_seq(substr($seq, 26));
-    
-    # consequences and  DBLinks
-    $self->get_consequences($varfeat);
-    $self->get_DBLinks($var);
-
-    # validation state
-    $varfeat->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
-    $var->add_validation_state($VSTATE_MAP{$row->{'VALIDATED'}});
-
-    # population genotypes
-    # $self->get_population_genotypes($var);
-
-    # add variation to variationFeature
-    $varfeat->variation($var);
 
     #&eprof_end('fetch_snp_by_id');
     #&eprof_dump(\*STDERR);
 
-    return [$varfeat];
+    $varfeat ? (return [$varfeat]) : (return([]));
 }
 
 =head2 get_DBLinks
@@ -497,19 +519,34 @@ sub get_consequences {
     while (my $row = $sth->fetchrow_hashref) {
         # add consequence
         my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}};
-        $varfeat->add_consequence_type($consequence_type);
+        my $key = join(":", $row->{'TRANSCRIPT_STABLE_ID'}, $row->{'CDNA_START'}, $consequence_type);
 
-        # add TranscriptVariation object
-        my $trans = Bio::EnsEMBL::Transcript->new(
-            -STABLE_ID => $row->{'TRANSCRIPT_STABLE_ID'},
-        );
-        my $tvar = Bio::EnsEMBL::Variation::TranscriptVariation->new_fast({
-            transcript          => $trans,
-            cdna_start          => $row->{'CDNA_START'},
-            cdna_end            => $row->{'CDNA_START'},
-            consequence_type    => $consequence_type,
-        });
-        $varfeat->add_TranscriptVariation($tvar);
+        # only add consequence once (workaround for duplicates in db)
+        my $found_tvar;
+        foreach my $oldtvar (@{ $varfeat->get_all_TranscriptVariations || [] }) {
+            if (join(":",   $oldtvar->transcript->stable_id,
+                            $oldtvar->cdna_start,
+                            $oldtvar->consequence_type
+                    ) eq $key) {
+                $found_tvar = 1;
+            }
+        }
+        
+        unless ($found_tvar) {
+            $varfeat->add_consequence_type($consequence_type);
+
+            # add TranscriptVariation object
+            my $trans = Bio::EnsEMBL::Transcript->new(
+                -STABLE_ID => $row->{'TRANSCRIPT_STABLE_ID'},
+            );
+            my $tvar = Bio::EnsEMBL::Variation::TranscriptVariation->new_fast({
+                transcript          => $trans,
+                cdna_start          => $row->{'CDNA_START'},
+                cdna_end            => $row->{'CDNA_START'},
+                consequence_type    => $consequence_type,
+            });
+            $varfeat->add_TranscriptVariation($tvar);
+        }
     }
 }
 

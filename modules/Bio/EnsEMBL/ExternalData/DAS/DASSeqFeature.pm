@@ -321,7 +321,9 @@ sub das_links {
     push @{$self->{'das_link'}}, @_;
   }
   return [] if (! defined($self->{'das_link'}));
-  return @{$self->{'das_link'}};
+  return [$self->{'das_link'}] if (ref($self->{'das_link'}) ne 'ARRAY');
+  return @{$self->{'das_link'}} ;
+
 }
 
 sub das_link_labels {
@@ -330,7 +332,7 @@ sub das_link_labels {
     push @{$self->{'das_link_label'}}, @_;
   }
   return [] if (! defined($self->{'das_link_label'}));
-#  return [$self->{'das_link_label'}] if ref($self->{'das_link_label'}) ne 'ARRAY';
+  return [$self->{'das_link_label'}] if ref($self->{'das_link_label'}) ne 'ARRAY';
   return @{$self->{'das_link_label'}};
 }
 

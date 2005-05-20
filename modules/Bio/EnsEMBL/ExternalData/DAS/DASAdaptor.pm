@@ -101,7 +101,8 @@ sub new {
 	 $types,
 	 $on,
 	 $enable,
-	 $help, 
+	 $help,
+	 $mapping, 
 	 $fasta ) = $self->_rearrange([qw( URL
 					   DSN
 					   ENSDB
@@ -129,6 +130,7 @@ sub new {
 					   ON
 					   ENABLE
 					   HELP
+					   MAPPING
 					   FASTA)],@args);
 
 
@@ -167,6 +169,7 @@ sub new {
     $description     && $self->description( $description );
     # These are parsed to arrayrefs
     $on        && $self->on( $on );
+    $mapping        && $self->mapping( $mapping );
     $enable        && $self->enable( $enable );
     $fasta     && $self->fasta( $fasta );
 
@@ -746,6 +749,27 @@ sub description{
 
 sub on{
    my $key = '_on';
+   my $self = shift;
+   if( @_ ){ $self->{$key} = shift }
+   return $self->{$key};
+}
+
+
+#----------------------------------------------------------------------
+
+=head2 mapping
+
+  Arg [1]   : scalar on (optional)
+  Function  : Getter/setter for mapping meta data
+  Returntype: scalar mapping
+  Exceptions: 
+  Caller    : 
+  Example   : $mapping_copy = $das_adapt->mapping($mapping);
+
+=cut
+
+sub mapping{
+   my $key = '_mapping';
    my $self = shift;
    if( @_ ){ $self->{$key} = shift }
    return $self->{$key};

@@ -127,6 +127,7 @@ sub new {
     $self->driver($driver);
     $self->group($group);
     $self->species($species);
+    $reg->add_DBAdaptor($species, $group,  $self);
 
     return $self; # success - we hope!
 }

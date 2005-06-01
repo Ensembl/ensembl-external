@@ -797,7 +797,6 @@ sub fetch_all_by_ID {
 
    my @id_types =  $id_type_base eq 'mixed' ? @{$self->adaptor->mapping} : ($id_type_base);
    foreach my $id_type (@id_types) {
-       warn("A: $id_type");
    # If $id_type is prefixed with 'ensembl_', then ensembl id type
        if( $id_type =~ m/ensembl_(.+)/o ){
 	   my $type = $1;

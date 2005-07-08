@@ -167,6 +167,7 @@ sub new {
     $conftype   && $self->conftype( $conftype );
     $active     && $self->active( $active );
     $description     && $self->description( $description );
+    $help        && $self->help( $help );
     # These are parsed to arrayrefs
     $on        && $self->on( $on );
     $mapping        && $self->mapping( $mapping );

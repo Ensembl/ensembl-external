@@ -181,14 +181,16 @@ sub host {
 
 # evil....
 sub AUTOLOAD {
-	my $self = shift;
-	my @args = @_;
-	(my $function = $AUTOLOAD) =~ s/.*:://;
-    #print STDERR "Autoloading: $function via ", $self->_db_handle, "\n";
-	{
-		no strict 'vars';
-		return ($self->_db_handle->$function(@args));
-	}
+  my $self = shift;
+  my @args = @_;
+  (my $function = $AUTOLOAD) =~ s/.*:://;
+  #print STDERR "Autoloading: $function via ", $self->_db_handle, "\n";
+  my $return;
+  eval {
+    no strict 'vars';
+    $return = $self->_db_handle->$function(@args);
+  };
+  return $return;
 }
 
 # retrieve a GO accession using an accession ID (GO::NNNNNNN)

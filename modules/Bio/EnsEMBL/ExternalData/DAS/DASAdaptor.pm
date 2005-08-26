@@ -66,6 +66,7 @@ BEGIN{
 }
 
 #----------------------------------------------------------------------
+use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 
 sub new {
     my($pkg, @args) = @_;
@@ -103,7 +104,7 @@ sub new {
 	 $enable,
 	 $help,
 	 $mapping, 
-	 $fasta ) = $self->_rearrange([qw( URL
+	 $fasta ) = &rearrange([qw( URL
 					   DSN
 					   ENSDB
 					   TIMEOUT

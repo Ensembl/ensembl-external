@@ -96,6 +96,7 @@ sub new {
 	 $depth,
 	 $group,
 	 $stylesheet,
+	 $score,
 	 $conftype,
 	 $active,
 	 $description,
@@ -124,6 +125,7 @@ sub new {
 					   DEPTH
 					   GROUP
 					   STYLESHEET
+				           SCORE
 					   CONFTYPE
 					   ACTIVE
 					   DESCRIPTION
@@ -140,7 +142,7 @@ sub new {
     $domain   && $self->domain( $domain );
 
     $self->url =~ m|\w+://\w+| || 
-      $self->throw("Need a URL or protocol+domain");
+      (    warn(join('*',@args))  && $self->throw("Need a URL or protocol+domain"));
 
     $timeout ||= 30;
     $self->_db_handle( Bio::Das->new($timeout) );
@@ -165,6 +167,7 @@ sub new {
 
     $group      && $self->group( $group );
     $stylesheet && $self->stylesheet( $stylesheet );
+    $score && $self->score( $score );
     $conftype   && $self->conftype( $conftype );
     $active     && $self->active( $active );
     $description     && $self->description( $description );
@@ -669,6 +672,13 @@ sub group{
 
 sub stylesheet{
    my $key = '_stylesheet';
+   my $self = shift;
+   if( @_ ){ $self->{$key} = shift }
+   return $self->{$key};
+}
+
+sub score{
+   my $key = '_score';
    my $self = shift;
    if( @_ ){ $self->{$key} = shift }
    return $self->{$key};

@@ -63,7 +63,7 @@ use Bio::EnsEMBL::Root;
 use Bio::EnsEMBL::ExternalData::Disease::Disease;
 use Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation;
 use vars qw(@ISA);
-
+use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 @ISA = qw(Bio::EnsEMBL::Root);
 
 
@@ -74,7 +74,7 @@ sub new
     my $self = bless {}, $class;
     
     my ($db,$host,$port,$driver,$user,$password,$debug,$ensdb) = 
-      $self->_rearrange([qw(DBNAME
+      rearrange([qw(DBNAME
                 HOST
                 PORT
                 DRIVER
@@ -864,7 +864,8 @@ sub _link2ensembl {
   foreach my $dis (@diseases){ 
     foreach my $location($dis->each_Location){ 
       eval {
-        my $ensembl_gene = $self->_ensdb->get_GeneAdaptor->fetch_by_maximum_DBLink($location->external_gene);
+#        my $ensembl_gene = $self->_ensdb->get_GeneAdaptor->fetch_by_maximum_DBLink($location->external_gene);
+        my $ensembl_gene = $self->_ensdb->get_GeneAdaptor->fetch_all_by_external_name($location->external_gene);
         $location->ensembl_gene($ensembl_gene);
       };
       if ($@){print STDERR "problems with ensembl genes\n$@\n";}

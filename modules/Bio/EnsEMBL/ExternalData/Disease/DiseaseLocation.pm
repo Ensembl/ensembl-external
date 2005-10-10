@@ -42,7 +42,7 @@ package Bio::EnsEMBL::ExternalData::Disease::DiseaseLocation;
 use strict;
 use Bio::EnsEMBL::Root;
 use vars qw(@ISA);
-
+use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 @ISA = qw(Bio::EnsEMBL::Root);
 
 
@@ -59,7 +59,7 @@ sub new
     my $self = bless {}, $class;
     
     my ($db_id,$cyto_start,$cyto_end,$gene_id,$chromosome) = 
-      $self->_rearrange([qw(
+      rearrange([qw(
 			    DB_ID
 			    CYTO_START
 			    CYTO_END

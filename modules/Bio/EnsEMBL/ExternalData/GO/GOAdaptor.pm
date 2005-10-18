@@ -69,7 +69,7 @@ use strict;
 
 use Bio::Root::Object;
 use DBI;
-
+use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 use Bio::DBLinkContainerI;
 use Bio::Annotation::DBLink;
 use GO::AppHandle;
@@ -87,7 +87,7 @@ sub new {
     bless $self, $class;
 
     my ($db,$user,$pass,$host,$port,$driver,$species) = 
-      $self->_rearrange([qw(
+      rearrange([qw(
                 DBNAME
                 USER
                 PASS

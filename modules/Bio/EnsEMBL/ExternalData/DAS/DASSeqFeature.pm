@@ -91,7 +91,7 @@ sub das_segment{
 }
 sub das_segment_id {
   my $self = shift;
-  if( @_ and @_[0]->isa('Bio::Das::Segment') ){
+  if( @_ and $_[0]->isa('Bio::Das::Segment') ){
     $self->deprecated( "Use das_segment instead" ); # whs 25/03/2004
     return $self->das_segment(@_);
   }

@@ -636,7 +636,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 
 # Now get the stylesheet
     my $STYLES = [];
-    $response = $dbh->stylesheet($style_callback);
+    $response = $dbh->stylesheet();
     foreach my $url (keys %$response) {
 	foreach my $css (@ {$response->{$url}} ) {
 	    my @categories = @{ $css->{category} };

@@ -572,7 +572,6 @@ sub fetch_all_by_ID {
    if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 
    my @das_features = ();
-#   warn("DAS 2:".Dumper(\%ids));
    my $response = $self->adaptor->_db_handle->features( [keys %ids]);
 
     foreach my $url (keys %$response) {
@@ -580,8 +579,6 @@ sub fetch_all_by_ID {
 	    add_feature($self, $f, $dsn, \@das_features);
 	}
     }
-
-   warn ("FEATURES:".scalar(@das_features));
 
    my @result_list = grep 
      {
@@ -618,134 +615,62 @@ sub get_Ensembl_SeqFeatures_DAS {
     my $url 	   = $self->adaptor->url();
 
     my @das_features = ();
-    my $STYLES = [];
 
     @$segments || $self->throw("Need some segment IDs to query against");
 
-    warn("DAS 1 $dsn");
-    my $style_callback = sub {
-	my $css = shift;
-
-	my @categories = @{ $css->{category} };
-	foreach my $c (@categories) {
-	    my $c_id = $c->{category_id};
-	    my @types = @{ $c->{type} };
-	    foreach my $t (@types) {
-		my $t_id = $t->{type_id};
-		my @glyphs = $t->{glyph};
-		foreach my $g (@glyphs) {
-		    my %ghash = %{$g->[0]};
-		    foreach my $gtype (keys %ghash) {
-			my $attr = $ghash{$gtype}->[0];
-			push @$STYLES, {
-			    'category' => $c_id,
-			    'type'     => $t_id,
-			    'glyph'    => $gtype,
-			    'attrs'    => $attr,
-			};
-		    }
-		}
-	    }
-	}
-    };
-
-#    my $response = $dbh->stylesheet($style_callback);
+# Get features
     my $response;
-#   warn( "STYLE: ".Dumper( $STYLES));
-
-    my $cc = 0;
-    my $features_callback = sub {
-	my $f = shift;
-	warn("FEAT");
-
-#	warn("FEAT:".Dumper($f));
-# Filter out calls for non-features
-	defined($f->{feature_id}) or next;
-
-	my ($fstart, $fend) = ($f->{start}, $f->{end});
-	if ($f->{type} =~ /^(INIT_MET|INIT_MET:)$/) {
-	    $fstart = $fend = 1;
-	}
-
-	$cc++;
-	return;
-	my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
-	$das_sf->das_feature_id   ($f->{feature_id}      );
-	$das_sf->das_feature_label($f->{feature_label}   );
-	$das_sf->das_segment(
-			     Bio::Das::Segment->new($f->{segment_id},$f->{start},$f->{end},'1',$self,$dsn)
-			     );
-
-	$das_sf->das_segment_label($f->{segment_id});
-	$das_sf->das_id($f->{feature_id});
-	$das_sf->das_dsn($dsn);
-	$das_sf->source_tag($dsn);
-	$das_sf->primary_tag('das');
-	$das_sf->das_type($f->{type});
-	$das_sf->das_type_id($f->{type_id});
-	$das_sf->das_type_category($f->{type_category});
-	$das_sf->das_type_reference($f->{type_reference});
-	$das_sf->das_name($f->{feature_id});
-	$das_sf->das_method($f->{method});
-	$das_sf->das_method_id($f->{method_id});
-	$das_sf->das_start($f->{start});
-	$das_sf->das_end($f->{end});
-	$das_sf->das_score($f->{score});
-	$das_sf->das_orientation($f->{orientation}||0);    
-	$das_sf->das_phase($f->{phase});
-	$das_sf->das_target($f->{target});
-	$das_sf->das_target_id($f->{target_id});
-	$das_sf->das_target_label($f->{target_label});
-	$das_sf->das_target_start($f->{target_start});
-	$das_sf->das_target_stop($f->{target_stop});
-	$das_sf->das_links(@{$f->{link}}) if ($f->{link});
-
-	if ($f->{group}) {
-	    $das_sf->das_groups(@{$f->{group}});
-	    # For backward compatability
-	    $das_sf->das_group_id($f->{group}->[0]->{group_id});
-	    $das_sf->das_group_label($f->{group}->[0]->{group_label});
-	    $das_sf->das_group_type($f->{group}->[0]->{group_type});
-	}
-
-
-
-
-	my $note = ref($f->{note}) eq 'ARRAY' ? join('<br/>', @{$f->{note}}) : $f->{note};
-	$das_sf->das_note($note);
-	push(@das_features, $das_sf);
-    };
-
 
     if(@$types) {
-	$response = $dbh->features({
-	    'segment' => $segments,
-	    'type' => $types, 
-	    'callback' => $features_callback
-	    });
+	$response = $dbh->features({'segment' => $segments, 'type' => $types});
     } else { 
-#	warn("SEGMENTS $$");
-#	warn(Dumper($segments));
 	$response = $dbh->features($segments);  
-#	$response = $dbh->features($segments, $features_callback);  
-#	warn("RESPONSE $$ :". Dumper($response));
-#	warn(Dumper($response));
     }
 
-
+# Parse the response. There is a problem using callbacks hence the explicit response handling
     foreach my $url (keys %$response) {
 	foreach my $f (@ {$response->{$url}} ) {
 	    add_feature($self, $f, $dsn, \@das_features);
 	}
     }
 
+# Now get the stylesheet
+    my $STYLES = [];
+    $response = $dbh->stylesheet($style_callback);
+    foreach my $url (keys %$response) {
+	foreach my $css (@ {$response->{$url}} ) {
+	    my @categories = @{ $css->{category} };
+	    foreach my $c (@categories) {
+		my $c_id = $c->{category_id};
+		my @types = @{ $c->{type} };
+		foreach my $t (@types) {
+		    my $t_id = $t->{type_id};
+		    my @glyphs = $t->{glyph};
+		    foreach my $g (@glyphs) {
+			my %ghash = %{$g->[0]};
+			foreach my $gtype (keys %ghash) {
+			    my $attr = $ghash{$gtype}->[0];
+			    push @$STYLES, {
+				'category' => $c_id,
+				'type'     => $t_id,
+				'glyph'    => $gtype,
+				'attrs'    => $attr,
+			    };
+			}
+		    }
+		}
+	    }
+
+	}
+    }
+    
+#    warn( "STYLE: ".Dumper( $STYLES));
     return (\@das_features,$STYLES);
 }
 
 sub add_feature {
     my ($self, $f, $dsn, $fa) = @_;
 
-#warn("FEAT:".Dumper($f));
 # Filter out calls for non-features
     defined($f->{feature_id}) or next;
 

@@ -20,7 +20,7 @@ my $snps = $glovar_adaptor->fetch_all_by_clone_accession('AL100005', 'AL100005',
 This module is an entry point into a glovar database. It allows you to retrieve
 SNPs from Glovar.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Tony Cox <avc@sanger.ac.uk>
 Patrick Meidl <pm2@sanger.ac.uk>
@@ -302,7 +302,7 @@ sub fetch_SNP_by_id  {
     # if more than one NT or clone mapping has been returned, something is
     # wrong with snp_sequence.is_current, so print a warning
     if (@seq_nt > 1 or @seq_clone > 1) {
-        $self->warn(
+        warning(
             "More than one mapping of SNP to NT_contig ("
             . join(", ", map { $_->{'SEQ_NAME'} } @seq_nt)
             . ") or clone (" 

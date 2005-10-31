@@ -68,6 +68,7 @@ use strict;
 use vars qw(@ISA);
 use Bio::Das; 
 use Bio::EnsEMBL::Root;
+use Data::Dumper;
 
 use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
@@ -137,163 +138,32 @@ sub fetch_dsn_info {
   };
   my $dsn = $self->adaptor->url;
   my $das = $self->adaptor->_db_handle;
-  $das->dsn_js5( -dsn=>$dsn, -callback=>$callback );
+#  $das->dsn_js5( -dsn=>$dsn, -callback=>$callback );
+  my $dsn_hash =  $das->dsns();
+  warn("DSN:$dsn");
+  warn(Dumper($das));
+  warn(Dumper($dsn_hash));
+  foreach my $key (%{ $dsn_hash } ) {
+      foreach my $obj (@{ $dsn_hash->{$key} }) {
+	  my $data = {};
+
+	  if ($dsn =~ m!(.+/das)/([^/]+)!) {
+	      $data->{base}        = $1;
+	      $data->{url}         = $dsn;
+	  } else {
+	      $data->{base}        = $dsn;
+	      $data->{url}         = "$dsn/$obj->{source_id}";
+	  }
+	  $data->{id}          = $obj->{source_id};
+	  $data->{dsn}         = $obj->{source_id};
+	  $data->{name}        = $obj->{source};
+	  $data->{description} = $obj->{description};
+	  $data->{master}      = $obj->{mapmaster};
+	  push @sources, $data;
+      }      
+  }
   return [@sources];
 }
-
-
-
-=head2 fetch_all_by_DBLink_Container
-
-  Arg [1]   : Bio::Ensembl object that implements get_all_DBLinks method
-              (e.g. Bio::Ensembl::Protein, Bio::Ensembl::Gene)
-  Function  : Basic GeneDAS/ProteinDAS adaptor.
-  Returntype: Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature (listref)
-  Exceptions: 
-  Caller    : 
-  Example   : 
-
-=cut
-
-sub fetch_all_by_DBLink_Container {
-   my $self       = shift;
-   my $parent_obj = shift;
-   my $id_method  = shift || 'display_id';
-
-   my $id_type_base    = $self->adaptor->type || 'swissprot';
-   my $url        = $self->adaptor->url;
-   my $dsn        = $self->adaptor->dsn;
-
-   $parent_obj->can('get_all_DBLinks') || $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can get_all_DBLinks" );
-
-   my $ensembl_id = $parent_obj->stable_id() ? $parent_obj->can('stable_id') : '';
-
-   my %ids = ();
-
-   my @id_types =  $id_type_base eq 'mixed' ? @{$self->adaptor->mapping} : ($id_type_base);
-
-   foreach my $id_type (@id_types) {
-   # If $id_type is prefixed with 'ensembl_', then ensembl id type
-   if( $id_type =~ m/ensembl_(.+)/o ){
-     my $type = $1;
-     my @gene_ids;
-     my @tscr_ids;
-     my @tran_ids;
-     if( $parent_obj->isa("Bio::EnsEMBL::Gene") ){
-       push( @gene_ids, $parent_obj->stable_id );
-       foreach my $tscr( @{$parent_obj->get_all_Transcripts} ){
-         push( @tscr_ids, $tscr->stable_id );
-         my $tran = $tscr->translation || next;
-         push( @tran_ids, $tran->stable_id );
-       }
-     } elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
-       push( @tscr_ids, $parent_obj->stable_id );
-       my $tran = $parent_obj->translation || next;
-       push( @tran_ids, $tran->stable_id );
-       push( @gene_ids, $self->gene->stable_id );
-     } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
-       push( @tran_ids, $parent_obj->stable_id );
-     } else{ # Assume protein
-       warn( "??? - ", $parent_obj->transcript->translation->stable_id );
-       push( @tran_ids, $parent_obj->transcript->translation->stable_id );
-     }
-     if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
-     elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
-     elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
-  } elsif ($id_type eq 'mgi') { 
-       # MGI Accession IDs come from MarkerSymbol DB
-       my $id_method = 'primary_id';
-       foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
-	   my $id = $xref->primary_id || next;
-	   $id =~ s/\://g;
-	   $ids{$id} = $xref;
-       }
-  } else { 
-       # If no 'ensembl_' prefix, then DBLink ID
-       # If $id_type is suffixed with '_acc', use primary_id call 
-       # rather than display_id
-     my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
-     foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
-       lc( $xref->dbname ) ne lc( $id_type ) and next;
-       my $id = $xref->$id_method || next;
-       $ids{$id} = $xref;
-     }
-   }
-}
-#   warn "DAS - $id_type_base - @{[keys %ids]}";
-   # Return empty if no ids found
-   if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
-
-   my @das_features = ();
-   my $callback = sub{
-       my $f = shift;
-       $f->isa('Bio::Das::Feature') || return;
-       my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
-       my ($fstart, $fend) = ($f->start, $f->end);
-
-       if ($f->type() =~ /^(INIT_MET|INIT_MET:)$/) {
-	   $fstart = $fend = 1;
-
-       }
-
-       $dsf->id                ( $ensembl_id );
-       $dsf->das_feature_id    ( $f->id() );
-       $dsf->das_feature_label ( $f->label() );
-       $dsf->das_segment       ( $f->segment );
-       $dsf->das_segment_label ( $f->label() );
-       $dsf->das_id            ( $f->id() );
-       $dsf->das_dsn           ( $dsn );
-       $dsf->source_tag        ( $dsn );
-       $dsf->primary_tag       ( 'das');
-       $dsf->das_type_id       ( $f->type() );
-       $dsf->das_type_category ( $f->category() );
-       $dsf->das_type_reference( $f->reference() );
-       $dsf->das_name          ( $f->id() );
-       $dsf->das_method_id     ( $f->method() );
-       $dsf->das_link          ( $f->link() );
-       $dsf->das_link_label    ( $f->link_label() );
-       $dsf->das_group_id      ( $f->group() );
-       $dsf->das_group_label   ( $f->group_label() );
-       $dsf->das_group_type    ( $f->group_type() );
-       $dsf->das_target        ( $f->target() );
-       $dsf->das_target_id     ( $f->target_id );
-       $dsf->das_target_label  ( $f->target_label );
-       $dsf->das_target_start  ( $f->target_start );
-       $dsf->das_target_stop   ( $f->target_stop );
-       $dsf->das_type          ( $f->type() );
-       $dsf->das_method        ( $f->method() );
-       $dsf->das_start         ( $fstart );
-       $dsf->das_end           ( $fend );
-       $dsf->das_score         ( $f->score() );
-       $dsf->das_orientation   ( $f->orientation() || 0 );
-       $dsf->das_phase         ( $f->phase() );
-       my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
-       $dsf->das_note          ( $note );
-       $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
-#		 my $str = join('*', $dsf->das_feature_id, $dsf->das_type, $dsf->start, $dsf->end, $dsf->das_link);
-#		 warn("DF: $str");
-
-        push(@das_features, $dsf);
-   };
-
-
-#   $self->adaptor->_db_handle->debug(1);
-   $self->adaptor->_db_handle->features
-     ( -dsn=>"$url/$dsn", 
-       -segment=>[keys %ids], 
-       -feature_callback=>$callback );
-
-   my @result_list = grep 
-     {
-       $self->_map_DASSeqFeature_to_pep
-	 ( $ids{$_->das_segment->ref}, $_ ) == 1
-     } @das_features;
-
-#   my $key = join( '_', $dsn, keys(%ids) );
-   my $key = $self->adaptor->name;
-   return( $key, [@result_list] );
-}
-
 
 =head2  fetch_all_by_Slice
 
@@ -471,157 +341,6 @@ sub _map_DASSeqFeature_to_slice {
   return 1;
 
 }
-
-    
-
-
-
-=head2 get_Ensembl_SeqFeatures_DAS
-
- Title   : get_Ensembl_SeqFeatures_DAS ()
- Usage   : get_Ensembl_SeqFeatures_DAS(['AL12345','13']);
- Function:
- Example :
- Returns :
- Args    :
- Notes   : This function sets the primary tag and source tag fields in the
-           features so that higher level code can filter them by their type
-           (das) and their data source name (dsn)
-
-=cut
-
-sub get_Ensembl_SeqFeatures_DAS {
-    my $self = shift;
-    my $segments = shift || [];
-    my $dbh 	   = $self->adaptor->_db_handle();
-    my $dsn 	   = $self->adaptor->dsn();
-    my $types 	   = $self->adaptor->types() || [];
-    my $url 	   = $self->adaptor->url();
-
-    my $DAS_FEATURES = [];
-    my $STYLES = [];
-    #$dbh->debug(1); # Useful debug flag
-
-    @$segments || $self->throw("Need some segment IDs to query against");
-    my @seg_requests = @$segments;
-    my $callback_stylesheet = sub {
-      # return if $_[3] eq 'pending';
-      push @$STYLES, {
-		      'category' => $_[0],
-		      'type'     => $_[1],
-		      'zoom'     => $_[2],
-		      'glyph'    => $_[3],
-		      'attrs'    => $_[4]
-		     };
-    };
-    my $callback =  sub {
-        my $f = shift;
-        return unless $f->isa('Bio::Das::Feature'); ## Bug in call back code means this is called for wrong DAS types
-        my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
-        $das_sf->das_feature_id   ($f->id      );
-        $das_sf->das_feature_label($f->label   );
-        $das_sf->das_segment      ($f->segment );
-        $das_sf->das_segment_label($f->label   );
-        $das_sf->das_id($f->id());
-        $das_sf->das_dsn($dsn);
-        $das_sf->source_tag($dsn);
-        $das_sf->primary_tag('das');
-        $das_sf->das_type_id($f->type());
-        $das_sf->das_type_category($f->category());
-        $das_sf->das_type_reference($f->reference());
-        #$das_sf->das_type_subparts($attr{'subparts'});
-        #$das_sf->das_type_superparts($attr{'superparts'});
-        $das_sf->das_name($f->id());
-        $das_sf->das_method_id($f->method());
-        $das_sf->das_link($f->link());
-        $das_sf->das_link_label($f->link_label());
-        #$das_sf->das_link_href($f->link());
-        $das_sf->das_group_id($f->group());
-        $das_sf->das_group_label($f->group_label());
-        $das_sf->das_group_type($f->group_type());
-        $das_sf->das_target($f->target());
-        $das_sf->das_target_id($f->target_id);
-        $das_sf->das_target_label($f->target_label);
-        $das_sf->das_target_start($f->target_start);
-        $das_sf->das_target_stop($f->target_stop);
-        $das_sf->das_type($f->type());
-        $das_sf->das_method($f->method());
-        $das_sf->das_start($f->start());
-        $das_sf->das_end($f->end());
-        $das_sf->das_score($f->score());
-        $das_sf->das_orientation($f->orientation()||0);    
-        $das_sf->das_phase($f->phase());
-	my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
-        $das_sf->das_note($note);
-
-        0 && warn("adding feature for $dsn.... @{[$f->id]}");
-        push(@{$DAS_FEATURES}, $das_sf);
-#	my $str = $das_sf->das_feature_id.':'.$das_sf->das_type.':'. $das_sf->start.' : '.$das_sf->end;
-#	warn("CF: $str");
-    };
-
-    my $response;
-    # Test POST echo server to request debugging
-    if( 0 ){ 
-           warn "URL/DSN: $url/$dsn";
-           $response = $dbh->features(
-               -dsn        =>  "$ENV{'ENSEMBL_DAS_WARN'}/das/$dsn", 
-               -segment    =>  \@seg_requests, 
-               -callback   =>  $callback, 
-               #-category   =>  'all', 
-           ); 
-     } 
-
-
-#     warn "GRABBING STYLE SHEET FOR $dsn";
-     $response = $dbh->stylesheet(
-       -dsn => "$url/$dsn",
-       -callback => $callback_stylesheet
-     );
-#     warn $response;
-#     warn( Data::Dumper->Dump( [$STYLES] ) );
-#     warn "STYLESHEET STORED @{$STYLES}";
-     if(@$types) {
-        $response = $dbh->features(
-                    -dsn    =>  "$url/$dsn",
-                    -segment    =>  \@seg_requests,
-                    -callback   =>  $callback,
-                    -type   => $types,
-        );
-     } else {
-        $response = $dbh->features(
-                    -dsn    =>  "$url/$dsn",
-                    -segment    =>  \@seg_requests,
-                    -callback   =>  $callback,
-        );
-     }
-    
-    unless ($response->success()){
-      #warn Data::Dumper::Dumper( $response );
-        $self->warn( "DAS fetch for $url/$dsn failed" );
-        #print STDERR "XX: ", (join "\nXX:", @{$DAS_FEATURES}),"\n";
-        my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature; 
-        $das_sf->das_type_id('__ERROR__'); 
-        $das_sf->das_dsn($dsn);
-        unshift @{$DAS_FEATURES}, $das_sf;
-        return ($DAS_FEATURES,$STYLES);
-    }
-    
-    if(0){
-        foreach my $feature (@{$DAS_FEATURES}){
-            print STDERR "SEG ID: ",            $feature->seqname(), "\t";
-            print STDERR "DSN: ",               $feature->das_dsn(), "\t";
-            print STDERR "FEATURE START: ",     $feature->das_start(), "\t";
-            print STDERR "FEATURE END: ",       $feature->das_end(), "\t";
-            print STDERR "FEATURE STRAND: ",    $feature->das_strand(), "\t";
-            print STDERR "FEATURE TYPE: ",      $feature->das_type_id(), "\t";
-            print STDERR "FEATURE ID: ",        $feature->das_feature_id(), "\n";
-        }
-    }
-    return ($DAS_FEATURES,$STYLES); 
-}
-
-
 
 =head2 get_Ensembl_SeqFeatures_clone
 
@@ -849,64 +568,20 @@ sub fetch_all_by_ID {
    }
 
 
-#   warn "DAS2 - $id_type_base - @{[keys %ids]}";
    # Return empty if no ids found
    if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 
    my @das_features = ();
-   my $callback = sub{
-       my $f = shift;
-       $f->isa('Bio::Das::Feature') || return;
-       my $dsf = Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature->new();
-       my ($fstart, $fend) = ($f->start, $f->end);
-       if ($f->type() =~ /^(INIT_MET|INIT_MET:)$/) {
-	   $fstart = $fend = 1;
-       }
-       $dsf->id                ( $ensembl_id );
-       $dsf->das_feature_id    ( $f->id() );
-       $dsf->das_feature_label ( $f->label() );
-       $dsf->das_segment       ( $f->segment );
-       $dsf->das_segment_label ( $f->label() );
-       $dsf->das_id            ( $f->id() );
-       $dsf->das_dsn           ( $dsn );
-       $dsf->source_tag        ( $dsn );
-       $dsf->primary_tag       ( 'das');
-       $dsf->das_type_id       ( $f->type() );
-       $dsf->das_type_category ( $f->category() );
-       $dsf->das_type_reference( $f->reference() );
-       $dsf->das_name          ( $f->id() );
-       $dsf->das_method_id     ( $f->method() );
-       $dsf->das_link          ( $f->link() );
-       $dsf->das_link_label    ( $f->link_label() );
-       $dsf->das_group_id      ( $f->group() );
-       $dsf->das_group_label   ( $f->group_label() );
-       $dsf->das_group_type    ( $f->group_type() );
-       $dsf->das_target        ( $f->target() );
-       $dsf->das_target_id     ( $f->target_id );
-       $dsf->das_target_label  ( $f->target_label );
-       $dsf->das_target_start  ( $f->target_start );
-       $dsf->das_target_stop   ( $f->target_stop );
-       $dsf->das_type          ( $f->type() );
-       $dsf->das_method        ( $f->method() );
-       $dsf->das_start         ( $fstart );
-       $dsf->das_end           ( $fend );
-       $dsf->das_score         ( $f->score() );
-       $dsf->das_orientation   ( $f->orientation() || 0 );
-       $dsf->das_phase         ( $f->phase() );
-       my $note = ref($f->note()) eq 'ARRAY' ? join(' ', @{$f->note}) : $f->note;
-       $dsf->das_note          ( $note );
-       $ENV{'ENSEMBL_DAS_WARN'} && warn "adding feat for $dsn: @{[$f->id]}\n";
-        push(@das_features, $dsf);
-#		 my $str = $dsf->das_feature_id.':'.$dsf->das_type.':'. $dsf->start.' : '.$dsf->end;
-#		 warn("AF: $str");
-   };
+#   warn("DAS 2:".Dumper(\%ids));
+   my $response = $self->adaptor->_db_handle->features( [keys %ids]);
 
+    foreach my $url (keys %$response) {
+	foreach my $f (@ {$response->{$url}} ) {
+	    add_feature($self, $f, $dsn, \@das_features);
+	}
+    }
 
-   #$self->adaptor->_db_handle->debug(1);
-   $self->adaptor->_db_handle->features
-     ( -dsn=>"$url/$dsn", 
-       -segment=>[keys %ids], 
-       -feature_callback=>$callback );
+   warn ("FEATURES:".scalar(@das_features));
 
    my @result_list = grep 
      {
@@ -919,6 +594,212 @@ sub fetch_all_by_ID {
    return( $key, [@result_list] );
 }
 
+
+=head2 get_Ensembl_SeqFeatures_DAS
+
+ Title   : get_Ensembl_SeqFeatures_DAS ()
+ Usage   : get_Ensembl_SeqFeatures_DAS(['AL12345','13']);
+ Function:
+ Example :
+ Returns :
+ Args    :
+ Notes   : This function sets the primary tag and source tag fields in the
+           features so that higher level code can filter them by their type
+           (das) and their data source name (dsn)
+
+=cut
+
+sub get_Ensembl_SeqFeatures_DAS {
+    my $self = shift;
+    my $segments = shift || [];
+    my $dbh 	   = $self->adaptor->_db_handle();
+    my $dsn 	   = $self->adaptor->dsn();
+    my $types 	   = $self->adaptor->types() || [];
+    my $url 	   = $self->adaptor->url();
+
+    my @das_features = ();
+    my $STYLES = [];
+
+    @$segments || $self->throw("Need some segment IDs to query against");
+
+    warn("DAS 1 $dsn");
+    my $style_callback = sub {
+	my $css = shift;
+
+	my @categories = @{ $css->{category} };
+	foreach my $c (@categories) {
+	    my $c_id = $c->{category_id};
+	    my @types = @{ $c->{type} };
+	    foreach my $t (@types) {
+		my $t_id = $t->{type_id};
+		my @glyphs = $t->{glyph};
+		foreach my $g (@glyphs) {
+		    my %ghash = %{$g->[0]};
+		    foreach my $gtype (keys %ghash) {
+			my $attr = $ghash{$gtype}->[0];
+			push @$STYLES, {
+			    'category' => $c_id,
+			    'type'     => $t_id,
+			    'glyph'    => $gtype,
+			    'attrs'    => $attr,
+			};
+		    }
+		}
+	    }
+	}
+    };
+
+#    my $response = $dbh->stylesheet($style_callback);
+    my $response;
+#   warn( "STYLE: ".Dumper( $STYLES));
+
+    my $cc = 0;
+    my $features_callback = sub {
+	my $f = shift;
+	warn("FEAT");
+
+#	warn("FEAT:".Dumper($f));
+# Filter out calls for non-features
+	defined($f->{feature_id}) or next;
+
+	my ($fstart, $fend) = ($f->{start}, $f->{end});
+	if ($f->{type} =~ /^(INIT_MET|INIT_MET:)$/) {
+	    $fstart = $fend = 1;
+	}
+
+	$cc++;
+	return;
+	my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+	$das_sf->das_feature_id   ($f->{feature_id}      );
+	$das_sf->das_feature_label($f->{feature_label}   );
+	$das_sf->das_segment(
+			     Bio::Das::Segment->new($f->{segment_id},$f->{start},$f->{end},'1',$self,$dsn)
+			     );
+
+	$das_sf->das_segment_label($f->{segment_id});
+	$das_sf->das_id($f->{feature_id});
+	$das_sf->das_dsn($dsn);
+	$das_sf->source_tag($dsn);
+	$das_sf->primary_tag('das');
+	$das_sf->das_type($f->{type});
+	$das_sf->das_type_id($f->{type_id});
+	$das_sf->das_type_category($f->{type_category});
+	$das_sf->das_type_reference($f->{type_reference});
+	$das_sf->das_name($f->{feature_id});
+	$das_sf->das_method($f->{method});
+	$das_sf->das_method_id($f->{method_id});
+	$das_sf->das_start($f->{start});
+	$das_sf->das_end($f->{end});
+	$das_sf->das_score($f->{score});
+	$das_sf->das_orientation($f->{orientation}||0);    
+	$das_sf->das_phase($f->{phase});
+	$das_sf->das_target($f->{target});
+	$das_sf->das_target_id($f->{target_id});
+	$das_sf->das_target_label($f->{target_label});
+	$das_sf->das_target_start($f->{target_start});
+	$das_sf->das_target_stop($f->{target_stop});
+	$das_sf->das_links(@{$f->{link}}) if ($f->{link});
+
+	if ($f->{group}) {
+	    $das_sf->das_groups(@{$f->{group}});
+	    # For backward compatability
+	    $das_sf->das_group_id($f->{group}->[0]->{group_id});
+	    $das_sf->das_group_label($f->{group}->[0]->{group_label});
+	    $das_sf->das_group_type($f->{group}->[0]->{group_type});
+	}
+
+
+
+
+	my $note = ref($f->{note}) eq 'ARRAY' ? join('<br/>', @{$f->{note}}) : $f->{note};
+	$das_sf->das_note($note);
+	push(@das_features, $das_sf);
+    };
+
+
+    if(@$types) {
+	$response = $dbh->features({
+	    'segment' => $segments,
+	    'type' => $types, 
+	    'callback' => $features_callback
+	    });
+    } else { 
+#	warn("SEGMENTS $$");
+#	warn(Dumper($segments));
+	$response = $dbh->features($segments);  
+#	$response = $dbh->features($segments, $features_callback);  
+#	warn("RESPONSE $$ :". Dumper($response));
+#	warn(Dumper($response));
+    }
+
+
+    foreach my $url (keys %$response) {
+	foreach my $f (@ {$response->{$url}} ) {
+	    add_feature($self, $f, $dsn, \@das_features);
+	}
+    }
+
+    return (\@das_features,$STYLES);
+}
+
+sub add_feature {
+    my ($self, $f, $dsn, $fa) = @_;
+
+#warn("FEAT:".Dumper($f));
+# Filter out calls for non-features
+    defined($f->{feature_id}) or next;
+
+    my ($fstart, $fend) = ($f->{start}, $f->{end});
+    if ($f->{type} =~ /^(INIT_MET|INIT_MET:)$/) {
+	$fstart = $fend = 1;
+    }
+
+    my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
+    $das_sf->das_feature_id   ($f->{feature_id}      );
+    $das_sf->das_feature_label($f->{feature_label}   );
+    $das_sf->das_segment(
+			 Bio::Das::Segment->new($f->{segment_id},$f->{start},$f->{end},'1',$self,$dsn)
+			 );
+
+    $das_sf->das_segment_label($f->{segment_id});
+    $das_sf->das_id($f->{feature_id});
+    $das_sf->das_dsn($dsn);
+    $das_sf->source_tag($dsn);
+    $das_sf->primary_tag('das');
+    $das_sf->das_type($f->{type});
+    $das_sf->das_type_id($f->{type_id});
+    $das_sf->das_type_category($f->{type_category});
+    $das_sf->das_type_reference($f->{type_reference});
+    $das_sf->das_name($f->{feature_id});
+    $das_sf->das_method($f->{method});
+    $das_sf->das_method_id($f->{method_id});
+    $das_sf->das_start($f->{start});
+    $das_sf->das_end($f->{end});
+    $das_sf->das_start($f->{start});
+    $das_sf->das_end($f->{end});
+    $das_sf->das_score($f->{score});
+    $das_sf->das_orientation($f->{orientation}||0);    
+    $das_sf->das_phase($f->{phase});
+    $das_sf->das_target($f->{target});
+    $das_sf->das_target_id($f->{target_id});
+    $das_sf->das_target_label($f->{target_label});
+    $das_sf->das_target_start($f->{target_start});
+    $das_sf->das_target_stop($f->{target_stop});
+    $das_sf->das_links(@{$f->{link}}) if ($f->{link});
+
+    if ($f->{group}) {
+	$das_sf->das_groups(@{$f->{group}});
+	# For backward compatability
+	$das_sf->das_group_id($f->{group}->[0]->{group_id});
+	$das_sf->das_group_label($f->{group}->[0]->{group_label});
+	$das_sf->das_group_type($f->{group}->[0]->{group_type});
+    }
+
+    my $note = ref($f->{note}) eq 'ARRAY' ? join('<br/>', @{$f->{note}}) : $f->{note};
+    $das_sf->das_note($note);
+    push(@$fa, $das_sf);
+    return;
+}
 
 
 1;

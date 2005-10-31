@@ -320,8 +320,8 @@ sub das_links {
   if( @_) {
     push @{$self->{'das_link'}}, @_;
   }
-  return [] if (! defined($self->{'das_link'}));
-  return [$self->{'das_link'}] if (ref($self->{'das_link'}) ne 'ARRAY');
+  return () if (! defined($self->{'das_link'}));
+  return ($self->{'das_link'}) if (ref($self->{'das_link'}) ne 'ARRAY');
   return @{$self->{'das_link'}} ;
 
 }
@@ -356,11 +356,13 @@ sub das_link_href {
 
 sub das_group_id {
   my ($self,$arg) = @_;
+
   if( $arg) {
     $self->{'das_group_id'} = $arg;
   }
   return $self->{'das_group_id'};
 }
+
 sub das_group_label {
   my ($self,$arg) = @_;
   if( $arg) {
@@ -368,12 +370,24 @@ sub das_group_label {
   }
   return $self->{'das_group_label'};
 }
+
 sub das_group_type {
   my ($self,$arg) = @_;
   if( $arg) {
     $self->{'das_group_type'} = $arg;
   }
   return $self->{'das_group_type'};
+}
+
+sub das_groups {
+  my $self = shift;
+  if( @_) {
+    push @{$self->{'das_group'}}, @_;
+  }
+  return () if (! defined($self->{'das_group'}));
+  return ($self->{'das_group'}) if (ref($self->{'das_group'}) ne 'ARRAY');
+  return @{$self->{'das_group'}} ;
+
 }
 
 # The <TARGET> tag

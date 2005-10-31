@@ -52,11 +52,10 @@ use strict;
 
 # Object preamble
 
-use Bio::EnsEMBL::Root;
 use Bio::EnsEMBL::ExternalData::BaseAdaptor;
-use Bio::Das;
+use Bio::DasLite;
 
-@ISA = qw(Bio::EnsEMBL::Root Bio::EnsEMBL::ExternalData::BaseAdaptor);
+@ISA = qw(Bio::EnsEMBL::ExternalData::BaseAdaptor);
 
 use vars qw( $DEFAULT_PROTOCOL %VALID_PROTOCOLS );
 
@@ -70,9 +69,6 @@ use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 
 sub new {
     my($pkg, @args) = @_;
-
-#	 my @edata = caller(3);
-#	 warn("EDATA: @edata");
 
     my $self = bless {}, $pkg;
 
@@ -136,6 +132,7 @@ sub new {
 					   MAPPING
 					   FASTA)],@args);
 
+#    warn("NEW DAS LITE:" .join('*', @args));
 
     $url      && $self->url( $url );
     $protocol && $self->protocol( $protocol );
@@ -145,8 +142,9 @@ sub new {
       (    warn(join('*',@args))  && $self->throw("Need a URL or protocol+domain"));
 
     $timeout ||= 30;
-    $self->_db_handle( Bio::Das->new($timeout) );
-
+    my $source_url = $url ? $url : "$protocol://$domain";
+    $source_url .= "/$dsn" if ($dsn);
+    $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
     $dsn       && $self->dsn( $dsn );
     $proxy_url && $self->proxy( $proxy_url );
     $types     && $self->types($types);
@@ -217,7 +215,7 @@ sub ensembldb {
 
 sub proxy {
    my $self = shift;
-   return $self->_db_handle->proxy(@_);
+   return $self->_db_handle->http_proxy(@_);
 }
 
 

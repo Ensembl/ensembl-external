@@ -140,9 +140,6 @@ sub fetch_dsn_info {
   my $das = $self->adaptor->_db_handle;
 #  $das->dsn_js5( -dsn=>$dsn, -callback=>$callback );
   my $dsn_hash =  $das->dsns();
-  warn("DSN:$dsn");
-  warn(Dumper($das));
-  warn(Dumper($dsn_hash));
   foreach my $key (%{ $dsn_hash } ) {
       foreach my $obj (@{ $dsn_hash->{$key} }) {
 	  my $data = {};
@@ -637,6 +634,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 # Now get the stylesheet
     my $STYLES = [];
     $response = $dbh->stylesheet();
+
     foreach my $url (keys %$response) {
 	foreach my $css (@ {$response->{$url}} ) {
 	    my @categories = @{ $css->{category} };
@@ -664,7 +662,6 @@ sub get_Ensembl_SeqFeatures_DAS {
 	}
     }
     
-#    warn( "STYLE: ".Dumper( $STYLES));
     return (\@das_features,$STYLES);
 }
 

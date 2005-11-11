@@ -49,6 +49,7 @@ package Bio::EnsEMBL::ExternalData::DAS::DASAdaptor;
 
 use vars qw(@ISA);
 use strict;
+use Bio::EnsEMBL::Utils::Exception qw(throw);
 
 # Object preamble
 
@@ -134,18 +135,18 @@ sub new {
 
 #    warn("NEW DAS LITE:" .join('*', @args));
 
-    $url      && $self->url( $url );
-    $protocol && $self->protocol( $protocol );
-    $domain   && $self->domain( $domain );
+#    $url      && $self->url( $url );
+#    $protocol && $self->protocol( $protocol );
+#    $domain   && $self->domain( $domain );
 
-    $self->url =~ m|\w+://\w+| || 
-      (    warn(join('*',@args))  && $self->throw("Need a URL or protocol+domain"));
+    my $source_url = $self->url($url);
+
+    $source_url =~ m|\w+://\w+| || 
+      (    warn(join('*',@args))  && throw("Invalid URL $url!"));
 
     $timeout ||= 30;
-    my $source_url = $url ? $url : "$protocol://$domain";
-    $source_url .= "/$dsn" if ($dsn);
     $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
-    $dsn       && $self->dsn( $dsn );
+#    $dsn       && $self->dsn( $dsn );
     $proxy_url && $self->proxy( $proxy_url );
     $types     && $self->types($types);
     $ensdb     && $self->ensembldb($ensdb);
@@ -238,29 +239,30 @@ sub url{
   if( @_ ){
     my $url = shift;
 
-# new DAS stuff adds 'das' to the URL     
-    $url =~ s/\/das\/das$/\/das/;
+    if ($url =~ m!(\w+)://(.+/das)/(.+)!) {
+	my ($protocol, $domain, $dsn) = ($1, $2, $3);
+#	warn(join('*', "URL:$url",$protocol, $domain, $dsn));
+	$protocol ||= $DEFAULT_PROTOCOL;
 
-    my( $protocol, $domain );
-    if( $url =~ m|(\w+)://(.+)| ){
-      $protocol = $1;
-      $domain   = $2;
+	$self->{_protocol} = $protocol;
+	
+	$self->{_dsn}= $dsn;
+	$self->{_domain}= "$protocol://$domain";
+	$self->{_url}= join('/', "$protocol:/", $domain, $dsn);
+    } elsif ($url =~ m!(\w+)://(.+/das)(/)?!) {
+	my ($protocol, $domain) = ($1, $2);
+#	warn(join('*', "URL 2:$url",$protocol, $domain));
+	$protocol ||= $DEFAULT_PROTOCOL;
+
+	$self->{_protocol} = $protocol;
+	$self->{_domain}= "$protocol://$domain";
+	$self->{_url}= join('/', "$protocol:/", $domain);
+    } else{
+      throw("Invalid URL $url!" );
     }
-    elsif( $url ){
-      $protocol = $DEFAULT_PROTOCOL;
-      $domain   = $url;
-    }
-    else{
-      $self->throw( "URL string must have a domain!" );
-    }
-    $self->protocol( $protocol );
-    $self->domain( $domain );
   }
 
-
-  
-
-  return( join( '://',$self->protocol,$self->domain) );
+  return( $self->{_url});
 }
 
 
@@ -285,7 +287,7 @@ sub protocol{
     $protocol =~ s|://||;
     $protocol = lc( $protocol );
     $VALID_PROTOCOLS{$protocol} ||
-      $self->throw( "Protocol $protocol is not recognised" );
+      throw( "Protocol $protocol is not recognised" );
     $self->{$key} = $protocol;
   }
   return $self->{$key} || $DEFAULT_PROTOCOL;
@@ -305,10 +307,9 @@ sub protocol{
 =cut
 
 sub domain{
-   my $key = '_domain';
    my $self = shift;
-   if( @_ ){ $self->{$key} = shift }
-   return $self->{$key};
+#   if( @_ ){ $self->{'_domain'} = shift }
+   return $self->{'_domain'};
 }
 
 #----------------------------------------------------------------------
@@ -348,12 +349,9 @@ sub types {
 
 sub dsn {
     my ($self,$value) = @_;
-    if( defined $value) {
-        $self->{'_dsn'} = $value;
-    }
+#    if( $value){ $self->{'_dsn'} = $value }
     return $self->{'_dsn'};
 }
-
 
 #----------------------------------------------------------------------
 

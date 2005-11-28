@@ -620,13 +620,14 @@ sub get_Ensembl_SeqFeatures_DAS {
 
 # Get features
     my $response;
-
+warn("DBH:".Data::Dumper::Dumper($dbh));
+warn("SEG:".Dumper($segments));
     if(@$types) {
 	$response = $dbh->features({'segment' => $segments, 'type' => $types});
     } else { 
 	$response = $dbh->features($segments);  
     }
-
+warn("RES:".Dumper($response));
 # Parse the response. There is a problem using callbacks hence the explicit response handling
     foreach my $url (keys %$response) {
 	foreach my $f (@ {$response->{$url}} ) {

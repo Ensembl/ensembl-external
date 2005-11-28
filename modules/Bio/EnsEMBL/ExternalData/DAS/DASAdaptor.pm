@@ -132,7 +132,7 @@ sub new {
 					   MAPPING
 					   FASTA)],@args);
 
-#    warn("NEW DAS LITE:" .join('*', @args));
+    warn("NEW DAS LITE:" .join('*', @args));
 
     $url      && $self->url( $url );
     $protocol && $self->protocol( $protocol );
@@ -143,7 +143,7 @@ sub new {
 
     $timeout ||= 30;
     my $source_url = $url ? $url : "$protocol://$domain";
-    $source_url .= "/$dsn" if ($dsn);
+    $source_url .= "/$dsn" if ($dsn and ($source_url !~ m!/das/$dsn!));
     $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
     $dsn       && $self->dsn( $dsn );
     $proxy_url && $self->proxy( $proxy_url );

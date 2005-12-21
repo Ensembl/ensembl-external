@@ -48,13 +48,13 @@ The rest of the documentation details each of the object methods. Internal metho
 package Bio::EnsEMBL::ExternalData::Glovar::GlovarAdaptor;
 use vars qw(@ISA);
 use strict;
-use Data::Dumper;
 
 use Bio::EnsEMBL::DBSQL::BaseAdaptor;
 use Bio::EnsEMBL::External::ExternalFeatureAdaptor;
 use Bio::EnsEMBL::SeqFeature;
 use Bio::EnsEMBL::SNP;
 use Bio::Annotation::DBLink;
+use Bio::EnsEMBL::Utils::Exception qw(throw warning);
 
 @ISA = qw(Bio::EnsEMBL::DBSQL::BaseAdaptor Bio::EnsEMBL::External::ExternalFeatureAdaptor);
 
@@ -116,7 +116,7 @@ sub fetch_clone_by_accession {
         @cloneinfo = @res;
     }
     if (($stats{'NT'} + $stats{'clone'}) > 1) {
-        $self->warn("Clone ($embl_acc) maps to more than one NTs ($stats{NT}) and/or clones ($stats{clones}).");
+        warning("Clone ($embl_acc) maps to more than one NTs ($stats{NT}) and/or clones ($stats{clones}).");
     }
 
     # return result list

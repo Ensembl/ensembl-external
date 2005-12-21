@@ -144,6 +144,13 @@ sub new {
     $source_url =~ m|\w+://\w+| || 
       (    warn(join('*',@args))  && throw("Invalid URL $url!"));
 
+#Temporary fix
+    my @dd = split('/', $source_url);
+    if ($dd[-1] eq $dd[-2]) {
+	pop(@dd);
+        $source_url = join('/', @dd);
+    }
+# End of the fix
     $timeout ||= 30;
     $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
 #    $dsn       && $self->dsn( $dsn );

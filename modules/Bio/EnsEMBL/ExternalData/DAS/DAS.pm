@@ -534,8 +534,9 @@ sub fetch_all_by_ID {
 	   } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
 	       push( @tran_ids, $parent_obj->stable_id );
 	       # if the source is ensembl_gene - get gene stable id
-	       my $gene = $parent_obj->adaptor->db->get_GeneAdaptor->fetch_by_translation_stable_id($parent_obj->stable_id);	
-	       push( @gene_ids, $gene->stable_id );
+	       if (defined(my $gene = $parent_obj->adaptor->db->get_GeneAdaptor->fetch_by_translation_stable_id($parent_obj->stable_id))) {	
+		   push( @gene_ids, $gene->stable_id );
+	       }
 	   } else{ # Assume protein
 	       warn( "??? - ", $parent_obj->transcript->translation->stable_id );
 	       push( @tran_ids, $parent_obj->transcript->translation->stable_id );

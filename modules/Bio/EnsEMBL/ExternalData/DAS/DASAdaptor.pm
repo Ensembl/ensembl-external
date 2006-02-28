@@ -138,6 +138,13 @@ sub new {
 #    $url      && $self->url( $url );
 #    $protocol && $self->protocol( $protocol );
 #    $domain   && $self->domain( $domain );
+   if ($dsn) {
+	if ($url =~ m/$dsn\/$dsn/) {
+	    $url =~ s/$dsn\/$dsn/$dsn/;
+	} elsif ($url =~ m/\/das$/) {
+	    $url .= "/$dsn";
+	}
+    }
 
     my $source_url = $self->url($url);
 

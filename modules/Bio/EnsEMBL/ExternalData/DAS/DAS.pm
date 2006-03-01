@@ -627,7 +627,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 
 # Parse the response. There is a problem using callbacks hence the explicit response handling
     foreach my $url (keys %$response) {
-	foreach my $f (@ {$response->{$url}} ) {
+        foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
 	    add_feature($self, $f, $dsn, \@das_features);
 	}
     }

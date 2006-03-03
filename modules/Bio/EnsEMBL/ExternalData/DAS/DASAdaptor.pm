@@ -144,7 +144,7 @@ sub new {
     my $source_url = $self->url($url);
 
     $source_url =~ m|\w+://[\w\-]+| || 
-      (    warn(join('*',@args))  && throw("Invalid URL $url!"));
+      (    $self->error("Invalid URL $url \n".join('*', @args)) && return);
 
     $timeout ||= 30;
     $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
@@ -180,6 +180,15 @@ sub new {
     $fasta     && $self->fasta( $fasta );
 
     return $self; # success - we hope!
+}
+
+sub error {
+    my ($self,$value) = @_;
+    if( defined $value) {
+        $self->{'_error'} = $value;
+    }
+    return $self->{'_error'};
+
 }
 
 #----------------------------------------------------------------------
@@ -260,7 +269,7 @@ sub url{
 	$self->{_domain}= "$protocol://$domain";
 	$self->{_url}= join('/', "$protocol:/", $domain);
     } else{
-      throw("Invalid URL $url!" );
+      warn("Invalid URL $url!" );
     }
   }
 

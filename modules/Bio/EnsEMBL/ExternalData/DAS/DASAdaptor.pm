@@ -94,6 +94,7 @@ sub new {
 	 $group,
 	 $stylesheet,
 	 $score,
+	 $fg_merge,
 	 $conftype,
 	 $active,
 	 $description,
@@ -123,6 +124,7 @@ sub new {
 					   GROUP
 					   STYLESHEET
 				           SCORE
+				           FG_MERGE
 					   CONFTYPE
 					   ACTIVE
 					   DESCRIPTION
@@ -169,6 +171,7 @@ sub new {
     $group      && $self->group( $group );
     $stylesheet && $self->stylesheet( $stylesheet );
     $score && $self->score( $score );
+    $fg_merge && $self->fg_merge( $fg_merge );
     $conftype   && $self->conftype( $conftype );
     $active     && $self->active( $active );
     $description     && $self->description( $description );
@@ -691,6 +694,12 @@ sub score{
    return $self->{$key};
 }
 
+sub fg_merge{
+    my $key = '_fg_merge';
+    my $self = shift;
+    if( @_ ){ $self->{$key} = shift }
+    return $self->{$key};
+}
 
 #----------------------------------------------------------------------
 

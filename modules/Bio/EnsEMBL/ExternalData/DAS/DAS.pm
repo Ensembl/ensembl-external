@@ -223,7 +223,7 @@ sub fetch_all_by_Slice {
       $slice_by_segment{$region_name} = $slice;
     }
   }
-
+#warn("SEGMENTS : ".scalar(@segments_to_request));
   # Run the DAS query
   my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
 
@@ -241,6 +241,89 @@ sub fetch_all_by_Slice {
   # Return the mapped features
   return ( ($self->{$slice->name} = \@result_list), 
 	   ($self->{"_stylesheet_".$slice->name} = $style) );
+}
+
+
+
+sub fetch_all_Features {
+  my ($self, $slice, $source_type) = @_;
+
+  # Examine cache
+  my $CACHE_KEY = $slice->name;
+  if( $self->{$CACHE_KEY} ){
+    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
+  }
+
+#  warn("ST: $source_type");
+  if ($source_type =~ /^ensembl_location(.+)?/) {
+      my %coord_systems;
+
+      if (defined (my $cs = $1)) {
+	  $cs =~ s/^_//;
+	  $coord_systems{$cs} = 1;
+      } else {
+	  # Get all coord systems this Ensembl DB knows about
+	  my $csa = $slice->coord_system->adaptor;
+
+	  if (! defined($csa)) {
+	      my @ca = caller(2);
+	      warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+	      my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
+	      if (! defined($csa2)) {
+		  warn("CSA2 is empty");
+		  return [];
+	      } else {
+		  $csa = $csa2;
+	      }
+	  }
+	  %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
+      }
+
+#      warn("CS:".join('*', sort keys %coord_systems));
+
+      # Get the slice representation for each coord system. 
+      my @segments_to_request; # The DAS segments to query
+      my %slice_by_segment;    # tally of which slice belongs to segment
+      foreach my $system( keys %coord_systems ){
+	  foreach my $segment( @{ $slice->project($system) || [] } ){
+	      my $slice = $segment->to_Slice;
+	      my $slice_name  = $slice->name;
+	      my $slice_start = $slice->start;
+	      my $slice_end   = $slice->end;
+	      my $region_name = $slice->seq_region_name;
+	      my $coord_system= $slice->coord_system;
+	      if( $slice_name =~ /^clone/ ){ # Clone-specific hack for embl versions
+		  my( $id, $version ) = split( /\./, $region_name );
+		  if( $version ){
+		      push( @segments_to_request, "$id:$slice_start,$slice_end" );
+		      $slice_by_segment{$id} = $slice;
+		  }
+	      }
+	      push( @segments_to_request, "$region_name:$slice_start,$slice_end" );
+	      $slice_by_segment{$region_name} = $slice;
+	  }
+      }
+  
+warn("SEGMENTS : ".scalar(@segments_to_request));
+  # Run the DAS query
+  my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
+
+
+  # Map the DAS results into the coord system of the original slice
+  my @result_list;
+  foreach my $das_sf( @$features ){
+    my $segment = $das_sf->das_segment ||
+      ( warn( "No das_segment for $das_sf" ) && next );
+    my $das_slice = $slice_by_segment{$segment->ref} ||
+      ( warn( "No Slice for ", $segment->ref ) && next );
+    $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) &&
+      push @result_list, $das_sf;
+  }
+
+  # Return the mapped features
+  return ( ($self->{$slice->name} = \@result_list), 
+	   ($self->{"_stylesheet_".$slice->name} = $style) );
+  }
 }
 
 #----------------------------------------------------------------------

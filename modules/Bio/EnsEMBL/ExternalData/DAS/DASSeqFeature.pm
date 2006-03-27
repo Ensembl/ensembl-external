@@ -207,7 +207,7 @@ sub das_method_id {
 
 sub das_start {
   my ($self,$arg) = @_;
-  if( $arg) {
+  if( defined($arg) ) {
     $self->{'das_start'} = $arg;
     $self->{'_gsf_start'} = $arg;
   }
@@ -223,7 +223,7 @@ sub start {
 
 sub das_end {
   my ($self,$arg) = @_;
-  if( $arg) {
+  if( defined($arg)) {
     $self->{'das_end'} = $arg;
     $self->{'_gsf_end'} = $arg;
   }

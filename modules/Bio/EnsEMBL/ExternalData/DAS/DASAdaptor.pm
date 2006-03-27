@@ -248,6 +248,45 @@ sub proxy {
 
 =cut
 
+sub verify {
+    my $self = shift;
+    use LWP::UserAgent;
+
+    use HTTP::Request;
+    use HTTP::Response;
+
+    my $test_url = $self->url()."/features";
+    my $content;
+    my $ua = LWP::UserAgent->new();
+    $ua->agent("Ensembl");
+    $ua->proxy(['http', 'https'], $self->proxy);
+
+    my $req = HTTP::Request->new(GET => $test_url);
+    my $response = $ua->request($req);
+
+    if ($response->is_error) {
+	my $status = $response->status_line;
+	if ($status =~ /^500/) {
+	    return "Can't connect to the host!";
+	} elsif ($status =~ /^403/) {
+	    return "Unknown source!";
+	} 
+	return $status;
+    } else {
+
+# Take into account that HGNC serves text/plain rather than text/xml	
+	if ($response->content !~ /DASGFF/) {
+	    return "ERROR: ".$response->content;
+	}
+
+	if ($response->content_type ne 'text/xml') {
+	    return "ERROR: ".$response->content;
+	}
+    }
+
+    return;
+}
+
 sub url{
   my $self = shift;
   if( @_ ){

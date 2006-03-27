@@ -227,6 +227,8 @@ sub fetch_all_by_Slice {
   # Run the DAS query
   my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
 
+
+
   # Map the DAS results into the coord system of the original slice
   my @result_list;
   foreach my $das_sf( @$features ){
@@ -254,7 +256,6 @@ sub fetch_all_Features {
     return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
   }
 
-#  warn("ST: $source_type");
   if ($source_type =~ /^ensembl_location(.+)?/) {
       my %coord_systems;
 
@@ -304,10 +305,13 @@ sub fetch_all_Features {
 	  }
       }
   
-warn("SEGMENTS : ".scalar(@segments_to_request));
+
+
   # Run the DAS query
   my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
-
+  if (@$features && $features->[0]->das_type eq '__ERROR__') {
+      return ($self->{$slice->name} = $features);
+  }
 
   # Map the DAS results into the coord system of the original slice
   my @result_list;
@@ -408,18 +412,18 @@ sub _map_DASSeqFeature_to_slice {
     $slice_strand= $coords[0]->strand;
   }
   else{ # No mapping needed
+      
     $slice_start = $das_sf->das_start - $usr_slice->start + 1;
     $slice_end   = $das_sf->das_end   - $usr_slice->start + 1;
     $slice_strand= $das_sf->das_orientation;
   }
+
   $das_sf->seqname( $usr_slice->seq_region_name );
   $das_sf->start ( $slice_start );
   $das_sf->end   ( $slice_end );
   $das_sf->strand( $slice_strand );
 
-#  warn( "Ensembl:".$das_sf->seqname.":".$das_sf->start."-".$das_sf->end );
   return 1;
-
 }
 
 =head2 get_Ensembl_SeqFeatures_clone
@@ -697,7 +701,21 @@ sub get_Ensembl_SeqFeatures_DAS {
 
     my @das_features = ();
 
+ 
     @$segments || $self->throw("Need some segment IDs to query against");
+
+    if (defined (my $error = $self->adaptor->verify)) {
+	my $f = {
+	   'type' => '__ERROR__',
+	   'type_id' => '__ERROR__',
+	   'feature_id' => $error,
+	   'segment_id' => 1,
+	   'start' => 1,
+	   'end' => 1,
+	   };
+	add_feature($self, $f, $dsn, \@das_features);
+	return \@das_features;
+    }
 
 # Get features
     my $response;
@@ -708,12 +726,15 @@ sub get_Ensembl_SeqFeatures_DAS {
 	$response = $dbh->features($segments);  
     }
 
+#    warn(Data::Dumper::Dumper($response));
+
 # Parse the response. There is a problem using callbacks hence the explicit response handling
     foreach my $url (keys %$response) {
         foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
 	    add_feature($self, $f, $dsn, \@das_features);
 	}
     }
+
 
 # Now get the stylesheet
     my $STYLES = [];
@@ -745,6 +766,7 @@ sub get_Ensembl_SeqFeatures_DAS {
 
 	}
     }
+
     
     return (\@das_features,$STYLES);
 }
@@ -760,6 +782,7 @@ sub add_feature {
 	$fstart = $fend = 1;
     }
 
+    
     my $das_sf = new Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
     $das_sf->das_feature_id   ($f->{feature_id}      );
     $das_sf->das_feature_label($f->{feature_label}   );

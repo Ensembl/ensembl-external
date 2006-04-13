@@ -37,11 +37,6 @@ use Data::Bio::Text::Feature::GTF;
 use Data::Bio::Text::Feature::DAS;
 use Data::Bio::Text::Feature::generic;
 
-sub species_defs {
-  my $self = shift;
-  return $self->{'_species_defs'} ||= SpeciesDefs->new(); 
-}
-
 #----------------------------------------------------------------------
 
 =head2 new
@@ -162,6 +157,13 @@ sub parse_file {
     Example   : 
 
 =cut
+
+use EnsEMBL::Web::SpeciesDefs;
+
+sub species_defs {
+  my $self = shift;
+  return $self->{'_species_defs'} ||= EnsEMBL::Web::SpeciesDefs->new(); 
+}
 
 sub parse_URL {
   my( $self, $url ) = @_;

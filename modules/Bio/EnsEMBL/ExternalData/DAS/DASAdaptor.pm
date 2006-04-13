@@ -273,15 +273,10 @@ sub verify {
 	} 
 	return $status;
     } else {
-
-# Take into account that HGNC serves text/plain rather than text/xml	
-	if ($response->content !~ /DASGFF/) {
-	    return "ERROR: ".$response->content;
-	}
-
-	if ($response->content_type ne 'text/xml') {
-	    return "ERROR: ".$response->content;
-	}
+# Comment out this as LDAS serves feeatures as text/plain
+#	if ($response->content_type ne 'text/xml') {
+#	    return "ERROR: ".$response->content;
+#	}
     }
 
     return;

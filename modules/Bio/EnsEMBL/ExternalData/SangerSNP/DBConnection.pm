@@ -145,14 +145,26 @@ sub connect {
         warning("unconnected db_handle is still pingable, reseting connected boolean\n");
     }
 
-    my $dsn = "DBI:" . $self->driver . ":";
     my $dbh;
-    eval {
-        $dbh = DBI->connect($dsn,
-                            $self->username . "\@" . $self->dbname,
-                            $self->password,
-                            { 'RaiseError' => 1, 'PrintError' => 0 });
-    };
+    my $dsn;
+
+    if ($self->driver eq 'Oracle') {
+      $dsn = "DBI:" . $self->driver . ":";
+      eval {
+          $dbh = DBI->connect($dsn,
+                              $self->username . "\@" . $self->dbname,
+                              $self->password,
+                              { 'RaiseError' => 1, 'PrintError' => 0, 'AutoCommit' => 1 });
+      };
+    } else {
+      $dsn = "DBI:" . $self->driver() .
+            ":database=". $self->dbname() .
+            ";host=" . $self->host() .
+            ";port=" . $self->port();
+
+     eval{ $dbh = DBI->connect($dsn, $self->username(), $self->password(), {'RaiseError' => 1}); };
+   }
+
 
     if(!$dbh || $@ || !$dbh->ping) {
         warn("Could not connect to database " . $self->dbname .

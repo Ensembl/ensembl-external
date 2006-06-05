@@ -182,6 +182,7 @@ sub new {
     $enable        && $self->enable( $enable );
     $fasta     && $self->fasta( $fasta );
 
+    warn "V::".$Bio::DasLite::VERSION;
     return $self; # success - we hope!
 }
 
@@ -261,7 +262,13 @@ sub verify {
     $ua->agent("Ensembl");
     $ua->proxy(['http', 'https'], $self->proxy);
 
-    my $req = HTTP::Request->new(GET => $test_url);
+    my $headers;
+    $headers->{'X-Forwarded-For'} ||= $ENV{'HTTP_X_FORWARDED_FOR'} if($ENV{'HTTP_X_FORWARDED_FOR'});
+
+    my $req = HTTP::Request->new(GET => $test_url,
+				 HTTP::Headers->new(%$headers),
+    );
+
     my $response = $ua->request($req);
 
     if ($response->is_error) {

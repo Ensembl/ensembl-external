@@ -657,10 +657,12 @@ sub fetch_all_by_ID {
    if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 
    my @das_features = ();
-   my $response = $self->adaptor->_db_handle->features( [keys %ids]);
+   my @segments = keys %ids;
+
+   my $response = $self->adaptor->_db_handle->features( \@segments );
 
     foreach my $url (keys %$response) {
-	foreach my $f (@ {$response->{$url}} ) {
+        foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
 	    add_feature($self, $f, $dsn, \@das_features);
 	}
     }
@@ -725,8 +727,6 @@ sub get_Ensembl_SeqFeatures_DAS {
     } else { 
 	$response = $dbh->features($segments);  
     }
-
-#    warn(Data::Dumper::Dumper($response));
 
 # Parse the response. There is a problem using callbacks hence the explicit response handling
     foreach my $url (keys %$response) {

@@ -260,8 +260,15 @@ sub verify {
     my $ua = LWP::UserAgent->new();
     $ua->agent("Ensembl");
     $ua->proxy(['http', 'https'], $self->proxy);
+    my $headers;
+    $headers->{'X-Forwarded-For'} ||= $ENV{'HTTP_X_FORWARDED_FOR'} if($ENV{'HTTP_X_FORWARDED_FOR'});
 
-    my $req = HTTP::Request->new(GET => $test_url);
+    my $req = HTTP::Request->new(GET => $test_url,
+				 HTTP::Headers->new(%$headers),
+    );
+
+
+   # my $req = HTTP::Request->new(GET => $test_url);
     my $response = $ua->request($req);
 
     if ($response->is_error) {

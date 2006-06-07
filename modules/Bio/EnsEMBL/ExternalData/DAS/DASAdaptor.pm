@@ -182,7 +182,6 @@ sub new {
     $enable        && $self->enable( $enable );
     $fasta     && $self->fasta( $fasta );
 
-    warn "V::".$Bio::DasLite::VERSION;
     return $self; # success - we hope!
 }
 

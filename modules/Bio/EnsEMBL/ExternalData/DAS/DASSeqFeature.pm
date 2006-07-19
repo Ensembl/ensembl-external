@@ -380,6 +380,7 @@ sub das_group_type {
 }
 
 sub das_groups {
+#warn "in das_groups";
   my $self = shift;
   if( @_) {
     push @{$self->{'das_group'}}, @_;

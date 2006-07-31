@@ -197,29 +197,29 @@ sub parse_URL {
 
 sub parse_row {
   my( $self, $row ) = @_;
-  $row=~s/[\t\r\s]+$//g;
+  $row =~ s/[\t\r\s]+$//g;
 
-  if( $row=~/^browser\s+(\w+)\s+(.*)/i ) {
+  if( $row =~ /^browser\s+(\w+)\s+(.*)/i ) {
     $self->{'browser_switches'}{$1}=$2;     
   } 
-  elsif( $row=~s/^track\s+(.*)$/$1/i ) {
+  elsif ($row =~ s/^track\s+(.*)$/$1/i) {
     my %config;
     while( $row ne '' ) {
-      if( $row=~s/^(\w+)\s*=\s*"([^"]+)"// ) {  
+      if( $row =~ s/^(\w+)\s*=\s*"([^"]+)"// ) {  
         my $key   = $1;
         my $value = $2;
-        while( $value=~s/\\$// && $row ne '') {
-          if( $row=~s/^([^"]+)"\s*// ) {
-             $value.="\"$1";
+        while( $value =~ s/\\$// && $row ne '') {
+          if( $row =~ s/^([^"]+)"\s*// ) {
+             $value .= "\"$1";
           } else {
-            $value.="\"$row"; 
-            $row='';
+            $value .= "\"$row"; 
+            $row = '';
           }
         }
-        $row=~s/^\s*//;
+        $row =~ s/^\s*//;
         $config{$key} = $value;
       } 
-      elsif( $row=~s/(\w+)\s*=\s*(\S+)\s*// ) {
+      elsif( $row =~ s/(\w+)\s*=\s*(\S+)\s*// ) {
         $config{$1} = $2;
       } 
       else {
@@ -229,7 +229,8 @@ sub parse_row {
     my $current_key = $config{'name'} || 'default';
     $self->{'tracks'}{ $current_key } = { 'features' => [], 'config' => \%config };
     $self->{'_current_key'} = $current_key;
-  } else {
+  } 
+  else {
     return unless $row =~ /\d+/g ;
     my @tab_delimited = split /(\t|  +)/, $row;
     my $current_key = $self->{'_current_key'} ;
@@ -328,7 +329,8 @@ sub fetch_features_by_tracktype{
 
 sub filter {
   my ( $self, $chr, $start, $end) = @_;
-  return ( ! $self->{'filter'}{'chr'}   || $chr   eq $self->{'filter'}{'chr'}   ) &&
+  return ( ! $self->{'filter'}{'chr'}   || $chr eq 'chr'.$self->{'filter'}{'chr'} 
+              || $chr eq $self->{'filter'}{'chr'}   ) &&
          ( ! $self->{'filter'}{'end'}   || $start <= $self->{'filter'}{'end'}   ) &&
          ( ! $self->{'filter'}{'start'} || $end   >= $self->{'filter'}{'start'} )  ;
 }

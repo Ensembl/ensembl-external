@@ -197,7 +197,7 @@ sub fetch_all_by_clone_accession {
                     'allele_string'     => $row->{'ALLELES'},
                     'source'            => 'Glovar',
                     'validation_code'   => [ $VSTATE_MAP{$row->{'VALIDATED'}} ],
-                    'consequence_type'  => $consequence_type,
+                    'consequence_type'  => [ $consequence_type ],
                 });
 
             # add minimal Variation object (needed for DBLinks)
@@ -234,7 +234,6 @@ sub fetch_all_by_clone_accession {
 
 sub fetch_SNP_by_id  {
     my ($self, $id) = @_;
-    
     #&eprof_start('fetch_snp_by_id');
     
     my $dnadb = Bio::EnsEMBL::Registry->get_DNAAdaptor($ENV{'ENSEMBL_SPECIES'}, 'glovar');
@@ -416,7 +415,6 @@ sub fetch_SNP_by_id  {
         $up_end++ if (($row->{'SNPCLASS'} eq "SNP - indel") && ($varfeat->start ne $varfeat->end));
         $var->five_prime_flanking_seq(substr($seq, 0, $up_end));
         $var->three_prime_flanking_seq(substr($seq, 26));
-        
         # consequences and  DBLinks
         $self->get_consequences($varfeat);
         $self->get_DBLinks($var);
@@ -519,6 +517,7 @@ sub get_consequences {
     while (my $row = $sth->fetchrow_hashref) {
         # add consequence
         my $consequence_type = $CONSEQUENCE_TYPE_MAP{$row->{'POS_TYPE'}." ".$row->{'CONSEQUENCE'}};
+
         my $key = join(":", $row->{'TRANSCRIPT_STABLE_ID'}, $row->{'CDNA_START'}, $consequence_type);
 
         # only add consequence once (workaround for duplicates in db)
@@ -533,7 +532,7 @@ sub get_consequences {
         }
         
         unless ($found_tvar) {
-            $varfeat->add_consequence_type($consequence_type);
+            $varfeat->add_consequence_type( [$consequence_type] );
 
             # add TranscriptVariation object
             my $trans = Bio::EnsEMBL::Transcript->new(
@@ -543,7 +542,7 @@ sub get_consequences {
                 transcript          => $trans,
                 cdna_start          => $row->{'CDNA_START'},
                 cdna_end            => $row->{'CDNA_START'},
-                consequence_type    => $consequence_type,
+                consequence_type    => [ $consequence_type ],
             });
             $varfeat->add_TranscriptVariation($tvar);
         }

@@ -95,6 +95,10 @@ sub new {
 	 $stylesheet,
 	 $score,
 	 $fg_merge,
+	 $fg_grades,
+	 $fg_data,
+	 $fg_max,
+	 $fg_min,
 	 $conftype,
 	 $active,
 	 $description,
@@ -125,6 +129,10 @@ sub new {
 					   STYLESHEET
 				           SCORE
 				           FG_MERGE
+				           FG_GRADES
+				           FG_DATA
+				           FG_MAX
+				           FG_MIN
 					   CONFTYPE
 					   ACTIVE
 					   DESCRIPTION
@@ -172,6 +180,10 @@ sub new {
     $stylesheet && $self->stylesheet( $stylesheet );
     $score && $self->score( $score );
     $fg_merge && $self->fg_merge( $fg_merge );
+    $fg_grades && $self->fg_grades( $fg_grades);
+    $fg_data && $self->fg_data( $fg_data);
+    $fg_max && $self->fg_max( $fg_max);
+    $fg_min && $self->fg_min( $fg_min);
     $conftype   && $self->conftype( $conftype );
     $active     && $self->active( $active );
     $description     && $self->description( $description );
@@ -734,13 +746,37 @@ sub score{
    return $self->{$key};
 }
 
+
 sub fg_merge{
     my $key = '_fg_merge';
     my $self = shift;
     if( @_ ){ $self->{$key} = shift }
     return $self->{$key};
 }
-
+sub fg_grades{
+    my $key = '_fg_grades';
+    my $self = shift;
+    if( @_ ){ $self->{$key} = shift }
+    return $self->{$key};
+}
+sub fg_data{
+    my $key = '_fg_data';
+    my $self = shift;
+    if( @_ ){ $self->{$key} = shift }
+    return $self->{$key};
+}
+sub fg_max{
+    my $key = '_fg_max';
+    my $self = shift;
+    if( @_ ){ $self->{$key} = shift }
+    return $self->{$key};
+}
+sub fg_min{
+    my $key = '_fg_min';
+    my $self = shift;
+    if( @_ ){ $self->{$key} = shift }
+    return $self->{$key};
+}
 #----------------------------------------------------------------------
 
 =head2 conftype

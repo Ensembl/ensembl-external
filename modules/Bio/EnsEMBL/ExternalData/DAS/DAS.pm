@@ -742,10 +742,10 @@ sub get_Ensembl_SeqFeatures_DAS {
 
     foreach my $url (keys %$response) {
 	foreach my $css (@ {$response->{$url}} ) {
-	    my @categories = @{ $css->{category} };
+	    my @categories = @{ $css->{category} || []};
 	    foreach my $c (@categories) {
 		my $c_id = $c->{category_id};
-		my @types = @{ $c->{type} };
+		my @types = @{ $c->{type} || []};
 		foreach my $t (@types) {
 		    my $t_id = $t->{type_id};
 		    my @glyphs = $t->{glyph};

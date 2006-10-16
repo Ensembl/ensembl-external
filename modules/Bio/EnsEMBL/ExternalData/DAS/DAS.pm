@@ -667,10 +667,8 @@ sub fetch_all_by_ID {
 	}
     }
 
-   my @result_list = grep 
-     {
-       $self->_map_DASSeqFeature_to_pep
-	 ( $ids{$_->das_segment->ref}, $_ ) == 1
+   my @result_list = grep {
+       $_->das_segment->ref && $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment->ref}, $_ ) == 1
      } @das_features;
 
    my $key = join( '_', $dsn, keys(%ids) );
@@ -742,10 +740,10 @@ sub get_Ensembl_SeqFeatures_DAS {
 
     foreach my $url (keys %$response) {
 	foreach my $css (@ {$response->{$url}} ) {
-	    my @categories = @{ $css->{category} };
+	    my @categories = @{ $css->{category} || []};
 	    foreach my $c (@categories) {
 		my $c_id = $c->{category_id};
-		my @types = @{ $c->{type} };
+		my @types = @{ $c->{type} || []};
 		foreach my $t (@types) {
 		    my $t_id = $t->{type_id};
 		    my @glyphs = $t->{glyph};

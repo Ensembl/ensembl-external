@@ -157,6 +157,7 @@ sub new {
       (    $self->error("Invalid URL $url \n".join('*', @args)) && return);
 
     $timeout ||= 30;
+#warn "ATTACHING HANDLE $source_url $timeout";
     $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
 #    $dsn       && $self->dsn( $dsn );
     $proxy_url && $self->proxy( $proxy_url );

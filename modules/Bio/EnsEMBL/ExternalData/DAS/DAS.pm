@@ -142,21 +142,21 @@ sub fetch_dsn_info {
   my $dsn_hash =  $das->dsns();
   foreach my $key (%{ $dsn_hash } ) {
       foreach my $obj (@{ $dsn_hash->{$key} }) {
-	  my $data = {};
+      my $data = {};
 
-	  if ($dsn =~ m!(.+/das)/([^/]+)!) {
-	      $data->{base}        = $1;
-	      $data->{url}         = $dsn;
-	  } else {
-	      $data->{base}        = $dsn;
-	      $data->{url}         = "$dsn/$obj->{source_id}";
-	  }
-	  $data->{id}          = $obj->{source_id};
-	  $data->{dsn}         = $obj->{source_id};
-	  $data->{name}        = $obj->{source};
-	  $data->{description} = $obj->{description};
-	  $data->{master}      = $obj->{mapmaster};
-	  push @sources, $data;
+      if ($dsn =~ m!(.+/das)/([^/]+)!) {
+          $data->{base}        = $1;
+          $data->{url}         = $dsn;
+      } else {
+          $data->{base}        = $dsn;
+          $data->{url}         = "$dsn/$obj->{source_id}";
+      }
+      $data->{id}          = $obj->{source_id};
+      $data->{dsn}         = $obj->{source_id};
+      $data->{name}        = $obj->{source};
+      $data->{description} = $obj->{description};
+      $data->{master}      = $obj->{mapmaster};
+      push @sources, $data;
       }      
   }
   return [@sources];
@@ -189,15 +189,15 @@ sub fetch_all_by_Slice {
 
 # The following bit has been put to investigate why we get error messages in the error log saying that fetch_all can not be called on an undefined value
   if (! defined($csa)) {
-      my @ca = caller(2);
-      warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+    my @ca = caller(2);
+    warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
 
-      if (! defined($csa2)) {
-	  warn("CSA2 is empty");
-	  return [];
-      } else {
-	  $csa = $csa2;
-      }
+    if (! defined($csa2)) {
+      warn("CSA2 is empty");
+      return [];
+    } else {
+      $csa = $csa2;
+    }
   }
   my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 
@@ -213,11 +213,11 @@ sub fetch_all_by_Slice {
       my $region_name = $slice->seq_region_name;
       my $coord_system= $slice->coord_system;
       if( $slice_name =~ /^clone/ ){ # Clone-specific hack for embl versions
-	my( $id, $version ) = split( /\./, $region_name );
-	if( $version ){
-	  push( @segments_to_request, "$id:$slice_start,$slice_end" );
-	  $slice_by_segment{$id} = $slice;
-	}
+        my( $id, $version ) = split( /\./, $region_name );
+        if( $version ){
+          push( @segments_to_request, "$id:$slice_start,$slice_end" );
+          $slice_by_segment{$id} = $slice;
+        }
       }
       push( @segments_to_request, "$region_name:$slice_start,$slice_end" );
       $slice_by_segment{$region_name} = $slice;
@@ -232,17 +232,14 @@ sub fetch_all_by_Slice {
   # Map the DAS results into the coord system of the original slice
   my @result_list;
   foreach my $das_sf( @$features ){
-    my $segment = $das_sf->das_segment ||
-      ( warn( "No das_segment for $das_sf" ) && next );
-    my $das_slice = $slice_by_segment{$segment->ref} ||
-      ( warn( "No Slice for ", $segment->ref ) && next );
-    $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) &&
-      push @result_list, $das_sf;
+    my $segment = $das_sf->das_segment || ( warn( "No das_segment for $das_sf" ) && next );
+    my $das_slice = $slice_by_segment{$segment->ref} || ( warn( "No Slice for ", $segment->ref ) && next );
+    $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) && push @result_list, $das_sf;
   }
 
   # Return the mapped features
   return ( ($self->{$slice->name} = \@result_list), 
-	   ($self->{"_stylesheet_".$slice->name} = $style) );
+       ($self->{"_stylesheet_".$slice->name} = $style) );
 }
 
 
@@ -256,77 +253,72 @@ sub fetch_all_Features {
     return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
   }
 
-  if ($source_type =~ /^ensembl_location(.+)?/) {
-      my %coord_systems;
-
-      if (defined (my $cs = $1)) {
-	  $cs =~ s/^_//;
-	  $coord_systems{$cs} = 1;
-      } else {
-	  # Get all coord systems this Ensembl DB knows about
-	  my $csa = $slice->coord_system->adaptor;
-
-	  if (! defined($csa)) {
-	      my @ca = caller(2);
-	      warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
-	      my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
-	      if (! defined($csa2)) {
-		  warn("CSA2 is empty");
-		  return [];
-	      } else {
-		  $csa = $csa2;
-	      }
-	  }
-	  %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
+  if( $source_type =~ /^ensembl_location(.+)?/) {
+    my %coord_systems;
+    if( defined (my $cs = $1)) {
+      $cs =~ s/^_//;
+      $coord_systems{$cs} = 1;
+    } else {
+# Get all coord systems this Ensembl DB knows about
+      my $csa = $slice->coord_system->adaptor;
+      if (! defined($csa)) {
+        my @ca = caller(2);
+        warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+        my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
+        if (! defined($csa2)) {
+          warn("CSA2 is empty");
+          return [];
+        } else {
+          $csa = $csa2;
+        }
       }
+      %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
+    }
 
 #      warn("CS:".join('*', sort keys %coord_systems));
 
       # Get the slice representation for each coord system. 
-      my @segments_to_request; # The DAS segments to query
-      my %slice_by_segment;    # tally of which slice belongs to segment
-      foreach my $system( keys %coord_systems ){
-	  foreach my $segment( @{ $slice->project($system) || [] } ){
-	      my $slice = $segment->to_Slice;
-	      my $slice_name  = $slice->name;
-	      my $slice_start = $slice->start;
-	      my $slice_end   = $slice->end;
-	      my $region_name = $slice->seq_region_name;
-	      my $coord_system= $slice->coord_system;
-	      if( $slice_name =~ /^clone/ ){ # Clone-specific hack for embl versions
-		  my( $id, $version ) = split( /\./, $region_name );
-		  if( $version ){
-		      push( @segments_to_request, "$id:$slice_start,$slice_end" );
-		      $slice_by_segment{$id} = $slice;
-		  }
-	      }
-	      push( @segments_to_request, "$region_name:$slice_start,$slice_end" );
-	      $slice_by_segment{$region_name} = $slice;
-	  }
+    my @segments_to_request; # The DAS segments to query
+    my %slice_by_segment;    # tally of which slice belongs to segment
+    foreach my $system( keys %coord_systems ){
+      foreach my $segment( @{ $slice->project($system) || [] } ){
+        my $slice = $segment->to_Slice;
+        my $slice_name  = $slice->name;
+        my $slice_start = $slice->start;
+        my $slice_end   = $slice->end;
+        my $region_name = $slice->seq_region_name;
+        my $coord_system= $slice->coord_system;
+        if( $slice_name =~ /^clone/ ){ # Clone-specific hack for embl versions
+          my( $id, $version ) = split( /\./, $region_name );
+          if( $version ){
+            push( @segments_to_request, "$id:$slice_start,$slice_end" );
+            $slice_by_segment{$id} = $slice;
+          }
+        }
+        push( @segments_to_request, "$region_name:$slice_start,$slice_end" );
+        $slice_by_segment{$region_name} = $slice;
       }
+    }
   
 
 
   # Run the DAS query
-  my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
-  if (@$features && $features->[0]->das_type eq '__ERROR__') {
-      return ($self->{$slice->name} = $features);
-  }
+    my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
+    if (@$features && $features->[0]->das_type eq '__ERROR__') {
+        return ($self->{$slice->name} = $features);
+    }
 
   # Map the DAS results into the coord system of the original slice
-  my @result_list;
-  foreach my $das_sf( @$features ){
-    my $segment = $das_sf->das_segment ||
-      ( warn( "No das_segment for $das_sf" ) && next );
-    my $das_slice = $slice_by_segment{$segment->ref} ||
-      ( warn( "No Slice for ", $segment->ref ) && next );
-    $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) &&
-      push @result_list, $das_sf;
-  }
+    my @result_list;
+    foreach my $das_sf( @$features ){
+      my $segment = $das_sf->das_segment || ( warn( "No das_segment for $das_sf" ) && next );
+      my $das_slice = $slice_by_segment{$segment->ref} || ( warn( "No Slice for ", $segment->ref ) && next );
+      $self->_map_DASSeqFeature_to_slice( $das_sf, $das_slice, $slice ) && push @result_list, $das_sf;
+    }
 
   # Return the mapped features
-  return ( ($self->{$slice->name} = \@result_list), 
-	   ($self->{"_stylesheet_".$slice->name} = $style) );
+    return ( ($self->{$slice->name} = \@result_list), 
+         ($self->{"_stylesheet_".$slice->name} = $style) );
   }
 }
 
@@ -400,19 +392,14 @@ sub _map_DASSeqFeature_to_slice {
     my @coords = ();
 
     eval{ @coords = $mapper->map( $das_slice->seq_region_name, 
-				  $das_sf->das_start,
-				  $das_sf->das_end,
-				  $das_sf->das_orientation,
-				  $fr_csystem ) };
+                  $das_sf->das_start, $das_sf->das_end, $das_sf->das_orientation, $fr_csystem ) };
     if( $@ ){ warn( $@ ) }
     @coords = grep{ $_->isa('Bio::EnsEMBL::Mapper::Coordinate') } @coords;
     scalar( @coords ) || return 0;
     $slice_start = $coords[0]->start - $usr_slice->start + 1;
     $slice_end   = $coords[-1]->end  - $usr_slice->start + 1;
     $slice_strand= $coords[0]->strand;
-  }
-  else{ # No mapping needed
-      
+  } else{ # No mapping needed
     $slice_start = $das_sf->das_start - $usr_slice->start + 1;
     $slice_end   = $das_sf->das_end   - $usr_slice->start + 1;
     $slice_strand= $das_sf->das_orientation;
@@ -437,10 +424,10 @@ sub _map_DASSeqFeature_to_slice {
 =cut
 
 sub get_Ensembl_SeqFeatures_clone{
-    my ($self,$contig) = @_;
-	$self->throw("get_Ensembl_SeqFeatures_clone is unimplemented!");
- 	my @features = ();
-	return(@features);
+  my ($self,$contig) = @_;
+  $self->throw("get_Ensembl_SeqFeatures_clone is unimplemented!");
+  my @features = ();
+  return(@features);
 }
 
 =head2 fetch_SeqFeature_by_contig_id
@@ -455,10 +442,10 @@ sub get_Ensembl_SeqFeatures_clone{
 =cut
 
 sub fetch_SeqFeature_by_contig_id {
-    my ($self,$contig) = @_;
-	$self->throw("fetch_SeqFeature_by_contig_id is unimplemented!");
- 	my @features = ();
-	return(@features);
+  my ($self,$contig) = @_;
+  $self->throw("fetch_SeqFeature_by_contig_id is unimplemented!");
+  my @features = ();
+  return(@features);
 }
 
 
@@ -474,11 +461,11 @@ sub fetch_SeqFeature_by_contig_id {
 =cut
 
 sub forwarded_for {
-    my ($self,$value) = @_;
-    if( defined $value) {
-        $self->{'_forwarded_for'} = $value;
-    }
-    return $self->{'_forwarded_for'};
+  my ($self,$value) = @_;
+  if( defined $value) {
+    $self->{'_forwarded_for'} = $value;
+  }
+  return $self->{'_forwarded_for'};
 }
 
 
@@ -534,10 +521,10 @@ sub _types {
 
 
 sub _dsn{
-    my $caller = join (", ",(caller(0))[1..2] );
-    warn "\033[31m DEPRECATED use adaptor->dsn instead: \033[0m $caller"; 
-    my $self = shift;
-    return $self->adaptor->dsn(@_);
+  my $caller = join (", ",(caller(0))[1..2] );
+  warn "\033[31m DEPRECATED use adaptor->dsn instead: \033[0m $caller"; 
+  my $self = shift;
+  return $self->adaptor->dsn(@_);
 }
 
 
@@ -554,10 +541,10 @@ sub _dsn{
 
 
 sub _url{
-    my $caller = join (", ",(caller(0))[1..2] );
-    warn "\033[31m DEPRECATED use adaptor->url instead: \033[0m $caller"; 
-    my $self = shift;
-    return $self->adaptor->url(@_);
+  my $caller = join (", ",(caller(0))[1..2] );
+  warn "\033[31m DEPRECATED use adaptor->url instead: \033[0m $caller"; 
+  my $self = shift;
+  return $self->adaptor->url(@_);
 }
 
 
@@ -575,107 +562,103 @@ sub _url{
 
 
 sub DESTROY {
-   my ($obj) = @_;
-   $obj->adaptor( undef() );
-   if( $obj->{'_db_handle'} ) {
-       $obj->{'_db_handle'} = undef;
-   }
+  my ($obj) = @_;
+  $obj->adaptor( undef() );
+  if( $obj->{'_db_handle'} ) {
+    $obj->{'_db_handle'} = undef;
+  }
 }
 
 
 sub fetch_all_by_ID {
-   my $self       = shift;
-   my $parent_obj = shift;
-   my $data_obj  = shift;
+  my $self       = shift;
+  my $parent_obj = shift;
+  my $data_obj  = shift;
 
-   my $id_type_base    = $self->adaptor->type || 'swissprot';
-   my $url        = $self->adaptor->url;
-   my $dsn        = $self->adaptor->dsn;
+  my $id_type_base    = $self->adaptor->type || 'swissprot';
+  my $url        = $self->adaptor->url;
+  my $dsn        = $self->adaptor->dsn;
    
-   $parent_obj->can('get_all_DBLinks') || $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can get_all_DBLinks" );
+  $parent_obj->can('get_all_DBLinks') || $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can get_all_DBLinks" );
 
-   my $ensembl_id = $parent_obj->stable_id() ? $parent_obj->can('stable_id') : '';
+  my $ensembl_id = $parent_obj->stable_id() ? $parent_obj->can('stable_id') : '';
 
-   my %ids = ();
+  my %ids = ();
 
-   my @id_types =  $id_type_base eq 'mixed' ? @{$self->adaptor->mapping} : ($id_type_base);
-   foreach my $id_type (@id_types) {
+  my @id_types =  $id_type_base eq 'mixed' ? @{$self->adaptor->mapping} : ($id_type_base);
+  foreach my $id_type (@id_types) {
    # If $id_type is prefixed with 'ensembl_', then ensembl id type
-       if( $id_type =~ m/ensembl_(.+)/o ){
-	   my $type = $1;
-	   my @gene_ids;
-	   my @tscr_ids;
-	   my @tran_ids;
-	   if( $parent_obj->isa("Bio::EnsEMBL::Gene") ){
-	       push( @gene_ids, $parent_obj->stable_id );
-	       foreach my $tscr( @{$parent_obj->get_all_Transcripts} ){
-		   push( @tscr_ids, $tscr->stable_id );
-		   my $tran = $tscr->translation || next;
-		   push( @tran_ids, $tran->stable_id );
-	       }
-	   } elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
-	       push( @tscr_ids, $parent_obj->stable_id );
-	       my $tran = $parent_obj->translation || next;
-	       push( @tran_ids, $tran->stable_id );
-	       push( @gene_ids, $data_obj->gene->stable_id );
-	   } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
-	       push( @tran_ids, $parent_obj->stable_id );
-	       # if the source is ensembl_gene - get gene stable id
-	       if (defined(my $gene = $parent_obj->adaptor->db->get_GeneAdaptor->fetch_by_translation_stable_id($parent_obj->stable_id))) {	
-		   push( @gene_ids, $gene->stable_id );
-	       }
-	   } else{ # Assume protein
-	       warn( "??? - ", $parent_obj->transcript->translation->stable_id );
-	       push( @tran_ids, $parent_obj->transcript->translation->stable_id );
-	   }
-	   if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
-	   elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
-	   elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
-       } elsif ($id_type eq 'mgi') { 
-	   # MGI Accession IDs come from MarkerSymbol DB
-	   my $id_method = 'primary_id';
-	   foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
-	       my $id = $xref->primary_id || next;
-	       $id =~ s/\://g;
-	       $ids{$id} = $xref;
-	   }
-       } else { 
-	   # If no 'ensembl_' prefix, then DBLink ID
-	   # If $id_type is suffixed with '_acc', use primary_id call 
-	   # rather than display_id
-	   my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
-	   foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
-	       lc( $xref->dbname ) ne lc( $id_type ) and next;
-	       my $id = $xref->$id_method || next;
-	       $ids{$id} = $xref;
-	   }
-       }
-   }
+    if( $id_type =~ m/ensembl_(.+)/o ){
+      my $type = $1;
+      my @gene_ids;
+      my @tscr_ids;
+      my @tran_ids;
+      if( $parent_obj->isa("Bio::EnsEMBL::Gene") ){
+        push( @gene_ids, $parent_obj->stable_id );
+        foreach my $tscr( @{$parent_obj->get_all_Transcripts} ){
+          push( @tscr_ids, $tscr->stable_id );
+          my $tran = $tscr->translation || next;
+          push( @tran_ids, $tran->stable_id );
+        }
+      } elsif( $parent_obj->isa("Bio::EnsEMBL::Transcript" ) ){
+        push( @tscr_ids, $parent_obj->stable_id );
+        my $tran = $parent_obj->translation || next;
+        push( @tran_ids, $tran->stable_id );
+        push( @gene_ids, $data_obj->gene->stable_id );
+      } elsif( $parent_obj->isa("Bio::EnsEMBL::Translation" ) ){
+        push( @tran_ids, $parent_obj->stable_id );
+        # if the source is ensembl_gene - get gene stable id
+        if (defined(my $gene = $parent_obj->adaptor->db->get_GeneAdaptor->fetch_by_translation_stable_id($parent_obj->stable_id))) {    
+          push( @gene_ids, $gene->stable_id );
+        }
+      } else{ # Assume protein
+        warn( "??? - ", $parent_obj->transcript->translation->stable_id );
+        push( @tran_ids, $parent_obj->transcript->translation->stable_id );
+      }
+      if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
+      elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
+      elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
+    } elsif ($id_type eq 'mgi') { 
+       # MGI Accession IDs come from MarkerSymbol DB
+      my $id_method = 'primary_id';
+      foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
+        my $id = $xref->primary_id || next;
+        $id =~ s/\://g;
+        $ids{$id} = $xref;
+      }
+    } else { 
+      # If no 'ensembl_' prefix, then DBLink ID
+      # If $id_type is suffixed with '_acc', use primary_id call 
+      # rather than display_id
+      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+      foreach my $xref( @{$parent_obj->get_all_DBLinks} ){
+        lc( $xref->dbname ) ne lc( $id_type ) and next;
+        my $id = $xref->$id_method || next;
+        $ids{$id} = $xref;
+      }
+    }
+  }
 
 
    # Return empty if no ids found
-   if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
+  if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
 
-   my @das_features = ();
-   my @segments = keys %ids;
+  my @das_features = ();
+  my @segments = keys %ids;
 
-   my $response = $self->adaptor->_db_handle->features( \@segments );
+  my $response = $self->adaptor->_db_handle->features( \@segments );
 
-    foreach my $url (keys %$response) {
-        foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
-	    add_feature($self, $f, $dsn, \@das_features);
-	}
+  foreach my $url (keys %$response) {
+    foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
+      add_feature($self, $f, $dsn, \@das_features);
     }
+  }
 
-   my @result_list = grep 
-     {
-       $self->_map_DASSeqFeature_to_pep
-	 ( $ids{$_->das_segment->ref}, $_ ) == 1
-     } @das_features;
+  my @result_list = grep { $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment->ref}, $_ ) == 1 } @das_features;
 
-   my $key = join( '_', $dsn, keys(%ids) );
+  my $key = join( '_', $dsn, keys(%ids) );
    
-   return( $key, [@result_list] );
+  return( $key, [@result_list] );
 }
 
 
@@ -694,77 +677,75 @@ sub fetch_all_by_ID {
 =cut
 
 sub get_Ensembl_SeqFeatures_DAS {
-    my $self = shift;
-    my $segments = shift || [];
-    my $dbh 	   = $self->adaptor->_db_handle();
-    my $dsn 	   = $self->adaptor->dsn();
-    my $types 	   = $self->adaptor->types() || [];
-    my $url 	   = $self->adaptor->url();
+  my $self = shift;
+  my $segments = shift || [];
+  my $dbh        = $self->adaptor->_db_handle();
+  my $dsn        = $self->adaptor->dsn();
+  my $types        = $self->adaptor->types() || [];
+  my $url        = $self->adaptor->url();
 
-    my @das_features = ();
+  my @das_features = ();
+  @$segments || $self->throw("Need some segment IDs to query against");
 
- 
-    @$segments || $self->throw("Need some segment IDs to query against");
-
-    if (defined (my $error = $self->adaptor->verify)) {
-	my $f = {
-	   'type' => '__ERROR__',
-	   'type_id' => '__ERROR__',
-	   'feature_id' => $error,
-	   'segment_id' => 1,
-	   'start' => 1,
-	   'end' => 1,
-	   };
-	add_feature($self, $f, $dsn, \@das_features);
-	return \@das_features;
-    }
+  if (defined (my $error = $self->adaptor->verify)) {
+    my $f = {
+      'type' => '__ERROR__',
+      'type_id' => '__ERROR__',
+      'feature_id' => $error,
+      'segment_id' => 1,
+      'start' => 1,
+      'end' => 1,
+    };
+    add_feature($self, $f, $dsn, \@das_features);
+    return \@das_features;
+  }
 
 # Get features
-    my $response;
+  my $response;
 
-    if(@$types) {
-	$response = $dbh->features({'segment' => $segments, 'type' => $types});
-    } else { 
-	$response = $dbh->features($segments);  
-    }
+  if(@$types) {
+    $response = $dbh->features({'segment' => $segments, 'type' => $types});
+  } else { 
+    $response = $dbh->features($segments);  
+  }
 
 # Parse the response. There is a problem using callbacks hence the explicit response handling
-    foreach my $url (keys %$response) {
-        foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
-	    add_feature($self, $f, $dsn, \@das_features);
-	}
+  foreach my $url (keys %$response) {
+    foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
+      add_feature($self, $f, $dsn, \@das_features);
     }
+  }
 
 
 # Now get the stylesheet
-    my $STYLES = [];
-    $response = $dbh->stylesheet();
+  my $STYLES = [];
+  $response = $dbh->stylesheet();
 
-    foreach my $url (keys %$response) {
-	foreach my $css (@ {$response->{$url}} ) {
-	    my @categories = @{ $css->{category} || []};
-	    foreach my $c (@categories) {
-		my $c_id = $c->{category_id};
-		my @types = @{ $c->{type} || []};
-		foreach my $t (@types) {
-		    my $t_id = $t->{type_id};
-		    my @glyphs = $t->{glyph};
-		    foreach my $g (@glyphs) {
-			my %ghash = %{$g->[0]};
-			foreach my $gtype (keys %ghash) {
-			    my $attr = $ghash{$gtype}->[0];
-			    push @$STYLES, {
-				'category' => $c_id,
-				'type'     => $t_id,
-				'glyph'    => $gtype,
-				'attrs'    => $attr,
-			    };
-			}
-		    }
-		}
-	    }
+  foreach my $url (keys %$response) {
+    foreach my $css (@ {$response->{$url}} ) {
+      my @categories = @{ $css->{category} || []};
+      foreach my $c (@categories) {
+        my $c_id = $c->{category_id};
+        my @types = @{ $c->{type} || []};
+        foreach my $t (@types) {
+          my $t_id = $t->{type_id};
+          my @glyphs = $t->{glyph};
+          foreach my $g (@glyphs) {
+            my %ghash = %{$g->[0]};
+            foreach my $gtype (keys %ghash) {
+              my $attr = $ghash{$gtype}->[0];
+              push @$STYLES, {
+                'category' => $c_id,
+                'type'     => $t_id,
+                'glyph'    => $gtype,
+                'attrs'    => $attr,
+                };
+            }
+            }
+        }
+        }
 
-	}
+    }
     }
 
     
@@ -779,7 +760,7 @@ sub add_feature {
 
     my ($fstart, $fend) = ($f->{start}, $f->{end});
     if ($f->{type} =~ /^(INIT_MET|INIT_MET:)$/) {
-	$fstart = $fend = 1;
+    $fstart = $fend = 1;
     }
 
     
@@ -787,8 +768,8 @@ sub add_feature {
     $das_sf->das_feature_id   ($f->{feature_id}      );
     $das_sf->das_feature_label($f->{feature_label}   );
     $das_sf->das_segment(
-			 Bio::Das::Segment->new($f->{segment_id},$f->{start},$f->{end},'1',$self,$dsn)
-			 );
+             Bio::Das::Segment->new($f->{segment_id},$f->{start},$f->{end},'1',$self,$dsn)
+             );
 
     $das_sf->das_segment_label($f->{segment_id});
     $das_sf->das_id($f->{feature_id});
@@ -817,11 +798,11 @@ sub add_feature {
     $das_sf->das_links(@{$f->{link}}) if ($f->{link});
 
     if ($f->{group}) {
-	$das_sf->das_groups(@{$f->{group}});
-	# For backward compatability
-	$das_sf->das_group_id($f->{group}->[0]->{group_id});
-	$das_sf->das_group_label($f->{group}->[0]->{group_label});
-	$das_sf->das_group_type($f->{group}->[0]->{group_type});
+    $das_sf->das_groups(@{$f->{group}});
+    # For backward compatability
+    $das_sf->das_group_id($f->{group}->[0]->{group_id});
+    $das_sf->das_group_label($f->{group}->[0]->{group_label});
+    $das_sf->das_group_type($f->{group}->[0]->{group_type});
     }
 
     my $note = ref($f->{note}) eq 'ARRAY' ? join('<br/>', @{$f->{note}}) : $f->{note};

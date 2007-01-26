@@ -650,7 +650,7 @@ sub fetch_all_by_ID {
 
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
-      add_feature($self, $f, $dsn, \@das_features);
+      $self->_add_feature($f, $dsn, \@das_features);
     }
   }
 
@@ -658,7 +658,8 @@ sub fetch_all_by_ID {
 
   my $key = join( '_', $dsn, keys(%ids) );
    
-  return( $key, [@result_list] );
+  my $STYLES = $self->_get_stylesheet();
+  return( \@result_list, $STYLES );
 }
 
 
@@ -682,7 +683,6 @@ sub get_Ensembl_SeqFeatures_DAS {
   my $dbh        = $self->adaptor->_db_handle();
   my $dsn        = $self->adaptor->dsn();
   my $types        = $self->adaptor->types() || [];
-  my $url        = $self->adaptor->url();
 
   my @das_features = ();
   @$segments || $self->throw("Need some segment IDs to query against");
@@ -696,7 +696,7 @@ sub get_Ensembl_SeqFeatures_DAS {
       'start' => 1,
       'end' => 1,
     };
-    add_feature($self, $f, $dsn, \@das_features);
+    $self->_add_feature($f, $dsn, \@das_features);
     return \@das_features;
   }
 
@@ -712,14 +712,21 @@ sub get_Ensembl_SeqFeatures_DAS {
 # Parse the response. There is a problem using callbacks hence the explicit response handling
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
-      add_feature($self, $f, $dsn, \@das_features);
+      $self->_add_feature($f, $dsn, \@das_features);
     }
   }
 
+ my $STYLES = $self->_get_stylesheet();
+ return (\@das_features,$STYLES);
+}
 
-# Now get the stylesheet
+sub _get_stylesheet {
+  my ($self) = @_;
+
+  my $dbh        = $self->adaptor->_db_handle();
+
   my $STYLES = [];
-  $response = $dbh->stylesheet();
+  my $response = $dbh->stylesheet();
 
   foreach my $url (keys %$response) {
     foreach my $css (@ {$response->{$url}} ) {
@@ -741,18 +748,17 @@ sub get_Ensembl_SeqFeatures_DAS {
                 'attrs'    => $attr,
                 };
             }
-            }
+          }
         }
-        }
-
+      }
     }
-    }
+  }
 
-    
-    return (\@das_features,$STYLES);
+  return $STYLES;
 }
 
-sub add_feature {
+
+sub _add_feature {
     my ($self, $f, $dsn, $fa) = @_;
 
 # Filter out calls for non-features

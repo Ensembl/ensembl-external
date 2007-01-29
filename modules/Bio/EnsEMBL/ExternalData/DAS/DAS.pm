@@ -804,11 +804,7 @@ sub add_feature {
     $das_sf->das_group_label($f->{group}->[0]->{group_label});
     $das_sf->das_group_type($f->{group}->[0]->{group_type});
     }
-
-    my $note = ref($f->{note}) eq 'ARRAY' ? join('<br/>', @{$f->{note}}) : $f->{note};
-    $note =~ s![\r\n]!!g;
-
-    $das_sf->das_note($note);
+    $das_sf->das_note($f->{note});
     push(@$fa, $das_sf);
     return;
 }

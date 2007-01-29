@@ -815,6 +815,7 @@ sub _add_feature {
     $note =~ s![\r\n]!!g;
 
     $das_sf->das_note($note);
+#    $das_sf->das_note($f->{note});
     push(@$fa, $das_sf);
     return;
 }

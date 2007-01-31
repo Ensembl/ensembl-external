@@ -814,8 +814,8 @@ sub _add_feature {
     my $note = ref($f->{note}) eq 'ARRAY' ? join('<br/>', @{$f->{note}}) : $f->{note};
     $note =~ s![\r\n]!!g;
 
-    $das_sf->das_note($note);
-#    $das_sf->das_note($f->{note});
+#    $das_sf->das_note($note);
+    $das_sf->das_note($f->{note});
     push(@$fa, $das_sf);
     return;
 }

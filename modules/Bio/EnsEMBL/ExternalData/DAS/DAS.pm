@@ -642,12 +642,33 @@ sub fetch_all_by_ID {
 
    # Return empty if no ids found
   if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
+my $response;
 
   my @das_features = ();
-  my @segments = keys %ids;
+if (0) {
+  my @segments = (keys %ids);
+   $response = $self->adaptor->_db_handle->features( \@segments );
+} else {
+# Get features
+  my @req;
+  my $types        = $self->adaptor->types() || [];
+  foreach my $s (keys %ids) {
+    my $rhash = {
+      'segment' => $s
+    };
 
-  my $response = $self->adaptor->_db_handle->features( \@segments );
+    if (my $maxbins = $self->adaptor->maxbins()) {
+      $rhash->{'maxbins'} = $maxbins ;
+    }
 
+    if(@$types) {
+      $rhash->{'types'} = join ',', @$types;
+    }
+    push @req, $rhash;
+  }
+
+  $response = $self->adaptor->_db_handle->features(\@req);
+}
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
       $self->_add_feature($f, $dsn, \@das_features);
@@ -684,6 +705,7 @@ sub get_Ensembl_SeqFeatures_DAS {
   my $dsn        = $self->adaptor->dsn();
   my $types        = $self->adaptor->types() || [];
 
+
   my @das_features = ();
   @$segments || $self->throw("Need some segment IDs to query against");
 
@@ -702,12 +724,31 @@ sub get_Ensembl_SeqFeatures_DAS {
 
 # Get features
   my $response;
+  my @req;
 
-  if(@$types) {
-    $response = $dbh->features({'segment' => $segments, 'type' => $types});
-  } else { 
-    $response = $dbh->features($segments);  
+  foreach my $s (@$segments) {
+    my $rhash = {
+      'segment' => $s
+    };
+	
+    if (my $maxbins = $self->adaptor->maxbins()) {
+      $rhash->{'maxbins'} = $maxbins ;
+    }
+
+    if(@$types) {
+      $rhash->{'types'} = join ',', @$types;
+    }
+    push @req, $rhash;
   }
+
+  $response = $dbh->features(\@req);
+#warn Data::Dumper::Dumper($response);
+
+#  if(@$types) {
+#    $response = $dbh->features({'segment' => $segments, 'type' => $types});
+#  } else { 
+#    $response = $dbh->features($segments);  
+#  }
 
 # Parse the response. There is a problem using callbacks hence the explicit response handling
   foreach my $url (keys %$response) {

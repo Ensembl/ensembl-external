@@ -99,6 +99,7 @@ sub new {
 	 $fg_data,
 	 $fg_max,
 	 $fg_min,
+	 $maxbins,
 	 $conftype,
 	 $active,
 	 $description,
@@ -133,6 +134,7 @@ sub new {
 				           FG_DATA
 				           FG_MAX
 				           FG_MIN
+					   MAXBINS 
 					   CONFTYPE
 					   ACTIVE
 					   DESCRIPTION
@@ -185,6 +187,7 @@ sub new {
     $fg_data && $self->fg_data( $fg_data);
     $fg_max && $self->fg_max( $fg_max);
     $fg_min && $self->fg_min( $fg_min);
+    $maxbins && $self->maxbins( $maxbins );
     $conftype   && $self->conftype( $conftype );
     $active     && $self->active( $active );
     $description     && $self->description( $description );
@@ -747,6 +750,12 @@ sub score{
    return $self->{$key};
 }
 
+sub maxbins {
+    my $key = '_maxbins';
+    my $self = shift;
+    if( @_ ){ $self->{$key} = shift }
+    return $self->{$key};
+}
 
 sub fg_merge{
     my $key = '_fg_merge';

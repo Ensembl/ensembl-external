@@ -69,9 +69,9 @@ BEGIN{
 use Bio::EnsEMBL::Utils::Argument qw(rearrange);
 
 sub new {
-    my($pkg, @args) = @_;
+  my($pkg, @args) = @_;
 
-    my $self = bless {}, $pkg;
+  my $self = bless {}, $pkg;
 
     my ( $url,
 	 $dsn,
@@ -145,26 +145,28 @@ sub new {
 					   MAPPING
 					   FASTA)],@args);
     
-    if ($dsn) {
-	if ($url =~ m/$dsn\/$dsn/) {
-	    $url =~ s/$dsn\/$dsn/$dsn/;
-	} elsif ($url =~ m/\/das$/) {
-	    $url .= "/$dsn";
-	}
+  if ($dsn) {
+    if ($url =~ m/$dsn\/$dsn/) {
+      $url =~ s/$dsn\/$dsn/$dsn/;
+    } elsif ($url =~ m/\/das$/) {
+      $url .= "/$dsn";
     }
+  }
 
-    my $source_url = $self->url($url);
+  my $source_url = $self->url($url);
 
-    $source_url =~ m|\w+://[\w\-]+| || 
-      (    $self->error("Invalid URL $url \n".join('*', @args)) && return);
+  unless( $source_url =~ m|\w+://[\w\-]+| ) {
+    $self->error("Invalid URL $url \n".join('*', @args));
+    return;
+  }
 
-    $timeout ||= 30;
+  $timeout ||= 30;
 #warn "ATTACHING HANDLE $source_url $timeout";
-    $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
+  $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
 #    $dsn       && $self->dsn( $dsn );
-    $proxy_url && $self->proxy( $proxy_url );
-    $types     && $self->types($types);
-    $ensdb     && $self->ensembldb($ensdb);
+  $proxy_url && $self->proxy( $proxy_url );
+  $types     && $self->types($types);
+  $ensdb     && $self->ensembldb($ensdb);
 
     # Display meta-data (i.e. not used for DAS query itself) follows
     $name       && $self->name( $name );
@@ -193,21 +195,19 @@ sub new {
     $description     && $self->description( $description );
     $help        && $self->help( $help );
     # These are parsed to arrayrefs
-    $on        && $self->on( $on );
-    $mapping        && $self->mapping( $mapping );
-    $enable        && $self->enable( $enable );
-    $fasta     && $self->fasta( $fasta );
-
-    return $self; # success - we hope!
+  $on         && $self->on( $on );
+  $mapping    && $self->mapping( $mapping );
+  $enable     && $self->enable( $enable );
+  $fasta      && $self->fasta( $fasta );
+  return $self; # success - we hope!
 }
 
 sub error {
-    my ($self,$value) = @_;
-    if( defined $value) {
-        $self->{'_error'} = $value;
-    }
-    return $self->{'_error'};
-
+  my ($self,$value) = @_;
+  if( defined $value) {
+    $self->{'_error'} = $value;
+  }
+  return $self->{'_error'};
 }
 
 #----------------------------------------------------------------------
@@ -224,11 +224,11 @@ sub error {
 =cut
 
 sub ensembldb {
-    my ($self,$value) = @_;
-    if( defined $value) {
-        $self->{'_ensembldb'} = $value;
-    }
-    return $self->{'_ensembldb'};
+  my ($self,$value) = @_;
+  if( defined $value) {
+    $self->{'_ensembldb'} = $value;
+  }
+  return $self->{'_ensembldb'};
 }
 
 #----------------------------------------------------------------------
@@ -245,8 +245,8 @@ sub ensembldb {
 =cut
 
 sub proxy {
-   my $self = shift;
-   return $self->_db_handle->http_proxy(@_);
+  my $self = shift;
+  return $self->_db_handle->http_proxy(@_);
 }
 
 
@@ -281,24 +281,24 @@ sub verify {
     $headers->{'X-Forwarded-For'} ||= $ENV{'HTTP_X_FORWARDED_FOR'} if($ENV{'HTTP_X_FORWARDED_FOR'});
 
     my $req = HTTP::Request->new(GET => $test_url,
-				 HTTP::Headers->new(%$headers),
+                 HTTP::Headers->new(%$headers),
     );
 
     my $response = $ua->request($req);
 
     if ($response->is_error) {
-	my $status = $response->status_line;
-	if ($status =~ /^500/) {
-	    return "Can't connect to the host!";
-	} elsif ($status =~ /^403/) {
-	    return "Unknown source!";
-	} 
-	return $status;
+    my $status = $response->status_line;
+    if ($status =~ /^500/) {
+        return "Can't connect to the host!";
+    } elsif ($status =~ /^403/) {
+        return "Unknown source!";
+    } 
+    return $status;
     } else {
 # Comment out this as LDAS serves feeatures as text/plain
-#	if ($response->content_type ne 'text/xml') {
-#	    return "ERROR: ".$response->content;
-#	}
+#    if ($response->content_type ne 'text/xml') {
+#        return "ERROR: ".$response->content;
+#    }
     }
 
     return;
@@ -310,23 +310,23 @@ sub url{
     my $url = shift;
 
     if ($url =~ m!(\w+)://(.+/das)/(.+)!) {
-	my ($protocol, $domain, $dsn) = ($1, $2, $3);
-#	warn(join('*', "URL:$url",$protocol, $domain, $dsn));
-	$protocol ||= $DEFAULT_PROTOCOL;
+    my ($protocol, $domain, $dsn) = ($1, $2, $3);
+#    warn(join('*', "URL:$url",$protocol, $domain, $dsn));
+    $protocol ||= $DEFAULT_PROTOCOL;
 
-	$self->{_protocol} = $protocol;
-	
-	$self->{_dsn}= $dsn;
-	$self->{_domain}= "$protocol://$domain";
-	$self->{_url}= join('/', "$protocol:/", $domain, $dsn);
+    $self->{_protocol} = $protocol;
+    
+    $self->{_dsn}= $dsn;
+    $self->{_domain}= "$protocol://$domain";
+    $self->{_url}= join('/', "$protocol:/", $domain, $dsn);
     } elsif ($url =~ m!(\w+)://(.+/das)(/)?!) {
-	my ($protocol, $domain) = ($1, $2);
-#	warn(join('*', "URL 2:$url",$protocol, $domain));
-	$protocol ||= $DEFAULT_PROTOCOL;
+    my ($protocol, $domain) = ($1, $2);
+#    warn(join('*', "URL 2:$url",$protocol, $domain));
+    $protocol ||= $DEFAULT_PROTOCOL;
 
-	$self->{_protocol} = $protocol;
-	$self->{_domain}= "$protocol://$domain";
-	$self->{_url}= join('/', "$protocol:/", $domain);
+    $self->{_protocol} = $protocol;
+    $self->{_domain}= "$protocol://$domain";
+    $self->{_url}= join('/', "$protocol:/", $domain);
     } else{
       warn("Invalid URL $url!" );
     }
@@ -464,7 +464,7 @@ sub _db_handle{
 sub _debug{
     my ($self,$value) = @_;
     if( defined $value) {
-		$self->{'_debug'} = $value;
+        $self->{'_debug'} = $value;
     }
     return $self->{'_debug'};
     
@@ -695,10 +695,10 @@ sub strand{
 =cut
 
 sub depth{
-   my $key = '_depth';
-   my $self = shift;
-   if( @_ ){ $self->{$key} = shift }
-   return $self->{$key};
+  my $key = '_depth';
+  my $self = shift;
+  $self->{$key} = shift if @_;
+  return $self->{$key};
 }
 
 

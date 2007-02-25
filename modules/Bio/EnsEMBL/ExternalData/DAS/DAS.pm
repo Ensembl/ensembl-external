@@ -131,33 +131,32 @@ sub fetch_dsn_info {
     $data->{base}        = $obj->base;
     $data->{id}          = $obj->id;
     $data->{dsn}         = $obj->id;
-    $data->{name}        = $obj->name;
+    $data->{name}        = $obj->name || $obj->id;
     $data->{description} = $obj->description;
     $data->{master}      = $obj->master;
     push @sources, $data;
   };
   my $dsn = $self->adaptor->url;
   my $das = $self->adaptor->_db_handle;
-#  $das->dsn_js5( -dsn=>$dsn, -callback=>$callback );
   my $dsn_hash =  $das->dsns();
   foreach my $key (%{ $dsn_hash } ) {
-      foreach my $obj (@{ $dsn_hash->{$key} }) {
+    foreach my $obj (@{ $dsn_hash->{$key} }) {
       my $data = {};
-
+ 
       if ($dsn =~ m!(.+/das)/([^/]+)!) {
-          $data->{base}        = $1;
-          $data->{url}         = $dsn;
+        $data->{base}        = $1;
+        $data->{url}         = $dsn;
       } else {
-          $data->{base}        = $dsn;
-          $data->{url}         = "$dsn/$obj->{source_id}";
+        $data->{base}        = $dsn;
+         $data->{url}         = "$dsn/$obj->{source_id}";
       }
       $data->{id}          = $obj->{source_id};
       $data->{dsn}         = $obj->{source_id};
-      $data->{name}        = $obj->{source};
+      $data->{name}        = $obj->{source} || $obj->{source_id};
       $data->{description} = $obj->{description};
       $data->{master}      = $obj->{mapmaster};
       push @sources, $data;
-      }      
+    }      
   }
   return [@sources];
 }
@@ -180,11 +179,11 @@ sub fetch_all_by_Slice {
   # Examine cache
   my $CACHE_KEY = $slice->name;
   if( $self->{$CACHE_KEY} ){
-    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
+    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"}, $self->{"_segments_$CACHE_KEY"} );
   }
 
   # Get all coord systems this Ensembl DB knows about
-  my $csa = $slice->coord_system->adaptor;
+  my $csa  = $slice->coord_system->adaptor;
   my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
 
 # The following bit has been put to investigate why we get error messages in the error log saying that fetch_all can not be called on an undefined value
@@ -238,8 +237,12 @@ sub fetch_all_by_Slice {
   }
 
   # Return the mapped features
-  return ( ($self->{$slice->name} = \@result_list), 
-       ($self->{"_stylesheet_".$slice->name} = $style) );
+warn "RETURNING FEATURES ... STYLES ... and SEGMENTS";
+  return (
+    ($self->{$slice->name}                = \@result_list), 
+    ($self->{"_stylesheet_".$slice->name} = $style),
+    ($self->{"_segments_".$slice->name}   = \@segments_to_request) 
+  );
 }
 
 
@@ -250,7 +253,7 @@ sub fetch_all_Features {
   # Examine cache
   my $CACHE_KEY = $slice->name;
   if( $self->{$CACHE_KEY} ){
-    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"} );
+    return ( $self->{$CACHE_KEY}, $self->{"_stylesheet_$CACHE_KEY"}, $self->{"_segments_$CACHE_KEY"} );
   }
 
   if( $source_type =~ /^ensembl_location(.+)?/) {
@@ -305,7 +308,7 @@ sub fetch_all_Features {
   # Run the DAS query
     my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
     if (@$features && $features->[0]->das_type eq '__ERROR__') {
-        return ($self->{$slice->name} = $features);
+        return ($self->{$slice->name} = $features, [], \@segments_to_request);
     }
 
   # Map the DAS results into the coord system of the original slice
@@ -317,8 +320,11 @@ sub fetch_all_Features {
     }
 
   # Return the mapped features
-    return ( ($self->{$slice->name} = \@result_list), 
-         ($self->{"_stylesheet_".$slice->name} = $style) );
+    return (
+      ($self->{$slice->name} = \@result_list), 
+      ($self->{"_stylesheet_".$slice->name} = $style),
+      ($self->{"_segments_".$slice->name} = \@segments_to_request)
+    );
   }
 }
 
@@ -703,9 +709,7 @@ sub get_Ensembl_SeqFeatures_DAS {
   my $segments = shift || [];
   my $dbh        = $self->adaptor->_db_handle();
   my $dsn        = $self->adaptor->dsn();
-  my $types        = $self->adaptor->types() || [];
-
-
+  my $types      = $self->adaptor->types() || [];
   my @das_features = ();
   @$segments || $self->throw("Need some segment IDs to query against");
 
@@ -719,7 +723,7 @@ sub get_Ensembl_SeqFeatures_DAS {
       'end' => 1,
     };
     $self->_add_feature($f, $dsn, \@das_features);
-    return \@das_features;
+    return (\@das_features,[],[]);
   }
 
 # Get features
@@ -757,8 +761,9 @@ sub get_Ensembl_SeqFeatures_DAS {
     }
   }
 
+ warn "@$segments";
  my $STYLES = $self->_get_stylesheet();
- return (\@das_features,$STYLES);
+ return (\@das_features,$STYLES,$segments);
 }
 
 sub _get_stylesheet {

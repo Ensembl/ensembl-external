@@ -647,14 +647,10 @@ sub fetch_all_by_ID {
 
 
    # Return empty if no ids found
-  if( ! scalar keys(%ids) ){ return( $dsn, [] ) }
+  return () if( ! scalar keys(%ids) );
 my $response;
 
   my @das_features = ();
-if (0) {
-  my @segments = (keys %ids);
-   $response = $self->adaptor->_db_handle->features( \@segments );
-} else {
 # Get features
   my @req;
   my $types        = $self->adaptor->types() || [];
@@ -674,7 +670,6 @@ if (0) {
   }
 
   $response = $self->adaptor->_db_handle->features(\@req);
-}
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
       $self->_add_feature($f, $dsn, \@das_features);
@@ -683,10 +678,10 @@ if (0) {
 
   my @result_list = grep { $self->_map_DASSeqFeature_to_pep( $ids{$_->das_segment->ref}, $_ ) == 1 } @das_features;
 
-  my $key = join( '_', $dsn, keys(%ids) );
-   
   my $STYLES = $self->_get_stylesheet();
-  return( \@result_list, $STYLES );
+  my @segments = keys %ids;
+
+  return( \@result_list, $STYLES, \@segments);
 }
 
 

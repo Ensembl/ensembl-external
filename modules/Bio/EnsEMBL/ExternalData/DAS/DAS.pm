@@ -645,7 +645,6 @@ sub fetch_all_by_ID {
     }
   }
 
-
    # Return empty if no ids found
   return () if( ! scalar keys(%ids) );
 my $response;
@@ -653,10 +652,12 @@ my $response;
   my @das_features = ();
 # Get features
   my @req;
-  my $types        = $self->adaptor->types() || [];
+  my $types        = $self->adaptor->types || [];
+
+  if (@$types) {
   foreach my $s (keys %ids) {
     my $rhash = {
-      'segment' => $s
+      'segment' => join (',',  keys %ids) 
     };
 
     if (my $maxbins = $self->adaptor->maxbins()) {
@@ -670,6 +671,10 @@ my $response;
   }
 
   $response = $self->adaptor->_db_handle->features(\@req);
+} else {
+  $response = $self->adaptor->_db_handle->features([ keys %ids ]);
+}
+#   warn Data::Dumper::Dumper($response);
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
       $self->_add_feature($f, $dsn, \@das_features);
@@ -724,7 +729,6 @@ sub get_Ensembl_SeqFeatures_DAS {
 # Get features
   my $response;
   my @req;
-
   foreach my $s (@$segments) {
     my $rhash = {
       'segment' => $s
@@ -739,10 +743,10 @@ sub get_Ensembl_SeqFeatures_DAS {
     }
     push @req, $rhash;
   }
-
   $response = $dbh->features(\@req);
+#$Data::Dumper::Indent = 3;
 #warn Data::Dumper::Dumper($response);
-
+#warn Data::Dumper::Dumper(\@req);
 #  if(@$types) {
 #    $response = $dbh->features({'segment' => $segments, 'type' => $types});
 #  } else { 
@@ -752,11 +756,12 @@ sub get_Ensembl_SeqFeatures_DAS {
 # Parse the response. There is a problem using callbacks hence the explicit response handling
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
+#warn Data::Dumper::Dumper($f);
+
       $self->_add_feature($f, $dsn, \@das_features);
     }
   }
 
- warn "@$segments";
  my $STYLES = $self->_get_stylesheet();
  return (\@das_features,$STYLES,$segments);
 }

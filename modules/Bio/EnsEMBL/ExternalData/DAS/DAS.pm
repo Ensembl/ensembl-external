@@ -278,14 +278,17 @@ sub fetch_all_Features {
       %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
     }
 
-#      warn("CS:".join('*', sort keys %coord_systems));
+      #warn("CS:".join('*', sort keys %coord_systems));
 
       # Get the slice representation for each coord system. 
     my @segments_to_request; # The DAS segments to query
     my %slice_by_segment;    # tally of which slice belongs to segment
-    foreach my $system( keys %coord_systems ){
-      foreach my $segment( @{ $slice->project($system) || [] } ){
+    foreach my $system ( keys %coord_systems ) {
+      my ($coord_system, $version) = split('_', $system);
+      #warn "CS: $coord_system $version\n";
+      foreach my $segment(@{ $slice->project($coord_system, $version) || [] }) {
         my $slice = $segment->to_Slice;
+        #warn "DAS ".$slice->name."\n";
         my $slice_name  = $slice->name;
         my $slice_start = $slice->start;
         my $slice_end   = $slice->end;

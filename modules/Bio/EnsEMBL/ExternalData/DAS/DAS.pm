@@ -69,6 +69,7 @@ use vars qw(@ISA);
 use Bio::Das; 
 use Bio::EnsEMBL::Root;
 use Data::Dumper;
+use Bio::EnsEMBL::Utils::Exception qw(throw warning);
 
 use Bio::EnsEMBL::ExternalData::DAS::DASSeqFeature;
 
@@ -266,11 +267,11 @@ sub fetch_all_Features {
       my $csa = $slice->coord_system->adaptor;
       if (! defined($csa)) {
         my @ca = caller(2);
-        warn("WARNING: Could not get a coord system adaptor for slice [$slice]\n @ca");
+        warning("Could not get a coord system adaptor for slice [$slice]\n @ca");
         my $csa2 = $slice->adaptor()->db()->get_CoordSystemAdaptor();
         if (! defined($csa2)) {
-          warn("CSA2 is empty");
-          return [];
+          warning("CSA2 is empty");
+          return ([], [], []);
         } else {
           $csa = $csa2;
         }
@@ -280,13 +281,25 @@ sub fetch_all_Features {
 
       #warn("CS:".join('*', sort keys %coord_systems));
 
-      # Get the slice representation for each coord system. 
+    # Get the slice representation for each coord system. 
     my @segments_to_request; # The DAS segments to query
     my %slice_by_segment;    # tally of which slice belongs to segment
     foreach my $system ( keys %coord_systems ) {
-      my ($coord_system, $version) = split('_', $system);
-      #warn "CS: $coord_system $version\n";
-      foreach my $segment(@{ $slice->project($coord_system, $version) || [] }) {
+      my $version = $self->adaptor->assembly_version;
+      #warn "CS: $system $version\n";
+      
+      # catch exception when projecting to an unknown assembly version
+      my @segments = ();
+      eval {
+        @segments = @{ $slice->project($system, $version) };
+      };
+      if ($@) {
+        $@ =~ /MSG: (.*)/;
+        warning($1);
+        next;
+      }
+        
+      foreach my $segment (@segments) {
         my $slice = $segment->to_Slice;
         #warn "DAS ".$slice->name."\n";
         my $slice_name  = $slice->name;
@@ -306,9 +319,13 @@ sub fetch_all_Features {
       }
     }
   
+    # no segments to fetch found, return
+    unless (@segments_to_request) {
+      warning("No segments found for DAS request.");
+      return ([], [], []);
+    }
 
-
-  # Run the DAS query
+    # Run the DAS query
     my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
     if (@$features && $features->[0]->das_type eq '__ERROR__') {
         return ($self->{$slice->name} = $features, [], \@segments_to_request);
@@ -714,7 +731,7 @@ sub get_Ensembl_SeqFeatures_DAS {
   my $dsn        = $self->adaptor->dsn();
   my $types      = $self->adaptor->types() || [];
   my @das_features = ();
-  @$segments || $self->throw("Need some segment IDs to query against");
+  @$segments || throw("Need some segment IDs to query against");
 
   if (defined (my $error = $self->adaptor->verify)) {
     my $f = {

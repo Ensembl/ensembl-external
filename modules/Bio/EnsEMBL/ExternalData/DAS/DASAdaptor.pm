@@ -82,6 +82,7 @@ sub new {
 	 $domain,
 	 $name,
 	 $type,
+         $assembly_version,
 	 $authority,
 	 $label,
 	 $labelflag,
@@ -117,6 +118,7 @@ sub new {
 					   DOMAIN
 					   NAME
 					   TYPE
+                                           ASSEMBLY_VERSION
 					   AUTHORITY
 					   LABEL
 					   LABELFLAG
@@ -171,6 +173,7 @@ sub new {
     # Display meta-data (i.e. not used for DAS query itself) follows
     $name       && $self->name( $name );
     $type       && $self->type( $type );
+    $assembly_version && $self->assembly_version( $assembly_version );
     $authority  && $self->authority( $authority );
     $label      && $self->label( $label );
     $labelflag  && $self->labelflag( $labelflag );
@@ -507,6 +510,27 @@ sub name{
 
 sub type{
    my $key = '_type';
+   my $self = shift;
+   if( @_ ){ $self->{$key} = shift }
+   return $self->{$key};
+}
+
+
+#----------------------------------------------------------------------
+
+=head2 assembly_version
+
+  Arg [1]   : scalar assembly_version (optional)
+  Function  : Getter/setter for assembly version meta data
+  Returntype: scalar type
+  Exceptions: 
+  Caller    : 
+  Example   : $version = $das_adapt->assembly_version;
+
+=cut
+
+sub assembly_version {
+   my $key = '_assembly_version';
    my $self = shift;
    if( @_ ){ $self->{$key} = shift }
    return $self->{$key};

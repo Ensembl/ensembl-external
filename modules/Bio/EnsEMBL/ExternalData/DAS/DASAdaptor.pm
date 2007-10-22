@@ -537,6 +537,14 @@ sub assembly_version {
 }
 
 
+sub assembly{
+   my $key = '_assembly_version';
+   my $self = shift;
+   if( @_ ){ $self->{$key} = shift }
+   return $self->{$key};
+}
+
+
 #----------------------------------------------------------------------
 
 =head2 authority

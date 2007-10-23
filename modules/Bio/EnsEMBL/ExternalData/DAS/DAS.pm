@@ -260,6 +260,14 @@ sub fetch_all_Features {
     my %coord_systems;
     if( defined (my $cs = $1)) {
       $cs =~ s/^_//;
+# Can't project on top level - it is not a proper coordinate system - so need to find which one is the toplevel ..
+      if ($cs eq 'toplevel') {
+        my $csa = $slice->coord_system->adaptor;
+        if (my @ccc = sort {$a->rank <=> $b->rank} @{$csa->fetch_all || []}) {
+          $cs = $ccc[0]->name;
+        }
+      }
+
       $coord_systems{$cs} = 1;
     } else {
 # Get all coord systems this Ensembl DB knows about

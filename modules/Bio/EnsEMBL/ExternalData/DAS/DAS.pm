@@ -239,7 +239,6 @@ sub fetch_all_by_Slice {
   }
 
   # Return the mapped features
-warn "RETURNING FEATURES ... STYLES ... and SEGMENTS";
   return (
     ($self->{$slice->name}                = \@result_list), 
     ($self->{"_stylesheet_".$slice->name} = $style),
@@ -251,7 +250,6 @@ warn "RETURNING FEATURES ... STYLES ... and SEGMENTS";
 
 sub fetch_all_Features {
   my ($self, $slice, $source_type) = @_;
-
   # Examine cache
   my $CACHE_KEY = $slice->name;
   if( $self->{$CACHE_KEY} ){
@@ -608,7 +606,6 @@ sub fetch_all_by_ID {
   my $self       = shift;
   my $parent_obj = shift;
   my $data_obj  = shift;
-
   my $id_type_base    = $self->adaptor->type || 'swissprot';
   my $url        = $self->adaptor->url;
   my $dsn        = $self->adaptor->dsn;
@@ -652,14 +649,6 @@ sub fetch_all_by_ID {
       if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
       elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
       elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
-    } elsif ($id_type eq 'mgi') { 
-       # MGI Accession IDs come from MarkerSymbol DB
-      my $id_method = 'primary_id';
-      foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
-        my $id = $xref->primary_id || next;
-        $id =~ s/\://g;
-        $ids{$id} = $xref;
-      }
     } else { 
       # If no 'ensembl_' prefix, then DBLink ID
       # If $id_type is suffixed with '_acc', use primary_id call 
@@ -795,7 +784,6 @@ sub get_Ensembl_SeqFeatures_DAS {
 
 sub _get_stylesheet {
   my ($self) = @_;
-
   my $dbh        = $self->adaptor->_db_handle();
 
   my $STYLES = [];

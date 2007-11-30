@@ -293,7 +293,13 @@ $cs = $ccc[0]->name;
     my @segments_to_request; # The DAS segments to query
     my %slice_by_segment;    # tally of which slice belongs to segment
     foreach my $system ( keys %coord_systems ) {
-      my $version = $self->adaptor->assembly_version;
+#      my $version = $self->adaptor->assembly_version;
+#  Temp fix to work around the fact that in the database all non-chromosome coordinates have NULL as assembly version
+       my $version;
+      if ($source_type =~ /chromosome|toplevel/) {
+        $version = $self->adaptor->assembly_version;
+      }
+
       #warn "CS: $system $version\n";
       
       # catch exception when projecting to an unknown assembly version
@@ -652,10 +658,26 @@ sub fetch_all_by_ID {
       if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
       elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
       elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
+    } elsif ($id_type eq 'markersymbol') {
+       # MaekrSymbol database got renamed into MGI 
+      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+      foreach my $xref(  grep { lc($_->dbname) eq 'mgi'} @{$parent_obj->get_all_DBLinks} ){
+        my $id = $xref->$id_method || next;
+        $id =~ s/\://g;
+        $ids{$id} = $xref;
+      }
+    } elsif ($id_type eq 'hugo') {
+       # MaekrSymbol database got renamed into MGI 
+      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+      foreach my $xref(  grep { lc($_->dbname) eq 'hgnc'} @{$parent_obj->get_all_DBLinks} ){
+        my $id = $xref->$id_method || next;
+        $id =~ s/\://g;
+        $ids{$id} = $xref;
+      }
     } elsif ($id_type eq 'mgi') { 
        # MGI Accession IDs come from MarkerSymbol DB
       my $id_method = 'primary_id';
-      foreach my $xref(  grep { lc($_->dbname) eq 'markersymbol'} @{$parent_obj->get_all_DBLinks} ){
+      foreach my $xref(  grep { lc($_->dbname) eq 'mgi'} @{$parent_obj->get_all_DBLinks} ){
         my $id = $xref->primary_id || next;
         $id =~ s/\://g;
         $ids{$id} = $xref;

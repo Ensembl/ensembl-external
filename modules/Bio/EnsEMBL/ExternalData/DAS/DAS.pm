@@ -199,7 +199,6 @@ sub fetch_all_by_Slice {
       $csa = $csa2;
     }
   }
-
   my %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
 
   # Get the slice representation for each coord system. 
@@ -260,13 +259,14 @@ sub fetch_all_Features {
     my %coord_systems;
     if( defined (my $cs = $1)) {
       $cs =~ s/^_//;
- # Can't project on top level - it is not a proper coordinate system - so need to find which one is the toplevel .. 
-      if ($cs eq 'toplevel') {
-         my $csa = $slice->coord_system->adaptor;
-	 if (my @ccc = sort {$a->rank <=> $b->rank} @{$csa->fetch_all || []}) {
-	   $cs = $ccc[0]->name;
-	 }
-      }
+# Can't project on top level - it is not a proper coordinate system - so need to find which one is the toplevel ..
+if ($cs eq 'toplevel') {
+my $csa = $slice->coord_system->adaptor;
+if (my @ccc = sort {$a->rank <=> $b->rank} @{$csa->fetch_all || []}) {
+$cs = $ccc[0]->name;
+}
+}
+
       $coord_systems{$cs} = 1;
     } else {
 # Get all coord systems this Ensembl DB knows about
@@ -285,14 +285,20 @@ sub fetch_all_Features {
       %coord_systems = map{ $_->name, $_ } @{ $csa->fetch_all || [] };
     }
 
-#      warn("CS:".join('*', sort keys %coord_systems));
+      #warn("CS:".join('*', sort keys %coord_systems));
 
     # Get the slice representation for each coord system. 
     my @segments_to_request; # The DAS segments to query
     my %slice_by_segment;    # tally of which slice belongs to segment
     foreach my $system ( keys %coord_systems ) {
-      my $version = $self->adaptor->assembly_version;
-#      warn "CS: $system $version\n";
+#      my $version = $self->adaptor->assembly_version;
+#  Temp fix to work around the fact that in the database all non-chromosome coordinates have NULL as assembly version
+       my $version;
+      if ($source_type =~ /chromosome|toplevel/) {
+        $version = $self->adaptor->assembly_version;
+      }
+
+      #warn "CS: $system $version\n";
       
       # catch exception when projecting to an unknown assembly version
       my @segments = ();
@@ -649,6 +655,30 @@ sub fetch_all_by_ID {
       if(   $type eq 'gene'       ){ map{ $ids{$_}='gene'       } @gene_ids }
       elsif($type eq 'transcript' ){ map{ $ids{$_}='transcript' } @tscr_ids }
       elsif($type eq 'peptide'    ){ map{ $ids{$_}='peptide'    } @tran_ids }
+    } elsif ($id_type eq 'markersymbol') {
+       # MaekrSymbol database got renamed into MGI 
+      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+      foreach my $xref(  grep { lc($_->dbname) eq 'mgi'} @{$parent_obj->get_all_DBLinks} ){
+        my $id = $xref->$id_method || next;
+        $id =~ s/\://g;
+        $ids{$id} = $xref;
+      }
+    } elsif ($id_type eq 'hugo') {
+       # MaekrSymbol database got renamed into MGI 
+      my $id_method = $id_type =~ s/_acc$// ? 'primary_id' : 'display_id';
+      foreach my $xref(  grep { lc($_->dbname) eq 'hgnc'} @{$parent_obj->get_all_DBLinks} ){
+        my $id = $xref->$id_method || next;
+        $id =~ s/\://g;
+        $ids{$id} = $xref;
+      }
+    } elsif ($id_type eq 'mgi') { 
+       # MGI Accession IDs come from MarkerSymbol DB
+      my $id_method = 'primary_id';
+      foreach my $xref(  grep { lc($_->dbname) eq 'mgi'} @{$parent_obj->get_all_DBLinks} ){
+        my $id = $xref->primary_id || next;
+        $id =~ s/\://g;
+        $ids{$id} = $xref;
+      }
     } else { 
       # If no 'ensembl_' prefix, then DBLink ID
       # If $id_type is suffixed with '_acc', use primary_id call 
@@ -729,6 +759,7 @@ sub get_Ensembl_SeqFeatures_DAS {
   my $types      = $self->adaptor->types() || [];
   my @das_features = ();
   @$segments || throw("Need some segment IDs to query against");
+
   if (defined (my $error = $self->adaptor->verify)) {
     my $f = {
       'type' => '__ERROR__',

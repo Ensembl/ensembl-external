@@ -29,7 +29,7 @@ Handles text based data in standard forms (PSL, BED, ...) and computes chromosom
 
 =head1 CONTACT
 
-James Smith <js5@sanger.ac.uk> or Webmaster <webmaster@ensembl.org>
+James Smith <js5@sanger.ac.uk>
 
 =head1 APPENDIX
 

@@ -109,6 +109,67 @@ sub adaptor{
 }
 
 
+=head2 fetch_sources_info
+
+  Arg [1]   : none
+  Function  : Retrieves a list of DSN objects from registered URL
+  Returntype: 
+  Exceptions: 
+  Caller    : 
+  Example   : 
+
+=cut
+
+sub fetch_sources_info {
+  my $self = shift;
+  
+  my @sources = ();
+  my $server_url = $self->adaptor->url;
+  my $das = $self->adaptor->_db_handle;
+  my $dsn_hash =  $das->sources();
+#  warn "GET $server_url";
+  foreach my $key (keys %{ $dsn_hash || {} } ) {
+    foreach my $url (@{ $dsn_hash->{$key} }) {
+      foreach my $obj (@{$url->{source}||[]}) {
+#      warn "OBJ:", Dumper($obj);
+        my $data = {};
+ 
+#        $data->{domain}         = $server_url;
+        $data->{id}          = $obj->{source_uri};
+        $data->{dsn}         = $obj->{source_uri};
+        $data->{name}        = $obj->{source_title} || $obj->{source_uri};
+        $data->{description} = $obj->{source_description};
+        $data->{url}         = "$server_url/".$data->{dsn};
+        my $sinfo = shift @{$obj->{version}||[]};
+
+	foreach my $cmd (@{$sinfo->{capability} || []}) {
+	  (my $dascmd = $cmd->{capability_type}) =~ s/^das1\://;
+	  $data->{commands}->{$dascmd} = $cmd->{capability_query_uri};
+	}
+	next unless $data->{commands}->{features};
+	next unless $sinfo->{coordinates};
+ 	($data->{url} = $data->{commands}->{features}) =~ s/\/features$//; 	
+
+        my ($ecs, $species, $assembly);
+
+        foreach my $cs (@{$sinfo->{coordinates} || []}) {
+      	  ($ecs, $species, $assembly) = $self->adaptor->getEnsemblCoordinateSystem($cs);
+	  push @{$data->{mapping}}, $ecs;
+#	warn "$ecs : $species : $assembly\n";
+        }
+ #   warn "$das_name : $slabel";
+	$data->{species} = $species;
+	$data->{assembly} = $assembly;
+	$data->{type} = (scalar(@{$data->{mapping}||[]}) > 1) ? 'mixed' : $ecs;
+#      warn "OBJ:", Dumper($obj) if ($ecs eq 'unknown');
+        push @sources, $data;
+#	warn Dumper $data;
+      }
+    }      
+  }
+  return [@sources];
+}
+
 =head2 fetch_dsn_info
 
   Arg [1]   : none
@@ -297,8 +358,6 @@ $cs = $ccc[0]->name;
       if ($source_type =~ /chromosome|toplevel/) {
         $version = $self->adaptor->assembly_version;
       }
-
-      #warn "CS: $system $version\n";
       
       # catch exception when projecting to an unknown assembly version
       my @segments = ();
@@ -308,12 +367,13 @@ $cs = $ccc[0]->name;
       if ($@) {
         $@ =~ /MSG: (.*)/;
         warning($1);
+	warn "GOT EX $1";
         next;
       }
         
       foreach my $segment (@segments) {
         my $slice = $segment->to_Slice;
-        #warn "DAS ".$slice->name."\n";
+#        warn "DAS ".$slice->name;
         my $slice_name  = $slice->name;
         my $slice_start = $slice->start;
         my $slice_end   = $slice->end;
@@ -336,7 +396,7 @@ $cs = $ccc[0]->name;
       warning("No segments found for DAS request.");
       return ([], [], []);
     }
-
+# warn Dumper(\@segments_to_request);
     # Run the DAS query
     my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
     if (@$features && $features->[0]->das_type eq '__ERROR__') {
@@ -617,12 +677,14 @@ sub fetch_all_by_ID {
   my $dsn        = $self->adaptor->dsn;
    
   $parent_obj->can('get_all_DBLinks') || $self->throw( "Need a Bio::EnsEMBL obj (eg Translation) that can get_all_DBLinks" );
-
   my $ensembl_id = $parent_obj->stable_id() ? $parent_obj->can('stable_id') : '';
 
   my %ids = ();
+ 
+#  my @id_types =  $id_type_base eq 'mixed' ? @{$self->adaptor->mapping} : ($id_type_base);
+  my @id_types =  @{$self->adaptor->mapping};
+  push @id_types, $id_type_base unless @id_types;
 
-  my @id_types =  $id_type_base eq 'mixed' ? @{$self->adaptor->mapping} : ($id_type_base);
   foreach my $id_type (@id_types) {
    # If $id_type is prefixed with 'ensembl_', then ensembl id type
     if( $id_type =~ m/ensembl_(.+)/o ){
@@ -791,9 +853,10 @@ sub get_Ensembl_SeqFeatures_DAS {
     push @req, $rhash;
   }
   $response = $dbh->features(\@req);
-#$Data::Dumper::Indent = 3;
+$Data::Dumper::Indent = 3;
 #warn Data::Dumper::Dumper($response);
 #warn Data::Dumper::Dumper(\@req);
+#  warn Data::Dumper::Dumper $dbh;
 #  if(@$types) {
 #    $response = $dbh->features({'segment' => $segments, 'type' => $types});
 #  } else { 

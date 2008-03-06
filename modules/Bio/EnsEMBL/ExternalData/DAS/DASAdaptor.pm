@@ -154,7 +154,6 @@ sub new {
       $url .= "/$dsn";
     }
   }
-
   my $source_url = $self->url($url);
 
   unless( $source_url =~ m|\w+://[\w\-]+| ) {
@@ -163,7 +162,7 @@ sub new {
   }
 
   $timeout ||= 30;
-#warn "ATTACHING HANDLE $source_url $timeout";
+#warn "ATTACHING HANDLE $source_url $timeout $url";
   $self->_db_handle( Bio::DasLite->new({dsn => $source_url, caching=>0, timeout=> $timeout}) );
 #    $dsn       && $self->dsn( $dsn );
   $proxy_url && $self->proxy( $proxy_url );
@@ -273,7 +272,7 @@ sub verify {
 
     use HTTP::Request;
     use HTTP::Response;
-
+ use Data::Dumper;
     my $test_url = $self->url()."/features";
     my $content;
     my $ua = LWP::UserAgent->new();
@@ -289,7 +288,9 @@ sub verify {
 
     my $response = $ua->request($req);
 
+#    warn Dumper $response;
     if ($response->is_error) {
+    
     my $status = $response->status_line;
     if ($status =~ /^500/) {
         return "Can't connect to the host!";
@@ -312,9 +313,9 @@ sub url{
   if( @_ ){
     my $url = shift;
 
-    if ($url =~ m!(\w+)://(.+/das)/(.+)!) {
-    my ($protocol, $domain, $dsn) = ($1, $2, $3);
-#    warn(join('*', "URL:$url",$protocol, $domain, $dsn));
+    if ($url =~ m!(\w+)://(.+/das(1)?)/(.+)!) {
+    my ($protocol, $domain, $dasv, $dsn) = ($1, $2, $3, $4);
+ #   warn(join('*', "URL:$url",$protocol, $domain, $dsn));
     $protocol ||= $DEFAULT_PROTOCOL;
 
     $self->{_protocol} = $protocol;
@@ -322,7 +323,7 @@ sub url{
     $self->{_dsn}= $dsn;
     $self->{_domain}= "$protocol://$domain";
     $self->{_url}= join('/', "$protocol:/", $domain, $dsn);
-    } elsif ($url =~ m!(\w+)://(.+/das)(/)?!) {
+    } elsif ($url =~ m!(\w+)://(.+/das(1)?)(/)?!) {
     my ($protocol, $domain) = ($1, $2);
 #    warn(join('*', "URL 2:$url",$protocol, $domain));
     $protocol ||= $DEFAULT_PROTOCOL;
@@ -1005,6 +1006,44 @@ sub DESTROY {
    }
 }
 
+sub getEnsemblCoordinateSystem {
+  my ($self, $cs) = @_;
+  return 'undefined' unless defined $cs->{'coordinates'}; 
+  my ($realm, $base, $species) = split /\,/ , $cs->{coordinates};
+  my $smap ='unknown';
+  my $assembly;
+  if ($base =~ /Chromosome|Clone|Contig|Scaffold/) {
+	$smap = 'ensembl_location_'.lc($base);
+  } elsif ($base eq 'NT_Contig') {
+	$smap = 'ensembl_location_supercontig';
+  } elsif ($base eq 'Gene_ID') {
+	$smap = $realm eq 'Ensembl'       ? 'ensembl_gene'
+	: $realm eq 'HUGO_ID'       ? 'hgnc'
+	: $realm eq 'HGNC_ID'       ? 'hgnc'
+	: $realm eq 'MGI'           ? 'mgi_acc'
+	: $realm eq 'MarkerSymbol'  ? 'mgi'
+	: $realm eq 'MGISymbol'     ? 'mgi'
+	: $realm eq 'Entrez'        ? 'entrezgene_acc'
+	: $realm eq 'IPI'           ? 'ipi_id'
+	:                             'unknown'
+	;
+  } elsif ($base eq 'Protein Sequence') {
+	$smap = $realm eq 'UniProt'       ? 'uniprot/swissprot_acc'
+	: $realm eq 'TrEMBL'        ? 'uniprot/sptrembl'
+	: $realm =~ /Ensembl/       ? 'ensembl_peptide'
+	: $realm eq 'IPI'           ? 'ipi_acc'
+	:                             'unknown'
+	;
+  }
+  if ($smap =~ /^ensembl_location/) {
+    $assembly = $cs->{coordinates_authority}.$cs->{coordinates_version};
+  }
+  $smap .= "*$cs->{coordinates}" if ($smap eq 'unknown');
+  $species =~ s/ /_/g;
+
+#  $species or $species = '.+';
+  return wantarray ? ($smap, $species,$assembly) : $smap;
+}
 
 
 1;

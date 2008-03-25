@@ -877,7 +877,7 @@ $Data::Dumper::Indent = 3;
 #warn Data::Dumper::Dumper($f);
         my $key = join '_', $f->{feature_id}, $f->{start}, $f->{stop};
         $self->_add_feature($f, $dsn, \@das_features) unless (exists $fhash->{$key});
-        $fhash->{$key}} = 1;
+        $fhash->{$key} = 1;
     }
   }
 

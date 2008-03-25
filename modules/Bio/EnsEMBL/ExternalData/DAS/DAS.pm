@@ -875,8 +875,9 @@ $Data::Dumper::Indent = 3;
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
 #	warn Data::Dumper::Dumper($f);
-	$self->_add_feature($f, $dsn, \@das_features) unless (exists $fhash->{$f->{feature_id}});
-	$fhash->{$f->{feature_id}} = 1;
+	my $key = join '_', $f->{feature_id}, $f->{start}, $f->{stop};
+	$self->_add_feature($f, $dsn, \@das_features) unless (exists $fhash->{$key});
+	$fhash->{$key}} = 1;
 
     }
   }

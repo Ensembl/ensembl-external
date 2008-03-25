@@ -284,7 +284,7 @@ sub fetch_all_by_Slice {
       $slice_by_segment{$region_name} = $slice;
     }
   }
-#warn("SEGMENTS : ".scalar(@segments_to_request));
+warn("SEGMENTS : ".scalar(@segments_to_request));
   # Run the DAS query
   my( $features, $style ) = $self->get_Ensembl_SeqFeatures_DAS( [ @segments_to_request ] );
 
@@ -863,12 +863,21 @@ $Data::Dumper::Indent = 3;
 #    $response = $dbh->features($segments);  
 #  }
 
+# with introduction of assembly mapping it has become possible that the same feature can be returned several times 
+# ( when the requested segment is presented by multiple regions in the mapped assembly and the das feature streches across several of those regions ) 
+# in this case ensembl makes das query with eash of those regions and gets this feature for every region
+# so now we need to filter out the duplicates ( although it would be better if das server did it )
+
+
+  my $fhash;
+  
 # Parse the response. There is a problem using callbacks hence the explicit response handling
   foreach my $url (keys %$response) {
     foreach my $f (ref($response->{$url}) eq "ARRAY" ? @{$response->{$url}} : () ) {
-#warn Data::Dumper::Dumper($f);
+#	warn Data::Dumper::Dumper($f);
+	$self->_add_feature($f, $dsn, \@das_features) unless (exists $fhash->{$f->{feature_id}});
+	$fhash->{$f->{feature_id}} = 1;
 
-      $self->_add_feature($f, $dsn, \@das_features);
     }
   }
 

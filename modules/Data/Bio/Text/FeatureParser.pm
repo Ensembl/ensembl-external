@@ -235,11 +235,11 @@ sub parse_row {
     my @tab_delimited = split /(\t|  +)/, $row;
     my $current_key = $self->{'_current_key'} ;
     if( $tab_delimited[12] eq '.' || $tab_delimited[12] eq '+' || $tab_delimited[12] eq '-' ) {
-        if( $tab_delimited[16] =~ /[ ;]/ ) { ## GTF format
-            $self->store_feature( $current_key, Data::Bio::Text::Feature::GTF->new( \@tab_delimited ) ) if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
-        } 
-        elsif ($tab_delimited[10]){         ## GFF format
+        if( $tab_delimited[6] =~ /[0-9]/ ) { ## GFF format
             $self->store_feature( $current_key, Data::Bio::Text::Feature::GFF->new( \@tab_delimited ) ) if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
+        } 
+        else {         ## GTF format
+            $self->store_feature( $current_key, Data::Bio::Text::Feature::GTF->new( \@tab_delimited ) ) if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
         }
     }
     elsif ( $tab_delimited[14] eq '+' || $tab_delimited[14] eq '-' || $tab_delimited[14] eq '.') { # DAS format accepted by Ensembl

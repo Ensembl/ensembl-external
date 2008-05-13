@@ -79,6 +79,16 @@ my $reg = "Bio::EnsEMBL::Registry";
 
 @ISA = qw(Bio::EnsEMBL::Root GO::AppHandle);
 
+## By pass the go api to get the term out directly
+
+sub name_from_acc {
+  my( $self,$acc) = @_;
+  warn "$acc - ",$self->_db_handle->dbh," - ..";
+  my ($name) = $self->_db_handle->dbh->selectrow_array( "select name from term where acc = ?", {}, $acc );
+  warn "$name...";
+  return $name;
+}
+
 sub new {
     my($class,@args) = @_;
 

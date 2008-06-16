@@ -119,9 +119,10 @@ sub set_filter {
 =cut
 
 sub analyse {
-  my $self = shift ;
+  my ($self, $data) = @_;
+  return unless $data;
   my %info;
-  foreach my $row ( split '\n', shift ) {
+  foreach my $row ( split '\n', $data ) {
     my @analysis = $self->analyse_row($row);
     if ($analysis[2]) {
       $info{$analysis[0]}{$analysis[1]} = $analysis[2];
@@ -129,6 +130,8 @@ sub analyse {
     else {
       $info{$analysis[0]} = $analysis[1];
     }
+    ## Should we halt the analysis once we have a file format? Will any other useful info appear later in the file?
+    last if $analysis[0] eq 'format';
   }
   return \%info;
 }
@@ -197,9 +200,14 @@ sub analyse_row {
 =cut
 
 sub parse {
-  my $self = shift ;
-  foreach my $row ( split '\n', shift ) {
-     $self->parse_row($row);
+  my ($self, $data, $format) = @_;
+  return unless $data;
+  if (!$format) {
+    my $info = $self->analyse($data);
+    $format = $info->{'format'};
+  }
+  foreach my $row ( split '\n', $data ) {
+     $self->parse_row($row, $format);
   }
 }
 
@@ -275,7 +283,7 @@ sub parse_URL {
 =cut
 
 sub parse_row {
-  my( $self, $row ) = @_;
+  my( $self, $row, $format ) = @_;
   $row =~ s/[\t\r\s]+$//g;
 
   if( $row =~ /^browser\s+(\w+)\s+(.*)/i ) {
@@ -313,31 +321,34 @@ sub parse_row {
     return unless $row =~ /\d+/g ;
     my @tab_delimited = split /(\t|  +)/, $row;
     my $current_key = $self->{'_current_key'} ;
-    if( $tab_delimited[12] eq '.' || $tab_delimited[12] eq '+' || $tab_delimited[12] eq '-' ) {
-        if( $tab_delimited[6] =~ /[0-9]/ ) { ## GFF format
-            $self->store_feature( $current_key, Data::Bio::Text::Feature::GFF->new( \@tab_delimited ) ) if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
-        } 
-        else {         ## GTF format
-            $self->store_feature( $current_key, Data::Bio::Text::Feature::GTF->new( \@tab_delimited ) ) if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
-        }
+    if( $format eq 'GFF' ) {
+      $self->store_feature( $current_key, Data::Bio::Text::Feature::GFF->new( \@tab_delimited ) ) 
+        if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
+    } 
+    elsif ($format eq 'GTF')  { 
+      $self->store_feature( $current_key, Data::Bio::Text::Feature::GTF->new( \@tab_delimited ) ) 
+        if $self->filter($tab_delimited[0],$tab_delimited[6],$tab_delimited[8]);
     }
-    elsif ( $tab_delimited[14] eq '+' || $tab_delimited[14] eq '-' || $tab_delimited[14] eq '.') { # DAS format accepted by Ensembl
-        $current_key = $tab_delimited[2] if $current_key eq 'default';
-        $self->store_feature( $current_key, Data::Bio::Text::Feature::DAS->new( \@tab_delimited ) ) if
-          $self->filter($tab_delimited[4],$tab_delimited[5],$tab_delimited[6]);
-    } else {
-      my @ws_delimited = split /\s+/, $row;
-      if( $ws_delimited[8] =~/^[-+][-+]?$/  ) { ## PSL format
-        $self->store_feature( $current_key, Data::Bio::Text::Feature::PSL->new( \@ws_delimited ) ) if
-          $self->filter($ws_delimited[13],$ws_delimited[15],$ws_delimited[16]);
-      } elsif ($ws_delimited[0] =~/^>/ ) {                             ## Simple format (chr/start/end/type
-        $self->store_feature( $ws_delimited[4], Data::Bio::Text::Feature::generic->new( \@ws_delimited ) ) if
-          $self->filter($ws_delimited[1],$ws_delimited[2],$ws_delimited[3]);
-      } else {                                  ## default format ( BED )
+    elsif ($format eq 'DAS' ) { 
+      $current_key = $tab_delimited[2] if $current_key eq 'default';
+      $self->store_feature( $current_key, Data::Bio::Text::Feature::DAS->new( \@tab_delimited ) ) 
+        if $self->filter($tab_delimited[4],$tab_delimited[5],$tab_delimited[6]);
+    } 
+    else {
+      my @ws_delimited = split /\s+/, $row; 
+      if ($format eq 'PSL' ) {
+      $self->store_feature( $current_key, Data::Bio::Text::Feature::PSL->new( \@ws_delimited ) ) 
+        if $self->filter($ws_delimited[13],$ws_delimited[15],$ws_delimited[16]);
+      } 
+      elsif ($format eq 'BED') {                           
         $current_key = $ws_delimited[3] if $current_key eq 'default';
         $self->store_feature( $current_key, Data::Bio::Text::Feature::BED->new( \@ws_delimited ) ) if
         $self->filter($ws_delimited[0],$ws_delimited[1],$ws_delimited[2]);
       }
+      else {
+        $self->store_feature( $ws_delimited[4], Data::Bio::Text::Feature::generic->new( \@ws_delimited ) ) 
+          if $self->filter($ws_delimited[1],$ws_delimited[2],$ws_delimited[3]);
+      } 
     } 
   }
 }

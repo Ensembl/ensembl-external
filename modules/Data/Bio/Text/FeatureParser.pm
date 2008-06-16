@@ -104,6 +104,85 @@ sub set_filter {
     }
 }
 
+
+#----------------------------------------------------------------------
+
+=head2 analyse
+
+    Arg [1]   :  
+    Function  : Analyses a data string (e.g. from a form input), with the intention of identifying file format and other contents
+    Returntype: hash reference 
+    Exceptions: 
+    Caller    : 
+    Example   : 
+
+=cut
+
+sub analyse {
+  my $self = shift ;
+  my %info;
+  foreach my $row ( split '\n', shift ) {
+    my @analysis = $self->analyse_row($row);
+    if ($analysis[2]) {
+      $info{$analysis[0]}{$analysis[1]} = $analysis[2];
+    }
+    else {
+      $info{$analysis[0]} = $analysis[1];
+    }
+  }
+  return \%info;
+}
+
+#----------------------------------------------------------------------
+
+=head2 analyse_row
+
+    Arg [1]   :  
+    Function  : Parses an individual row of data, i.e. a single feature
+    Returntype: 
+    Exceptions: 
+    Caller    : 
+    Example   : 
+
+=cut
+
+sub analyse_row {
+  my( $self, $row ) = @_;
+  $row =~ s/[\t\r\s]+$//g;
+
+  if( $row =~ /^browser\s+(\w+)\s+(.*)/i ) {
+    return ('browser_switches', $1, $2);
+  }
+  else {
+    return unless $row =~ /\d+/g ;
+    my @tab_delimited = split /(\t|  +)/, $row;
+    my $current_key = $self->{'_current_key'} ;
+    if( $tab_delimited[12] eq '.' || $tab_delimited[12] eq '+' || $tab_delimited[12] eq '-' ) {
+      if( $tab_delimited[6] =~ /[0-9]/ ) { ## GFF format
+        return ('format', 'GFF');     
+      } 
+      else {         ## GTF format
+        return ('format', 'GTF');     
+      }
+    }
+    elsif ( $tab_delimited[14] eq '+' || $tab_delimited[14] eq '-' || $tab_delimited[14] eq '.') { # DAS format accepted by Ensembl
+      return ('format', 'DAS');     
+    } 
+    else {
+      my @ws_delimited = split /\s+/, $row;
+      if( $ws_delimited[8] =~/^[-+][-+]?$/  ) { ## PSL format
+        return ('format', 'PSL');     
+      } 
+      elsif ($ws_delimited[0] =~/^>/ ) {  ## Simple format (chr/start/end/type
+        return ('format', 'generic');     
+      } 
+      else { ## default format ( BED )
+        return ('format', 'BED');     
+      }
+    } 
+  }
+}
+ 
 #----------------------------------------------------------------------
 
 =head2 parse

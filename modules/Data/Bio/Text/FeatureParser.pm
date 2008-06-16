@@ -36,6 +36,8 @@ use Data::Bio::Text::Feature::GFF;
 use Data::Bio::Text::Feature::GTF;
 use Data::Bio::Text::Feature::DAS;
 use Data::Bio::Text::Feature::generic;
+use EnsEMBL::Web::SpeciesDefs;
+
 
 #----------------------------------------------------------------------
 
@@ -61,6 +63,11 @@ sub new {
   };
   bless $data, $class;
   return $data;
+}
+
+sub species_defs {
+  my $self = shift;
+  return $self->{'_species_defs'} ||= EnsEMBL::Web::SpeciesDefs->new(); 
 }
 
 #----------------------------------------------------------------------
@@ -225,10 +232,21 @@ sub parse {
 =cut
 
 sub parse_file {
-  my( $self, $file ) = @_;
+  my( $self, $file, $format ) = @_;
+  return unless $file;
+
+  if (!$format) {
+    while( <$file> ) {
+      my @analysis = $self->analyse_row( $_ );
+      if ($analysis[0] eq 'format') {
+        $format = $analysis[1];
+        last;
+      }
+    }   
+  }
 
   while( <$file> ) {
-    $self->parse_row( $_ );
+    $self->parse_row( $_, $format );
   }   
 }
 
@@ -245,15 +263,8 @@ sub parse_file {
 
 =cut
 
-use EnsEMBL::Web::SpeciesDefs;
-
-sub species_defs {
-  my $self = shift;
-  return $self->{'_species_defs'} ||= EnsEMBL::Web::SpeciesDefs->new(); 
-}
-
 sub parse_URL {
-  my( $self, $url ) = @_;
+  my( $self, $url, $format ) = @_;
   my $useragent = LWP::UserAgent->new();  
   $useragent->proxy( 'http', $self->species_defs->ENSEMBL_WWW_PROXY ) if( $self->species_defs->ENSEMBL_WWW_PROXY );   
   foreach my $URL ( $url ) {  
@@ -262,6 +273,10 @@ sub parse_URL {
     $request->header( 'Cache-control' => 'no-cache' );
     my $response = $useragent->request($request); 
     if( $response->is_success ) {
+      if (!$format) {
+        my $info = $self->analyse( $response->content );
+        $format = $info->{'format'};
+      }
       $self->parse( $response->content );
     } else {
        warn( "Failed to parse: $URL" );

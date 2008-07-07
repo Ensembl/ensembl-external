@@ -299,7 +299,9 @@ sub parse_URL {
 
 sub parse_row {
   my( $self, $row, $format ) = @_;
+  return if ($row =~ /^\#/);
   $row =~ s/[\t\r\s]+$//g;
+
 
   if( $row =~ /^browser\s+(\w+)\s+(.*)/i ) {
     $self->{'browser_switches'}{$1}=$2;     

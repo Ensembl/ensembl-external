@@ -30,5 +30,7 @@ sub map {
   $self->slide( 1 - $slice_start );
   return $self;
 }
+
+sub strand { return undef; }
   
 1;

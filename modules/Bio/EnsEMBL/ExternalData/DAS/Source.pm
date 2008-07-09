@@ -46,7 +46,7 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
   Example    : $src = Bio::EnsEMBL::ExternalData::DAS::Source->new(
                   -DSN         => 'astd_exon_human_36',
                   -URL         => 'http://www.ebi.ac.uk/das-srv/genomicdas/das',
-                  -COORDS      => [ 'chromosome:NCBI36, 'uniprot_peptide' ],
+                  -COORDS      => [ 'chromosome:NCBI36', 'uniprot_peptide' ],
                   -LABEL       => 'ASTD transcripts',
                   -DESCRIPTION => 'Transcripts from the ASTD database...',
                   -HOMEPAGE    => 'http://www.ebi.ac.uk/astd',
@@ -54,7 +54,7 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
                 );
   Description: Creates a new Source object representing a DAS source.
   Returntype : Bio::EnsEMBL::ExternalData::DAS::Source
-  Exceptions : If the URL, DSN or coords are missing or incorrect
+  Exceptions : If the URL or DSN are missing or incorrect
   Caller     : general
   Status     : Stable
 
@@ -71,16 +71,17 @@ sub new {
   $url || throw("URL is not of correct format: $rawurl");
   $url =~ s!/$!!; # remove trailing slash
   $coords = [$coords] if ($coords && !ref $coords);
-  ($coords && scalar @{ $coords })|| throw("Source '$dsn' has no configured coordinate systems");
   
   my $self = {
-    url        => $url,
-    dsn        => $dsn,
-    label      => $title,
-    description=> $desc,
-    maintainer => $maintainer,
-    homepage   => $homepage,
-    coords     => $coords,
+    _data => {
+      url        => $url,
+      dsn        => $dsn,
+      label      => $title,
+      description=> $desc,
+      maintainer => $maintainer,
+      homepage   => $homepage,
+      coords     => $coords,
+    },
   };
   bless $self, $class;
   
@@ -97,7 +98,7 @@ sub new {
 =cut
 sub url {
   my $self = shift;
-  return $self->{url};
+  return $self->{_data}{url};
 }
 
 =head2 dsn
@@ -110,7 +111,7 @@ sub url {
 =cut
 sub dsn {
   my $self = shift;
-  return $self->{dsn};
+  return $self->{_data}{dsn};
 }
 
 =head2 full_url
@@ -136,7 +137,7 @@ sub full_url {
 =cut
 sub coord_systems {
   my $self = shift;
-  return $self->{coords};
+  return $self->{_data}{coords};
 }
 
 =head2 label
@@ -149,7 +150,7 @@ sub coord_systems {
 =cut
 sub label {
   my $self = shift;
-  return $self->{label} || $self->dsn;
+  return $self->{_data}{label} || $self->dsn;
 }
 
 =head2 description
@@ -162,7 +163,7 @@ sub label {
 =cut
 sub description {
   my $self = shift;
-  return $self->{description} || $self->label;
+  return $self->{_data}{description} || $self->label;
 }
 
 =head2 maintainer
@@ -175,7 +176,7 @@ sub description {
 =cut
 sub maintainer {
   my $self = shift;
-  return $self->{maintainer};
+  return $self->{_data}{maintainer};
 }
 
 =head2 homepage
@@ -188,7 +189,7 @@ sub maintainer {
 =cut
 sub homepage {
   my $self = shift;
-  return $self->{homepage};
+  return $self->{_data}{homepage};
 }
 
 1;

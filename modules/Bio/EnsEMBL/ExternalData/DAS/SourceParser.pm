@@ -170,7 +170,7 @@ sub _parse_XML {
     my ($title) = $s_xml =~ m|title="(.*?)"|;
     my ($homepage) = $s_xml =~ m|doc_href="(.*?)"|;
     my ($description) = $s_xml =~ m|description="(.*?)"|;
-    my ($email) = $s_xml =~ m|<MAINTAINER email="(.*?)"|;
+    my ($email) = $s_xml =~ m|<MAINTAINER\s+email="(.*?)"|;
     
     # Split by version
     for my $v_xml (split m|</VERSION>|, $av_xml) {
@@ -238,13 +238,13 @@ sub _parse_XML {
         @{ $coords }     ||  next;
         $sources{$taxid} ||= [];
         my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-          -label       => $title || $dsn,
-          -url         => $url,
-          -dsn         => $dsn,
-          -maintainer  => $email,
-          -homepage    => $homepage || $url,
-          -description => $description,
-          -coords      => $coords,
+          -display_label => $title || $dsn,
+          -url           => $url,
+          -dsn           => $dsn,
+          -maintainer    => $email,
+          -homepage      => $homepage || $url,
+          -description   => $description,
+          -coords        => $coords,
         );
         push(@{ $sources{$taxid} }, $source);
       }

@@ -28,6 +28,8 @@ use warnings;
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw);
 
+use base qw(Bio::EnsEMBL::Analysis);
+
 =head1 METHODS
 
 =head2 new
@@ -61,63 +63,36 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
 =cut
 sub new {
   my $class = shift;
+  my $self = $class->SUPER::new(@_, );
   
-  my ($rawurl, $dsn, $coords, $title, $desc, $homepage, $maintainer) =
-    rearrange(['URL', 'DSN', 'COORDS', 'LABEL', 'DESCRIPTION', 'HOMEPAGE', 'MAINTAINER'], @_);
+  my ($url, $dsn, $coords, $desc, $homepage, $maintainer) =
+    rearrange(['URL', 'DSN', 'COORDS', 'DESCRIPTION', 'HOMEPAGE', 'MAINTAINER'], @_);
   
-  $rawurl || throw('Source has no configured URL');
-  $dsn    || throw('Source has no configured DSN');
-  my ($url) = $rawurl =~ m!(.+/das1?/?$)!;
-  $url || throw("URL is not of correct format: $rawurl");
-  $url =~ s!/$!!; # remove trailing slash
-  $coords = [$coords] if ($coords && !ref $coords);
+  $url || throw('Source has no configured URL');
+  $dsn || throw('Source has no configured DSN');
   
-  my $self = {
-    _data => {
-      url        => $url,
-      dsn        => $dsn,
-      label      => $title,
-      description=> $desc,
-      maintainer => $maintainer,
-      homepage   => $homepage,
-      coords     => $coords,
-    },
-  };
-  bless $self, $class;
+  $self->url           ( $url );
+  $self->dsn           ( $dsn ); # Applies some formatting
+  $self->description   ( $desc );
+  $self->maintainer    ( $maintainer );
+  $self->homepage      ( $homepage );
+  $self->coord_systems ( $coords );
+  
+  if (! $self->display_label ) {
+    $self->display_label( $self->dsn );
+  }
+  
+  if (! $self->logic_name ) {
+    $self->logic_name( $self->full_url );
+  }
   
   return $self;
-}
-
-=head2 url
-
-  Arg [1]    : none
-  Description: Accessor for the server URL (excluding DSN)
-  Returntype : scalar
-  Status     : Stable
-
-=cut
-sub url {
-  my $self = shift;
-  return $self->{_data}{url};
-}
-
-=head2 dsn
-
-  Arg [1]    : none
-  Description: Accessor for the DSN
-  Returntype : scalar
-  Status     : Stable
-
-=cut
-sub dsn {
-  my $self = shift;
-  return $self->{_data}{dsn};
 }
 
 =head2 full_url
 
   Arg [1]    : none
-  Description: Accessor for the source URL (including DSN)
+  Description: Getter for the source URL (including DSN)
   Returntype : scalar
   Status     : Stable
 
@@ -127,69 +102,104 @@ sub full_url {
   return $self->url . q(/). $self->dsn;
 }
 
+=head2 url
+
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the server URL (excluding DSN)
+  Returntype : scalar
+  Status     : Stable
+
+=cut
+sub url {
+  my ($self, $url) = @_;
+  if ( defined $url ) {
+    my ($goodurl) = $url =~ m!(.+/das1?/?$)!;
+    $goodurl || throw("URL is not of correct format: $url");
+    $goodurl =~ s!/$!!; # remove trailing slash
+    $self->{url} = $goodurl;
+  }
+  return $self->{url};
+}
+
+=head2 dsn
+
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the DSN
+  Returntype : scalar
+  Status     : Stable
+
+=cut
+sub dsn {
+  my ($self, $dsn) = @_;
+  if ( defined $dsn ) {
+    $self->{dsn} = $dsn;
+  }
+  return $self->{dsn};
+}
+
 =head2 coord_systems
 
-  Arg [1]    : none
-  Description: Accessor for the Ensembl coordinate systems supported by the source
+  Arg [1]    : Optional value to set (arrayref or scalar)
+  Description: Get/Setter for the Ensembl coordinate systems supported by the source
   Returntype : arrayref of URIs (e.g. chromosome:NCBI36; ensembl_gene)
   Status     : Stable
 
 =cut
 sub coord_systems {
-  my $self = shift;
-  return $self->{_data}{coords};
-}
-
-=head2 label
-
-  Arg [1]    : none
-  Description: Accessor for the source label/title
-  Returntype : scalar
-  Status     : Stable
-
-=cut
-sub label {
-  my $self = shift;
-  return $self->{_data}{label} || $self->dsn;
+  my ($self, $coords) = @_;
+  if ( defined $coords ) {
+    $coords = [$coords] if (!ref $coords);
+    $self->{coords} = $coords;
+  }
+  return $self->{coords};
 }
 
 =head2 description
 
-  Arg [1]    : none
-  Description: Accessor for the source description
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the source description
   Returntype : scalar
   Status     : Stable
 
 =cut
 sub description {
-  my $self = shift;
-  return $self->{_data}{description} || $self->label;
+  my ($self, $description) = @_;
+  if ( defined $description ) {
+    $self->{description} = $description;
+  }
+  return $self->{description} || $self->display_label;
 }
 
 =head2 maintainer
 
-  Arg [1]    : none
-  Description: Accessor for the source maintainer email address
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the source maintainer email address
   Returntype : scalar
   Status     : Stable
 
 =cut
 sub maintainer {
-  my $self = shift;
-  return $self->{_data}{maintainer};
+  my ($self, $maintainer) = @_;
+  if ( defined $maintainer ) {
+    $self->{maintainer} = $maintainer;
+  }
+  return $self->{maintainer};
 }
 
 =head2 homepage
 
-  Arg [1]    : none
-  Description: Accessor for the source homepage URL
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the source homepage URL
   Returntype : scalar
   Status     : Stable
 
 =cut
 sub homepage {
-  my $self = shift;
-  return $self->{_data}{homepage};
+  my ($self, $homepage) = @_;
+  if ( defined $homepage ) {
+    $self->{homepage} = $homepage;
+  }
+  return $self->{homepage};
 }
 
 1;

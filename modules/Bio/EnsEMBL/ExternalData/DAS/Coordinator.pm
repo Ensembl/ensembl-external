@@ -15,31 +15,22 @@ use strict;
 use warnings;
 
 use POSIX qw(ceil);
-use Bio::EnsEMBL::CoordSystem;
-use Bio::EnsEMBL::Feature;
+use Bio::EnsEMBL::CoordSystem;;
 use Bio::EnsEMBL::Mapper;
-use Bio::EnsEMBL::CodonMapper;
 use Bio::Das::Lite;
 
-use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw($EXTRA_COORDS);
+use Bio::EnsEMBL::ExternalData::DAS::GenomicMapper;
+use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
+use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
+use Bio::EnsEMBL::ExternalData::DAS::Feature;
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
-use Bio::EnsEMBL::Utils::Exception qw(throw info);
+use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 
 our $ORI_NUMERIC = {
    1    =>  1,
   '+'   =>  1,
   -1    => -1,
   '-'   => -1,
-   0    =>  0,
-  '.'   =>  0,
-};
-
-our $ORI_SYMBOLIC = {
- '+'  => '+',
-  1   => '+',
- '-'  => '-',
-  -1  => '-',
-  0   => undef,
 };
 
 =head2 new
@@ -112,14 +103,22 @@ sub fetch_Features {
   my %coords = ();
   my $final = {};
   
+  #==========================================================#
+  #      First sort the sources into coordinate systems      #
+  #==========================================================#
+  
   for my $source (@{ $self->{'sources'} }) {
-#    warn $source->key.' has '.scalar @{ $source->coord_systems }.' coord systems';
+    
+    if (! scalar @{ $source->coord_systems } ) {
+      warning($source->key.' has '.scalar @{ $source->coord_systems }.' coord systems');
+    }
+    
     for my $source_cs (@{ $source->coord_systems }) {
       
       # Coord_systems can be objects or URI strings
       if (! ref $source_cs ) {
         my ($name, $version) = split ':', $source_cs;
-        $source_cs = Bio::EnsEMBL::CoordSystem->new( -name => $name, $version => $version, -rank => 99 );
+        $source_cs = Bio::EnsEMBL::CoordSystem->new( -name => $name, -version => $version, -rank => 99 );
       }
       
       # Sort sources by coordinate system
@@ -127,15 +126,22 @@ sub fetch_Features {
         $coords{$source_cs->name} = {
           'sources'  => {},
         };
-        my ($mappers, $segments) = $self->_get_Mappers($source_cs, $target_cs, $slice, $gene, $prot);
-        $coords{$source_cs->name}->{'mappers'}  = $mappers;
+        
+        # Do a lot of funky stuff to get the query segments, and build up
+        # mappers at the same time
+        my $segments = $self->_get_Segments($source_cs, $target_cs, $slice, $gene, $prot);
         $coords{$source_cs->name}->{'segments'} = $segments;
       }
       $coords{$source_cs->name}{'sources'}{$source->full_url} = $source;
     }
   }
   
+  #==========================================================#
+  # Now perform parallel requests for each coordinate system #
+  #==========================================================#
+  
   my @sources_with_data = ();
+  my $daslite = $self->{'daslite'};
   
   # Split the requests that will be performed by coordinate system, i.e. parallelise
   # requests for segments that are from the same coordinate system
@@ -143,22 +149,44 @@ sub fetch_Features {
     my $segments = $coord_data->{'segments'};
     
     if (!scalar @{ $segments }) {
+      # TODO: this needs to be indicated in the results as an error/info message
       info("No segments found for $coord_name");
       next;
     }
     
-    info("Querying with @{$segments} for $coord_name");
     # TODO: use callbacks to build features
-    $self->{'daslite'}->dsn([keys %{ $coord_data->{'sources'} }]);
-    my $response = $self->{'daslite'}->features($segments); # hashref
-    my $statuses = $self->{'daslite'}->statuscodes();
+    
+    info("Querying with @{$segments} for $coord_name");
+    $daslite->dsn( [keys %{ $coord_data->{'sources'} }] );
+    my $response = $daslite->features($segments); # hashref
+    my $statuses = $daslite->statuscodes();
+    
+    # Final structure will look like:
+    # {
+    #  'http.../das' => {
+    #                    'source'     => $source_object,
+    #                    'stylesheet' => $style_hash,
+    #                    'features'   => {
+    #                                     'segment1' => $features_hash1,
+    #                                     'segment2' => $features_hash2,
+    #                                    }
+    #                   }
+    # }
+    
+    #========================================================#
+    #          Process a set of features per source          #
+    #========================================================#
     
     while (my ($url, $features) = each %{ $response }) {
       my $status = $statuses->{$url};
+      
+      # Parse the segment from the URL
+      # TODO: check how daslite handles multiple segments!
       $url =~ s|/features\?segment=(.*)$||;
       my $segment = $1;
-      print "*** $segment $url ***\n";
+      info("*** $segment $url ***");
       my $source = $coord_data->{'sources'}{$url};
+      
       $final->{$url}{'source'} = $source;
       
       if ($status!~ m/^200/ || !defined $features) {
@@ -176,7 +204,9 @@ sub fetch_Features {
         next;
       }
       
+      ########
       # Convert into the query coordinate system if applicable
+      ########
       my $mappers = $coord_data->{'mappers'};
       $features = $self->map_Features($features, $slice, $prot, $mappers, $source);
       
@@ -192,15 +222,19 @@ sub fetch_Features {
       
     }
     
-    # Get stylesheet
-    $response = $self->{'daslite'}->stylesheet();
-    while (my ($url, $styledata) = each %{ $response }) {
-      if ($styledata && ref $styledata eq 'ARRAY') {
-        $url =~ s|/stylesheet\?$||;
-        $final->{$url}{'stylesheet'} = $styledata;
-      }
+  }
+  
+  #==========================================================#
+  #         Get stylesheets for all sources with data        #
+  #==========================================================#
+  
+  $daslite->dsn( @sources_with_data );
+  my $response = $daslite->stylesheet();
+  while (my ($url, $styledata) = each %{ $response }) {
+    if ($styledata && ref $styledata eq 'ARRAY') {
+      $url =~ s|/stylesheet\?$||;
+      $final->{$url}{'stylesheet'} = $styledata;
     }
-    
   }
   
   #use Data::Dumper;print Dumper($final);
@@ -209,92 +243,79 @@ sub fetch_Features {
 
 # Returns: new arrayref with features
 sub map_Features {
-  my ($self, $features, $slice, $prot, $mappers, $source) = @_;
+  my ($self, $features, $source, $source_cs, $to_cs, $slice) = @_;
   my @new_features = ();
   
-  while (my $f = shift @{ $features }) {
-    my $start = $f->{'start'};
-    my $end   = $f->{'end'};
-    my $segid = $f->{'segment_id'};
+  # May need multiple mapping steps to reach the target coordinate system
+  while ( $source_cs && ! $source_cs->equals( $to_cs ) ) {
     
-    if (!$segid) {
-      warning($source->full_url.' returned a feature without a segment ID; skipping');
+    info('Beginning mapping from '.$source_cs->name);
+    
+    my @this_features = @{ $features };
+    my $mappers = $self->{'mappers'}{$source_cs->name}{$source_cs->version||''};
+    $features  = [];
+    $source_cs = undef;
+    if (!$mappers || !scalar keys %{ $mappers }) {
+      warning('No mappers found for coordinate system '.$source_cs->name.':'.$source_cs->version||'');
       next;
     }
     
-    # if no orientation, assume + strand
-    my $ori   = $ORI_NUMERIC->{$f->{'orientation'} || '+'};
-    
-    # Code block for building a new feature:
-    my $last_seg; # A Coordinate resulting from a mapping
-    my $add_seg = sub {
-=head
-      my $mapped = { %{ $f } }; # copy feature
-      $mapped->{'segment_id'}  = $last_seg->id;
-      $mapped->{'start'}       = $s;
-      $mapped->{'end'}         = $e;
-      $mapped->{'orientation'} = $ORI_SYMBOLIC->{$last_seg->strand} if ($last_seg->strand ne $ori);
-=cut
-      my $mapped;
-      if ($slice) {
-        $mapped = Bio::EnsEMBL::FeaturePair->new(
-          -start    => $last_seg ? $last_seg->start  : $f->{'start'},
-          -end      => $last_seg ? $last_seg->end    : $f->{'end'},
-          -strand   => $last_seg ? $last_seg->strand : $ori,
-          -slice    => $slice,
-          -hseqname => $segid,
-          -hstart   => $f->{'start'},
-          -hend     => $f->{'end'},
-          -hstrand  => $ori,
-          -score    => $f->{'score'},
-          -analysis => $source,
-        );
-      } else {
-        $mapped = Bio::EnsEMBL::ProteinFeature->new(
-          -start    => $last_seg ? $last_seg->start : $f->{'start'},
-          -end      => $last_seg ? $last_seg->end   : $f->{'end'},
-          -hseqname => $segid,
-          -hstart   => $f->{'start'},
-          -hend     => $f->{'end'},
-          -score    => $f->{'score'},
-          -analysis => $source,
-        );
+    # Map the current set of features to the next coordinate system
+    for my $f ( @this_features ) {
+      
+      my $segid  = $f->{'segment_id'};
+      my $strand = $f->{'strand'} || $ORI_NUMERIC->{$f->{'orientation'} || '+'} || 1;
+      
+      # Get new coordinates for this feature
+      my $mapper = $mappers->{$segid};
+      if (!$mapper) {
+        warning("No mapper found for segment '$segid', skipping");
+        next;
+      }
+      $source_cs = $mapper->{'to_cs'} || throw('Mapper does not indicate target coordinate system');;
+      my @coords = $mapper->map_coordinates($segid,
+                                            $f->{'start'},
+                                            $f->{'end'},
+                                            $strand,
+                                            'from');
+      
+      # Create new features from the mapped coordinates
+      for my $c ( @coords ) {
+        $c->isa('Bio::EnsEMBL::Mapper::Coordinate') || next;
+        my %new = %{ $f };
+        $new{'segment_id'} = $c->id,
+        $new{'start'     } = $c->start,
+        $new{'end'       } = $c->end,
+        $new{'strand'    } = $c->strand,
+        push @{ $features }, \%new;
       }
       
-      push @new_features, $mapped;
-      #printf "Adding segment %s %s:%s-%s\n", $mapped->{'feature_id'}, $last_seg->id, $s, $e;
-    };
-    
-    # Non-positional features require no mapping
-    # Also assume those without a mapper require none
-    if ($start && $end && (my $mapper = $mappers->{$segid})) {
-      my @segs = $mapper->map_coordinates($segid, $start, $end, $ori, $mapper->from);
-      for my $seg (sort{ $a->id cmp $b->id || $a->start <=> $b->start } grep {$_->isa('Bio::EnsEMBL::Mapper::Coordinate')} @segs) {
-        # Check for contiguous segments. These are possible with gapped->ungapped mappings such as slice->protein.
-        # We don't want to split these features, so we stitch the segments back together.
-        if ($last_seg && $seg->id eq $last_seg->id && $seg->start == $last_seg->end+1) {
-          $seg->start($last_seg->start);
-        } elsif ($last_seg) {
-          &$add_seg;
-        }
-        $last_seg = $seg;
-      }
-      if ($last_seg) {
-        &$add_seg;
-      }
     }
-    else {
-      &$add_seg;
+  }
+  
+  # Now let's build us some feature objects!
+  for my $f ( @{ $features } ) {
+    $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new(
+      -start    => $f->{'start'},
+      -end      => $f->{'end'},
+      -strand   => $f->{'strand'}, # should be 1 if to_cs is protein
+      -note     => $f->{'note'},
+      -link     => $f->{'link'},
+      -score    => $f->{'score'},
+      -type     => $f->{'type'},
+      -analysis => $source,
+    );
+    # Where target coordsys is genomic, make a slice-relative feature
+    if ($slice) {
+      $f->slice($slice->seq_region_Slice);
+      $f->transfer($slice);
     }
-
-    
+    push @new_features, $f;
   }
   
   return \@new_features;
 }
 
-# Some mappers could be built using the database (AssemblyMapper).
-# Just build them all dynamically in code.
 # Supports mapping to:
 #   location-based (chromosome|clone|contig|scaffold|supercontig)
 #   protein-based  (ensembl_peptide)
@@ -302,7 +323,7 @@ sub map_Features {
 #   location-based (chromosome|clone|contig|scaffold|supercontig)
 #   protein-based  (ensembl_peptide)
 #   gene-based     (ensembl_gene)
-sub _get_Mappers {
+sub _get_Segments {
   my $self = shift;
   my $from_cs = shift; # the "foreign" source coordinate system 
   my $to_cs = shift;   # the target coordsys that mapped objects will be converted to
@@ -314,12 +335,17 @@ sub _get_Mappers {
   
   # There are several different Mapper implementations in the API to convert
   # between various coordinate systems: AssemblyMapper, TranscriptMapper,
-  # IdentityXref. But they all work in different ways and cannot be handled in
-  # the same way. They also have other limitations, for example TranscriptMapper
-  # cannot work with transcripts that span boundaries in old assemblies, because
-  # it requires a transcript object and operates relative to its single slice.
-  # For these reasons, we create one-step mappers for all conversions. This will
-  # be faster than performing multiple conversions for large lists of features.
+  # IdentityXref. For DAS, we often need to convert across the different realms
+  # these mappers serve, such as chromosome:NCBI35 -> peptide which requires an
+  # intermediary NCBI35 -> NCBI36 step. Unfortunately, the different mappers all
+  # work in different ways and have different interfaces and limitations.
+  #
+  # For example, AssemblyMapper and TranscriptMapper use custom methods rather
+  # than the standard API 'map_coordinates', IdentityXref uses custom
+  # 'external_id' and 'ensembl_id' identifiers for the regions it is mapping
+  # between, and all name the coordinate systems differently. These differences
+  # mean the different mappers cannot be strung together, so this module uses
+  # wrappers in order to achieve this.
   
   # Mapping to slice-relative coordinates
   if ($to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
@@ -329,47 +355,43 @@ sub _get_Mappers {
     
     # Mapping from a slice-based coordinate system
     if ($from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
-      #my $mapper = $slice->adaptor->db->get_AssemblyMapperAdaptor->fetch_by_CoordSystems($from_cs, $to_cs)->mapper;
-      #for my $fr_seg (@{ $mapper->map_coordinates($slice->seq_region_name, $slice->start, $slice->end, $slice->strand, $to_cs->name) }) {
-      my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to');
+      
+      # No mapping needed
       if ($from_cs->equals($to_cs)) {
-        # DAS differs in its use of genome-based coordinates:
-        # they are always relative to the entire seq_region rather than a slice
-        #printf "Adding %s:%s,%s(%s) -> %s:%s,%s\n", $slice->seq_region_name, $slice->start, $slice->end, 1, $slice->seq_region_name, 1, $slice->length;
-        $mapper->add_map_coordinates(
-          $slice->seq_region_name, $slice->start, $slice->end,   1,
-          $slice->seq_region_name, 1,             $slice->length
-        );
         push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
-        $mappers{$slice->seq_region_name} = $mapper;
-      } else {
-        for my $fr_seg (@{ $slice->project($from_cs->name, $from_cs->version) }) {
-          # each mapping segment represents a section of a "from" object
-          my $fr_ob = $fr_seg->to_Slice();
-          #printf "Adding %s:%s,%s(%s) -> %s:%s,%s\n", $fr_ob->seq_region_name, $fr_ob->start, $fr_ob->end, $fr_ob->strand, $slice->seq_region_name, $fr_seg->from_start, $fr_seg->from_end;
-          $mapper->add_map_coordinates(
-            # the region of the "from" object:
-            $fr_ob->seq_region_name, $fr_ob->start, $fr_ob->end, $fr_ob->strand,
-            # looks confusing, but a "from" region comes from a "to" region:
-            $slice->seq_region_name, $fr_seg->from_start, $fr_seg->from_end
-          );
-          push @segments, sprintf '%s:%s,%s', $fr_ob->seq_region_name, $fr_ob->start, $fr_ob->end;
-          $mappers{$fr_ob->seq_region_name} = $mapper;
+      }
+      
+      else {
+        # Wrapper for AssemblyMapper:
+        my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(
+          'from', 'to', $from_cs, $to_cs,
+          $slice->adaptor->db->get_AssemblyMapperAdaptor->fetch_by_CoordSystems($from_cs, $to_cs)
+        );
+        
+        # Map backwards to get the query segments
+        my @coords = $mapper->map_coordinates($slice->seq_region_name,
+                                              $slice->start,
+                                              $slice->end,
+                                              $slice->strand,
+                                              'to');
+        for my $c ( @coords ) {
+          $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$c->id} ||= $mapper;
+          push @segments, sprintf '%s:%s,%s', $c->id, $c->start, $c->end;
         }
       }
     }
     
     # Mapping from ensembl_gene to slice
     elsif ($from_cs->name eq 'ensembl_gene') {
-      for my $g ( $gene ? ($gene) : @{ $slice->get_all_Genes }) {
+      for my $g ( defined $gene ? ($gene) : @{ $slice->get_all_Genes }) {
         # Genes are already definitely relative to the target slice, so don't need to do any assembly mapping
-        my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to');
-        #warn "ADDING ".$gene->stable_id." ".$gene->strand*$gene->slice->strand." ->";
+        my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to', $from_cs, $to_cs);
+        #warn "ADDING ".$g->stable_id." ".$g->strand;
         $mapper->add_map_coordinates(
           $g->stable_id,           1,         $g->length, $g->strand,
           $slice->seq_region_name, $g->start, $g->end
         );
-        $mappers{$g->stable_id} = $mapper;
+        $self->{'mappers'}{'ensembl_gene'}{''}{$g->stable_id} = $mapper;
         push @segments, $g->stable_id;
       }
     }
@@ -378,18 +400,19 @@ sub _get_Mappers {
     elsif ($from_cs->name eq 'ensembl_peptide') {
       for my $tran (@{ $slice->get_all_Transcripts }) {
         my $prot = $tran->translation || next;
-        $mappers{$prot->stable_id} = &_get_Translation_Slice_Mapper($to_cs, $tran, $prot);
+        $self->{'mappers'}{'ensembl_peptide'}{''}{$prot->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
         push @segments, $prot->stable_id;
       }
     }
     
-    # Mapping from uniprot
+    # Mapping from uniprot to slice
     elsif ($from_cs->name eq 'uniprot_peptide') {
-      # Use uniprot xref cigar alignments
-      for my $xref(@{ $prot->get_all_DBEntries('Uniprot/%') }) {
-        $xref->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i || next;
-        $mappers{$xref->primary_id} = &_get_Xref_Slice_Mapper($xref, $prot);
-        push @segments, $xref->primary_id;
+      for my $tran (@{ $slice->get_all_Transcripts }) {
+        my $prot = $tran->translation || next;
+        # second stage mapper: protein to transcript's slice
+        $self->_get_Segments('ensembl_peptide', $to_cs, $slice);
+        # first stage mapper: uniprot to protein
+        push @segments, @{ $self->_get_Segments($from_cs, 'ensembl_peptide', undef, undef, $prot) };
       }
     }
     
@@ -403,27 +426,36 @@ sub _get_Mappers {
     
     $prot || throw('Trying to convert to peptide coordinates, but no Translation provided');
     
-    # Mapping from slice with the same or different coordinate system
-    if ($from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
-      my $ta = $prot->adaptor->db->get_TranscriptAdaptor();
-      my $tran = $ta->fetch_by_translation_stable_id($prot->stable_id);
-      $mappers{$tran->seq_region_name} = &_get_Slice_Translation_Mapper($from_cs, $tran, $prot);
-      push @segments, sprintf '%s:%s,%s', $tran->seq_region_name, $tran->slice->start + $tran->coding_region_start - 1, $tran->slice->start + $tran->coding_region_end - 1;
-    }
-    
-    # Mapping from gene on a slice with the same or different coordinate system
-    elsif ($from_cs->name eq 'ensembl_gene') {
-      my $ta = $prot->adaptor->db->get_TranscriptAdaptor();
-      my $tran = $ta->fetch_by_translation_stable_id($prot->stable_id);
-      my $ga = $prot->adaptor->db->get_GeneAdaptor();
-      my $gene = $ga->fetch_by_translation_stable_id($prot->stable_id);
-      $mappers{$gene->stable_id} = &_get_Gene_Translation_Mapper($gene, $tran, $prot);
-      push @segments, $gene->stable_id;
-    }
-    
-    elsif ($from_cs->name eq 'ensembl_peptide') {
+    if ($from_cs->name eq 'ensembl_peptide') {
       # no mapper needed
       push @segments, $prot->stable_id;
+    }
+    
+    # Mapping from slice. Note that from_cs isnt necessarily the same as the transcript's coord_system
+    elsif ($from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
+      my $ta    = $prot->adaptor->db->get_TranscriptAdaptor();
+      my $sa    = $prot->adaptor->db->get_SliceAdaptor();
+      my $tran  = $ta->fetch_by_translation_stable_id($prot->stable_id);
+      my $slice = $sa->fetch_by_transcript_stable_id($tran->stable_id);
+      $tran = $tran->transfer($slice);
+      # second stage mapper: transcript's slice to protein
+      my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
+      
+      $self->{'mappers'}{$slice->coord_system->name}{$slice->coord_system->version||''}{$slice->seq_region_name} = $mapper;
+      # first stage mapper: from_cs to transcript's slice
+      push @segments, @{ $self->_get_Segments($from_cs, $tran->slice->coord_system, $slice) };
+    }
+    
+    # Mapping from gene on a slice with the same coordinate system
+    elsif ($from_cs->name eq 'ensembl_gene') {
+      my $ga    = $prot->adaptor->db->get_GeneAdaptor();
+      my $sa    = $prot->adaptor->db->get_SliceAdaptor();
+      my $gene  = $ga->fetch_by_translation_stable_id($prot->stable_id);
+      my $slice = $sa->fetch_by_gene_stable_id($gene->stable_id);
+      # Second stage mapper: slice to peptide
+      $self->_get_Segments($slice->coord_system, $to_cs, undef, undef, $prot);
+      # First stage mapper: gene to slice
+      push @segments, @{ $self->_get_Segments($from_cs, $slice->coord_system, $slice, $gene, undef) };
     }
     
     # Mapping from uniprot
@@ -431,7 +463,7 @@ sub _get_Mappers {
       # Use uniprot xref cigar alignments
       for my $xref(@{ $prot->get_all_DBEntries('Uniprot/%') }) {
         $xref->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i || next;
-        $mappers{$xref->primary_id} = &_get_Xref_Translation_Mapper($xref, $prot);
+        $self->{'mappers'}{$from_cs->name}{''}{$xref->primary_id} ||= Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper->new('from', 'to', $from_cs, $to_cs, $xref, $prot);
         push @segments, $xref->primary_id;
       }
     }
@@ -445,227 +477,6 @@ sub _get_Mappers {
   }
   
   return (\%mappers, \@segments);
-}
-
-sub _get_Xref_Slice_Mapper {
-  my ($xref, $prot) = @_;
-  
-  my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to');
-  
-=head NOT DONE YET
-  my (@lens, @chars);
-  # if there is no cigar line, nothing is going to be loaded
-  if (my $cigar = $xref->cigar_line()) {
-    my @pre_lens = split( '[DMI]', $cigar );
-    @lens = map { if( ! $_ ) { 1 } else { $_ }} @pre_lens;
-    @chars = grep { /[DMI]/ } split( //, $cigar );
-  }
-  my $translation_start = $xref->translation_start();
-  my $query_start = $xref->query_start();
-
-  for( my $i=0; $i<=$#lens; $i++ ) {
-    my $length = $lens[$i];
-    my $char = $chars[$i];
-    if( $char eq "M" ) {
-      $mapper->add_map_coordinates( $xref->primary_id, $query_start,
-                                    $query_start + $length - 1, 1,
-                                    $prot->stable_id, $translation_start,
-                                    $translation_start + $length - 1);
-      $query_start += $length;
-      $translation_start += $length;
-
-    } elsif( $char eq "D" ) {
-      $translation_start += $length;
-    } elsif( $char eq "I" ) {
-      $query_start += $length;
-    }
-  }
-=cut
-  
-  return $mapper;
-}
-
-sub _get_Xref_Translation_Mapper {
-  my ($xref, $prot) = @_;
-  return $xref->get_mapper;
-  
-  my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to');
-  
-  # Would have liked to use IdentityXref's mapper, but for some reason it uses
-  # the strings 'external_id' and 'ensembl_id' instead of the actual sequence
-  # identifiers. So have to re-implement...
-  
-  my (@lens, @chars);
-  # if there is no cigar line, nothing is going to be loaded
-  if (my $cigar = $xref->cigar_line()) {
-    my @pre_lens = split( '[DMI]', $cigar );
-    @lens = map { if( ! $_ ) { 1 } else { $_ }} @pre_lens;
-    @chars = grep { /[DMI]/ } split( //, $cigar );
-  }
-  my $translation_start = $xref->translation_start();
-  my $query_start = $xref->query_start();
-
-  for( my $i=0; $i<=$#lens; $i++ ) {
-    my $length = $lens[$i];
-    my $char = $chars[$i];
-    if( $char eq "M" ) {
-      $mapper->add_map_coordinates( $xref->primary_id, $query_start,
-                                    $query_start + $length - 1, 1,
-                                    $prot->stable_id, $translation_start,
-                                    $translation_start + $length - 1);
-      $query_start += $length;
-      $translation_start += $length;
-
-    } elsif( $char eq "D" ) {
-      $translation_start += $length;
-    } elsif( $char eq "I" ) {
-      $query_start += $length;
-    }
-  }
-  
-  return $mapper;
-}
-
-sub _get_Translation_Slice_Mapper {
-  my ($slice_cs, $tran, $prot) = @_;
-  $slice_cs->equals($tran->slice->coord_system) || throw('Mapping from peptide to slice coordinates is only supported where the target coordinates are the same as the provided Transcript');
-  my $mapper = Bio::EnsEMBL::CodonMapper->new('from', 'from', 'to');
-  
-  # The first coding base of the CDNA
-  my $tran_cdna_coding_start = $tran->cdna_coding_start;
-  
-  for my $exon (@{ $tran->get_all_Exons }) {
-    
-    my $cdna_start = $exon->cdna_coding_start($tran) || next;
-    my $cdna_end   = $exon->cdna_coding_end  ($tran);
-    
-    my $slice_start = $exon->coding_region_start($tran);
-    my $slice_end   = $exon->coding_region_end($tran);
-    
-    # Equivalent CDS region:
-    my $cds_start  = $cdna_start - $tran_cdna_coding_start + 1;
-    my $cds_end    = $cdna_end   - $tran_cdna_coding_start + 1;
-    
-    #printf "Adding %s:%s-%s(%s) -> %s:%s-%s\n", $prot->stable_id, $cds_start, $cds_end, $exon->strand, $exon->seq_region_name, $slice_start, $slice_end;
-    
-    $mapper->add_map_coordinates(
-      $prot->stable_id,       $cds_start,   $cds_end,  $exon->strand,
-      $exon->seq_region_name, $slice_start, $slice_end
-    );
-  }
-  
-  return $mapper;
-}
-
-sub _get_Slice_Translation_Mapper {
-  my ($slice_cs, $tran, $prot) = @_;
-  my $mapper = Bio::EnsEMBL::CodonMapper->new('to', 'from', 'to');
-  
-  # The first and last coding bases of the CDNA
-  my $tran_cdna_coding_start = $tran->cdna_coding_start;
-  my $tran_cdna_coding_end   = $tran->cdna_coding_end;
-  my $cdna_start = undef;
-  my $cdna_end   = 0;
-  
-  for my $exon (@{ $tran->get_all_Exons }) {
-    
-    #printf "Exon %s %s:%s-%s(%s)\n", $exon->stable_id, $exon->seq_region_name, $exon->seq_region_start, $exon->seq_region_end, $exon->strand;
-    
-    for my $seg (@{ $exon->project($slice_cs->name, $slice_cs->version) }) {
-      
-      # Update the cdna position:
-      $cdna_start = $cdna_end + 1;
-      $cdna_end   = $cdna_start + $seg->from_end - $seg->from_start;
-      
-      next if ($seg->isa('Bio::EnsEMBL::Mapper::Gap'));
-      next if ($tran_cdna_coding_start > $cdna_end || $tran_cdna_coding_end < $cdna_start);
-      
-      my $slice = $seg->to_Slice();
-      my $slice_start = $slice->start;
-      my $slice_end   = $slice->end;
-      #printf "Seg %s-%s -> %s:%s-%s(%s)\n", $seg->from_start, $seg->from_end, $slice->seq_region_name, $slice->start, $slice->end, $slice->strand;
-      
-      # We're only interested in the coding region:
-      if ((my $overhang = $tran_cdna_coding_start - $cdna_start) > 0) {
-        #print "start overhang of $overhang\n";
-        $cdna_start  += $overhang;
-        $slice->strand == 1 ? $slice_start += $overhang : $slice_end -= $overhang;
-      }
-      if ((my $overhang = $cdna_end - $tran_cdna_coding_end) > 0) {
-        #print "end overhang of $overhang\n";
-        $cdna_end  -= $overhang;
-        $slice->strand == 1 ? $slice_end -= $overhang : $slice_start += $overhang;
-      }
-      
-      # Equivalent CDS region:
-      my $cds_start  = $cdna_start - $tran_cdna_coding_start + 1;
-      my $cds_end    = $cdna_end   - $tran_cdna_coding_start + 1;
-      
-      #printf "Adding %s:%s-%s(%s) -> %s:%s-%s\n", $slice->seq_region_name, $slice_start, $slice_end, $slice->strand, $prot->stable_id, $cds_start, $cds_end;
-      
-      $mapper->add_map_coordinates(
-        $slice->seq_region_name, $slice_start, $slice_end, $slice->strand,
-        $prot->stable_id,        $cds_start,   $cds_end
-      );
-      
-    }
-  }
-  return $mapper;
-}
-
-# get_Mapper only supports gene -> translation, but technically this method supports translation -> gene too
-sub _get_Gene_Translation_Mapper {
-  my ($gene, $tran, $prot) = @_;
-  
-  my $mapper = Bio::EnsEMBL::CodonMapper->new('to', 'from', 'to');
-  
-  #printf "%s : %s-%s (%s-%s)\n", $gene->stable_id, $gene->seq_region_start, $gene->seq_region_end, $cds_start;
-  
-  # The first and last coding bases of the CDNA
-  my $tran_cdna_coding_start = $tran->cdna_coding_start;
-  my $tran_cdna_coding_end   = $tran->cdna_coding_end;
-  my $cdna_start = undef;
-  my $cdna_end   = 0;
-  
-  for my $exon (@{ $tran->get_all_Exons }) {
-    
-    # Update the cdna position:
-    $cdna_start = $cdna_end + 1;
-    $cdna_end   = $cdna_start + $exon->end - $exon->start;
-    
-    next if ($tran_cdna_coding_start > $cdna_end || $tran_cdna_coding_end < $cdna_start);
-    
-    my $gene_start = $exon->strand == 1 ? $exon->seq_region_start - $gene->seq_region_start + 1
-                                        : $gene->seq_region_end   - $exon->seq_region_end + 1;
-    my $gene_end   = $exon->strand == 1 ? $exon->seq_region_end   - $gene->seq_region_start + 1
-                                        : $gene->seq_region_end   - $exon->seq_region_start + 1;
-    #printf "Seg %s-%s -> %s:%s-%s(%s)\n", $seg->from_start, $seg->from_end, $slice->seq_region_name, $slice->start, $slice->end, $slice->strand;
-    
-    # We're only interested in the coding region:
-    if ((my $overhang = $tran_cdna_coding_start - $cdna_start) > 0) {
-      #print "start overhang of $overhang\n";
-      $cdna_start += $overhang;
-      $gene_start += $overhang;
-    }
-    if ((my $overhang = $cdna_end - $tran_cdna_coding_end) > 0) {
-      #print "end overhang of $overhang\n";
-      $cdna_end -= $overhang;
-      $gene_end -= $overhang;
-    }
-    
-    # Equivalent CDS region:
-    my $cds_start  = $cdna_start - $tran_cdna_coding_start + 1;
-    my $cds_end    = $cdna_end   - $tran_cdna_coding_start + 1;
-    
-    #printf "%s : %s-%s gene(%s-%s) cdna(%s-%s) cds(%s-%s)\n", $exon->stable_id, $exon->start, $exon->end, $gene_start, $gene_end, $cdna_start, $cdna_end, $cds_start, $cds_end;
-    
-    $mapper->add_map_coordinates(
-      $gene->stable_id, $gene_start, $gene_end, 1, # genes and proteins are always in the same orientation
-      $prot->stable_id, $cds_start,  $cds_end
-    );
-    
-  }
-  return $mapper;
 }
 
 1;

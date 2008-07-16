@@ -1,0 +1,116 @@
+=head2 DESCRIPTION
+
+This test covers the following DAS conversions:
+  chromosome 36 -> contig
+  contig        -> chromosome 36
+  chromosome 35 -> chromosome 36
+
+=cut
+
+use strict;
+
+BEGIN { $| = 1;
+	use Test::More tests => (6*3)*2 + ((5*3)+1)*1;
+}
+
+use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
+use Bio::EnsEMBL::Feature;
+# TODO: need to use data from a test database!
+#use Bio::EnsEMBL::Test::MultiTestDB;
+#use Bio::EnsEMBL::Test::TestUtils;
+#my $multi = Bio::EnsEMBL::Test::MultiTestDB->new();
+#my $dba = $multi->get_DBAdaptor( 'core' );
+use Bio::EnsEMBL::Registry;
+Bio::EnsEMBL::Registry->load_registry_from_db(
+  -host => 'ensembldb.ensembl.org',
+  -user => 'anonymous',
+);
+my $dba = Bio::EnsEMBL::Registry->get_DBAdaptor( 'human', 'core' ) || die("Can't connect to database");
+
+my $sla = $dba->get_SliceAdaptor();
+my $csa = $dba->get_CoordSystemAdaptor();
+my $chro_cs = $csa->fetch_by_name('chromosome', 'NCBI36');
+my $cont_cs = $csa->fetch_by_name('contig');
+my $ch35_cs = $csa->fetch_by_name('chromosome', 'NCBI35');
+# contig:
+my $cont1 = $sla->fetch_by_region('contig',     'AC126176.5.1.23501',   1,    21561, -1); # this contig aligns on reverse strand
+my $cont2 = $sla->fetch_by_region('contig',     'AC090000.17.1.173552', 2054, 173552, 1);
+my $cont3 = $sla->fetch_by_region('contig',     'AC084364.20.1.104791', 1952, 104791, 1);
+# NCBI36:
+my $chro1 = $sla->fetch_by_region('chromosome', '12', 102217673, 102239233, 1, 'NCBI36');
+my $chro2 = $sla->fetch_by_region('chromosome', '12', 102239234, 102410732, 1, 'NCBI36');
+my $chro3 = $sla->fetch_by_region('chromosome', '12', 102410733, 102513572, 1, 'NCBI36');
+my $chro_all = $sla->fetch_by_region('chromosome', '12', 102217673, 102513572, 1, 'NCBI36');
+# NCBI35:
+my $ch351 = $sla->fetch_by_region('chromosome', '12', 102196010, 102217570, 1, 'NCBI35');
+my $ch352 = $sla->fetch_by_region('chromosome', '12', 102217571, 102389069, 1, 'NCBI35');
+my $ch353 = $sla->fetch_by_region('chromosome', '12', 102389070, 102491909, 1, 'NCBI35');
+my $ch35_all = $sla->fetch_by_region('chromosome', '12', 102196010, 102491909, 1, 'NCBI35');
+my @pairs = (
+             [ $cont1, $chro1, $ch351 ],
+             [ $cont2, $chro2, $ch352 ],
+             [ $cont3, $chro3, $ch353 ],
+            );
+
+my $desc = 'chromosome->contig';
+my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+for (@pairs) {
+  my ($cont, $chro) = @$_;
+  my $desc2 = "$desc ".$cont->seq_region_name;
+  my $segments = $c->_get_Segments($chro_cs, $cont_cs, $cont);
+  ok(grep ((sprintf "%s:%s,%s", $chro->seq_region_name, $chro->start, $chro->end), @$segments), "$desc2 correct query segment");
+  my $mapper = $c->{'mappers'}{$chro_cs->name}{$chro_cs->version}{$chro->seq_region_name};
+  SKIP: {
+    ok($mapper, "$desc2 has mapper") || skip('requires mapper', 4);
+    my @coords = $mapper->map_coordinates($chro->seq_region_name, $chro->end-9, $chro->end, 1, 'from'); # the 'rightmost' chromosomal position
+    is(@coords, 1, "$desc2 correct number of segments");
+    my $f = Bio::EnsEMBL::Feature->new(-slice=>$cont->seq_region_Slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+    my $corr_start = $cont->strand == -1 ? $cont->start   : $cont->end-9;
+    my $corr_end   = $cont->strand == -1 ? $cont->start+9 : $cont->end;
+    is($f->seq_region_start,  $corr_start,   "$desc2 correct start");
+    is($f->seq_region_end,    $corr_end,     "$desc2 correct end");
+    is($f->seq_region_strand, $cont->strand, "$desc2 correct strand");
+  };
+}
+
+$desc = 'contig->chromosome';
+$c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+my $segments = $c->_get_Segments($cont_cs, $chro_cs, $chro_all);
+for (@pairs) {
+  my ($cont, $chro) = @$_;
+  my $desc2 = "$desc ".$cont->seq_region_name;
+  ok(grep ((sprintf "%s:%s,%s", $cont->seq_region_name, $cont->start, $cont->end), @$segments), "$desc2 correct query segment");
+  my $mapper = $c->{'mappers'}{$cont_cs->name}{$cont_cs->version}{$cont->seq_region_name};
+  SKIP: {
+    ok($mapper, "$desc2 has mapper") || skip('requires mapper', 4);
+    my @coords = $mapper->map_coordinates($cont->seq_region_name, $cont->end-9, $cont->end, 1, 'from'); # the 'rightmost' contig position
+    is(@coords, 1, "$desc2 correct number of segments");
+    my $f = Bio::EnsEMBL::Feature->new(-slice=>$chro_all->seq_region_Slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+    my $corr_start = $cont->strand == -1 ? $chro->start   : $chro->end-9;
+    my $corr_end   = $cont->strand == -1 ? $chro->start+9 : $chro->end;
+    is($f->seq_region_start,  $corr_start,   "$desc2 correct start");
+    is($f->seq_region_end,    $corr_end,     "$desc2 correct end");
+    is($f->seq_region_strand, $cont->strand, "$desc2 correct strand");
+  };
+}
+
+$desc = 'chromosome35->chromosome36';
+$c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+$segments = $c->_get_Segments($ch35_cs, $chro_cs, $chro_all);
+is_deeply($segments, [sprintf "%s:%s,%s", $ch35_all->seq_region_name, $ch35_all->start, $ch35_all->end], "$desc correct query segments");
+for (@pairs) {
+  my ($cont, $chro, $ch35) = @$_;
+  my $desc2 = "$desc ".$cont->seq_region_name;
+  my $mapper = $c->{'mappers'}{$ch35_cs->name}{$ch35_cs->version}{$ch35->seq_region_name};
+  SKIP: {
+    ok($mapper, "$desc2 has mapper") || skip('requires mapper', 4);
+    my @coords = $mapper->map_coordinates($ch35->seq_region_name, $ch35->end-9, $ch35->end, 1, 'from'); # the 'rightmost' chromosome position
+    is(@coords, 1, "$desc2 correct number of segments");
+    my $f = Bio::EnsEMBL::Feature->new(-slice=>$chro_all->seq_region_Slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+    my $corr_start = $chro->end-9;
+    my $corr_end   = $chro->end;
+    is($f->seq_region_start,  $corr_start, "$desc2 correct start");
+    is($f->seq_region_end,    $corr_end,   "$desc2 correct end");
+    is($f->seq_region_strand, 1,           "$desc2 correct strand");
+  };
+}

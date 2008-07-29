@@ -32,5 +32,13 @@ sub map {
 }
 
 sub strand { return undef; }
-  
+
+sub type { return undef; }
+
+sub note { return undef ;}
+
+sub score { return undef; }  
+
+sub link { return undef; }  
+
 1;

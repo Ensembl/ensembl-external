@@ -29,12 +29,15 @@ no warnings "uninitialized";
 use LWP::UserAgent;
 use HTTP::Request;
 use HTTP::Response;
+use Data::Dumper;
 
-use Data::Bio::Text::Feature::BED;
-use Data::Bio::Text::Feature::PSL;
-use Data::Bio::Text::Feature::GFF;
-use Data::Bio::Text::Feature::GTF;
-use Data::Bio::Text::Feature::DAS;
+use Data::Bio::Text::FeatureParser::BED;
+use Data::Bio::Text::FeatureParser::GFF;
+use Data::Bio::Text::FeatureParser::GTF;
+use Data::Bio::Text::FeatureParser::PSL;
+use Data::Bio::Text::FeatureParser::DAS;
+use Data::Bio::Text::FeatureParser::WIG;
+use Data::Bio::Text::FeatureParser::GBrowse;
 use Data::Bio::Text::Feature::generic;
 use EnsEMBL::Web::SpeciesDefs;
 
@@ -89,6 +92,25 @@ sub current_key {
   return $self->{'_current_key'};
 }
 
+
+#----------------------------------------------------------------------
+
+=head2 format
+
+    Arg [1]   :  
+    Function  : 
+    Returntype: 
+    Exceptions: 
+    Caller    : 
+    Example   : 
+
+=cut
+
+sub get_format {
+  my $self = shift;
+  return $self->{'_info'}->{'format'};
+}
+
 #----------------------------------------------------------------------
 
 =head2 set_filter
@@ -140,6 +162,8 @@ sub analyse {
     ## Should we halt the analysis once we have a file format? Will any other useful info appear later in the file?
     last if $analysis[0] eq 'format';
   }
+
+  $self->format($info{'format'});
   return \%info;
 }
 
@@ -157,22 +181,54 @@ sub analyse {
 =cut
 
 sub analyse_row {
-  my( $self, $row ) = @_;
-  $row =~ s/[\t\r\s]+$//g;
-
-  if( $row =~ /^browser\s+(\w+)\s+(.*)/i ) {
-    return ('browser_switches', $1, $2);
-  }
-  else {
+    my( $self, $row ) = @_;
+    $row =~ s/[\t\r\s]+$//g;
+    
+    if( $row =~ /^browser\s+(\w+)\s+(.*)/i ) {
+	return ('browser_switches', $1, $2);
+    }
+    elsif ($row =~ s/^track\s+(.*)$/$1/i) {
+	my %config;
+	while( $row ne '' ) {
+	    if( $row =~ s/^(\w+)\s*=\s*\"([^\"]+)\"// ) {  
+		my $key   = $1;
+		my $value = $2;
+		while( $value =~ s/\\$// && $row ne '') {
+		    if( $row =~ s/^([^\"]+)\"\s*// ) {
+			$value .= "\"$1";
+		    } else {
+			$value .= "\"$row"; 
+			$row = '';
+		    }
+		}
+		$row =~ s/^\s*//;
+		$config{$key} = $value;
+	    } 
+	    elsif( $row =~ s/(\w+)\s*=\s*(\S+)\s*// ) {
+		$config{$1} = $2;
+	    } 
+	    else {
+		$row ='';
+	    }
+	}
+	if (my $ttype = $config{type}) {
+	    return ('format', 'WIG') if ($ttype =~ /wiggle_0/i);
+	}
+    }
+    else {
     return unless $row =~ /\d+/g ;
+    if ($row =~ /^reference(\s+)?=(\s+)?(.+)/) {
+	return ('format', 'GBrowse');
+    }     
     my @tab_delimited = split /(\t|  +)/, $row;
+
     my $current_key = $self->{'_current_key'} ;
     if( $tab_delimited[12] eq '.' || $tab_delimited[12] eq '+' || $tab_delimited[12] eq '-' ) {
-      if( $tab_delimited[6] =~ /[0-9]/ ) { ## GFF format
-        return ('format', 'GFF');     
-      } 
-      else {         ## GTF format
+      if( $tab_delimited[16] =~ /\;/ ) { ## GTF format
         return ('format', 'GTF');     
+      } 
+      else {         ## GFF format
+        return ('format', 'GFF');     
       }
     }
     elsif ( $tab_delimited[14] eq '+' || $tab_delimited[14] eq '-' || $tab_delimited[14] eq '.') { # DAS format accepted by Ensembl
@@ -186,8 +242,13 @@ sub analyse_row {
       elsif ($ws_delimited[0] =~/^>/ ) {  ## Simple format (chr/start/end/type
         return ('format', 'generic');     
       } 
-      else { ## default format ( BED )
-        return ('format', 'BED');     
+      else { 
+	  my $fcount = scalar(@ws_delimited);
+	  if ($fcount > 2 and $fcount < 13) {
+	      if ($ws_delimited[1] =~ /\d+/ && $ws_delimited[2] =~ /\d+/) {
+		  return ('format', 'BED');     
+	      }
+	  }
       }
     } 
   }
@@ -207,6 +268,15 @@ sub analyse_row {
 =cut
 
 sub parse {
+  my ($self, $data, $format) = @_;
+  return unless $data;
+  foreach my $row ( split '\n', $data ) {
+     $self->parse_row($row, $format);
+  }
+
+}
+
+sub parse_old {
   my ($self, $data, $format) = @_;
   return unless $data;
   if (!$format) {
@@ -330,7 +400,9 @@ sub parse_row {
         $row ='';
       }
     }
-    my $current_key = $config{'name'} || 'default';
+
+    $config{'name'} = 'default';
+    my $current_key = $config{'name'};# || 'default';
     $self->{'tracks'}{ $current_key } = { 'features' => [], 'config' => \%config };
     $self->{'_current_key'} = $current_key;
   } 
@@ -440,6 +512,54 @@ sub filter {
               || $chr eq $self->{'filter'}{'chr'}   ) &&
          ( ! $self->{'filter'}{'end'}   || $start <= $self->{'filter'}{'end'}   ) &&
          ( ! $self->{'filter'}{'start'} || $end   >= $self->{'filter'}{'start'} )  ;
+}
+
+sub _check_data_row {
+    my $self = shift;
+    my @formatCheck = $self->my_spec;
+
+    my @fields = ();
+    for (my $i=0; $i<$#fields; $i++) {
+	my $check = $formatCheck[$i] or return 'Unexpected field';
+	my $regexp = $check->{'regexp'} or next; # Field can contain anything
+	if ($fields[$i] =~ /$regexp/) {
+	    $formatCheck[$i]->{check_fail} = 0;
+	} else {
+	    return 'Illegal field entry';
+	}
+    }
+    
+    foreach my $f (@formatCheck) {
+	return 'Missing required field' if ($f->{'check_fail'});
+    }
+    
+    return;
+}
+
+sub init {
+    my ($self, $data) = @_;
+    return unless $data;
+
+    my %info;
+    foreach my $row ( split '\n', $data ) {
+	my @analysis = $self->analyse_row($row);
+	if ($analysis[2]) {
+	    $info{$analysis[0]}{$analysis[1]} = $analysis[2];
+	}
+	else {
+	    $info{$analysis[0]} = $analysis[1];
+	}
+	## Should we halt the analysis once we have a file format? Will any other useful info appear later in the file?
+	last if $analysis[0] eq 'format';
+    }
+
+    if (my $format = $info{'format'}) {
+#       my $p =  __PACKAGE__."::$format";
+#       $self = $p->new();
+	bless $self, __PACKAGE__."::$format";
+    }
+    $self->{_info} = \%info;
+    return $self;
 }
 
 1;

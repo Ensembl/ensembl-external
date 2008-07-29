@@ -71,8 +71,8 @@ sub new {
   $url || throw('Source has no configured URL');
   $dsn || throw('Source has no configured DSN');
   
-  $self->url           ( $url );
-  $self->dsn           ( $dsn ); # Applies some formatting
+  $self->url           ( $url ); # Applies some formatting
+  $self->dsn           ( $dsn );
   $self->description   ( $desc );
   $self->maintainer    ( $maintainer );
   $self->homepage      ( $homepage );

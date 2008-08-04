@@ -172,7 +172,7 @@ sub _parse_registry {
   while (my ($url, $set) = each %{ $struct }) {
     my $status = $self->{'daslite'}->statuscodes($url);
     if ($status !~ /^200/) {
-      throw("Error contacting server: $status");
+      throw("Error contacting DAS registry at $url: $status");
     }
     $set = $set->[0]->{'source'};
     

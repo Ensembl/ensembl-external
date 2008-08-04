@@ -26,12 +26,44 @@ use Bio::EnsEMBL::ExternalData::DAS::Feature;
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 
-our $ORI_NUMERIC = {
+our %ORI_NUMERIC = (
    1    =>  1,
   '+'   =>  1,
   -1    => -1,
   '-'   => -1,
-};
+);
+
+# This variable determines the supported xref mapping paths.
+# The first level key is the xref coordinate system.
+# The first level value is a hashref, containing:
+#   'predicate':   a code block to filter xref's of the relevant type
+#   'transformer': a code block to obtain the DAS segment ID
+#
+our %XREF_PEPTIDE_FILTERS = (
+  'uniprot_peptide' => {
+    'predicate'   => sub { $_[0]->dbname eq 'Uniprot/SPTREMBL' || $_[0]->dbname eq 'Uniprot/SWISSPROT' },
+    'transformer' => sub { $_[0]->primary_id },
+  },
+  'ipi_peptide' => {
+    'predicate'   => sub { $_[0]->dbname eq 'IPI' },
+    'transformer' => sub { $_[0]->primary_id },
+  },
+  'entrez_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'EntrezGene' },
+    'transformer' => sub { $_[0]->primary_id },
+  },
+  'mgi_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'MGI' },
+    'transformer' => sub { my $id = $_[0]->primary_id; $id =~ s/\://; $id; },
+  },
+);
+
+our %XREF_GENE_FILTERS = (
+  'hugo_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'HGNC' },
+    'transformer' => sub { $_[0]->primary_id },
+  },
+);
 
 =head2 new
 
@@ -255,24 +287,33 @@ sub map_Features {
     my $mappers = $self->{'mappers'}{$source_cs->name}{$source_cs->version||''};
     $features  = [];
     $source_cs = undef;
-    if (!$mappers || !scalar keys %{ $mappers }) {
-      warning('No mappers found for coordinate system '.$source_cs->name.':'.$source_cs->version||'');
-      next;
-    }
+    
+    my $positional_mapping_errors = 0;
     
     # Map the current set of features to the next coordinate system
     for my $f ( @this_features ) {
       
+      my $strand = $f->{'strand'};
+      if (!defined $strand) {
+        $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '+'} || 1;
+      }
+      
+      # It doesn't matter what coordinate system non-positional features come
+      # from, they are always included and don't need mapping
+      if ($f->{'start'} == 0 && $f->{'end'} == 0) {
+        push @{ $features }, $f;
+        next;
+      }
+      
       my $segid  = $f->{'segment_id'};
-      my $strand = $f->{'strand'} || $ORI_NUMERIC->{$f->{'orientation'} || '+'} || 1;
       
       # Get new coordinates for this feature
       my $mapper = $mappers->{$segid};
       if (!$mapper) {
-        warning("No mapper found for segment '$segid', skipping");
+        $positional_mapping_errors++;
         next;
       }
-      $source_cs = $mapper->{'to_cs'} || throw('Mapper does not indicate target coordinate system');;
+      $source_cs = $mapper->{'to_cs'} || throw('Mapper does not indicate target coordinate system');
       my @coords = $mapper->map_coordinates($segid,
                                             $f->{'start'},
                                             $f->{'end'},
@@ -291,6 +332,10 @@ sub map_Features {
       }
       
     }
+    
+    if ($positional_mapping_errors) {
+      warning("$positional_mapping_errors positional features could not be mapped")
+    }
   }
   
   # Now let's build us some feature objects!
@@ -308,7 +353,7 @@ sub map_Features {
     # Where target coordsys is genomic, make a slice-relative feature
     if ($slice) {
       $f->slice($slice->seq_region_Slice);
-      $f->transfer($slice);
+      $f = $f->transfer($slice);
     }
     push @new_features, $f;
   }
@@ -316,13 +361,22 @@ sub map_Features {
   return \@new_features;
 }
 
-# Supports mapping to:
-#   location-based (chromosome|clone|contig|scaffold|supercontig)
-#   protein-based  (ensembl_peptide)
-# Supports mapping from:
-#   location-based (chromosome|clone|contig|scaffold|supercontig)
-#   protein-based  (ensembl_peptide)
-#   gene-based     (ensembl_gene)
+# Supports mappings:
+#   location-based to location-based
+#   location-based to protein-based
+#   protein-based to location-based
+#   protein-based to protein-based
+#   gene-based to location-based
+#   gene-based to protein-based
+#   xref-based to location-based
+#   xref-based to protein-based
+#   xref-based to gene-based
+#
+# Coordinate system definitions:
+#   location-based  == chromosome|clone|contig|scaffold|supercontig
+#   protein-based   == ensembl_peptide
+#   gene-based      == ensembl_gene
+#   xref-based      == uniprot_peptide|entrez_gene... (see %XREF_PEPTIDE_FILTERS)
 sub _get_Segments {
   my $self = shift;
   my $from_cs = shift; # the "foreign" source coordinate system 
@@ -388,8 +442,8 @@ sub _get_Segments {
         my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to', $from_cs, $to_cs);
         #warn "ADDING ".$g->stable_id." ".$g->strand;
         $mapper->add_map_coordinates(
-          $g->stable_id,           1,         $g->length, $g->strand,
-          $slice->seq_region_name, $g->start, $g->end
+          $g->stable_id,           1,                    $g->length, $g->seq_region_strand,
+          $slice->seq_region_name, $g->seq_region_start, $g->seq_region_end
         );
         $self->{'mappers'}{'ensembl_gene'}{''}{$g->stable_id} = $mapper;
         push @segments, $g->stable_id;
@@ -399,20 +453,39 @@ sub _get_Segments {
     # Mapping from ensembl_peptide to slice
     elsif ($from_cs->name eq 'ensembl_peptide') {
       for my $tran (@{ $slice->get_all_Transcripts }) {
-        my $prot = $tran->translation || next;
-        $self->{'mappers'}{'ensembl_peptide'}{''}{$prot->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
-        push @segments, $prot->stable_id;
+        my $p = $tran->translation || next;
+        $self->{'mappers'}{'ensembl_peptide'}{''}{$p->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
+        push @segments, $p->stable_id;
       }
     }
     
-    # Mapping from uniprot to slice
-    elsif ($from_cs->name eq 'uniprot_peptide') {
+    # Mapping from translation-mapped xref to slice
+    elsif (my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name}) {
+      # Mapping path is xref -> ensembl_peptide -> slice
+      my $mid_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
       for my $tran (@{ $slice->get_all_Transcripts }) {
-        my $prot = $tran->translation || next;
-        # second stage mapper: protein to transcript's slice
-        $self->_get_Segments('ensembl_peptide', $to_cs, $slice);
-        # first stage mapper: uniprot to protein
-        push @segments, @{ $self->_get_Segments($from_cs, 'ensembl_peptide', undef, undef, $prot) };
+        my $p = $tran->translation || next;
+        # first stage mapper: xref to translation
+        push @segments, @{ $self->_get_Segments($from_cs, $mid_cs, undef, undef, $p) };
+      }
+      # If the first stage actually produced mappings, we'll need to map from
+      # peptide to slice
+      if ($self->{'mappers'}{$from_cs->name}) {
+        # second stage mapper: gene or translation to transcript's slice
+        $self->_get_Segments($mid_cs, $to_cs, $slice, undef, undef);
+      }
+    }
+    
+    # Mapping from gene-mapped xref to slice
+    elsif ($callback = $XREF_GENE_FILTERS{$from_cs->name}) {
+      for my $g ( defined $gene ? ($gene) : @{ $slice->get_all_Genes }) {
+        for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
+          my $segid = $callback->{'transformer'}( $xref );
+          push @segments, $segid;
+        }
+        # Gene-based xrefs don't have alignments and so don't generate mappings.
+        # It is enough to simply collate the segment ID's; only non-positional
+        # features will mapped.
       }
     }
     
@@ -450,21 +523,42 @@ sub _get_Segments {
     elsif ($from_cs->name eq 'ensembl_gene') {
       my $ga    = $prot->adaptor->db->get_GeneAdaptor();
       my $sa    = $prot->adaptor->db->get_SliceAdaptor();
-      my $gene  = $ga->fetch_by_translation_stable_id($prot->stable_id);
-      my $slice = $sa->fetch_by_gene_stable_id($gene->stable_id);
+      my $g     = $ga->fetch_by_translation_stable_id($prot->stable_id);
+      my $slice = $sa->fetch_by_gene_stable_id($g->stable_id);
       # Second stage mapper: slice to peptide
       $self->_get_Segments($slice->coord_system, $to_cs, undef, undef, $prot);
       # First stage mapper: gene to slice
-      push @segments, @{ $self->_get_Segments($from_cs, $slice->coord_system, $slice, $gene, undef) };
+      push @segments, @{ $self->_get_Segments($from_cs, $slice->coord_system, $slice, $g, undef) };
     }
     
-    # Mapping from uniprot
-    elsif ($from_cs->name eq 'uniprot_peptide') {
-      # Use uniprot xref cigar alignments
-      for my $xref(@{ $prot->get_all_DBEntries('Uniprot/%') }) {
-        $xref->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i || next;
-        $self->{'mappers'}{$from_cs->name}{''}{$xref->primary_id} ||= Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper->new('from', 'to', $from_cs, $to_cs, $xref, $prot);
-        push @segments, $xref->primary_id;
+    # Mapping from xref to peptide
+    elsif (my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name}) {
+      for my $xref (grep { $callback->{'predicate'}($_) } @{ $prot->get_all_DBEntries() }) {
+        my $segid = $callback->{'transformer'}( $xref );
+        push @segments, $segid;
+        # If xref has a cigar alignment, use it to build mappings to the
+        # Ensembl translation (assume they all align to the translation).
+        # If not, we still query with the segment because non-positional
+        # features don't need a mapper.
+        if ($xref->can('get_mapper')) {
+          my $mapper = Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper->new('from', 'to', $from_cs, $to_cs, $xref, $prot);
+          $mapper->external_id($segid);
+          $mapper->ensembl_id($prot->stable_id);
+          $self->{'mappers'}{$from_cs->name}{''}{$segid} = $mapper;
+        }
+      }
+    }
+    
+    # Mapping from gene-mapped xref to peptide
+    elsif ($callback = $XREF_GENE_FILTERS{$from_cs->name}) {
+      my $ga    = $prot->adaptor->db->get_GeneAdaptor();
+      my $g     = $ga->fetch_by_translation_stable_id($prot->stable_id);
+      for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
+        my $segid = $callback->{'transformer'}( $xref );
+        push @segments, $segid;
+        # Gene-based xrefs don't have alignments and so don't generate mappings.
+        # It is enough to simply collate the segment ID's; only non-positional
+        # features will mapped.
       }
     }
     
@@ -472,11 +566,12 @@ sub _get_Segments {
       throw(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   }
+  
   else {
     throw(sprintf 'Mapping to %s is not supported', $to_cs->name);
   }
   
-  return (\%mappers, \@segments);
+  return \@segments;
 }
 
 1;

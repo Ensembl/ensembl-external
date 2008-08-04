@@ -21,15 +21,30 @@ sub new {
     %{ $mapper }
   };
   bless $self, $class;
+  
   $self->{'real_from'}    = $from;
   $self->{'real_to'}      = $to;
   $self->{'from_cs'}      = $from_cs;
   $self->{'to_cs'}        = $to_cs;
-  $self->{'external_id'}  = $identity_xref->primary_id;
-  $self->{'ensembl_id'}   = $translation->stable_id;
   $self->{'forward'}      = $to_cs->name eq 'ensembl_peptide';
   
   return $self;
+}
+
+sub external_id {
+  my ($self, $tmp) = @_;
+  if ($tmp) {
+    $self->{'external_id'} = $tmp;
+  }
+  return $self->{'external_id'};
+}
+
+sub ensembl_id {
+  my ($self, $tmp) = @_;
+  if ($tmp) {
+    $self->{'ensembl_id'} = $tmp;
+  }
+  return $self->{'ensembl_id'};
 }
 
 sub map_coordinates {

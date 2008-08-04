@@ -7,7 +7,7 @@ This test covers the following DAS conversions:
 use strict;
 
 BEGIN { $| = 1;
-	use Test::More tests => 3*2 + 6*2;
+	use Test::More tests => 3*2 + 5*2;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
@@ -49,14 +49,22 @@ my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
 for my $gene ($gene2, $gene3) {
   my $segments = $c->_get_Segments($gene_cs, $chro_cs, $gene->slice, undef, undef);
   ok((grep {$_ eq $gene->stable_id} @$segments), "$desc correct query segment");
-  my $mapper = $c->{'mappers'}{$gene_cs->name}{''}{$gene->stable_id};
+  my $q_feat = &build_feat($gene->stable_id, 1, 10);
   SKIP: {
-  ok($mapper, "$desc has mapper") || skip('requires mapper', 4);
-  my @coords = $mapper->map_coordinates($gene->stable_id, 1, 10, 1, 'from'); # 1-10 is at the 'rightmost' genomic position
-  is(@coords, 1, "$desc correct number of segments");
-  my $f = Bio::EnsEMBL::Feature->new(-slice=>$gene->slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+  my $f = $c->map_Features([$q_feat], undef, $gene_cs, $chro_cs, $gene->slice)->[0];
+  ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
   is($f->seq_region_start,  $gene->seq_region_end-9,  "$desc correct start");
   is($f->seq_region_end,    $gene->seq_region_end,    "$desc correct end");
   is($f->seq_region_strand, $gene->seq_region_strand, "$desc correct strand");
   }
+}
+
+sub build_feat {
+  my ($segid, $start, $end, $strand ) = @_;
+  return {
+    'segment_id'  => $segid,
+    'start'       => $start,
+    'end'         => $end,
+    'orientation' => defined $strand && $strand == -1 ? '-' : '+',
+  };
 }

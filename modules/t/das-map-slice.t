@@ -10,7 +10,7 @@ This test covers the following DAS conversions:
 use strict;
 
 BEGIN { $| = 1;
-	use Test::More tests => (6*3)*2 + ((5*3)+1)*1;
+	use Test::More tests => 43;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
@@ -59,12 +59,10 @@ for (@pairs) {
   my $desc2 = "$desc ".$cont->seq_region_name;
   my $segments = $c->_get_Segments($chro_cs, $cont_cs, $cont);
   ok(grep ((sprintf "%s:%s,%s", $chro->seq_region_name, $chro->start, $chro->end), @$segments), "$desc2 correct query segment");
-  my $mapper = $c->{'mappers'}{$chro_cs->name}{$chro_cs->version}{$chro->seq_region_name};
   SKIP: {
-    ok($mapper, "$desc2 has mapper") || skip('requires mapper', 4);
-    my @coords = $mapper->map_coordinates($chro->seq_region_name, $chro->end-9, $chro->end, 1, 'from'); # the 'rightmost' chromosomal position
-    is(@coords, 1, "$desc2 correct number of segments");
-    my $f = Bio::EnsEMBL::Feature->new(-slice=>$cont->seq_region_Slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+    my $q_feat = &build_feat($chro->seq_region_name, $chro->end-9, $chro->end, 1); # the 'rightmost' chromosomal position
+    my $f = $c->map_Features([$q_feat], undef, $chro_cs, $cont_cs, $cont)->[0];
+    ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
     my $corr_start = $cont->strand == -1 ? $cont->start   : $cont->end-9;
     my $corr_end   = $cont->strand == -1 ? $cont->start+9 : $cont->end;
     is($f->seq_region_start,  $corr_start,   "$desc2 correct start");
@@ -80,12 +78,10 @@ for (@pairs) {
   my ($cont, $chro) = @$_;
   my $desc2 = "$desc ".$cont->seq_region_name;
   ok(grep ((sprintf "%s:%s,%s", $cont->seq_region_name, $cont->start, $cont->end), @$segments), "$desc2 correct query segment");
-  my $mapper = $c->{'mappers'}{$cont_cs->name}{$cont_cs->version}{$cont->seq_region_name};
   SKIP: {
-    ok($mapper, "$desc2 has mapper") || skip('requires mapper', 4);
-    my @coords = $mapper->map_coordinates($cont->seq_region_name, $cont->end-9, $cont->end, 1, 'from'); # the 'rightmost' contig position
-    is(@coords, 1, "$desc2 correct number of segments");
-    my $f = Bio::EnsEMBL::Feature->new(-slice=>$chro_all->seq_region_Slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+    my $q_feat = &build_feat($cont->seq_region_name, $cont->end-9, $cont->end, 1); # the 'rightmost' contig position
+    my $f = $c->map_Features([$q_feat], undef, $cont_cs, $chro_cs, $chro_all)->[0];
+    ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
     my $corr_start = $cont->strand == -1 ? $chro->start   : $chro->end-9;
     my $corr_end   = $cont->strand == -1 ? $chro->start+9 : $chro->end;
     is($f->seq_region_start,  $corr_start,   "$desc2 correct start");
@@ -101,16 +97,24 @@ is_deeply($segments, [sprintf "%s:%s,%s", $ch35_all->seq_region_name, $ch35_all-
 for (@pairs) {
   my ($cont, $chro, $ch35) = @$_;
   my $desc2 = "$desc ".$cont->seq_region_name;
-  my $mapper = $c->{'mappers'}{$ch35_cs->name}{$ch35_cs->version}{$ch35->seq_region_name};
   SKIP: {
-    ok($mapper, "$desc2 has mapper") || skip('requires mapper', 4);
-    my @coords = $mapper->map_coordinates($ch35->seq_region_name, $ch35->end-9, $ch35->end, 1, 'from'); # the 'rightmost' chromosome position
-    is(@coords, 1, "$desc2 correct number of segments");
-    my $f = Bio::EnsEMBL::Feature->new(-slice=>$chro_all->seq_region_Slice, -start=>$coords[0]->start, -end=>$coords[0]->end, -strand=>$coords[0]->strand);
+    my $q_feat = &build_feat($ch35->seq_region_name, $ch35->end-9, $ch35->end, 1); # the 'rightmost' chromosome35 position
+    my $f = $c->map_Features([$q_feat], undef, $ch35_cs, $chro_cs, $chro_all)->[0];
+    ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
     my $corr_start = $chro->end-9;
     my $corr_end   = $chro->end;
     is($f->seq_region_start,  $corr_start, "$desc2 correct start");
     is($f->seq_region_end,    $corr_end,   "$desc2 correct end");
     is($f->seq_region_strand, 1,           "$desc2 correct strand");
+  };
+}
+
+sub build_feat {
+  my ($segid, $start, $end, $strand ) = @_;
+  return {
+    'segment_id'  => $segid,
+    'start'       => $start,
+    'end'         => $end,
+    'orientation' => defined $strand && $strand == -1 ? '-' : '+',
   };
 }

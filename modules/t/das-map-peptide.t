@@ -54,7 +54,7 @@ ok((grep {$_ eq $prot->stable_id} @$segments), "$desc correct query segment");
 SKIP: {
 my $q_feat = &build_feat($prot->stable_id, 1, 10);
 my $f = $c->map_Features([$q_feat], undef, $prot_cs, $chro_cs, $tran->slice)->[0];
-ok($f, 'got mapped feature') || skip('requires mapped feature', 3);
+ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 my $c = Bio::EnsEMBL::Feature->new(-slice=>$tran->slice, -start=>$tran->coding_region_end-29, -end=>$tran->coding_region_end, -strand=>$tran->strand);# coding region
 is($f->seq_region_start,  $c->seq_region_start,  "$desc correct start");
 is($f->seq_region_end,    $c->seq_region_end,    "$desc correct end");
@@ -73,7 +73,7 @@ my $q_start = $tran->coding_region_end-30 + $tran->slice->start;
 my $q_end   = $tran->coding_region_end-1  + $tran->slice->start;
 my $q_feat = &build_feat($tran->seq_region_name, $q_start, $q_end, $tran->strand); # the 'rightmost' genomic position is the 'leftmost' peptide position
 my $f = $c->map_Features([$q_feat], undef, $chro_cs, $prot_cs, undef)->[0];
-ok($f, 'got mapped feature') || skip('requires mapped feature', 3);
+ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 is($f->start,  1 , "$desc correct start");
 is($f->end,    10, "$desc correct end");
 is($f->strand, 1 , "$desc correct strand");
@@ -88,7 +88,7 @@ my $q_start = $gene->end - $tran->coding_region_end + 1;
 my $q_end   = $q_start + 29;
 my $q_feat = &build_feat($gene->stable_id, $q_start, $q_end, 1); # the 'rightmost' genomic position is the 'leftmost' peptide position
 my $f = $c->map_Features([$q_feat], undef, $gene_cs, $prot_cs, undef)->[0];
-ok($f, 'got mapped feature') || skip('requires mapped feature', 3);
+ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 is($f->start,  1 , "$desc correct start");
 is($f->end,    10, "$desc correct end");
 is($f->strand, 1 , "$desc correct strand");

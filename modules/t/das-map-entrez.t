@@ -1,14 +1,14 @@
 =head2 DESCRIPTION
 
 This test covers the following DAS conversions:
-  uniprot_peptide -> ensembl_peptide
-  uniprot_peptide -> chromosome
+  entrez_gene -> ensembl_peptide
+  entrez_gene -> chromosome
 
 =cut
 use strict;
 
 BEGIN { $| = 1;
-	use Test::More tests => 10;
+	use Test::More tests => 14;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
@@ -24,51 +24,66 @@ Bio::EnsEMBL::Registry->load_registry_from_db(
 );
 my $dba = Bio::EnsEMBL::Registry->get_DBAdaptor( 'human', 'core' ) || die("Can't connect to database");
 
+use Bio::EnsEMBL::Utils::Exception qw(verbose);
+verbose('EXCEPTION'); # we are deliberately instigating warnings
+
 my $pea = $dba->get_TranslationAdaptor();
+my $gea = $dba->get_GeneAdaptor();
 my $tra = $dba->get_TranscriptAdaptor();
 my $sla = $dba->get_SliceAdaptor();
 my $prot = $pea->fetch_by_stable_id('ENSP00000324984');
 my $tran = $tra->fetch_by_translation_stable_id($prot->stable_id);
 my $chro = $sla->fetch_by_transcript_stable_id($tran->stable_id);
-$tran = $tran->transfer($chro);
 
-my ($xref) = grep {$_->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i && $_->primary_id eq 'Q96LP6'} @{ $prot->get_all_DBEntries('Uniprot/%') };
+my ($xref) = grep {$_->primary_id eq '374470'} @{ $prot->get_all_DBEntries('EntrezGene') };
 my $prot_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
-my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'uniprot_peptide', -rank => 99 );
+my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'entrez_gene', -rank => 99 );
 my $chro_cs = $chro->coord_system;
 
-my $desc = 'uniprot->peptide';
+my $desc = 'entrez->peptide positional';
 my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
 my $segments = $c->_get_Segments($xref_cs, $prot_cs, undef, undef, $prot);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
-SKIP: {
-my $q_start = $xref->query_start;
-my $q_end   = $xref->query_start + 9;
-my $q_feat = &build_feat($xref->primary_id, $q_start, $q_end);
+{
+my $q_feat = &build_feat($xref->primary_id, 1, 1);
 my $f = $c->map_Features([$q_feat], undef, $xref_cs, $prot_cs, undef)->[0];
-ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
-my $c_start = $xref->translation_start;
-my $c_end   = $xref->translation_start + 9;
-is($f->start,  $c_start,  "$desc correct start");
-is($f->end,    $c_end,    "$desc correct end");
-is($f->strand, 1,         "$desc correct strand");
+ok(!defined $f, "$desc did NOT get mapped feature");
 }
 
-$desc = 'uniprot->chromosome';
+$desc = 'entrez->peptide non-positional';
+$c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+$segments = $c->_get_Segments($xref_cs, $prot_cs, undef, undef, $prot);
+ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
+SKIP: {
+my $q_feat = &build_feat($xref->primary_id, 0, 0);
+my $f = $c->map_Features([$q_feat], undef, $xref_cs, $prot_cs, undef)->[0];
+ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
+is($f->start,  0,  "$desc correct start");
+is($f->end,    0,    "$desc correct end");
+is($f->strand, 1, "$desc correct strand");
+}
+
+my $desc = 'entrez->chromosome positional';
+my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+my $segments = $c->_get_Segments($xref_cs, $chro_cs, $chro, undef, undef);
+ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
+{
+my $q_feat = &build_feat($xref->primary_id, 1, 1);
+my $f = $c->map_Features([$q_feat], undef, $xref_cs, $chro_cs, undef)->[0];
+ok(!defined $f, "$desc did NOT get mapped feature");
+}
+
+$desc = 'entrez->chromosome non-positional';
 $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
 $segments = $c->_get_Segments($xref_cs, $chro_cs, $chro, undef, undef);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
 SKIP: {
-my $q_start = $xref->query_start;
-my $q_end   = $xref->query_start + 9;
-my $q_feat = &build_feat($xref->primary_id, $q_start, $q_end);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $chro_cs, $chro)->[0];
+my $q_feat = &build_feat($xref->primary_id, 0, 0);
+my $f = $c->map_Features([$q_feat], undef, $xref_cs, $chro_cs, undef)->[0];
 ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
-my $tr_mapper = Bio::EnsEMBL::TranscriptMapper->new($tran);
-my ($c) = $tr_mapper->pep2genomic($xref->translation_start, $xref->translation_start+9);
-is($f->start,  $c->start,  "$desc correct start");
-is($f->end,    $c->end,    "$desc correct end");
-is($f->strand, $c->strand, "$desc correct strand");
+is($f->start,  0,  "$desc correct start");
+is($f->end,    0,    "$desc correct end");
+is($f->strand, 1, "$desc correct strand");
 }
 
 sub build_feat {

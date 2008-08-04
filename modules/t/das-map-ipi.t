@@ -1,8 +1,8 @@
 =head2 DESCRIPTION
 
 This test covers the following DAS conversions:
-  uniprot_peptide -> ensembl_peptide
-  uniprot_peptide -> chromosome
+  ipi_peptide -> ensembl_peptide
+  ipi_peptide -> chromosome
 
 =cut
 use strict;
@@ -32,12 +32,12 @@ my $tran = $tra->fetch_by_translation_stable_id($prot->stable_id);
 my $chro = $sla->fetch_by_transcript_stable_id($tran->stable_id);
 $tran = $tran->transfer($chro);
 
-my ($xref) = grep {$_->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i && $_->primary_id eq 'Q96LP6'} @{ $prot->get_all_DBEntries('Uniprot/%') };
+my ($xref) = grep {$_->primary_id eq 'IPI00294828'} @{ $prot->get_all_DBEntries('IPI') };
 my $prot_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
-my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'uniprot_peptide', -rank => 99 );
+my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ipi_peptide', -rank => 99 );
 my $chro_cs = $chro->coord_system;
 
-my $desc = 'uniprot->peptide';
+my $desc = 'ipi->peptide';
 my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
 my $segments = $c->_get_Segments($xref_cs, $prot_cs, undef, undef, $prot);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
@@ -54,7 +54,7 @@ is($f->end,    $c_end,    "$desc correct end");
 is($f->strand, 1,         "$desc correct strand");
 }
 
-$desc = 'uniprot->chromosome';
+$desc = 'ipi->chromosome';
 $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
 $segments = $c->_get_Segments($xref_cs, $chro_cs, $chro, undef, undef);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");

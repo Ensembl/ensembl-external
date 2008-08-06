@@ -202,4 +202,6 @@ sub homepage {
   return $self->{homepage};
 }
 
+# TODO: maybe add style-related properties (for overriding a stylesheet)
+
 1;

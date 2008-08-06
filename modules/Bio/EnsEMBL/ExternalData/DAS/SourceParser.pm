@@ -10,7 +10,7 @@ Bio::EnsEMBL::ExternalData::DAS::SourceParser
     -proxy    => 'http://proxy.company.com',
   );
   
-  my $sources = $parser->fetch_Sources( -taxid => 9606 );
+  my $sources = $parser->fetch_Sources( -species => 'Homo_sapiens' );
   for my $source (@{ $sources }) {
     printf "URL: %s, Description: %s, Coords: %s\n",
             $source->full_url,
@@ -105,17 +105,17 @@ sub new {
 =head2 fetch_Sources
 
   Arg [..]   : List of named arguments:
-               -TAXID     - The taxonomy ID of the desired species
+               -SPECIES   - (required) The desired species
                -NAME      - (optional) scalar/arrayref of source name filters
   Example:     $arr = $parser->fetch_Sources(
-                                             -taxid => 9606,
-                                             -name  => ['asd', 'atd', 'astd'],
+                                             -species => 'Homo_sapiens',
+                                             -name    => ['asd', 'atd', 'astd'],
                                             );
   Description: Fetches Source objects for a particular species. The first call
                to this method initiates lazy parsing of the XML, and the results
                are stored.
   Returntype : Arrayref of Bio::EnsEMBL::ExternalData::DAS::Source objects
-  Exceptions : If no taxonomy ID is specified, or if there is an error
+  Exceptions : If no species is specified, or if there is an error
                contacting the DAS registry/server.
   Caller     : general
   Status     : Stable
@@ -123,15 +123,15 @@ sub new {
 =cut
 sub fetch_Sources {
   my $self = shift;
-  my ($f_taxid, $f_name) = rearrange([ 'TAXID', 'NAME' ], @_);
-  $f_taxid || throw('No taxonomy ID specified');
+  my ($f_species, $f_name) = rearrange([ 'SPECIES', 'NAME' ], @_);
+  $f_species || throw('No species specified');
   
   # Actual parsing is lazy
   if (!defined $self->{'_sources'}) {
     $self->{'_sources'} = $self->_parse_registry();
   }
   
-  my $sources = $self->{'_sources'}->{$f_taxid}
+  my $sources = $self->{'_sources'}->{$f_species}
              || $self->{'_sources'}->{'__NONE__'};
   
   # optional name filter
@@ -153,8 +153,8 @@ sub fetch_Sources {
                parses the results.
   Returntype : Hashref of DAS sources, organised by taxonomy ID:
                {
-                9606     => [ Bio::EnsEMBL::ExternalData::DAS::Source, ... ],
-                __NONE__ => [ Bio::EnsEMBL::ExternalData::DAS::Source, ... ],
+                Homo_sapiens => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
+                __NONE__     => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
                }
   Exceptions : If there is an error contacting the DAS registry/server.
   Caller     : general
@@ -203,8 +203,11 @@ sub _parse_registry {
           # Extract coordinate details
           my $auth    = $coord->{'coordinates_authority'};
           my $type    = $coord->{'coordinates_source'};
-          my $taxid   = $coord->{'coordinates_taxid'};   # optional
-          my $version = $coord->{'coordinates_version'}; # optional
+          # Version and species are optional:
+          my $version = $coord->{'coordinates_version'} || '';
+          my $species = $coord->{'coordinates'};
+          $species    =~ s/^$auth(_$version)?,$type,?//;
+          $species    =~ s/ /_/g;
           
           if (!$type || !$auth) {
             warning("Unable to parse authority and sequence type for $dsn"); ;# Something went wrong!
@@ -226,9 +229,9 @@ sub _parse_registry {
              $coord = lc $auth.q(_).$type;
            }
            
-          $taxid ||= '__NONE__';
-          $coords{$taxid} ||= [];
-          push(@{ $coords{$taxid} }, $coord);
+          $species ||= '__NONE__';
+          $coords{$species} ||= [];
+          push(@{ $coords{$species} }, $coord);
         }
         
         if (!scalar keys %coords) {
@@ -236,7 +239,7 @@ sub _parse_registry {
         }
         
         # Create the actual sources, one per species plus one for all species
-        while (my ($taxid, $coords) = each %coords) {
+        while (my ($species, $coords) = each %coords) {
           my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
             -display_label => $title || $dsn,
             -url           => $url,
@@ -244,10 +247,10 @@ sub _parse_registry {
             -maintainer    => $email,
             -homepage      => $homepage || $url,
             -description   => $description,
-            -coords        => $taxid eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} }, @{ $coords } ] ,
+            -coords        => $species eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} }, @{ $coords } ] ,
           );
-          $parsed{$taxid} ||= [];
-          push(@{ $parsed{$taxid} }, $source);
+          $parsed{$species} ||= [];
+          push(@{ $parsed{$species} }, $source);
         } # end coord loop
         
       } # end version loop

@@ -14,7 +14,6 @@ BEGIN { $| = 1;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
-use Bio::EnsEMBL::Feature;
 # TODO: need to use data from a test database!
 #use Bio::EnsEMBL::Test::MultiTestDB;
 #use Bio::EnsEMBL::Test::TestUtils;

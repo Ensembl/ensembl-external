@@ -86,6 +86,10 @@ sub new {
     $self->logic_name( $self->full_url );
   }
   
+  if (! $self->homepage ) {
+    $self->homepage( $self->full_url );
+  }
+  
   return $self;
 }
 

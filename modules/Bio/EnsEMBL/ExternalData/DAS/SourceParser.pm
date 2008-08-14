@@ -92,8 +92,7 @@ sub new {
   $das->user_agent('Ensembl');
   $das->http_proxy($proxy);
   $das->timeout($timeout);
-  #$das->dsn($server);
-  $das->dsn('http://das.sanger.ac.uk/das');
+  $das->dsn($server);
   
   my $self = {
     'daslite'    => $das,

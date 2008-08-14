@@ -5,7 +5,7 @@ Bio::EnsEMBL::ExternalData::DAS::SourceParser
 =head1 SYNOPSIS
 
   my $parser = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
-    -location => 'http://www.dasregistry/das1',
+    -location => 'http://www.dasregistry.org/das',
     -timeout  => 5,
     -proxy    => 'http://proxy.company.com',
   );
@@ -61,7 +61,7 @@ our $TYPE_MAPPINGS = {
 
   Arg [..]   : List of named arguments:
                -LOCATION  - URL from which to obtain sources XML. This is
-                            usually a DAS registry/server URL, but could be a
+                            usually a DAS registry or server URL, but could be a
                             local path to a directory containing an XML file
                             named "sources?".
                -PROXY     - Web proxy
@@ -85,14 +85,15 @@ our $TYPE_MAPPINGS = {
 =cut
 sub new {
   my $class = shift;
-  my ($registry, $proxy, $timeout) = rearrange(['LOCATION','PROXY','TIMEOUT'], @_);
+  my ($server, $proxy, $timeout) = rearrange(['LOCATION','PROXY','TIMEOUT'], @_);
   
   $timeout ||= 10;
   my $das = Bio::Das::Lite->new();
   $das->user_agent('Ensembl');
   $das->http_proxy($proxy);
   $das->timeout($timeout);
-  $das->dsn($registry);
+  #$das->dsn($server);
+  $das->dsn('http://das.sanger.ac.uk/das');
   
   my $self = {
     'daslite'    => $das,
@@ -128,11 +129,12 @@ sub fetch_Sources {
   
   # Actual parsing is lazy
   if (!defined $self->{'_sources'}) {
-    $self->{'_sources'} = $self->_parse_registry();
+    $self->_parse_server();
   }
   
   my $sources = $self->{'_sources'}->{$f_species}
-             || $self->{'_sources'}->{'__NONE__'};
+             || $self->{'_sources'}->{'__NONE__'}
+             || [];
   
   # optional name filter
   if ($f_name) {
@@ -143,123 +145,210 @@ sub fetch_Sources {
   return $sources;
 }
 
-=head1 SUBROUTINES
-
-=head2 _parse_registry
+=head2 _parse_server
 
   Arg [..]   : none
-  Example:     $hash = $parser->_parse_registry;
-  Description: Contacts the configured DAS registry via the sources command and
-               parses the results.
-  Returntype : Hashref of DAS sources, organised by taxonomy ID:
+  Example    : $parser->_parse_server();
+  Description: Contacts the configured DAS server via the sources or dsn command
+               and parses the results. Populates $self->{'_sources} as a hashref
+               of DAS sources, organised by taxonomy ID:
                {
                 Homo_sapiens => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
                 __NONE__     => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
                }
+  Returntype : none
   Exceptions : If there is an error contacting the DAS registry/server.
-  Caller     : general
+  Caller     : fetch_Sources
   Status     : Stable
 
 =cut
-sub _parse_registry {
+sub _parse_server {
   my $self = shift;
-  my %parsed = ( );
   
-  # Use Bio::Das::Lite to perform the request
+  # NOTE: this method technically supports multiple servers/locations, but
+  #       in practice we expect to only be parsing one at a time
+  
+  # Servers which don't respond to the "sources" command will be attempted via
+  # the "dsn" command
+  my @attempt_dsn = ();
   my $struct = $self->{'daslite'}->sources();
   
-  # Iterate over each registry (really we expect only one)
+  # Iterate over each server
   while (my ($url, $set) = each %{ $struct }) {
+    
     my $status = $self->{'daslite'}->statuscodes($url);
-    if ($status !~ /^200/) {
-      throw("Error contacting DAS registry at $url: $status");
+    $set = $set->[0]->{'source'} || [];
+    
+    # If we get data back from the sources command, parse it
+    if ($status =~ /^200/ && scalar @{ $set }) {
+      $self->_parse_sources_output($set);
     }
-    $set = $set->[0]->{'source'};
+    # Otherwise try the dsn command (which gives poorer metadata)
+    else {
+      $url =~ s|/sources\??$||;
+      push @attempt_dsn, $url;
+    }
     
-    # Iterate over the <SOURCE> elements
-    for my $source (@{ $set || [] }) {
-      
-      my $title       = $source->{'source_title'};
-      my $homepage    = $source->{'source_doc_href'};
-      my $description = $source->{'source_description'};
-      my $email       = $source->{'maintainer'}[0]{'maintainer_email'};
-      
-      # Iterate over the <VERSION> elements
-      for my $version (@{ $source->{'version'} || [] }) {
-        
-        my ($url, $dsn);
-        for my $cap (@{ $version->{'capability'} || [] }) {
-          if ($cap->{'capability_type'} eq 'das1:features') {
-            ($url, $dsn) = $cap->{capability_query_uri} =~ m|(.+/das1?)/(.+)/features|;
-            last;
-          }
-        }
-        $dsn || next; # this source doesn't support features command
-        
-        # Now parse the coordinate systems and map to Ensembl's
-        my %coords = ( '__NONE__' => [] );
-        for my $coord (@{ $version->{'coordinates'} || [] }) {
-          
-          # Extract coordinate details
-          my $auth    = $coord->{'coordinates_authority'};
-          my $type    = $coord->{'coordinates_source'};
-          # Version and species are optional:
-          my $version = $coord->{'coordinates_version'} || '';
-          my $species = $coord->{'coordinates'};
-          $species    =~ s/^$auth(_$version)?,$type,?//;
-          $species    =~ s/ /_/g;
-          
-          if (!$type || !$auth) {
-            warning("Unable to parse authority and sequence type for $dsn"); ;# Something went wrong!
-            next;
-          }
-          
-          $type = $TYPE_MAPPINGS->{$type} || lc $type; # handle fringe cases
-           
-           # Wizardry to convert to Ensembl coord_system
-           my $coord;
-           if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
-             # seq_region coordinate systems have ensembl equivalents
-             $version ||= q();
-             $version = $auth.$version;
-             $version = $ASSEMBLY_MAPPINGS->{$version} || $version; # handle fringe cases
-             $coord = "$type:$version";
-           } else {
-             # otherwise use a 'fake' coordinate system like 'ensembl_gene'
-             $coord = lc $auth.q(_).$type;
-           }
-           
-          $species ||= '__NONE__';
-          $coords{$species} ||= [];
-          push(@{ $coords{$species} }, $coord);
-        }
-        
-        if (!scalar keys %coords) {
-          warning("$dsn has no coordinate systems");
-        }
-        
-        # Create the actual sources, one per species plus one for all species
-        while (my ($species, $coords) = each %coords) {
-          my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-            -display_label => $title || $dsn,
-            -url           => $url,
-            -dsn           => $dsn,
-            -maintainer    => $email,
-            -homepage      => $homepage || $url,
-            -description   => $description,
-            -coords        => $species eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} }, @{ $coords } ] ,
-          );
-          $parsed{$species} ||= [];
-          push(@{ $parsed{$species} }, $source);
-        } # end coord loop
-        
-      } # end version loop
-      
-    } # end source loop
-    
-  } # end set loop
+  }
   
-  return \%parsed;
+  # Run the dsn command on the remaining servers (if any)
+  if (scalar @attempt_dsn) {
+    
+    my $previous = $self->{'daslite'}->dsn;
+    $self->{'daslite'}->dsn(\@attempt_dsn);
+    $struct = $self->{'daslite'}->dsns();
+    $self->{'daslite'}->dsn($previous);
+    
+    while (my ($url, $set) = each %{ $struct }) {
+      
+      my $status = $self->{'daslite'}->statuscodes($url);
+      $url =~ s|/dsn\??$||;
+      $set ||= [];
+      
+      # If we get data back from the sources command, parse it
+      if ($status =~ /^200/ && scalar @{ $set }) {
+        $self->_parse_dsn_output($url, $set);
+      }
+      # Otherwise try the dsn command (which gives poorer metadata)
+      else {
+        throw("Error contacting DAS server at $url: $status");
+      }
+    }
+  }
+  
+}
+
+=head2 _parse_sources_output
+
+  Arg [1]    : The URL of the server
+  Arg [2]    : Arrayref of sources, each being a hashref
+  Example    : $parser->_parse_sources_output($server_url, $sources_set);
+  Description: Parses the output of the sources command.
+  Returntype : none
+  Exceptions : none
+  Caller     : _parse_server
+  Status     : Stable
+
+=cut
+sub _parse_sources_output {
+  my ($self, $server_url, $set) = @_;
+  
+  # Iterate over the <SOURCE> elements
+  for my $source (@{ $set }) {
+    
+    my $title       = $source->{'source_title'};
+    my $homepage    = $source->{'source_doc_href'};
+    my $description = $source->{'source_description'};
+    my $email       = $source->{'maintainer'}[0]{'maintainer_email'};
+    
+    # Iterate over the <VERSION> elements
+    for my $version (@{ $source->{'version'} || [] }) {
+      
+      my ($url, $dsn);
+      for my $cap (@{ $version->{'capability'} || [] }) {
+        if ($cap->{'capability_type'} eq 'das1:features') {
+          ($url, $dsn) = $cap->{capability_query_uri} =~ m|(.+/das1?)/(.+)/features|;
+          last;
+        }
+      }
+      $dsn || next; # this source doesn't support features command
+      
+      # Now parse the coordinate systems and map to Ensembl's
+      # This is the tedious bit, as some things don't map easily
+      my %coords = ( '__NONE__' => [] );
+      for my $coord (@{ $version->{'coordinates'} || [] }) {
+        
+        # Extract coordinate details
+        my $auth    = $coord->{'coordinates_authority'};
+        my $type    = $coord->{'coordinates_source'};
+        # Version and species are optional:
+        my $version = $coord->{'coordinates_version'} || '';
+        my $species = $coord->{'coordinates'};
+        $species    =~ s/^$auth(_$version)?,$type,?//;
+        $species    =~ s/ /_/g;
+        
+        if (!$type || !$auth) {
+          warning("Unable to parse authority and sequence type for $dsn"); ;# Something went wrong!
+          next;
+        }
+        
+        $type = $TYPE_MAPPINGS->{$type} || lc $type; # handle fringe cases
+         
+         # Wizardry to convert to Ensembl coord_system
+         my $coord;
+         if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
+           # seq_region coordinate systems have ensembl equivalents
+           $version ||= q();
+           $version = $auth.$version;
+           $version = $ASSEMBLY_MAPPINGS->{$version} || $version; # handle fringe cases
+           $coord = "$type:$version";
+         } else {
+           # otherwise use a 'fake' coordinate system like 'ensembl_gene'
+           $coord = lc $auth.q(_).$type;
+         }
+         
+        $species ||= '__NONE__';
+        $coords{$species} ||= [];
+        push(@{ $coords{$species} }, $coord);
+      }
+      
+      if (!scalar keys %coords) {
+        warning("$dsn has no coordinate systems");
+      }
+      
+      # Create the actual sources, one per species plus one for all species
+      while (my ($species, $coords) = each %coords) {
+        my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
+          -url           => $url,
+          -dsn           => $dsn,
+          -display_label => $title,
+          -description   => $description,
+          -maintainer    => $email,
+          -homepage      => $homepage,
+          -coords        => $species eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} }, @{ $coords } ] ,
+        );
+        $self->{'_sources'}{$species} ||= [];
+        push(@{ $self->{'_sources'}{$species} }, $source);
+      } # end coord loop
+      
+    } # end version loop
+    
+  } # end source loop
+  
+  return undef;
+}
+
+=head2 _parse_dsn_output
+
+  Arg [1]    : The URL of the server
+  Arg [2]    : Arrayref of sources, each being a hashref
+  Example    : $parser->_parse_dsn_output($server_url, $sources_set);
+  Description: Parses the output of the dsn command.
+  Returntype : none
+  Exceptions : none
+  Caller     : _parse_server
+  Status     : Stable
+
+=cut
+sub _parse_dsn_output {
+  my ($self, $server_url, $set) = @_;
+  
+  # Iterate over the <DSN> elements
+  for my $source (@{ $set }) {
+    
+    $self->{'_sources'}{'__NONE__'} ||= [];
+    my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
+      -url           => $server_url,
+      -dsn           => $source->{'source_id'},
+      -display_label => $source->{'source'},
+      -description   => $source->{'description'},
+    );
+    push(@{ $self->{'_sources'}{'__NONE__'} }, $source);
+    
+  }
+  
+  return undef;
+  
 }
 
 1;

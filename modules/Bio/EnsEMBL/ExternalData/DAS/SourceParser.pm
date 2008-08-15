@@ -60,11 +60,12 @@ our $TYPE_MAPPINGS = {
 =head2 new
 
   Arg [..]   : List of named arguments:
-               -LOCATION  - URL from which to obtain sources XML. This is
-                            usually a DAS registry or server URL, but could be a
-                            local path to a directory containing an XML file
-                            named "sources?".
-               -PROXY     - Web proxy
+               -LOCATION  - A URL from which to obtain a list of sources XML.
+                            This is usually a DAS registry or server URL, but
+                            could be a local path to a directory containing an
+                            XML file named "sources?" or "dsn?"
+               -PROXY     - A URL to use as an HTTP proxy server
+               -NOPROXY   - A list of domains/hosts not to use the proxy for
                -TIMEOUT   - Timeout in seconds (default is 10)
   Example    : my $parser = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
                  -location => 'http://www.dasregistry.org/das',
@@ -78,21 +79,31 @@ our $TYPE_MAPPINGS = {
                );
   Description: Constructor
   Returntype : Bio::EnsEMBL::ExternalData::DAS::SourceParser
-  Exceptions : If no XML or server is specified
+  Exceptions : If no location is specified
   Caller     : general
   Status     : Stable
   
 =cut
 sub new {
   my $class = shift;
-  my ($server, $proxy, $timeout) = rearrange(['LOCATION','PROXY','TIMEOUT'], @_);
+  my ($server, $proxy, $no_proxy, $timeout)
+    = rearrange(['LOCATION','PROXY','NOPROXY','TIMEOUT'], @_);
   
+  $server  || throw('No DAS server specified');
   $timeout ||= 10;
   my $das = Bio::Das::Lite->new();
   $das->user_agent('Ensembl');
-  $das->http_proxy($proxy);
-  $das->timeout($timeout);
   $das->dsn($server);
+  $das->timeout($timeout);
+  
+  $das->http_proxy($proxy);
+  if ($no_proxy) {
+    if ($das->can('no_proxy')) {
+      $das->no_proxy($no_proxy);
+    } else {
+      warning("Installed version of Bio::Das::Lite does not support use of 'no_proxy'");
+    }
+  }
   
   my $self = {
     'daslite'    => $das,
@@ -141,7 +152,7 @@ sub fetch_Sources {
     $sources = [ grep { $_->dsn =~ /$f_name/ } @{ $sources } ];
   }
   
-  return $sources;
+  return [sort { lc $a->display_label cmp lc $b->display_label } @{ $sources }];
 }
 
 =head2 _parse_server
@@ -180,7 +191,7 @@ sub _parse_server {
     
     # If we get data back from the sources command, parse it
     if ($status =~ /^200/ && scalar @{ $set }) {
-      $self->_parse_sources_output($set);
+      $self->_parse_sources_output($url, $set);
     }
     # Otherwise try the dsn command (which gives poorer metadata)
     else {
@@ -210,7 +221,7 @@ sub _parse_server {
       }
       # Otherwise try the dsn command (which gives poorer metadata)
       else {
-        throw("Error contacting DAS server at $url: $status");
+        throw("Error contacting DAS server '$url' : $status");
       }
     }
   }
@@ -254,7 +265,7 @@ sub _parse_sources_output {
       
       # Now parse the coordinate systems and map to Ensembl's
       # This is the tedious bit, as some things don't map easily
-      my %coords = ( '__NONE__' => [] );
+      my %coords = ( );
       for my $coord (@{ $version->{'coordinates'} || [] }) {
         
         # Extract coordinate details
@@ -304,7 +315,7 @@ sub _parse_sources_output {
           -description   => $description,
           -maintainer    => $email,
           -homepage      => $homepage,
-          -coords        => $species eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} }, @{ $coords } ] ,
+          -coords        => $species eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} || [] }, @{ $coords } ] ,
         );
         $self->{'_sources'}{$species} ||= [];
         push(@{ $self->{'_sources'}{$species} }, $source);

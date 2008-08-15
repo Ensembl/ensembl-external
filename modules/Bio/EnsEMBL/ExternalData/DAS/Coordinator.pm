@@ -67,12 +67,14 @@ our %XREF_GENE_FILTERS = (
 
 =head2 new
 
-TODO: update
-
-  Arg [1]    : Arrayref of Bio::EnsEMBL::DAS::Source objects. It is
-               imperative that all coordinate systems are valid for the
-               relevant species.
-  Description: Constructor, taking as an argument an arrayref of DAS sources.
+  Arg [..]   : List of named arguments:
+               -SOURCES  - Arrayref of Bio::EnsEMBL::DAS::Source objects. All
+                           coordinate systems should be valid for the relevant
+                           species
+               -PROXY    - A URL to use as an HTTP proxy server
+               -NOPROXY  - A list of domains/hosts to not use the proxy for
+               -TIMEOUT  - THe desired timeout, in seconds
+  Description: Constructor
   Returntype : Bio::EnsEMBL::DAS::Coordinator
   Exceptions : none
   Caller     : 
@@ -82,15 +84,24 @@ TODO: update
 sub new {
   my $class = shift;
   
-  my ($sources, $proxy, $timeout) = rearrange(['SOURCES','PROXY', 'TIMEOUT'], @_);
+  my ($sources, $proxy, $no_proxy, $timeout)
+    = rearrange(['SOURCES','PROXY', 'NOPROXY', 'TIMEOUT'], @_);
   
   $sources = [$sources] if ($sources && !ref $sources);
   
   my $das = Bio::Das::Lite->new();
   $das->user_agent('Ensembl');
-  $das->http_proxy($proxy);
   $das->timeout($timeout);
   $das->caching(0);
+  
+  $das->http_proxy($proxy);
+  if ($no_proxy) {
+    if ($das->can('no_proxy')) {
+      $das->no_proxy($no_proxy);
+    } else {
+      warning("Installed version of Bio::Das::Lite does not support use of 'no_proxy'");
+    }
+  }
   
   my $self = {
     'sources' => $sources,

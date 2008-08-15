@@ -118,7 +118,6 @@ sub new {
     }
     if(! $pass ) { $pass =''; } 
     my $dbh ; eval { $dbh= GO::AppHandle->connect(-dbname=>$db,-dbhost=>"$host:$port",-dbuser=>$user,($pass?(-dbauth=>$pass):())); };
-print "$host $port $user $pass\n";
     throw("Could not connect to database $db user $user as a locator ($@)") unless $dbh;
     $self->_db_handle($dbh);
     

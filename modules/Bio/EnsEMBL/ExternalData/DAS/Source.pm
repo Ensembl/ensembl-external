@@ -28,31 +28,30 @@ use warnings;
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw);
 
-use base qw(Bio::EnsEMBL::Analysis);
-
 =head1 METHODS
 
 =head2 new
 
   Arg [..]   : List of named arguments:
-               -URL         - The URL (excluding source name) for the source.
-               -DSN         - The source name.
-               -COORDS      - The coordinate systems supported by the source.
-                              This is a single or arrayref of
-                              Bio::EnsEMBL::CoordSystem objects.
-               -LABEL       - (optional) The display name of the source.
-               -DESCRIPTION - (optional) The description of the source.
-               -HOMEPAGE    - (optional) A URL link to a page with more
-                              information about the source.
-               -MAINTAINER  - (optional) A contact email address for the source.
+               -URL           - The URL (excluding source name) for the source.
+               -DSN           - The source name.
+               -COORDS        - The coordinate systems supported by the source.
+                                This is a single or arrayref of
+                                Bio::EnsEMBL::CoordSystem objects.
+               -LOGIC_NAME    - (optional) The logic name of the source.
+               -LABEL         - (optional) The display name of the source.
+               -DESCRIPTION   - (optional) The description of the source.
+               -HOMEPAGE      - (optional) A URL link to a page with more
+                                           information about the source.
+               -MAINTAINER    - (optional) A contact email address for the source.
   Example    : $src = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-                  -DSN         => 'astd_exon_human_36',
-                  -URL         => 'http://www.ebi.ac.uk/das-srv/genomicdas/das',
-                  -COORDS      => [ 'chromosome:NCBI36', 'uniprot_peptide' ],
-                  -LABEL       => 'ASTD transcripts',
-                  -DESCRIPTION => 'Transcripts from the ASTD database...',
-                  -HOMEPAGE    => 'http://www.ebi.ac.uk/astd',
-                  -MAINTAINER  => 'andy.jenkinson@ebi.ac.uk',
+                  -DSN           => 'astd_exon_human_36',
+                  -URL           => 'http://www.ebi.ac.uk/das-srv/genomicdas/das',
+                  -COORDS        => [ 'chromosome:NCBI36', 'uniprot_peptide' ],
+                  -LABEL         => 'ASTD transcripts',
+                  -DESCRIPTION   => 'Transcripts from the ASTD database...',
+                  -HOMEPAGE      => 'http://www.ebi.ac.uk/astd',
+                  -MAINTAINER    => 'andy.jenkinson@ebi.ac.uk',
                 );
   Description: Creates a new Source object representing a DAS source.
   Returntype : Bio::EnsEMBL::ExternalData::DAS::Source
@@ -63,32 +62,23 @@ use base qw(Bio::EnsEMBL::Analysis);
 =cut
 sub new {
   my $class = shift;
-  my $self = $class->SUPER::new(@_, );
+  my $self = {};
+  bless $self, $class;
   
-  my ($url, $dsn, $coords, $desc, $homepage, $maintainer) =
-    rearrange(['URL', 'DSN', 'COORDS', 'DESCRIPTION', 'HOMEPAGE', 'MAINTAINER'], @_);
+  my ($name, $label, $url, $dsn, $coords, $desc, $homepage, $maintainer) =
+    rearrange(['LOGIC_NAME', 'LABEL', 'URL', 'DSN', 'COORDS', 'DESCRIPTION', 'HOMEPAGE', 'MAINTAINER'], @_);
   
   $url || throw('Source has no configured URL');
   $dsn || throw('Source has no configured DSN');
   
   $self->url           ( $url ); # Applies some formatting
   $self->dsn           ( $dsn );
+  $self->logic_name    ( $name );
+  $self->label         ( $label );
   $self->description   ( $desc );
   $self->maintainer    ( $maintainer );
   $self->homepage      ( $homepage );
   $self->coord_systems ( $coords );
-  
-  if (! $self->display_label ) {
-    $self->display_label( $self->dsn );
-  }
-  
-  if (! $self->logic_name ) {
-    $self->logic_name( $self->full_url );
-  }
-  
-  if (! $self->homepage ) {
-    $self->homepage( $self->full_url );
-  }
   
   return $self;
 }
@@ -111,6 +101,7 @@ sub full_url {
   Arg [1]    : Optional value to set
   Description: Get/Setter for the server URL (excluding DSN)
   Returntype : scalar
+  Exceptions : If the URL is of an incorrect format
   Status     : Stable
 
 =cut
@@ -171,7 +162,7 @@ sub description {
   if ( defined $description ) {
     $self->{description} = $description;
   }
-  return $self->{description} || $self->display_label;
+  return $self->{description} || $self->label;
 }
 
 =head2 maintainer
@@ -203,7 +194,70 @@ sub homepage {
   if ( defined $homepage ) {
     $self->{homepage} = $homepage;
   }
-  return $self->{homepage};
+  return $self->{homepage} || $self->full_url;
+}
+
+=head2 logic_name
+
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the logic name
+  Returntype : scalar
+  Status     : Stable
+
+=cut
+sub logic_name {
+  my ($self, $name) = @_;
+  if ( defined $name ) {
+    $self->{logic_name} = $name;
+  }
+  return $self->{logic_name} || $self->full_url;
+}
+
+=head2 label
+
+  Arg [1]    : Optional value to set
+  Description: Get/Setter for the source label
+  Returntype : scalar
+  Status     : Stable
+
+=cut
+sub label {
+  my ($self, $label) = @_;
+  if ( defined $label ) {
+    $self->{label} = $label;
+  }
+  return $self->{label} || $self->dsn;
+}
+
+=head2 matches_species
+
+  Arg [1]    : Whole or part species string
+  Description: Determines whether the Source supports a species with at least
+               one of its coordinate systems. Matches against a regex.
+  Returntype : 1 or 0
+  Status     : Stable
+
+=cut
+sub matches_species {
+  my ($self, $species) = @_;
+  if (grep { !$_->species || $_->species =~ m/$species/ } @{ $self->coord_systems || [] }) {
+    return 1;
+  }
+  return 0;
+}
+
+=head2 matches_name
+
+  Arg [1]    : Whole or part name string
+  Description: Determines whether the Source name matches a name filter. Matches
+               the dsn and label against a regex.
+  Returntype : 1 or 0
+  Status     : Stable
+
+=cut
+sub matches_name {
+  my ($self, $name) = @_;
+  return (join '', $self->dsn, $self->label) =~ m/$name/ ? 1 : 0;
 }
 
 # TODO: maybe add style-related properties (for overriding a stylesheet)

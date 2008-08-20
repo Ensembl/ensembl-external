@@ -11,9 +11,9 @@ use Bio::EnsEMBL::ExternalData::DAS::SourceParser;
 my $parser = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
   -location => 'http://www.ensembl.org/das',
 );
-my $sources = $parser->fetch_Sources( -taxid => 9606 );
+my $sources = $parser->fetch_Sources( -species => 'Homo_sapiens' );
 if ( ok($sources && ref $sources && ref $sources eq 'ARRAY' && scalar @{ $sources }) ) {
-  ok( $sources->[0]->display_label );
+  ok( $sources->[0]->label );
   ok( $sources->[0]->url );
   ok( $sources->[0]->dsn );
   ok( $sources->[0]->homepage );

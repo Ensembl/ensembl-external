@@ -37,7 +37,7 @@ use vars qw(@EXPORT_OK);
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw warning info);
-use Bio::EnsEMBL::CoordSystem;
+use Bio::EnsEMBL::ExternalData::DAS::CoordSystem;
 use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
 
@@ -116,18 +116,17 @@ sub new {
 =head2 fetch_Sources
 
   Arg [..]   : List of named arguments:
-               -SPECIES   - (required) The desired species
-               -NAME      - (optional) scalar/arrayref of source name filters
+               -SPECIES   - (optional) scalar species name filter
+               -NAME      - (optional) scalar source name filter
   Example:     $arr = $parser->fetch_Sources(
                                              -species => 'Homo_sapiens',
                                              -name    => ['asd', 'atd', 'astd'],
                                             );
-  Description: Fetches Source objects for a particular species. The first call
-               to this method initiates lazy parsing of the XML, and the results
-               are stored.
-  Returntype : Arrayref of Bio::EnsEMBL::ExternalData::DAS::Source objects
-  Exceptions : If no species is specified, or if there is an error
-               contacting the DAS registry/server.
+  Description: Fetches DAS Source objects. The first call to this method
+                initiates lazy parsing of the XML, and the results are stored.
+  Returntype : Arrayref of Bio::EnsEMBL::ExternalData::DAS::Source objects,
+               sorted by label.
+  Exceptions : If there is an error contacting the DAS registry/server.
   Caller     : general
   Status     : Stable
   
@@ -135,24 +134,25 @@ sub new {
 sub fetch_Sources {
   my $self = shift;
   my ($f_species, $f_name) = rearrange([ 'SPECIES', 'NAME' ], @_);
-  $f_species || throw('No species specified');
   
   # Actual parsing is lazy
   if (!defined $self->{'_sources'}) {
     $self->_parse_server();
   }
   
-  my $sources = $self->{'_sources'}->{$f_species}
-             || $self->{'_sources'}->{'__NONE__'}
-             || [];
+  my @sources = values %{ $self->{'_sources'} || {} };
+  
+  # optional species filter
+  if ($f_species) {
+    @sources = grep { $_->matches_species( $f_species ) } @sources;
+  }
   
   # optional name filter
   if ($f_name) {
-    $f_name = join '|', @{$f_name} if (ref $f_name eq 'ARRAY');
-    $sources = [ grep { $_->dsn =~ /$f_name/ } @{ $sources } ];
+    @sources = grep { $_->matches_name( $f_name ) } @sources;
   }
   
-  return [sort { lc $a->display_label cmp lc $b->display_label } @{ $sources }];
+  return [sort { lc $a->label cmp lc $b->label } @sources];
 }
 
 =head2 _parse_server
@@ -265,7 +265,7 @@ sub _parse_sources_output {
       
       # Now parse the coordinate systems and map to Ensembl's
       # This is the tedious bit, as some things don't map easily
-      my %coords = ( );
+      my @coords = ( );
       for my $coord (@{ $version->{'coordinates'} || [] }) {
         
         # Extract coordinate details
@@ -278,48 +278,48 @@ sub _parse_sources_output {
         $species    =~ s/ /_/g;
         
         if (!$type || !$auth) {
-          warning("Unable to parse authority and sequence type for $dsn"); ;# Something went wrong!
+          warning("Unable to parse authority and sequence type for $dsn ; skipping"); # Something went wrong!
           next;
         }
         
         $type = $TYPE_MAPPINGS->{$type} || lc $type; # handle fringe cases
-         
-         # Wizardry to convert to Ensembl coord_system
-         my $coord;
-         if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
-           # seq_region coordinate systems have ensembl equivalents
-           $version ||= q();
-           $version = $auth.$version;
-           $version = $ASSEMBLY_MAPPINGS->{$version} || $version; # handle fringe cases
-           $coord = "$type:$version";
-         } else {
-           # otherwise use a 'fake' coordinate system like 'ensembl_gene'
-           $coord = lc $auth.q(_).$type;
-         }
-         
-        $species ||= '__NONE__';
-        $coords{$species} ||= [];
-        push(@{ $coords{$species} }, $coord);
-      }
-      
-      if (!scalar keys %coords) {
-        warning("$dsn has no coordinate systems");
-      }
-      
-      # Create the actual sources, one per species plus one for all species
-      while (my ($species, $coords) = each %coords) {
-        my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-          -url           => $url,
-          -dsn           => $dsn,
-          -display_label => $title,
-          -description   => $description,
-          -maintainer    => $email,
-          -homepage      => $homepage,
-          -coords        => $species eq '__NONE__' ? $coords : [ @{ $coords{'__NONE__'} || [] }, @{ $coords } ] ,
+        
+        # Wizardry to convert to Ensembl coord_system
+        if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
+          # seq_region coordinate systems have ensembl equivalents
+          $version ||= q();
+          $version = $auth.$version;
+          $version = $ASSEMBLY_MAPPINGS->{$version} || $version; # handle fringe cases
+          
+        } else {
+          # otherwise use a 'fake' coordinate system like 'ensembl_gene'
+          $type = lc $auth.q(_).$type;
+        }
+        
+        push @coords, Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
+          -name    => $type,
+          -version => $version,
+          -species => $species,
         );
-        $self->{'_sources'}{$species} ||= [];
-        push(@{ $self->{'_sources'}{$species} }, $source);
-      } # end coord loop
+      }
+      
+      if (!scalar @coords) {
+        warning("$dsn has no coordinate systems; skipping");
+        next;
+      }
+      
+      # Create the actual source
+      my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
+        -url           => $url,
+        -dsn           => $dsn,
+        -label         => $title,
+        -description   => $description,
+        -maintainer    => $email,
+        -homepage      => $homepage,
+        -coords        => \@coords,
+      );
+      
+      $self->{'_sources'}{$source->full_url} ||= $source;
       
     } # end version loop
     
@@ -346,15 +346,14 @@ sub _parse_dsn_output {
   # Iterate over the <DSN> elements
   for my $source (@{ $set }) {
     
-    $self->{'_sources'}{'__NONE__'} ||= [];
     my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
       -url           => $server_url,
       -dsn           => $source->{'source_id'},
-      -display_label => $source->{'source'},
+      -label         => $source->{'source'},
       -description   => $source->{'description'},
     );
-    push(@{ $self->{'_sources'}{'__NONE__'} }, $source);
     
+    $self->{'_sources'}{$source->full_url} ||= $source;
   }
   
   return undef;

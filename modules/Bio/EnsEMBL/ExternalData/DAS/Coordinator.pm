@@ -68,9 +68,7 @@ our %XREF_GENE_FILTERS = (
 =head2 new
 
   Arg [..]   : List of named arguments:
-               -SOURCES  - Arrayref of Bio::EnsEMBL::DAS::Source objects. All
-                           coordinate systems should be valid for the relevant
-                           species
+               -SOURCES  - Arrayref of Bio::EnsEMBL::DAS::Source objects.
                -PROXY    - A URL to use as an HTTP proxy server
                -NOPROXY  - A list of domains/hosts to not use the proxy for
                -TIMEOUT  - THe desired timeout, in seconds
@@ -158,11 +156,7 @@ sub fetch_Features {
     
     for my $source_cs (@{ $source->coord_systems }) {
       
-      # Coord_systems can be objects or URI strings
-      if (! ref $source_cs ) {
-        my ($name, $version) = split ':', $source_cs;
-        $source_cs = Bio::EnsEMBL::CoordSystem->new( -name => $name, -version => $version, -rank => 99 );
-      }
+      $source_cs->matches_species($target_obj->adaptor->species) || next;
       
       # Sort sources by coordinate system
       if (!$coords{$source_cs->name}) {

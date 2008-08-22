@@ -196,7 +196,8 @@ sub fetch_all_for_est_update {
   my $sth = $self->prepare(
                            "SELECT e.entry_id ".
                            "FROM entry e ".
-                           "WHERE e.tax_division = ? limit 10"); 
+                           "WHERE e.tax_division = ? ".
+                           "AND e.data_class = 'EST' limit 10"); 
 
   $sth->bind_param(1, $taxdivision, SQL_CHAR);
   $sth->execute();
@@ -218,11 +219,7 @@ sub fetch_entry_seq_and_comment_by_dbID {
   $entry_object->sequence_obj($sequence_obj);
 
   my $comments = $self->db()->get_CommentAdaptor->fetch_all_by_entry_id($entry_object->dbID);
-  print STDERR "Comments $comments have ref ".ref($comments)."\n";
-  foreach my $comment (@$comments) {
-    print "Comment $comment has ref ".ref($comment)."\n";
-  }
-  $entry_object->add_Comments($comments);
+  $entry_object->comment_objs($comments);
 
   return $entry_object;
 }

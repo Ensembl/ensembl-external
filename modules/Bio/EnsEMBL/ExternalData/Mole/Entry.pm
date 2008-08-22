@@ -163,22 +163,22 @@ sub get_all_DBXrefs {
   return $self->{'dbxref_objs'};
 }
 
-sub add_Comments {
+sub comment_objs {
   my $self = shift;
-  my $comments = @_;
+  my $comments = shift;
 
   if( ! exists $self->{'comment_objs'} ) {
     $self->{'comment_objs'} = [];
   }
 
-  for my $comment ( @$comments ) {
+  foreach my $comment ( @$comments ) {
     if( ! $comment->isa( "Bio::EnsEMBL::ExternalData::Mole::Comment" )) {
      throw( "Argument to add_Comments has to be a Bio::EnsEMBL::ExternalData::Mole::Comment" );
     }
     push( @{$self->{'comment_objs'}}, $comment );
   }
 
-  return;
+  return $self->{'comment_objs'};
 }
 
 sub description_obj {

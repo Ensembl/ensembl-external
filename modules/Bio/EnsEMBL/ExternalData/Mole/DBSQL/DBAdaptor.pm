@@ -52,6 +52,7 @@ sub get_available_adaptors {
       "Accession"     => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::AccessionAdaptor",
       "BlackList"     => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::BlackListAdaptor",
       "DBXref"        => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::DBXrefAdaptor",
+      "Comment"       => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::CommentAdaptor",
       "Description"   => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::DescriptionAdaptor",
       "Entry"         => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::EntryAdaptor",
       "GeneName"      => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::GeneNameAdaptor",

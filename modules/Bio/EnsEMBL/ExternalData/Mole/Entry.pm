@@ -21,8 +21,8 @@ sub new {
   my ($dbid, $accession_version, 
       $name, $topology, $molecule_type,
       $data_class, $tax_division, $sequence_length,
-      $accession_obj, $dbxref_objs, $description_obj,
-      $sequence_obj, $taxonomy_obj) =  
+      $accession_obj, $dbxref_objs, $comment_objs,
+      $description_obj,$sequence_obj, $taxonomy_obj) =  
 	  rearrange([qw(DBID
 	                ACCESSION_VERSION	
                         NAME
@@ -33,6 +33,7 @@ sub new {
                         SEQUENCE_LENGTH
                         ACCESSION_OBJ
                         DBXREF_OBJS
+                        COMMENT_OBJS
                         DESCRIPTION_OBJ
                         SEQUENCE_OBJ
                         TAXONOMY_OBJ
@@ -57,6 +58,12 @@ sub new {
     $self->{'dbxref_objs'} = $dbxref_objs;
   } else {
     $self->{'dbxref_objs'} = [];
+  }
+
+  if ($comment_objs) {
+    $self->{'comment_objs'} = $comment_objs;
+  } else {
+    $self->{'comment_objs'} = [];
   }
 
   if (defined $description_obj) { 
@@ -156,6 +163,24 @@ sub get_all_DBXrefs {
   return $self->{'dbxref_objs'};
 }
 
+sub add_Comments {
+  my $self = shift;
+  my $comments = @_;
+
+  if( ! exists $self->{'comment_objs'} ) {
+    $self->{'comment_objs'} = [];
+  }
+
+  for my $comment ( @$comments ) {
+    if( ! $comment->isa( "Bio::EnsEMBL::ExternalData::Mole::Comment" )) {
+     throw( "Argument to add_Comments has to be a Bio::EnsEMBL::ExternalData::Mole::Comment" );
+    }
+    push( @{$self->{'comment_objs'}}, $comment );
+  }
+
+  return;
+}
+
 sub description_obj {
   my $self = shift;
 
@@ -197,9 +222,4 @@ sub taxonomy_obj {
 
   return $self->{'taxonomy_obj'};
 }
-
-
 1;
-
-
-

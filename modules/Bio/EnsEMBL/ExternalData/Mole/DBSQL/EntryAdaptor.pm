@@ -197,7 +197,7 @@ sub fetch_all_for_est_update {
                            "SELECT e.entry_id ".
                            "FROM entry e ".
                            "WHERE e.tax_division = ? ".
-                           "AND e.data_class = 'EST' limit 10"); 
+                           "AND e.data_class = 'EST'"); 
 
   $sth->bind_param(1, $taxdivision, SQL_CHAR);
   $sth->execute();

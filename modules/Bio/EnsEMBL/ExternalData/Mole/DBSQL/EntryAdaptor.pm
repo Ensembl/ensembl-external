@@ -52,6 +52,9 @@ sub full_fetch_by_dbID {
   my $dbxrefs = $self->db()->get_DBXrefAdaptor->fetch_all_by_entry_id($entry_object->dbID);
   $entry_object->{'dbxref_objs'} = $dbxrefs;
 
+  my $comments = $self->db()->get_CommentAdaptor->fetch_all_by_entry_id($entry_object->dbID);
+  $entry_object->{'comment_objs'} = $comments;
+
   return $entry_object;
 }
 
@@ -185,6 +188,43 @@ sub fetch_by_sequence_length {
   my $constraint = "e.sequence_length = '$sequence_length'";
   my ($entry_obj) = @{ $self->generic_fetch($constraint) };
   return $entry_obj;
+}
+
+sub fetch_all_for_est_update {
+  my ($self, $taxdivision) = @_;
+
+  my $sth = $self->prepare(
+                           "SELECT e.entry_id ".
+                           "FROM entry e ".
+                           "WHERE e.tax_division = ? limit 10"); 
+
+  $sth->bind_param(1, $taxdivision, SQL_CHAR);
+  $sth->execute();
+
+  my @entries;
+  while ( my $id = $sth->fetchrow()) {
+    push @entries, $self->db()->get_EntryAdaptor->fetch_entry_seq_and_comment_by_dbID($id);
+  }
+
+  return \@entries;
+}
+
+sub fetch_entry_seq_and_comment_by_dbID {
+  my ($self, $objectid) = @_;
+  my $constraint = "e.entry_id = '$objectid'";
+  my ($entry_object) = @{$self->generic_fetch($constraint)};
+
+  my $sequence_obj = $self->db()->get_SequenceAdaptor->fetch_by_entry_id($entry_object->dbID);
+  $entry_object->sequence_obj($sequence_obj);
+
+  my $comments = $self->db()->get_CommentAdaptor->fetch_all_by_entry_id($entry_object->dbID);
+  print STDERR "Comments $comments have ref ".ref($comments)."\n";
+  foreach my $comment (@$comments) {
+    print "Comment $comment has ref ".ref($comment)."\n";
+  }
+  $entry_object->add_Comments($comments);
+
+  return $entry_object;
 }
 
 sub fetch_all_by_dbID_list {

@@ -51,7 +51,7 @@ for my $gene ($gene2, $gene3) {
   ok((grep {$_ eq $gene->stable_id} @$segments), "$desc correct query segment");
   my $q_feat = &build_feat($gene->stable_id, 1, 10);
   SKIP: {
-  my $f = $c->map_Features([$q_feat], undef, $gene_cs, $chro_cs, $gene->slice)->[0];
+  my $f = $c->map_Features([$q_feat], $gene_cs, $chro_cs, $gene->slice)->[0];
   ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
   is($f->seq_region_start,  $gene->seq_region_end-9,  "$desc correct start");
   is($f->seq_region_end,    $gene->seq_region_end,    "$desc correct end");

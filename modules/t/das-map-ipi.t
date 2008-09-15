@@ -45,7 +45,7 @@ SKIP: {
 my $q_start = $xref->query_start;
 my $q_end   = $xref->query_start + 9;
 my $q_feat = &build_feat($xref->primary_id, $q_start, $q_end);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $prot_cs, undef)->[0];
+my $f = $c->map_Features([$q_feat], $xref_cs, $prot_cs, undef)->[0];
 ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 my $c_start = $xref->translation_start;
 my $c_end   = $xref->translation_start + 9;
@@ -62,7 +62,7 @@ SKIP: {
 my $q_start = $xref->query_start;
 my $q_end   = $xref->query_start + 9;
 my $q_feat = &build_feat($xref->primary_id, $q_start, $q_end);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $chro_cs, $chro)->[0];
+my $f = $c->map_Features([$q_feat], $xref_cs, $chro_cs, $chro)->[0];
 ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 my $tr_mapper = Bio::EnsEMBL::TranscriptMapper->new($tran);
 my ($c) = $tr_mapper->pep2genomic($xref->translation_start, $xref->translation_start+9);

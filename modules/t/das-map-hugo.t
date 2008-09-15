@@ -48,7 +48,7 @@ my $segments = $c->_get_Segments($xref_cs, $prot_cs, undef, undef, $prot);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
 {
 my $q_feat = &build_feat($xref->primary_id, 1, 1);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $prot_cs, undef)->[0];
+my $f = $c->map_Features([$q_feat], $xref_cs, $prot_cs, undef)->[0];
 ok(!defined $f, "$desc did NOT get mapped feature");
 }
 
@@ -58,7 +58,7 @@ $segments = $c->_get_Segments($xref_cs, $prot_cs, undef, undef, $prot);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
 SKIP: {
 my $q_feat = &build_feat($xref->primary_id, 0, 0);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $prot_cs, undef)->[0];
+my $f = $c->map_Features([$q_feat], $xref_cs, $prot_cs, undef)->[0];
 ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 is($f->start,  0,  "$desc correct start");
 is($f->end,    0,    "$desc correct end");
@@ -71,7 +71,7 @@ my $segments = $c->_get_Segments($xref_cs, $chro_cs, $chro, undef, undef);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
 {
 my $q_feat = &build_feat($xref->primary_id, 1, 1);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $chro_cs, undef)->[0];
+my $f = $c->map_Features([$q_feat], $xref_cs, $chro_cs, undef)->[0];
 ok(!defined $f, "$desc did NOT get mapped feature");
 }
 
@@ -81,7 +81,7 @@ $segments = $c->_get_Segments($xref_cs, $chro_cs, $chro, undef, undef);
 ok((grep {$_ eq $xref->primary_id} @$segments), "$desc correct query segment");
 SKIP: {
 my $q_feat = &build_feat($xref->primary_id, 0, 0);
-my $f = $c->map_Features([$q_feat], undef, $xref_cs, $chro_cs, undef)->[0];
+my $f = $c->map_Features([$q_feat], $xref_cs, $chro_cs, undef)->[0];
 ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 is($f->start,  0,  "$desc correct start");
 is($f->end,    0,    "$desc correct end");

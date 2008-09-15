@@ -60,7 +60,7 @@ for (@pairs) {
   ok(grep ((sprintf "%s:%s,%s", $chro->seq_region_name, $chro->start, $chro->end), @$segments), "$desc2 correct query segment");
   SKIP: {
     my $q_feat = &build_feat($chro->seq_region_name, $chro->end-9, $chro->end, 1); # the 'rightmost' chromosomal position
-    my $f = $c->map_Features([$q_feat], undef, $chro_cs, $cont_cs, $cont)->[0];
+    my $f = $c->map_Features([$q_feat], $chro_cs, $cont_cs, $cont)->[0];
     ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
     my $corr_start = $cont->strand == -1 ? $cont->start   : $cont->end-9;
     my $corr_end   = $cont->strand == -1 ? $cont->start+9 : $cont->end;
@@ -79,7 +79,7 @@ for (@pairs) {
   ok(grep ((sprintf "%s:%s,%s", $cont->seq_region_name, $cont->start, $cont->end), @$segments), "$desc2 correct query segment");
   SKIP: {
     my $q_feat = &build_feat($cont->seq_region_name, $cont->end-9, $cont->end, 1); # the 'rightmost' contig position
-    my $f = $c->map_Features([$q_feat], undef, $cont_cs, $chro_cs, $chro_all)->[0];
+    my $f = $c->map_Features([$q_feat], $cont_cs, $chro_cs, $chro_all)->[0];
     ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
     my $corr_start = $cont->strand == -1 ? $chro->start   : $chro->end-9;
     my $corr_end   = $cont->strand == -1 ? $chro->start+9 : $chro->end;
@@ -98,7 +98,7 @@ for (@pairs) {
   my $desc2 = "$desc ".$cont->seq_region_name;
   SKIP: {
     my $q_feat = &build_feat($ch35->seq_region_name, $ch35->end-9, $ch35->end, 1); # the 'rightmost' chromosome35 position
-    my $f = $c->map_Features([$q_feat], undef, $ch35_cs, $chro_cs, $chro_all)->[0];
+    my $f = $c->map_Features([$q_feat], $ch35_cs, $chro_cs, $chro_all)->[0];
     ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
     my $corr_start = $chro->end-9;
     my $corr_end   = $chro->end;

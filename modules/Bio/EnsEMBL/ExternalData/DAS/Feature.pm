@@ -9,16 +9,23 @@ use base qw(Bio::EnsEMBL::FeaturePair);
 sub new {
   my $proto = shift;
   my $class = ref $proto || $proto;
-  my $self  = $class->SUPER::new(@_);
+  
+  my ($type, $links, $notes, $groups)
+    = rearrange(['TYPE', 'LINKS', 'NOTES', 'GROUPS'], @_);
+  
+  my $self  = {};#$class->SUPER::new(@_);
+  bless $self, $class;
   
   ###
-  # TODO: rest of properties, e.g. groups!
+  # TODO: rest of properties
   ###
   
-  my ($type, $links, $notes) = rearrange(['TYPE', 'LINKS', 'NOTES'], @_);
-  $self->type ( $type  );
-  $self->links( $links );
-  $self->notes( $notes );
+
+  $self->type  ( $type   );
+  $self->links ( $links  );
+  $self->notes ( $notes  );
+  $self->groups( $groups );
+  
   return $self;
 }
 
@@ -44,6 +51,14 @@ sub links {
     $self->{'links'} = $arg;
   }
   return $self->{'links'};
+}
+
+sub groups {
+  my ( $self, $arg ) = shift;
+  if ( defined $arg ) {
+    $self->{'groups'} = $arg;
+  }
+  return $self->{'groups'};
 }
 
 1;

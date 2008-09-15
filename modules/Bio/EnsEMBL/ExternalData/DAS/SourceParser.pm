@@ -263,6 +263,8 @@ sub _parse_sources_output {
       }
       $dsn || next; # this source doesn't support features command
       
+      my $version_uri = $version->{'version_uri'};
+      
       # Now parse the coordinate systems and map to Ensembl's
       # This is the tedious bit, as some things don't map easily
       my @coords = ( );
@@ -310,6 +312,7 @@ sub _parse_sources_output {
       
       # Create the actual source
       my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
+        -logic_name    => $version_uri,
         -url           => $url,
         -dsn           => $dsn,
         -label         => $title,

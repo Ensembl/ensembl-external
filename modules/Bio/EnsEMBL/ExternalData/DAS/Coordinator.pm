@@ -410,6 +410,9 @@ sub map_Features {
       -groups   => $f->{'group'},
     );
     # Where target coordsys is genomic, make a slice-relative feature
+    # TODO: I THINK THIS IS BREAKING THE FEATURES, AS NOT ALL INFO IS COPIED
+    #       NEED TO READDRESS HOW THIS IS DONE. NOTE THAT DAS FEATURES ARRIVE
+    #       IN SEQ_REGION_SLICE COORDS BUT NEED TO END UP RELATIVE TO SLICE.
     if ($slice) {
       $f->slice($slice->seq_region_Slice);
       $f = $f->transfer($slice);

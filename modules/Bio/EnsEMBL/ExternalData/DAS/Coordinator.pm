@@ -65,7 +65,7 @@ our %XREF_GENE_FILTERS = (
   },
 );
 
-our @NON_GENOMIC_COORDS = (
+our %NON_GENOMIC_COORDS = map { $_->name => $_ } (
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene' ),
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrez_gene' ),
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_gene', -species => 'Mus_musculus', -label => 'MGI Gene' ),
@@ -78,10 +78,12 @@ our @NON_GENOMIC_COORDS = (
 =head2 new
 
   Arg [..]   : List of named arguments:
-               -SOURCES  - Arrayref of Bio::EnsEMBL::DAS::Source objects.
-               -PROXY    - A URL to use as an HTTP proxy server
-               -NOPROXY  - A list of domains/hosts to not use the proxy for
-               -TIMEOUT  - The desired timeout, in seconds
+               -SOURCES     - Arrayref of Bio::EnsEMBL::DAS::Source objects.
+               -PROXY       - A URL to use as an HTTP proxy server
+               -NOPROXY     - A list of domains/hosts to not use the proxy for
+               -TIMEOUT     - The request timeout, in seconds
+               -GENE_COORDS - Override the coordinate system representing genes
+               -PROT_COORDS - Override the coordinate system representing proteins
   Description: Constructor
   Returntype : Bio::EnsEMBL::DAS::Coordinator
   Exceptions : none
@@ -92,8 +94,9 @@ our @NON_GENOMIC_COORDS = (
 sub new {
   my $class = shift;
   
-  my ($sources, $proxy, $no_proxy, $timeout)
-    = rearrange(['SOURCES','PROXY', 'NOPROXY', 'TIMEOUT'], @_);
+  my ($sources, $proxy, $no_proxy, $timeout, $gene_cs, $prot_cs)
+    = rearrange(['SOURCES','PROXY', 'NOPROXY', 'TIMEOUT',
+                 'GENE_COORDS', 'PROT_COORDS'], @_);
   
   $sources = [$sources] if ($sources && !ref $sources);
   
@@ -112,9 +115,14 @@ sub new {
     }
   }
   
+  $gene_cs ||= $NON_GENOMIC_COORDS{'ensembl_gene'};
+  $prot_cs ||= $NON_GENOMIC_COORDS{'ensembl_peptide'};
+  
   my $self = {
     'sources' => $sources,
     'daslite' => $das,
+    'gene_cs' => $gene_cs,
+    'prot_cs' => $prot_cs,
     'objects' => {},
   };
   bless $self, $class;
@@ -451,8 +459,8 @@ sub _convert_coord_system {
 #
 # Coordinate system definitions:
 #   location-based  == chromosome|clone|contig|scaffold|supercontig
-#   protein-based   == ensembl_peptide
-#   gene-based      == ensembl_gene
+#   protein-based   == $self->{prot_cs} (ensembl_peptide)
+#   gene-based      == $self->{gene_cs} (ensembl_gene)
 #   xref-based      == uniprot_peptide|entrez_gene... (see %XREF_PEPTIDE_FILTERS)
 sub _get_Segments {
   my $self = shift;
@@ -479,16 +487,16 @@ sub _get_Segments {
   # wrappers in order to achieve this.
   
   # Mapping to slice-relative coordinates
-  if ($to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
+  if ( $to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
     
     $slice || throw('Trying to convert to slice coordinates, but no Slice provided');
     $slice->coord_system->equals($to_cs) || throw('Provided slice is not in target coordinate system');
     
     # Mapping from a slice-based coordinate system
-    if ($from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
+    if ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
       
       # No mapping needed
-      if ($from_cs->equals($to_cs)) {
+      if ( $from_cs->equals( $to_cs ) ) {
         push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
       }
       
@@ -513,7 +521,7 @@ sub _get_Segments {
     }
     
     # Mapping from ensembl_gene to slice
-    elsif ($from_cs->name eq 'ensembl_gene') {
+    elsif ( $from_cs->equals( $self->{'gene_cs'} ) ) {
       for my $g ( defined $gene ? ($gene) : @{ $slice->get_all_Genes }) {
         # Genes are already definitely relative to the target slice, so don't need to do any assembly mapping
         my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to', $from_cs, $to_cs);
@@ -522,24 +530,24 @@ sub _get_Segments {
           $g->stable_id,           1,                    $g->length, $g->seq_region_strand,
           $slice->seq_region_name, $g->seq_region_start, $g->seq_region_end
         );
-        $self->{'mappers'}{'ensembl_gene'}{''}{$g->stable_id} = $mapper;
+        $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$g->stable_id} = $mapper;
         push @segments, $g->stable_id;
       }
     }
     
     # Mapping from ensembl_peptide to slice
-    elsif ($from_cs->name eq 'ensembl_peptide') {
+    elsif ( $from_cs->equals( $self->{'prot_cs'} ) ) {
       for my $tran (@{ $slice->get_all_Transcripts }) {
         my $p = $tran->translation || next;
-        $self->{'mappers'}{'ensembl_peptide'}{''}{$p->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
+        $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$p->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
         push @segments, $p->stable_id;
       }
     }
     
     # Mapping from translation-mapped xref to slice
-    elsif (my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name}) {
+    elsif ( my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name} ) {
       # Mapping path is xref -> ensembl_peptide -> slice
-      my $mid_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
+      my $mid_cs = $self->{'prot_cs'};
       for my $tran (@{ $slice->get_all_Transcripts }) {
         my $p = $tran->translation || next;
         # first stage mapper: xref to translation
@@ -547,14 +555,14 @@ sub _get_Segments {
       }
       # If the first stage actually produced mappings, we'll need to map from
       # peptide to slice
-      if ($self->{'mappers'}{$from_cs->name}) {
+      if ($self->{'mappers'}{$from_cs->name}{$from_cs->version}) {
         # second stage mapper: gene or translation to transcript's slice
         $self->_get_Segments($mid_cs, $to_cs, $slice, undef, undef);
       }
     }
     
     # Mapping from gene-mapped xref to slice
-    elsif ($callback = $XREF_GENE_FILTERS{$from_cs->name}) {
+    elsif ( $callback = $XREF_GENE_FILTERS{$from_cs->name} ) {
       for my $g ( defined $gene ? ($gene) : @{ $slice->get_all_Genes }) {
         for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
           my $segid = $callback->{'transformer'}( $xref );
@@ -572,17 +580,18 @@ sub _get_Segments {
   } # end mapping to slice/gene
   
   # Mapping to peptide-relative coordinates
-  elsif ($to_cs->name eq 'ensembl_peptide') {
+  elsif ( $to_cs->equals( $self->{'prot_cs'} ) ) {
     
     $prot || throw('Trying to convert to peptide coordinates, but no Translation provided');
     
-    if ($from_cs->name eq 'ensembl_peptide') {
+    # Mapping from protein to protein (the same)
+    if ( $from_cs->equals( $to_cs ) ) {
       # no mapper needed
       push @segments, $prot->stable_id;
     }
     
     # Mapping from slice. Note that from_cs isnt necessarily the same as the transcript's coord_system
-    elsif ($from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
+    elsif ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
       my $ta    = $prot->adaptor->db->get_TranscriptAdaptor();
       my $sa    = $prot->adaptor->db->get_SliceAdaptor();
       my $tran  = $ta->fetch_by_translation_stable_id($prot->stable_id);
@@ -597,7 +606,7 @@ sub _get_Segments {
     }
     
     # Mapping from gene on a slice with the same coordinate system
-    elsif ($from_cs->name eq 'ensembl_gene') {
+    elsif ( $from_cs->equals( $self->{'gene_cs'} ) ) {
       my $ga    = $prot->adaptor->db->get_GeneAdaptor();
       my $sa    = $prot->adaptor->db->get_SliceAdaptor();
       my $g     = $ga->fetch_by_translation_stable_id($prot->stable_id);
@@ -609,7 +618,7 @@ sub _get_Segments {
     }
     
     # Mapping from xref to peptide
-    elsif (my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name}) {
+    elsif ( my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name} ) {
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $prot->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
         push @segments, $segid;
@@ -621,13 +630,13 @@ sub _get_Segments {
           my $mapper = Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper->new('from', 'to', $from_cs, $to_cs, $xref, $prot);
           $mapper->external_id($segid);
           $mapper->ensembl_id($prot->stable_id);
-          $self->{'mappers'}{$from_cs->name}{''}{$segid} = $mapper;
+          $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$segid} = $mapper;
         }
       }
     }
     
     # Mapping from gene-mapped xref to peptide
-    elsif ($callback = $XREF_GENE_FILTERS{$from_cs->name}) {
+    elsif ( $callback = $XREF_GENE_FILTERS{$from_cs->name} ) {
       my $ga    = $prot->adaptor->db->get_GeneAdaptor();
       my $g     = $ga->fetch_by_translation_stable_id($prot->stable_id);
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {

@@ -14,9 +14,12 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
                             Note that if the version passed in is undefined,
                             it will be set to the empty string in the
                             resulting CoordSystem object.
+               -SPECIES   - (optional) For species-specific systems
+               -LABEL     - (optional) A human-readable label
   Example    : $cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
                  -NAME    => 'chromosome',
-                 -VERSION => 'NCBI33'
+                 -VERSION => 'NCBI33',
+                 -SPECIES => 'Homo_sapiens',
                );
   Description: Creates a new CoordSystem object representing a coordinate
                system.
@@ -30,16 +33,21 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
 sub new {
   my $caller = shift;
   my $class = ref($caller) || $caller;
-  my ($name, $version, $species) = rearrange(['NAME','VERSION','SPECIES'], @_);
+  my ($name, $version, $species, $label) = rearrange(['NAME','VERSION','SPECIES','LABEL'], @_);
 
   $name    || throw('The NAME argument is required');
   $version ||= '';
   $species ||= '';
   
+  if (!$label) {
+    $label = join ' ', map { $_ && ucfirst $_ } (split /_/, $name), $version;
+  }
+  
   my $self = {
               'name'    => $name,
               'version' => $version,
               'species' => $species,
+              'label'   => $label,
              };
   bless $self, $class;
 
@@ -102,11 +110,27 @@ sub species {
 }
 
 
+=head2 label
+
+  Arg [1]    : none
+  Example    : print $coord->label();
+  Description: Getter for the display label of this coordinate system.
+  Returntype : string
+  Exceptions : none
+  Caller     : general
+  Status     : Stable
+
+=cut
+
+sub label {
+  my $self = shift;
+  return $self->{'label'};
+}
+
+
 =head2 equals
 
-  Arg [1]    : Bio::EnsEMBL::CoordSystem
-               OR
-               Bio::EnsEMBL::ExternalData::DAS::CoordSystem
+  Arg [1]    : Bio::EnsEMBL::ExternalData::DAS::CoordSystem
                The coord system to compare to for equality.
   Example    : if($coord_sys->equals($other_coord_sys)) { ... }
   Description: Compares 2 coordinate systems and returns true if they are
@@ -125,13 +149,15 @@ sub equals {
   my $self = shift;
   my $cs = shift;
 
-  if (! ($cs && ref($cs) && ( $cs->isa('Bio::EnsEMBL::CoordSystem') || $cs->isa('Bio::EnsEMBL::ExternalData::DAS::CoordSystem') ) ) ) {
-    throw('Argument must be a Bio::EnsEMBL::CoordSystem or ');
+  unless ( $cs && ref($cs) &&
+          ( $cs->isa('Bio::EnsEMBL::ExternalData::DAS::CoordSystem') ||
+            $cs->isa('Bio::EnsEMBL::CoordSystem') ) ) {
+    throw('Argument must be a CoordSystem');
   }
 
   if ($self->{'version'} eq $cs->version() && $self->{'name'} eq $cs->name()) {
     if (my $me_species = $self->{'species'}) {
-      if (my $cs_species = $cs->isa('Bio::EnsEMBL::CoordSystem') ? $cs->adaptor->species() : $cs->species()) {
+      if (my $cs_species = $cs->species()) {
         return $me_species eq $cs_species ? 1 : 0;
       }
     }

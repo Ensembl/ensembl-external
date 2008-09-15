@@ -15,10 +15,10 @@ use strict;
 use warnings;
 
 use POSIX qw(ceil);
-use Bio::EnsEMBL::CoordSystem;;
 use Bio::EnsEMBL::Mapper;
 use Bio::Das::Lite;
 
+use Bio::EnsEMBL::ExternalData::DAS::CoordSystem;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicMapper;
 use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
@@ -65,18 +65,28 @@ our %XREF_GENE_FILTERS = (
   },
 );
 
+our @NON_GENOMIC_COORDS = (
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrez_gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_gene', -species => 'Mus_musculus', -label => 'MGI Gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'hugo_gene', -species => 'Homo_sapiens', -label => 'HUGO Gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'uniprot_peptide', -label => 'UniProt Peptide' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_peptide', -label => 'IPI Peptide' ),
+);
+
 =head2 new
 
   Arg [..]   : List of named arguments:
                -SOURCES  - Arrayref of Bio::EnsEMBL::DAS::Source objects.
                -PROXY    - A URL to use as an HTTP proxy server
                -NOPROXY  - A list of domains/hosts to not use the proxy for
-               -TIMEOUT  - THe desired timeout, in seconds
+               -TIMEOUT  - The desired timeout, in seconds
   Description: Constructor
   Returntype : Bio::EnsEMBL::DAS::Coordinator
   Exceptions : none
   Caller     : 
-  Status     : Stable
+  Status     : 
 
 =cut
 sub new {
@@ -91,8 +101,9 @@ sub new {
   $das->user_agent('Ensembl');
   $das->timeout($timeout);
   $das->caching(0);
-  
   $das->http_proxy($proxy);
+  
+  # Bio::Das::Lite support for no_proxy added around September 2008
   if ($no_proxy) {
     if ($das->can('no_proxy')) {
       $das->no_proxy($no_proxy);
@@ -113,15 +124,19 @@ sub new {
 =head2 fetch_features
 
   Arg [1]    : Bio::EnsEMBL::Object $root_obj - the query object (e.g. Slice, Gene)
+  Arg [2]    : (optional) maxbins - typically the maximum available "rendering space"
+  Arg [3]    : (optional) type ID
+  Arg [4]    : (optional) feature ID
+  Arg [5]    : (optional) group ID
   Description: Constructor, taking as an argument an arrayref of DAS sources.
   Returntype : Bio::EnsEMBL::ExternalData::DAS::Coordinator
   Exceptions : Throws if the object is not supported
   Caller     : 
-  Status     : Stable
+  Status     : 
 
 =cut
 sub fetch_Features {
-  my ($self, $target_obj) = @_;
+  my ($self, $target_obj, $maxbins, $filter_type, $filter_feature, $filter_group) = @_;
   
   my ($target_cs, $target_segment, $slice, $gene, $prot);
   if ($target_obj->isa('Bio::EnsEMBL::Gene')) {
@@ -135,7 +150,7 @@ sub fetch_Features {
     $target_segment = sprintf '%s:%s,%s', $target_obj->seq_region_name, $target_obj->start, $target_obj->end;
   } elsif ($target_obj->isa('Bio::EnsEMBL::Translation')) {
     $prot = $target_obj;
-    $target_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
+    $target_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
     $target_segment = $target_obj->stable_id;
   } else {
     throw('Unsupported object type: '.$target_obj);
@@ -156,12 +171,15 @@ sub fetch_Features {
     
     for my $source_cs (@{ $source->coord_systems }) {
       
-      $source_cs->matches_species($target_obj->adaptor->species) || next;
+      if (my $source_species = $source_cs->species) {
+        $source_species eq $target_obj->adaptor->db->species || next;
+      }
       
       # Sort sources by coordinate system
       if (!$coords{$source_cs->name}) {
         $coords{$source_cs->name} = {
-          'sources'  => {},
+          'sources'      => {},
+          'coord_system' => $source_cs,
         };
         
         # Do a lot of funky stuff to get the query segments, and build up
@@ -191,11 +209,26 @@ sub fetch_Features {
       next;
     }
     
-    # TODO: use callbacks to build features
+    # TODO: use callbacks to build features?
     
     info("Querying with @{$segments} for $coord_name");
     $daslite->dsn( [keys %{ $coord_data->{'sources'} }] );
-    my $response = $daslite->features($segments); # hashref
+    
+    # Now build a query array for each segment, with the optional filter
+    # parameters. Note that it is not mandatory for DAS servers to implement
+    # these filters. If they do, great, but we still have to filter on the
+    # client side.
+    my @features_query = map {
+      {
+       'segment'    => $_,
+       'type'       => $filter_type,
+       'feature_id' => $filter_feature,
+       'group_id'   => $filter_group,
+       'maxbins'    => $maxbins,
+      }
+    } @{ $segments };
+    
+    my $response = $daslite->features(\@features_query); # returns a hashref
     my $statuses = $daslite->statuscodes();
     
     # Final structure will look like:
@@ -204,8 +237,14 @@ sub fetch_Features {
     #                    'source'     => $source_object,
     #                    'stylesheet' => $style_hash,
     #                    'features'   => {
-    #                                     'segment1' => $features_hash1,
-    #                                     'segment2' => $features_hash2,
+    #                                     'segment1' => [
+    #                                                    $feat1, # Bio::EnsEMBL::ExternalData::DAS::Feature
+    #                                                    $feat2,
+    #                                                   ],
+    #                                     'segment2' => [
+    #                                                    $feat3,
+    #                                                    $feat4,
+    #                                                   ],
     #                                    }
     #                   }
     # }
@@ -215,25 +254,25 @@ sub fetch_Features {
     #========================================================#
     
     while (my ($url, $features) = each %{ $response }) {
+      info("*** $url ***");
       my $status = $statuses->{$url};
       
       # Parse the segment from the URL
       # TODO: check how daslite handles multiple segments!
-      $url =~ s|/features\?segment=(.*)$||;
+      $url =~ s|/features\?segment=([^;]*).*$||;
       my $segment = $1;
-      info("*** $segment $url ***");
       my $source = $coord_data->{'sources'}{$url};
       
       $final->{$url}{'source'} = $source;
       
-      if ($status!~ m/^200/ || !defined $features) {
+      if ($status !~ m/^200/) {
         # TODO: proper error handling
         $final->{$url}{'features'}{$segment} = [ {
                                                   'type' => '__ERROR__',
-                                                  'note' => 'Error communicating with DAS server'.($statuses->{$url}?" - $statuses->{$url}":q()),
+                                                  'note' => "Error communicating with DAS server - $status",
                                                  } ];
         next;
-      } elsif (ref $features ne 'ARRAY' || !scalar @{ $features }) {
+      } elsif (!defined $features || ref $features ne 'ARRAY' || !scalar @{ $features }) {
         $final->{$url}{'features'}{$segment} = [ {
                                                   'type' => '__ERROR__',
                                                   'note' => 'No features'
@@ -242,10 +281,25 @@ sub fetch_Features {
       }
       
       ########
+      # Apply client-side filters at this early stage...
+      ########
+      my @filtered_features = grep {
+        #print Dumper($_);
+        ( !$filter_type    || $_->{'type'      } eq $filter_type ) &&
+        ( !$filter_feature || $_->{'feature_id'} eq $filter_feature ) &&
+        ( !$filter_group   || grep { $_->{'group_id'} eq $filter_group } @{ $_->{'group'} } )
+      } @{ $features };
+      
+      ########
       # Convert into the query coordinate system if applicable
       ########
-      my $mappers = $coord_data->{'mappers'};
-      $features = $self->map_Features($features, $slice, $prot, $mappers, $source);
+      $features = $self->map_Features($features,
+                                      $coord_data->{'coord_system'},
+                                      $target_cs,
+                                      $slice,
+                                      $filter_type,
+                                      $filter_feature,
+                                      $filter_group);
       
       if (scalar @{ $features }) {
         $final->{$url}{'features'}{$segment} = $features;
@@ -274,17 +328,16 @@ sub fetch_Features {
     }
   }
   
-  #use Data::Dumper;print Dumper($final);
   return $final;
 }
 
 # Returns: new arrayref with features
 sub map_Features {
-  my ($self, $features, $source, $source_cs, $to_cs, $slice) = @_;
+  my ($self, $features, $source_cs, $to_cs, $slice) = @_;
   my @new_features = ();
   
   # May need multiple mapping steps to reach the target coordinate system
-  while ( $source_cs && ! $source_cs->equals( $to_cs ) ) {
+  while ( $source_cs && !$source_cs->equals($to_cs) ) {
     
     info('Beginning mapping from '.$source_cs->name);
     
@@ -318,7 +371,7 @@ sub map_Features {
         $positional_mapping_errors++;
         next;
       }
-      $source_cs = $mapper->{'to_cs'} || throw('Mapper does not indicate target coordinate system');
+      $source_cs = $mapper->{'to_cs'} || throw('Mapper maps to unknown coordinate system');
       my @coords = $mapper->map_coordinates($segid,
                                             $f->{'start'},
                                             $f->{'end'},
@@ -345,15 +398,16 @@ sub map_Features {
   
   # Now let's build us some feature objects!
   for my $f ( @{ $features } ) {
+      use Data::Dumper;print Dumper($f);
     $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new(
       -start    => $f->{'start'},
       -end      => $f->{'end'},
       -strand   => $f->{'strand'}, # should be 1 if to_cs is protein
-      -note     => $f->{'note'},
-      -link     => $f->{'link'},
-      -score    => $f->{'score'},
       -type     => $f->{'type'},
-      -analysis => $source,
+      -score    => $f->{'score'},
+      -notes    => $f->{'note'},
+      -links    => $f->{'link'},
+      -groups   => $f->{'group'},
     );
     # Where target coordsys is genomic, make a slice-relative feature
     if ($slice) {
@@ -364,6 +418,21 @@ sub map_Features {
   }
   
   return \@new_features;
+}
+
+sub _convert_coord_system {
+  my ($self, $cs) = @_;
+  if ($cs->isa('Bio::EnsEMBL::ExternalData::DAS::CoordSystem')) {
+    return $cs;
+  } elsif ($cs->isa('Bio::EnsEMBL::CoordSystem')) {
+    return Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
+      -name    => $cs->name,
+      -version => $cs->version,
+      -species => $cs->adaptor->db->species,
+    );
+  } else {
+    throw('Argument is not a CoordSystem but a '.ref $cs);
+  }
 }
 
 # Supports mappings:
@@ -467,7 +536,7 @@ sub _get_Segments {
     # Mapping from translation-mapped xref to slice
     elsif (my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name}) {
       # Mapping path is xref -> ensembl_peptide -> slice
-      my $mid_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
+      my $mid_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
       for my $tran (@{ $slice->get_all_Transcripts }) {
         my $p = $tran->translation || next;
         # first stage mapper: xref to translation

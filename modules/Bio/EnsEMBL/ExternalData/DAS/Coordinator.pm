@@ -2,6 +2,41 @@
 
 Bio::EnsEMBL::ExternalData::DAS::Coordinator
 
+=head1 SYNOPSIS
+
+  # Instantiate with a list of Bio::EnsEMBL::ExternalData::DAS::Source objects:
+  my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new(-sources => $list);
+  
+  # Fetch by slice
+  my $struct = $c->fetch_Features( $slice );
+  
+  for my $logic_name ( keys %{ $struct } ) {
+  
+    my $errors     = $struct->{$logic_name}{'errors'    }; # string array
+    
+    # Bio::EnsEMBL::ExternalData::DAS::? objects:
+    my $source     = $struct->{$logic_name}{'source'    }; # Source
+    my $features   = $struct->{$logic_name}{'features'  }; # Feature array
+    my $stylesheet = $struct->{$logic_name}{'stylesheet'}; # Stylesheet
+    
+    printf "%s: %d errors, %d features\n",
+           $source->title,
+           scalar @{ $errors   },
+           scalar @{ $features };
+  }
+  
+  # Fetch by gene
+  my $struct = $c->fetch_Features( $gene );
+  
+  # Fetch by protein
+  my $struct = $c->fetch_Features( $translation );
+  
+  # Feature ID filtering
+  my $struct = $c->fetch_Features( $slice, feature => 'xyz1234' );
+  
+  # Type ID and Group ID filtering
+  my $struct = $c->fetch_Features( $slice, group => 'xyz', type => 'foo' );
+
 =head1 DESCRIPTION
 
 Given a set of DAS::Source objects and a target object such as a Slice or

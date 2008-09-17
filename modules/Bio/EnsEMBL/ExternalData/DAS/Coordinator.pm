@@ -142,7 +142,23 @@ sub new {
                   group   - the group ID
   Description: Fetches DAS features  for a given Slice, Gene or Translation
   Example    : $hashref = $c->fetch_Features( $slice, type => 'mytype' );
-  Returntype : Bio::EnsEMBL::ExternalData::DAS::Coordinator
+  Returntype : A hash reference containing Bio::...::DAS::Feature and
+               Bio::...::DAS::Stylesheet objects:
+               {
+                'http.../das' => {
+                                  'source'     => $source_object,
+                                  'errors'     => [
+                                                   'No features',
+                                                   'No relevant features',
+                                                   'Error fetching...',
+                                                  ],
+                                  'stylesheet' => $style1,
+                                  'features'   => [
+                                                   $feat1,
+                                                   $feat2,
+                                                  ],
+                                 }
+               }
   Exceptions : Throws if the object is not supported
   Caller     : 
   Status     : 
@@ -152,27 +168,9 @@ sub fetch_Features {
   my ( $self, $target_obj ) = splice @_, 0, 2;
   my %filters = @_; # maxbins, feature, type, group
   
-  # TODO: review this structure, would we prefer to have segment ID? We don't
-  # always know it before we parse the feature though (when querying by feat ID)
-  
-  # Final structure will look like:
-  # {
-  #  'http.../das' => {
-  #                    'source'     => $source_object,
-  #                    'errors'     => [
-  #                                     'No features',
-  #                                     'No relevant features',
-  #                                     'Error fetching...',
-  #                                    ],
-  #                    # Bio::EnsEMBL::ExternalData::DAS::Stylesheet objects:
-  #                    'stylesheet' => $style1,
-  #                    # Bio::EnsEMBL::ExternalData::DAS::Feature objects:
-  #                    'features'   => [
-  #                                     $feat1,
-  #                                     $feat2,
-  #                                    ],
-  #                   }
-  # }
+  # TODO: review this structure that is returned, would we prefer to split by
+  # segment ID? We don't always know it before we parse the feature though (e.g.
+  # when querying by feat ID). Also stylesheet errors aren't segment-specific
   
   my ( $target_cs, $target_segment, $slice, $gene, $prot );
   if ( $target_obj->isa('Bio::EnsEMBL::Gene') ) {

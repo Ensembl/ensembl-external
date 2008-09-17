@@ -23,6 +23,7 @@ use Bio::EnsEMBL::ExternalData::DAS::GenomicMapper;
 use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
+use Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 
@@ -129,14 +130,18 @@ sub new {
   return $self;
 }
 
-=head2 fetch_features
+=head2 fetch_Features
 
   Arg [1]    : Bio::EnsEMBL::Object $root_obj - the query object (e.g. Slice, Gene)
-  Arg [2]    : (optional) maxbins - typically the maximum available "rendering space"
-  Arg [3]    : (optional) type ID
-  Arg [4]    : (optional) feature ID
-  Arg [5]    : (optional) group ID
-  Description: Constructor, taking as an argument an arrayref of DAS sources.
+  Arg [2]    : (optional) hash of filters:
+                  maxbins - the maximum available "rendering space" for features
+                            NOTE this is only passed to the server, it is not
+                                 guaranteed to be honoured
+                  feature - the feature ID
+                  type    - the type ID
+                  group   - the group ID
+  Description: Fetches DAS features  for a given Slice, Gene or Translation
+  Example    : $hashref = $c->fetch_Features( $slice, type => 'mytype' );
   Returntype : Bio::EnsEMBL::ExternalData::DAS::Coordinator
   Exceptions : Throws if the object is not supported
   Caller     : 
@@ -144,19 +149,42 @@ sub new {
 
 =cut
 sub fetch_Features {
-  my ($self, $target_obj, $maxbins, $filter_type, $filter_feature, $filter_group) = @_;
+  my ( $self, $target_obj ) = splice @_, 0, 2;
+  my %filters = @_; # maxbins, feature, type, group
   
-  my ($target_cs, $target_segment, $slice, $gene, $prot);
-  if ($target_obj->isa('Bio::EnsEMBL::Gene')) {
+  # TODO: review this structure, would we prefer to have segment ID? We don't
+  # always know it before we parse the feature though (when querying by feat ID)
+  
+  # Final structure will look like:
+  # {
+  #  'http.../das' => {
+  #                    'source'     => $source_object,
+  #                    'errors'     => [
+  #                                     'No features',
+  #                                     'No relevant features',
+  #                                     'Error fetching...',
+  #                                    ],
+  #                    # Bio::EnsEMBL::ExternalData::DAS::Stylesheet objects:
+  #                    'stylesheet' => $style1,
+  #                    # Bio::EnsEMBL::ExternalData::DAS::Feature objects:
+  #                    'features'   => [
+  #                                     $feat1,
+  #                                     $feat2,
+  #                                    ],
+  #                   }
+  # }
+  
+  my ( $target_cs, $target_segment, $slice, $gene, $prot );
+  if ( $target_obj->isa('Bio::EnsEMBL::Gene') ) {
     $slice = $target_obj->slice;
     $gene = $target_obj;
     $target_cs = $slice->coord_system; # actually want features relative to the slice
     $target_segment = $target_obj->stable_id;
-  } elsif ($target_obj->isa('Bio::EnsEMBL::Slice')) {
+  } elsif ( $target_obj->isa('Bio::EnsEMBL::Slice') ) {
     $slice = $target_obj;
     $target_cs = $target_obj->coord_system;
     $target_segment = sprintf '%s:%s,%s', $target_obj->seq_region_name, $target_obj->start, $target_obj->end;
-  } elsif ($target_obj->isa('Bio::EnsEMBL::Translation')) {
+  } elsif ( $target_obj->isa('Bio::EnsEMBL::Translation') ) {
     $prot = $target_obj;
     $target_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
     $target_segment = $target_obj->stable_id;
@@ -175,35 +203,47 @@ sub fetch_Features {
     
     if (! scalar @{ $source->coord_systems } ) {
       warning($source->key.' has '.scalar @{ $source->coord_systems }.' coord systems');
+      next;
     }
     
+    $final->{ $source->logic_name } = { 'features'   => [],
+                                        'errors'     => [],
+                                        'stylesheet' => undef };
+    
+    # Query in all compatible coordinate systems
+    # Note that 
     for my $source_cs (@{ $source->coord_systems }) {
       
+      # Check the coordinate system is the correct species (if it has one)
       if (my $source_species = $source_cs->species) {
         $source_species eq $target_obj->adaptor->db->species || next;
       }
       
+      # The coordinate system name doesn't need species in it because we have
+      # just checked it is species-compatible - we treat them the same from now
+      #Êon. That is, Ensembl,Gene_ID == Ensembl,Gene_ID,Homo sapiens.
+      my $cs_name = $source_cs->name . ' ' . $source_cs->version;
+      
       # Sort sources by coordinate system
-      if (!$coords{$source_cs->name}) {
-        $coords{$source_cs->name} = {
-          'sources'      => {},
-          'coord_system' => $source_cs,
-        };
-        
+      if ( !$coords{$cs_name} ) {
         # Do a lot of funky stuff to get the query segments, and build up
         # mappers at the same time
-        my $segments = $self->_get_Segments($source_cs, $target_cs, $slice, $gene, $prot);
-        $coords{$source_cs->name}->{'segments'} = $segments;
+        my $segments = $self->_get_Segments( $source_cs, $target_cs,
+                                             $slice, $gene, $prot);
+        
+        $coords{ $cs_name } = { 'sources'      => {},
+                                'coord_system' => $source_cs,
+                                'segments'     => $segments   };
       }
-      $coords{$source_cs->name}{'sources'}{$source->full_url} = $source;
+      
+      $coords{ $cs_name }{'sources'}{$source->full_url} = $source;
     }
   }
   
   #==========================================================#
-  # Now perform parallel requests for each coordinate system #
+  #   Parallelise the requests for each coordinate system    #
   #==========================================================#
   
-  my @sources_with_data = ();
   my $daslite = $self->{'daslite'};
   
   # Split the requests that will be performed by coordinate system, i.e. parallelise
@@ -211,129 +251,143 @@ sub fetch_Features {
   while (my ($coord_name, $coord_data) = each %coords) {
     my $segments = $coord_data->{'segments'};
     
+    # Either the mapping isn't supported, or nothing maps to the region we're
+    # interested in.
     if (!scalar @{ $segments }) {
-      # TODO: this needs to be indicated in the results as an error/info message
       info("No segments found for $coord_name");
       next;
     }
     
-    # TODO: use callbacks to build features?
-    
     info("Querying with @{$segments} for $coord_name");
     $daslite->dsn( [keys %{ $coord_data->{'sources'} }] );
     
-    # Now build a query array for each segment, with the optional filter
-    # parameters. Note that it is not mandatory for DAS servers to implement
-    # these filters. If they do, great, but we still have to filter on the
-    # client side.
-    my @features_query = map {
-      {
-       'segment'    => $_,
-       'type'       => $filter_type,
-       'feature_id' => $filter_feature,
-       'group_id'   => $filter_group,
-       'maxbins'    => $maxbins,
+    my $response;
+    my $statuses;
+    
+    #==========================================================#
+    #             Get features for all DAS sources             #
+    #==========================================================#
+    
+    ########
+    # If we are looking for a specific feature, try quering the server(s) for
+    # it specifically first
+    #
+    if ( $filters{feature} ) {
+      $response = $daslite->features( { 'feature_id' => $filters{feature} } ); # returns a hashref
+      $statuses = $daslite->statuscodes();
+      
+      # Find out if it worked (has to work for EVERY source)
+      while (my ($url, $features) = each %{ $response }) {
+        my $status = $statuses->{$url};
+        if ($status !~ m/^200/) {
+          undef $response;
+          last;
+        } elsif (!defined $features || ref $features ne 'ARRAY' || !scalar @{ $features }) {
+          undef $response;
+          last;
+        }
       }
-    } @{ $segments };
+    }
     
-    my $response = $daslite->features(\@features_query); # returns a hashref
-    my $statuses = $daslite->statuscodes();
-    
-    # Final structure will look like:
-    # {
-    #  'http.../das' => {
-    #                    'source'     => $source_object,
-    #                    'stylesheet' => $style_hash,
-    #                    'features'   => {
-    #                                     'segment1' => [
-    #                                                    $feat1, # Bio::EnsEMBL::ExternalData::DAS::Feature
-    #                                                    $feat2,
-    #                                                   ],
-    #                                     'segment2' => [
-    #                                                    $feat3,
-    #                                                    $feat4,
-    #                                                   ],
-    #                                    }
-    #                   }
-    # }
+    ########
+    # If this didn't work, or we are running a normal query, use the segments
+    #
+    if ( !$response ) {
+      # Build a query array for each segment, with the optional filter
+      # parameters. Note that not all DAS servers implement these filters. If
+      # they do, great, but we still have to filter on the client side later.
+      my @features_query = map {
+        {
+         'segment'    => $_,
+         'type'       => $filters{type},
+         'group_id'   => $filters{group},
+         'maxbins'    => $filters{maxbins},
+        }
+      } @{ $segments };
+      
+      $response = $daslite->features( \@features_query ); # returns a hashref
+      $statuses = $daslite->statuscodes();
+    }
     
     #========================================================#
-    #          Process a set of features per source          #
+    #               Check and map the features               #
     #========================================================#
+    my @sources_with_data = ();
     
     while (my ($url, $features) = each %{ $response }) {
       info("*** $url ***");
       my $status = $statuses->{$url};
       
       # Parse the segment from the URL
-      # TODO: check how daslite handles multiple segments!
-      $url =~ s|/features\?segment=([^;]*).*$||;
-      my $segment = $1;
+      # Should be one URL for each source/query combination
+      $url =~ s|/features\?.*$||;
       my $source = $coord_data->{'sources'}{$url};
       
-      $final->{$url}{'source'} = $source;
+      $final->{$source->logic_name}{'source'} = $source;
       
+      # TODO: is this error handling OK?
+      # DAS source generated an error
       if ($status !~ m/^200/) {
-        # TODO: proper error handling
-        $final->{$url}{'features'}{$segment} = [ {
-                                                  'type' => '__ERROR__',
-                                                  'note' => "Error communicating with DAS server - $status",
-                                                 } ];
-        next;
-      } elsif (!defined $features || ref $features ne 'ARRAY' || !scalar @{ $features }) {
-        $final->{$url}{'features'}{$segment} = [ {
-                                                  'type' => '__ERROR__',
-                                                  'note' => 'No features'
-                                                 } ];
-        next;
+        push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching features - $status";
       }
-      
-      ########
-      # Apply client-side filters at this early stage...
-      ########
-      my @filtered_features = grep {
-        #print Dumper($_);
-        ( !$filter_type    || $_->{'type'      } eq $filter_type ) &&
-        ( !$filter_feature || $_->{'feature_id'} eq $filter_feature ) &&
-        ( !$filter_group   || grep { $_->{'group_id'} eq $filter_group } @{ $_->{'group'} } )
-      } @{ $features };
-      
-      ########
-      # Convert into the query coordinate system if applicable
-      ########
-      $features = $self->map_Features($features,
-                                      $coord_data->{'coord_system'},
-                                      $target_cs,
-                                      $slice,
-                                      $filter_type,
-                                      $filter_feature,
-                                      $filter_group);
-      
-      if (scalar @{ $features }) {
-        $final->{$url}{'features'}{$segment} = $features;
-        push @sources_with_data, $source->url; # for retrieving stylesheets
-      } else {
-        $final->{$url}{'features'}{$segment} = [ {
-                                                  'type' => '__ERROR__',
-                                                  'note' => "$segment features do not map to $target_segment",
-                                                 } ];
+      # DAS source has no features in the region of interest
+      elsif (!defined $features || ref $features ne 'ARRAY' || !scalar @{ $features }) {
+        push @{ $final->{$source->logic_name}{'errors'} }, 'No features';
+      }
+      # We got "something" at least...
+      else {
+        
+        ########
+        # Convert into the query coordinate system if applicable
+        #
+        $features = $self->map_Features($features,
+                                        $coord_data->{'coord_system'},
+                                        $target_cs,
+                                        $slice,
+                                        %filters);
+        
+        # We got something useful
+        if (scalar @{ $features }) {
+          push @{ $final->{$source->logic_name}{'features'} }, @{ $features };
+          push @sources_with_data, $source->full_url; # for retrieving stylesheets
+        }
+        # Either we couldn't map the features, or nothing matched the filters
+        else {
+          push @{ $final->{$source->logic_name}{'errors'} }, 'No relevant features';
+        }
+        
       }
       
     }
     
-  }
-  
-  #==========================================================#
-  #         Get stylesheets for all sources with data        #
-  #==========================================================#
-  
-  $daslite->dsn( @sources_with_data );
-  my $response = $daslite->stylesheet();
-  while (my ($url, $styledata) = each %{ $response }) {
-    if ($styledata && ref $styledata eq 'ARRAY') {
+    #==========================================================#
+    #         Get stylesheets for the sources with data        #
+    #==========================================================#
+    
+    $daslite->dsn( @sources_with_data );
+    $response = $daslite->stylesheet();
+    $statuses = $daslite->statuscodes();
+    
+    while (my ($url, $styledata) = each %{ $response }) {
+      
+      my $status = $statuses->{$url};
       $url =~ s|/stylesheet\?$||;
-      $final->{$url}{'stylesheet'} = $styledata;
+      my $source = $coord_data->{'sources'}{$url};
+      
+      # DAS source generated an error
+      if ( $status !~ m/^200/ ) {
+        push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching stylesheet - $status";
+      }
+      # DAS source has no stylesheet
+      elsif (!defined $styledata || ref $styledata ne 'ARRAY' || !scalar @{ $styledata }) {
+        # This code intentionally blank
+      }
+      # We have stylesheet data
+      else {
+        $final->{$source->logic_name}{'stylesheet'} = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new( $styledata->[0] );
+      }
     }
+    
   }
   
   return $final;
@@ -341,10 +395,73 @@ sub fetch_Features {
 
 # Returns: new arrayref with features
 sub map_Features {
-  my ($self, $features, $source_cs, $to_cs, $slice) = @_;
-  my @new_features = ();
+  my ( $self, $features, $source_cs, $to_cs, $slice ) = splice @_, 0, 5;
+  my %filters = @_; # feature, type, group
+  
+  # TODO: implement maxbins filter??
+  my $filter_f = $filters{feature};
+  my $filter_t = $filters{type};
+  my $filter_g = $filters{group};
+  # If filtering we're more likely to have a small region, so it's better to
+  # make 4 tests when filtering and 1 when not than always make 3 tests.
+  # The big question is, is it better to test each filter is enabled than to
+  # just preprocess in an extra iteration? I suspect the former.
+  my $nofilter = !$filter_f && !$filter_t && !$filter_g;
+  
+  # Code block to build a feature object from raw hash
+  my $build_Feature = sub {
+    my $f = shift;
+    $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new( $f );
+    # Where target coordsys is genomic, make a slice-relative feature
+    # TODO: I THINK THIS IS BREAKING THE FEATURES, AS NOT ALL INFO IS COPIED.
+    #       NEED TO READDRESS HOW THIS IS DONE. NOTE THAT DAS FEATURES ARRIVE
+    #       IN SEQ_REGION_SLICE COORDS BUT NEED TO END UP RELATIVE TO SLICE.
+    if ($slice && 0) {
+      $f->slice($slice->seq_region_Slice);
+      $f = $f->transfer($slice);
+    }
+    return $f;
+  };
+  
+  # Code block to apply optional filters
+  my $filter_Feature = sub {
+    my $f = shift;
+    # Test type first, because this is the more likely filter for large regions
+    # where efficiency matters most
+    if ( $filter_t ) {
+      $f->{'type_id'} eq $filter_t || return 0;
+    }
+    if ( $filter_f ) {
+      $f->{'feature_id'} eq $filter_f || return 0;
+    }
+    if ( $filter_g ) {
+      return 0 unless grep { $_->{'group_id'} eq $filter_g } @{ $f->{'group'}||[] };
+    }
+    return 1;
+  };
+  
+  # As part of the feature parsing we need to do some converting and filtering.
+  # We could do this in a separate loop before doing any mapping, but this adds
+  # an extra iteration step which inefficient (especially for large numbers of
+  # features). So we duplicate a bit of code.
+  if ( $source_cs->equals( $to_cs ) ) {
+    my @new_features = ();
+      
+    for my $f ( @{ $features } ) {
+      
+      if ( $nofilter || &$filter_Feature( $f ) ) {
+        $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '+'} || 1; # Convert to Ensembl-style (numeric) strand
+        push @new_features, &$build_Feature( $f ); # Build object
+      }
+      
+    }
+    
+    return \@new_features;
+  }
   
   # May need multiple mapping steps to reach the target coordinate system
+  # This loop works by undefining $source_cs, the redefining it when we know
+  # which coordinate system the mapper is mapping to
   while ( $source_cs && !$source_cs->equals($to_cs) ) {
     
     info('Beginning mapping from '.$source_cs->name);
@@ -358,6 +475,8 @@ sub map_Features {
     
     # Map the current set of features to the next coordinate system
     for my $f ( @this_features ) {
+      
+      $nofilter || &$filter_Feature( $f ) || next;
       
       my $strand = $f->{'strand'};
       if (!defined $strand) {
@@ -390,60 +509,28 @@ sub map_Features {
       for my $c ( @coords ) {
         $c->isa('Bio::EnsEMBL::Mapper::Coordinate') || next;
         my %new = %{ $f };
-        $new{'segment_id'} = $c->id,
-        $new{'start'     } = $c->start,
-        $new{'end'       } = $c->end,
-        $new{'strand'    } = $c->strand,
-        push @{ $features }, \%new;
+        $new{'segment_id'} = $c->id;
+        $new{'start'     } = $c->start;
+        $new{'end'       } = $c->end;
+        $new{'strand'    } = $c->strand;
+        
+        # If this is the final step, convert to Ensembl Feature
+        if ( $source_cs->equals( $to_cs ) ) {
+          push @{ $features }, &$build_Feature( \%new );
+        }
+        else {
+          push @{ $features }, \%new;
+        }
       }
       
     }
     
     if ($positional_mapping_errors) {
-      warning("$positional_mapping_errors positional features could not be mapped")
+      warning("$positional_mapping_errors positional features could not be mapped");
     }
   }
   
-  # Now let's build us some feature objects!
-  for my $f ( @{ $features } ) {
-      use Data::Dumper;print Dumper($f);
-    $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new(
-      -start    => $f->{'start'},
-      -end      => $f->{'end'},
-      -strand   => $f->{'strand'}, # should be 1 if to_cs is protein
-      -type     => $f->{'type'},
-      -score    => $f->{'score'},
-      -notes    => $f->{'note'},
-      -links    => $f->{'link'},
-      -groups   => $f->{'group'},
-    );
-    # Where target coordsys is genomic, make a slice-relative feature
-    # TODO: I THINK THIS IS BREAKING THE FEATURES, AS NOT ALL INFO IS COPIED
-    #       NEED TO READDRESS HOW THIS IS DONE. NOTE THAT DAS FEATURES ARRIVE
-    #       IN SEQ_REGION_SLICE COORDS BUT NEED TO END UP RELATIVE TO SLICE.
-    if ($slice) {
-      $f->slice($slice->seq_region_Slice);
-      $f = $f->transfer($slice);
-    }
-    push @new_features, $f;
-  }
-  
-  return \@new_features;
-}
-
-sub _convert_coord_system {
-  my ($self, $cs) = @_;
-  if ($cs->isa('Bio::EnsEMBL::ExternalData::DAS::CoordSystem')) {
-    return $cs;
-  } elsif ($cs->isa('Bio::EnsEMBL::CoordSystem')) {
-    return Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
-      -name    => $cs->name,
-      -version => $cs->version,
-      -species => $cs->adaptor->db->species,
-    );
-  } else {
-    throw('Argument is not a CoordSystem but a '.ref $cs);
-  }
+  return $features;
 }
 
 # Supports mappings:
@@ -575,7 +662,7 @@ sub _get_Segments {
     }
     
     else {
-      throw(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
+      warning(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   } # end mapping to slice/gene
   
@@ -649,12 +736,12 @@ sub _get_Segments {
     }
     
     else {
-      throw(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
+      warning(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   }
   
   else {
-    throw(sprintf 'Mapping to %s is not supported', $to_cs->name);
+    warning(sprintf 'Mapping to %s is not supported', $to_cs->name);
   }
   
   return \@segments;

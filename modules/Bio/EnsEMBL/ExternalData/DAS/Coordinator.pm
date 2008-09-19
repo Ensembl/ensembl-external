@@ -335,7 +335,7 @@ sub fetch_Features {
         {
          'segment'    => $_,
          'type'       => $filters{type},
-         'feature_id' => $filters{feature}
+         'feature_id' => $filters{feature},
          'group_id'   => $filters{group},
          'maxbins'    => $filters{maxbins},
         }

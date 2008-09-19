@@ -522,7 +522,7 @@ sub map_Features {
       # It doesn't matter what coordinate system non-positional features come
       # from, they are always included and don't need mapping
       if ($f->{'start'} == 0 && $f->{'end'} == 0) {
-        push @{ $features }, $f;
+        push @{ $features }, &$build_Feature( $f ); # Build object
         next;
       }
       

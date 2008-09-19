@@ -21,12 +21,16 @@ sub new {
     'to'      => $to,
     'from_cs' => $from_cs,
     'to_cs'   => $to_cs,
-    'forward' => $to_cs->name eq 'ensembl_peptide',
   };
   bless $self, $class;
   
+  my $is_forward = $to_cs->name =~ m/peptide/;
   $self->{'genomic_id'} = $transcript->slice->seq_region_name;
   $self->{'peptide_id'} = $transcript->translation->stable_id;
+  $self->{'genomic'}    = $is_forward ? $from : $to;
+  $self->{'peptide'}    = $is_forward ? $to   : $from;
+  $self->{'genomic_cs'} = $is_forward ? $from_cs : $to_cs;
+  $self->{'peptide_cs'} = $is_forward ? $to_cs   : $from_cs;
   
   return $self;
 }
@@ -34,23 +38,26 @@ sub new {
 sub map_coordinates {
   my $self = shift;
   
-  my (@coords, $out_id);
-  if ( ($_[4] eq $self->{'from'}) * $self->{'forward'}) {
-    # Query is genomic if:
-    #  query is left hand side and left hand side is genomic
-    #  query is right hand side and right hand side is genomic
+  my (@coords, $out_id, $out_cs);
+  # Query is genomic
+  if ( $_[4] eq $self->{'genomic'} ) {
     @coords = $self->{'_mapper'}->genomic2pep(@_[1 .. 3]);
     $out_id = $self->{'peptide_id'};
-  } else {
-    # Query is peptide if:
-    #  query is left hand side and left hand side is peptide
-    #  query is right hand side and right hand side is peptide
+    $out_cs = $self->{'peptide_cs'};
+  # Query is peptide
+  } elsif ( $_[4] eq $self->{'peptide'} ) {
     @coords = $self->{'_mapper'}->pep2genomic(@_[1 .. 2]);
     $out_id = $self->{'genomic_id'};
+    $out_cs = $self->{'genomic_cs'};
+  } else {
+    throw($_[4].' is neither the genomic or peptide coordinate system');
   }
   
   for my $c ( @coords ) {
-    $c->id( $out_id ) if ($c->isa('Bio::EnsEMBL::Mapper::Coordinate'));
+    if ($c->isa('Bio::EnsEMBL::Mapper::Coordinate')) {
+      $c->id( $out_id );
+      $c->coord_system( $out_cs ); # TranscriptMapper doesn't set this
+    }
   }
   return @coords;
 }

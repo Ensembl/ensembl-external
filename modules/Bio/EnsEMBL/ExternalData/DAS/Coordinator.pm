@@ -301,6 +301,7 @@ sub fetch_Features {
     #             Get features for all DAS sources             #
     #==========================================================#
     
+=head
     ########
     # If we are looking for a specific feature, try quering the server(s) for
     # it specifically first
@@ -321,6 +322,7 @@ sub fetch_Features {
         }
       }
     }
+=cut
     
     ########
     # If this didn't work, or we are running a normal query, use the segments
@@ -333,6 +335,7 @@ sub fetch_Features {
         {
          'segment'    => $_,
          'type'       => $filters{type},
+         'feature_id' => $filters{feature}
          'group_id'   => $filters{group},
          'maxbins'    => $filters{maxbins},
         }

@@ -36,8 +36,9 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
                -URL           - The URL (excluding source name) for the source.
                -DSN           - The source name.
                -COORDS        - The coordinate systems supported by the source.
-                                This is a single or arrayref of
-                                Bio::EnsEMBL::CoordSystem objects.
+                                This is an arrayref of
+                                Bio::EnsEMBL::ExternalData::DAS::CoordSystem
+                                objects.
                -LOGIC_NAME    - (optional) The logic name of the source.
                -LABEL         - (optional) The display name of the source.
                -DESCRIPTION   - (optional) The description of the source.
@@ -47,7 +48,7 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
   Example    : $src = Bio::EnsEMBL::ExternalData::DAS::Source->new(
                   -DSN           => 'astd_exon_human_36',
                   -URL           => 'http://www.ebi.ac.uk/das-srv/genomicdas/das',
-                  -COORDS        => [ 'chromosome:NCBI36', 'uniprot_peptide' ],
+                  -COORDS        => [ $cs1, $cs2 ],
                   -LABEL         => 'ASTD transcripts',
                   -DESCRIPTION   => 'Transcripts from the ASTD database...',
                   -HOMEPAGE      => 'http://www.ebi.ac.uk/astd',
@@ -134,17 +135,16 @@ sub dsn {
 
 =head2 coord_systems
 
-  Arg [1]    : Optional value to set (arrayref or scalar)
+  Arg [1]    : Optional value to set (arrayref)
   Description: Get/Setter for the Ensembl coordinate systems supported by the source
-  Returntype : arrayref of URIs (e.g. chromosome:NCBI36; ensembl_gene)
+  Returntype : arrayref of Bio::EnsEMBL::ExternalData::DAS::CoordSystem objects
   Status     : Stable
 
 =cut
 sub coord_systems {
-  my ($self, $coords) = @_;
-  if ( defined $coords ) {
-    $coords = [$coords] if (!ref $coords);
-    $self->{coords} = $coords;
+  my $self = shift;
+  if ( @_ ) {
+    $self->{coords} = shift;
   }
   return $self->{coords};
 }

@@ -54,6 +54,18 @@ sub new {
   return $self;
 }
 
+sub new_from_string {
+  my $caller = shift;
+  my $string = shift;
+  my $class = ref($caller) || $caller;
+
+  my ($name, $version, $species, $label) = split /:/, $string, 4;
+  return $class->SUPER::new( -name    => $name,
+                             -version => $version,
+                             -species => $species,
+                             -label   => $label);
+}
+
 =head2 name
 
   Arg [1]    : (optional) string $name

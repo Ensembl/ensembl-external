@@ -41,20 +41,20 @@ use warnings;
 our $DEFAULT_STYLESHEET = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new();
 
 our $DEFAULT_GRADIENT = bless {
-  'default' => { 'default' => { 'symbol' => 'gradient',
-                                'color1' => 'yellow',
-                                'color2' => 'green',
-                                'color3' => 'blue'      } }
+  'default' => { 'default' => { 'default' => { 'symbol' => 'gradient',
+                                               'color1' => 'yellow',
+                                               'color2' => 'green',
+                                               'color3' => 'blue'      } } }
 }, 'Bio::EnsEMBL::ExternalData::DAS::Stylesheet';
 
 our $DEFAULT_HISTOGRAM = bless {
-  'default' => { 'default' => { 'symbol' => 'histogram',
-                                'color1' => 'black'      } }
+  'default' => { 'default' => { 'default' => { 'symbol' => 'histogram',
+                                               'color1' => 'black'      } } }
 }, 'Bio::EnsEMBL::ExternalData::DAS::Stylesheet';
 
 our $DEFAULT_TILING = bless {
-  'default' => { 'default' => { 'symbol' => 'tiling',
-                                'color1' => 'orange'  } }
+  'default' => { 'default' => { 'default' => { 'symbol' => 'tiling',
+                                               'color1' => 'orange'  } } }
 }, 'Bio::EnsEMBL::ExternalData::DAS::Stylesheet';
 
 =head1 METHODS
@@ -96,6 +96,7 @@ sub new {
   #                                    'type_id' => 'exon',
   #                                    'glyph'   => [
   #                                                  {
+  #                                                   'glyph_zoom' => 'high',
   #                                                   'box' => [
   #                                                             {
   #                                                              'fgcolor' => 'red',
@@ -113,22 +114,28 @@ sub new {
   # {
   #  'transcription' => {
   #                      'exon' => {
-  #                                 'symbol'  => 'box',
-  #                                 'fgcolor' => 'red',
-  #                                 'bgcolor' => 'black'
+  #                                 'high' => {
+  #                                            'symbol'  => 'box',
+  #                                            'fgcolor' => 'red',
+  #                                            'bgcolor' => 'black'
+  #                                           }
   #                                }
   #                     }
   # }
   for my $category ( @{ $raw->{'category'} || [] } ) {
     
     for my $type ( @{ $category->{'type'} || [] } ) {
-      #use Data::Dumper; print Dumper($type);
-      my $glyph_hash = $type->{'glyph'}->[0];
-      my $glyph_type = ( keys %{ $glyph_hash } )[0];
-      my $glyph_attr = $glyph_hash->{$glyph_type}->[0];
-      $glyph_attr->{'type'} = $glyph_type;
       
-      $self->{ $category->{'category_id'} }{ $type->{'type_id'} } = $glyph_attr;
+      for my $glyph_hash ( @{ $type->{'glyph'} } ) {
+        
+        my $zoom = delete $glyph_hash->{'glyph_zoom'} || 'default';
+        my $glyph_type = ( keys %{ $glyph_hash } )[0];
+        my $glyph_attr = $glyph_hash->{$glyph_type}->[0] || next;
+        $glyph_attr->{'symbol'} = $glyph_type;
+        
+        # Store the glyph
+        $self->{ $category->{'category_id'} }{ $type->{'type_id'} }{ $zoom } = $glyph_attr;
+      }
     }
   }
   
@@ -146,6 +153,7 @@ our $BOX_GLYPH = {
 
   Arg [1]    : string category
   Arg [2]    : string type
+  Arg [3]    : (optional) string zoom [high|medium|low]
   Examples   : $glyph = $stylesheet->find_glyph_type( 'transcription', 'exon' );
   Description: Assigns a glyph type given a feature category and type. If a
                match is not found, will return a default box glyph. The result
@@ -157,12 +165,17 @@ our $BOX_GLYPH = {
 =cut
 
 sub find_feature_glyph {
-  my ( $self, $category, $type ) = @_;
+  my ( $self, $category, $type, $zoom ) = @_;
+  $zoom ||= 'default';
   # If not found in the tree, expand the tree to include it so that next
   # feature with same type is found faster
-  return $self->{$category}{$type} ||= $self->{$category}{'default'} ||
-                                       $self->{'default'}{$type    } ||
-                                       $self->{'default'}{'default'} ||
+  $self->{$category}{$type}{$zoom} ||= $self->{$category}{$type    }{'default'} ||
+                                       $self->{$category}{'default'}{$zoom    } ||
+                                       $self->{$category}{'default'}{'default'} ||
+                                       $self->{'default'}{$type    }{$zoom    } ||
+                                       $self->{'default'}{$type    }{'default'} ||
+                                       $self->{'default'}{'default'}{$zoom    } ||
+                                       $self->{'default'}{'default'}{'default'} ||
                                        $BOX_GLYPH;
 }
 
@@ -175,6 +188,7 @@ our $LINE_GLYPH = {
 =head2 find_group_glyph
 
   Arg [1]    : string type
+  Arg [2]    : (optional) string zoom [high|medium|low]
   Examples   : $glyph = $stylesheet->find_glyph_type( 'transcription', 'exon' );
   Description: Assigns a glyph type given a group type. If a match is not found,
                will return a default line glyph. The result is cached for faster
@@ -186,10 +200,13 @@ our $LINE_GLYPH = {
 =cut
 
 sub find_group_glyph {
-  my ( $self, $type ) = @_;
+  my ( $self, $type, $zoom ) = @_;
+  $zoom ||= 'default';
   # If not found in the tree, expand the tree to include it so that next
   # feature with same type is found faster
-  return $self->{'group'}{$type} ||= $self->{'group'}{'default'} ||
+  $self->{'group'}{$type}{$zoom} ||= $self->{'group'}{$type    }{'default'} ||
+                                     $self->{'group'}{'default'}{$zoom    } ||
+                                     $self->{'group'}{'default'}{'default'} ||
                                      $LINE_GLYPH;
 }
 

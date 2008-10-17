@@ -116,8 +116,9 @@ sub new {
 =head2 fetch_Sources
 
   Arg [..]   : List of named arguments:
-               -SPECIES   - (optional) scalar species name filter
-               -NAME      - (optional) scalar source name filter
+               -SPECIES    - (optional) scalar or arrayref species name filter
+               -NAME       - (optional) scalar or arrayref source name filter
+               -LOGIC_NAME - (optional) scalar or arrayref logic_name filter
   Example:     $arr = $parser->fetch_Sources(
                                              -species => 'Homo_sapiens',
                                              -name    => ['asd', 'atd', 'astd'],
@@ -133,7 +134,7 @@ sub new {
 =cut
 sub fetch_Sources {
   my $self = shift;
-  my ($f_species, $f_name) = rearrange([ 'SPECIES', 'NAME' ], @_);
+  my ($f_species, $f_name, $f_logic) = rearrange([ 'SPECIES', 'NAME', 'LOGIC_NAME' ], @_);
   
   # Actual parsing is lazy
   if (!defined $self->{'_sources'}) {
@@ -142,14 +143,26 @@ sub fetch_Sources {
   
   my @sources = values %{ $self->{'_sources'} || {} };
   
+  my @f_species = !defined $f_species ? ()
+                : ref $f_species ? @{ $f_species } : ( $f_species );
+  my @f_name    = !defined $f_name ? ()
+                : ref $f_name ? @{ $f_name } : ( $f_name );
+  my @f_logic   = !defined $f_logic ? ()
+                : ref $f_logic ? @{ $f_logic } : ( $f_logic );
+  
   # optional species filter
-  if ($f_species) {
-    @sources = grep { $_->matches_species( $f_species ) } @sources;
+  if ( scalar @f_species ) {
+    @sources = grep { my $source = $_; grep { $source->matches_species( $_ ) } @f_species } @sources;
   }
   
   # optional name filter
-  if ($f_name) {
-    @sources = grep { $_->matches_name( $f_name ) } @sources;
+  if ( scalar @f_name ) {
+    @sources = grep { my $source = $_; grep { $source->matches_name( $_ ) } @f_name  } @sources;
+  }
+  
+  # optional logic name filter
+  if ( scalar @f_logic ) {
+    @sources = grep { my $source = $_; grep { $source->logic_name eq $_ } @f_logic  } @sources;
   }
   
   return [sort { lc $a->label cmp lc $b->label } @sources];
@@ -180,7 +193,7 @@ sub _parse_server {
   
   # Servers which don't respond to the "sources" command will be attempted via
   # the "dsn" command
-  my @attempt_dsn = ();
+  my @success = ();
   my $struct = $self->{'daslite'}->sources();
   
   # Iterate over each server
@@ -192,22 +205,21 @@ sub _parse_server {
     # If we get data back from the sources command, parse it
     if ($status =~ /^200/ && scalar @{ $set }) {
       $self->_parse_sources_output($url, $set);
-    }
-    # Otherwise try the dsn command (which gives poorer metadata)
-    else {
       $url =~ s|/sources\??$||;
-      push @attempt_dsn, $url;
+      push @success, $url;
     }
     
   }
   
+  my @previous = @{ $self->{'daslite'}->dsn || [] };
+  my @failed = grep { my $url = $_; !grep { $_ eq $url } @success } @previous;
+  
   # Run the dsn command on the remaining servers (if any)
-  if (scalar @attempt_dsn) {
+  if (scalar @failed) {
     
-    my $previous = $self->{'daslite'}->dsn;
-    $self->{'daslite'}->dsn(\@attempt_dsn);
+    $self->{'daslite'}->dsn(\@failed);
     $struct = $self->{'daslite'}->dsns();
-    $self->{'daslite'}->dsn($previous);
+    $self->{'daslite'}->dsn(\@previous);
     
     while (my ($url, $set) = each %{ $struct }) {
       
@@ -216,12 +228,10 @@ sub _parse_server {
       $set ||= [];
       
       # If we get data back from the sources command, parse it
-      if ($status =~ /^200/ && scalar @{ $set }) {
-        $self->_parse_dsn_output($url, $set);
-      }
-      # Otherwise try the dsn command (which gives poorer metadata)
-      else {
+      if ($status !~ /^200/) {
         throw("Error contacting DAS server '$url' : $status");
+      } elsif (scalar @{ $set }) {
+        $self->_parse_dsn_output($url, $set);
       }
     }
   }

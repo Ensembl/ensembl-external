@@ -124,7 +124,9 @@ sub new {
                                              -name    => ['asd', 'atd', 'astd'],
                                             );
   Description: Fetches DAS Source objects. The first call to this method
-                initiates lazy parsing of the XML, and the results are stored.
+               initiates lazy parsing of the XML, and the results are stored.
+               The different filter types supplied to this method are treated as
+               a logical AND. Several filters of the same type are logical OR.
   Returntype : Arrayref of Bio::EnsEMBL::ExternalData::DAS::Source objects,
                sorted by label.
   Exceptions : If there is an error contacting the DAS registry/server.
@@ -152,16 +154,19 @@ sub fetch_Sources {
   
   # optional species filter
   if ( scalar @f_species ) {
+    info('Filtering by species');
     @sources = grep { my $source = $_; grep { $source->matches_species( $_ ) } @f_species } @sources;
   }
   
   # optional name filter
   if ( scalar @f_name ) {
+    info('Filtering by name');
     @sources = grep { my $source = $_; grep { $source->matches_name( $_ ) } @f_name  } @sources;
   }
   
   # optional logic name filter
   if ( scalar @f_logic ) {
+    info('Filtering by logic_name');
     @sources = grep { my $source = $_; grep { $source->logic_name eq $_ } @f_logic  } @sources;
   }
   

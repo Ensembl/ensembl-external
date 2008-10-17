@@ -60,10 +60,10 @@ sub new_from_string {
   my $class = ref($caller) || $caller;
 
   my ($name, $version, $species, $label) = split /:/, $string, 4;
-  return $class->SUPER::new( -name    => $name,
-                             -version => $version,
-                             -species => $species,
-                             -label   => $label);
+  return $class->new( -name    => $name,
+                      -version => $version,
+                      -species => $species,
+                      -label   => $label);
 }
 
 =head2 name

@@ -231,16 +231,16 @@ sub label {
 
 =head2 matches_species
 
-  Arg [1]    : Whole or part species string
+  Arg [1]    : Species string
   Description: Determines whether the Source supports a species with at least
-               one of its coordinate systems. Matches against a regex.
+               one of its coordinate systems.
   Returntype : 1 or 0
   Status     : Stable
 
 =cut
 sub matches_species {
   my ($self, $species) = @_;
-  if (grep { !$_->species || $_->species =~ m/$species/ } @{ $self->coord_systems || [] }) {
+  if (grep { $_->matches_species( $species ) } @{ $self->coord_systems || [] }) {
     return 1;
   }
   return 0;

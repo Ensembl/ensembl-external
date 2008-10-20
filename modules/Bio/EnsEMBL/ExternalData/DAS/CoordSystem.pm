@@ -54,10 +54,21 @@ sub new {
   return $self;
 }
 
+sub new_from_hashref {
+  my $caller = shift;
+  my $hash   = shift;
+  my $class  = ref($caller) || $caller;
+  
+  return $class->new( -name    => $hash->{'name'},
+                      -version => $hash->{'version'},
+                      -species => $hash->{'species'},
+                      -label   => $hash->{'label'});
+}
+
 sub new_from_string {
   my $caller = shift;
   my $string = shift;
-  my $class = ref($caller) || $caller;
+  my $class  = ref($caller) || $caller;
 
   my ($name, $version, $species, $label) = split /:/, $string, 4;
   return $class->new( -name    => $name,
@@ -179,6 +190,26 @@ sub equals {
   return 0;
 }
 
+=head2 matches_species
 
+  Arg [1]    : Species string
+  Example    : if ( $coord_sys->matches_species( 'Homo_sapiens' ) ) { ... }
+  Description: Determines whether the CoordSystem supports a given species. Will
+               return if the coordinate system is not species-specific, or is
+               specific to the given species.
+  Returntype : 1 or 0
+  Exceptions : none
+  Caller     : general
+  Status     : Stable
+
+=cut
+
+sub matches_species {
+  my ($self, $species) = @_;
+  if ( !$self->species || $self->species eq $species ) {
+    return 1;
+  }
+  return 0;
+}
 
 1;

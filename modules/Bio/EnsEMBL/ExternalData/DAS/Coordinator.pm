@@ -224,9 +224,12 @@ sub fetch_Features {
   } else {
     throw('Unsupported object type: '.$target_obj);
   }
+  my $target_species = $target_obj->adaptor->db->species;
   
   my %coords = ();
-  my $final = {};
+  my $final  = {};
+  my $by_url = {};
+  my %sources_with_data = ();
   
   #==========================================================#
   #      First sort the sources into coordinate systems      #
@@ -234,42 +237,47 @@ sub fetch_Features {
   
   for my $source (@{ $self->{'sources'} }) {
     
-    if (! scalar @{ $source->coord_systems } ) {
-      warning($source->key.' has '.scalar @{ $source->coord_systems }.' coord systems');
-      next;
-    }
-    
     $final->{ $source->logic_name } = { 'features'   => [],
                                         'errors'     => [],
                                         'stylesheet' => undef };
     
+    my @coord_systems = @{ $source->coord_systems || [] };
+    
+    if (! scalar @coord_systems ) {
+      warning($source->key.' has '.scalar @{ $source->coord_systems }.' coord systems');
+      push @{ $final->{$source->logic_name}{'errors'} }, 'Bad source configuration';
+      next;
+    }
+    
+    # Check the coordinate system is the correct species (if it has one)
+    @coord_systems = grep { $_->matches_species( $target_species ) } @coord_systems;
+    
+    if (! scalar @coord_systems ) {
+      push @{ $final->{$source->logic_name}{'errors'} }, "Source not compatible with $target_species";
+    }
+    
     # Query in all compatible coordinate systems
-    # Note that 
-    for my $source_cs (@{ $source->coord_systems }) {
-      
-      # Check the coordinate system is the correct species (if it has one)
-      if (my $source_species = $source_cs->species) {
-        $source_species eq $target_obj->adaptor->db->species || next;
-      }
+    for my $source_cs ( @coord_systems ) {
       
       # The coordinate system name doesn't need species in it because we have
       # just checked it is species-compatible - we treat them the same from now
       #Êon. That is, Ensembl,Gene_ID == Ensembl,Gene_ID,Homo sapiens.
-      my $cs_name = $source_cs->name . ' ' . $source_cs->version;
+      my $cs_key = $source_cs->name . ' ' . $source_cs->version;
       
       # Sort sources by coordinate system
-      if ( !$coords{$cs_name} ) {
+      if ( !$coords{$cs_key} ) {
         # Do a lot of funky stuff to get the query segments, and build up
         # mappers at the same time
         my $segments = $self->_get_Segments( $source_cs, $target_cs,
                                              $slice, $gene, $prot);
         
-        $coords{ $cs_name } = { 'sources'      => {},
-                                'coord_system' => $source_cs,
-                                'segments'     => $segments   };
+        $coords{ $cs_key } = { 'sources'      => {},
+                               'coord_system' => $source_cs,
+                               'segments'     => $segments   };
       }
       
-      $coords{ $cs_name }{'sources'}{$source->full_url} = $source;
+      $coords{ $cs_key }{'sources'}{$source->full_url} ||= [];
+      push @{ $coords{ $cs_key }{'sources'}{$source->full_url} }, $source;
     }
   }
   
@@ -281,18 +289,26 @@ sub fetch_Features {
   
   # Split the requests that will be performed by coordinate system, i.e. parallelise
   # requests for segments that are from the same coordinate system
-  while (my ($coord_name, $coord_data) = each %coords) {
-    my $segments = $coord_data->{'segments'};
+  while (my ($coord_key, $coord_data) = each %coords) {
+    my @segments   = @{ $coord_data->{'segments'} };
+    my @urls       = keys %{ $coord_data->{'sources'} };
+    my $source_cs  = $coord_data->{'coord_system'};
+    my $coord_name = $source_cs->label;
     
     # Either the mapping isn't supported, or nothing maps to the region we're
     # interested in.
-    if (!scalar @{ $segments }) {
+    if (! scalar @segments ) {
       info("No segments found for $coord_name");
+      for ( values %{ $coord_data->{'sources'} } ) {
+        for my $source (@{ $_ }) {
+          push @{ $final->{ $source->logic_name }{ 'errors' } }, 'Not applicable';
+        }
+      }
       next;
     }
     
-    info("Querying with @{$segments} for $coord_name");
-    $daslite->dsn( [keys %{ $coord_data->{'sources'} }] );
+    info("Querying with @segments for $coord_name");
+    $daslite->dsn( \@urls );
     
     my $response;
     my $statuses;
@@ -339,7 +355,7 @@ sub fetch_Features {
          'group_id'   => $filters{group},
          'maxbins'    => $filters{maxbins},
         }
-      } @{ $segments };
+      } @segments;
       
       $response = $daslite->features( \@features_query ); # returns a hashref
       $statuses = $daslite->statuscodes();
@@ -348,27 +364,29 @@ sub fetch_Features {
     #========================================================#
     #               Check and map the features               #
     #========================================================#
-    my @sources_with_data = ();
     
     while (my ($url, $features) = each %{ $response }) {
+      # Now iterating over coordsys + url
       info("*** $url ***");
       my $status = $statuses->{$url};
       
       # Parse the segment from the URL
       # Should be one URL for each source/query combination
       $url =~ s|/features\?.*$||;
-      my $source = $coord_data->{'sources'}{$url};
-      
-      $final->{$source->logic_name}{'source'} = $source;
+      my @sources = @{ $coord_data->{'sources'}{$url} };
       
       # TODO: is this error handling OK?
       # DAS source generated an error
       if ($status !~ m/^200/) {
-        push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching features - $status";
+        for my $source ( @sources ) {
+          push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching features - $status";
+        }
       }
       # DAS source has no features in the region of interest
       elsif (!defined $features || ref $features ne 'ARRAY' || !scalar @{ $features }) {
-        push @{ $final->{$source->logic_name}{'errors'} }, 'No features';
+        for my $source ( @sources ) {
+          push @{ $final->{$source->logic_name}{'errors'} }, 'No features';
+        }
       }
       # We got "something" at least...
       else {
@@ -377,53 +395,63 @@ sub fetch_Features {
         # Convert into the query coordinate system if applicable
         #
         $features = $self->map_Features($features,
-                                        $coord_data->{'coord_system'},
+                                        $source_cs,
                                         $target_cs,
                                         $slice,
                                         %filters);
         
         # We got something useful
         if (scalar @{ $features }) {
-          push @{ $final->{$source->logic_name}{'features'} }, @{ $features };
-          push @sources_with_data, $source->full_url; # for retrieving stylesheets
+          for my $source ( @sources ) {
+            push @{ $final->{$source->logic_name}{'features'} }, @{ $features };
+            # For retrieving stylesheets:
+            $sources_with_data{$url}{$source->logic_name} = $source;
+          }
         }
         # Either we couldn't map the features, or nothing matched the filters
         else {
-          push @{ $final->{$source->logic_name}{'errors'} }, 'No relevant features';
+          for my $source ( @sources ) {
+            push @{ $final->{$source->logic_name}{'errors'} }, 'No relevant features';
+          }
         }
         
       }
       
     }
     
-    #==========================================================#
-    #         Get stylesheets for the sources with data        #
-    #==========================================================#
+  }
+  
+  #==========================================================#
+  #         Get stylesheets for the sources with data        #
+  #==========================================================#
+  
+  $daslite->dsn( keys %sources_with_data );
+  my $response = $daslite->stylesheet();
+  my $statuses = $daslite->statuscodes();
+  
+  while (my ($url, $styledata) = each %{ $response }) {
     
-    $daslite->dsn( @sources_with_data );
-    $response = $daslite->stylesheet();
-    $statuses = $daslite->statuscodes();
+    my $status = $statuses->{$url};
+    $url =~ s|/stylesheet\?$||;
+    my @sources = values %{ $sources_with_data{$url} };
     
-    while (my ($url, $styledata) = each %{ $response }) {
-      
-      my $status = $statuses->{$url};
-      $url =~ s|/stylesheet\?$||;
-      my $source = $coord_data->{'sources'}{$url};
-      
-      # DAS source generated an error
-      if ( $status !~ m/^200/ ) {
+    # DAS source generated an error
+    if ( $status !~ m/^200/ ) {
+      for my $source ( @sources ) {
         push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching stylesheet - $status";
       }
-      # DAS source has no stylesheet
-      elsif (!defined $styledata || ref $styledata ne 'ARRAY' || !scalar @{ $styledata }) {
-        # This code intentionally blank
-      }
-      # We have stylesheet data
-      else {
-        $final->{$source->logic_name}{'stylesheet'} = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new( $styledata->[0] );
+    }
+    # DAS source has no stylesheet
+    elsif (!defined $styledata || ref $styledata ne 'ARRAY' || !scalar @{ $styledata }) {
+      # This code intentionally blank
+    }
+    # We have stylesheet data
+    else {
+      my $stylesheet = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new( $styledata->[0] );
+      for my $source ( @sources ) {
+        $final->{$source->logic_name}{'stylesheet'} = $stylesheet;
       }
     }
-    
   }
   
   return $final;

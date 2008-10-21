@@ -228,7 +228,6 @@ sub fetch_Features {
   
   my %coords = ();
   my $final  = {};
-  my $by_url = {};
   my %sources_with_data = ();
   
   #==========================================================#
@@ -237,9 +236,10 @@ sub fetch_Features {
   
   for my $source (@{ $self->{'sources'} }) {
     
-    $final->{ $source->logic_name } = { 'features'   => [],
-                                        'errors'     => [],
-                                        'stylesheet' => undef };
+    $final->{ $source->logic_name } = { 'features'      => [],
+                                        'features_urls' => [],
+                                        'errors'        => [],
+                                        'stylesheet'    => undef };
     
     my @coord_systems = @{ $source->coord_systems || [] };
     
@@ -365,15 +365,20 @@ sub fetch_Features {
     #               Check and map the features               #
     #========================================================#
     
-    while (my ($url, $features) = each %{ $response }) {
+    while (my ($raw_url, $features) = each %{ $response }) {
       # Now iterating over coordsys + url
-      info("*** $url ***");
-      my $status = $statuses->{$url};
+      info("*** $raw_url ***");
+      my $status = $statuses->{$raw_url};
       
       # Parse the segment from the URL
       # Should be one URL for each source/query combination
+      my $url = $raw_url;
       $url =~ s|/features\?.*$||;
       my @sources = @{ $coord_data->{'sources'}{$url} };
+      
+      for my $source ( @sources ) {
+        push @{ $final->{$source->logic_name}{'features_urls'} }, $raw_url;
+      }
       
       # TODO: is this error handling OK?
       # DAS source generated an error

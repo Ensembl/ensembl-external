@@ -430,14 +430,14 @@ sub fetch_Features {
   #         Get stylesheets for the sources with data        #
   #==========================================================#
   
-  $daslite->dsn( keys %sources_with_data );
+  $daslite->dsn( [ keys %sources_with_data ] );
   my $response = $daslite->stylesheet();
   my $statuses = $daslite->statuscodes();
   
   while (my ($url, $styledata) = each %{ $response }) {
     
     my $status = $statuses->{$url};
-    $url =~ s|/stylesheet\?$||;
+    $url =~ s|/stylesheet\??$||;
     my @sources = values %{ $sources_with_data{$url} };
     
     # DAS source generated an error

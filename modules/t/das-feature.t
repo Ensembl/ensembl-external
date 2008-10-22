@@ -1,7 +1,7 @@
 use strict;
 
 BEGIN { $| = 1;
-        use Test::More tests => 32;
+        use Test::More tests => 34;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
@@ -40,11 +40,11 @@ my $slice = $dba->get_SliceAdaptor()->fetch_by_region('chromosome', 'X',1000,200
     # Core Ensembl attributes:
     'start'  => 100,
     'end'    => 200,
-    'strand' => -1,     # or can use "orientation"
-    'slice'  => $slice, # optional, for genomic features
+    'slice'  => $slice,
+    'strand' => 1,
     
     # DAS-specific attributes:
-    'orientation'   => '+',         # + or - or .
+    'orientation'   => '+',
     'feature_id'    => 'feature1',
     'feature_label' => 'Feature 1',
     'type'          => 'exon',
@@ -68,57 +68,67 @@ my $slice = $dba->get_SliceAdaptor()->fetch_by_region('chromosome', 'X',1000,200
   };
   
   my $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new( $raw_feature );
+  &test();
   
-  ok($f->display_id);
-  ok($f->display_label);
-  ok($f->start);
-  ok($f->end);
-  ok($f->seq_region_start);
-  ok($f->seq_region_end);
-  ok($f->type_label);
-  ok($f->type_id);
-  ok($f->type_category);
-  ok($f->score);
+  # test strand
+  delete $raw_feature->{'strand'};
+  $raw_feature->{'orientation'} = '+';
+  $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new( $raw_feature );
+  ok($f->strand == 1, 'orientation -> strand');
+  
+sub test {
+  ok($f->display_id      , 'display ID');
+  ok($f->display_label   , 'display label');
+  ok($f->start           , 'start');
+  ok($f->end             , 'end');
+  ok($f->strand == 1     , 'strand');
+  ok($f->seq_region_start, 'seq region start');
+  ok($f->seq_region_end  , 'seq region end');
+  ok($f->type_label      , 'type label');
+  ok($f->type_id         , 'type ID',);
+  ok($f->type_category   , 'type category');
+  ok($f->score           , 'score');
 
-  ok(@{ $f->links });
+  ok(@{ $f->links }, 'has link');
   for my $l ( @{ $f->links() } ) {
-    ok($l->{'href'});
-    ok($l->{'txt'});
+    ok($l->{'href'}, 'link href');
+    ok($l->{'txt'} , 'link text');
   }
   
-  ok(@{ $f->notes });
+  ok(@{ $f->notes }, 'has note');
   for my $n ( @{ $f->notes() } ) {
-    ok($n);
+    ok($n, 'note content');
   }
  
-  ok(@{ $f->targets }); 
+  ok(@{ $f->targets }, 'has target'); 
   for my $t ( @{ $f->targets() } ) {
-    ok($t->{'target_id'});
-    ok($t->{'target_start'});
-    ok($t->{'target_stop'});
+    ok($t->{'target_id'}   , 'target ID');
+    ok($t->{'target_start'}, 'target start');
+    ok($t->{'target_stop'} , 'target stop');
   }
   
-  ok(@{ $f->groups });
+  ok(@{ $f->groups }, 'has group');
   for my $g ( @{ $f->groups() } ) {
-    ok($g->display_id);
-    ok($g->display_label);
-    ok($g->type_label);
+    ok($g->display_id   , 'group ID');
+    ok($g->display_label, 'group label');
+    ok($g->type_label   , 'group type');
     
-    ok(@{ $g->links });
+    ok(@{ $g->links }, 'group has link');
     for my $l ( @{ $g->links() } ) {
-      ok($l->{'href'});
-      ok($l->{'txt'});
+      ok($l->{'href'}, 'group link href');
+      ok($l->{'txt'} , 'group link text');
     }
     
-    ok(@{ $g->notes });
+    ok(@{ $g->notes }, 'group has note');
     for my $n ( @{ $g->notes() } ) {
-      ok($n);
+      ok($n, 'group note content');
     }
     
-    ok(@{ $g->targets });
+    ok(@{ $g->targets }, 'group has target');
     for my $t ( @{ $g->targets() } ) {
-      ok($t->{'target_id'});
-      ok($t->{'target_start'});
-      ok($t->{'target_stop'});
+      ok($t->{'target_id'}   , 'group target ID');
+      ok($t->{'target_start'}, 'group target start');
+      ok($t->{'target_stop'} , 'group target stop');
     }
   }
+}

@@ -67,6 +67,8 @@ our %ORI_NUMERIC = (
   '+'   =>  1,
   -1    => -1,
   '-'   => -1,
+   0    =>  0,
+  '.'   =>  0,
 );
 
 # This variable determines the supported xref mapping paths.
@@ -519,7 +521,7 @@ sub map_Features {
     for my $f ( @{ $features } ) {
       
       if ( $nofilter || &$filter_Feature( $f ) ) {
-        $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '+'} || 1; # Convert to Ensembl-style (numeric) strand
+        $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0; # Convert to Ensembl-style (numeric) strand
         push @new_features, &$build_Feature( $f ); # Build object
       }
       
@@ -549,7 +551,7 @@ sub map_Features {
       
       my $strand = $f->{'strand'};
       if (!defined $strand) {
-        $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '+'} || 1;
+        $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0;
       }
       
       # It doesn't matter what coordinate system non-positional features come
@@ -657,10 +659,15 @@ sub _get_Segments {
       }
       
       else {
+        # AssemblyMapperAdaptor doesn't like DAS::CoordSystem
+        my $csa = $slice->adaptor->db->get_CoordSystemAdaptor;
+        my $tmpfrom = $csa->fetch_by_name( $from_cs->name, $from_cs->version );
+        my $tmpto   = $csa->fetch_by_name( $to_cs->name,   $to_cs->version   );
+        
         # Wrapper for AssemblyMapper:
         my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(
           'from', 'to', $from_cs, $to_cs,
-          $slice->adaptor->db->get_AssemblyMapperAdaptor->fetch_by_CoordSystems($from_cs, $to_cs)
+          $slice->adaptor->db->get_AssemblyMapperAdaptor->fetch_by_CoordSystems($tmpfrom, $tmpto)
         );
         
         # Map backwards to get the query segments

@@ -16,7 +16,7 @@ sub new {
                   feature_id feature_label
                   type type_id
                   score
-                  note link group ) {
+                  note link group target ) {
     $self->{$key} = $raw->{$key} if exists $raw->{$key};
   }
   
@@ -54,6 +54,7 @@ sub score {
   return $self->{'score'};
 }
 
+## These ones have multiple possible values... so return arrayrefs...
 sub notes {
   my $self = shift;
   return $self->{'note'} || [];
@@ -67,6 +68,11 @@ sub links {
 sub groups {
   my $self = shift;
   return $self->{'group'} || [];
+}
+
+sub targets {
+  my $self = shift;
+  return $self->{'target'} || [];
 }
 
 1;

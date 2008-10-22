@@ -661,8 +661,8 @@ sub _get_Segments {
       else {
         # AssemblyMapperAdaptor doesn't like DAS::CoordSystem
         my $csa = $slice->adaptor->db->get_CoordSystemAdaptor;
-        my $tmpfrom = $csa->fetch_by_name( $from_cs->name, $from_cs->version );
-        my $tmpto   = $csa->fetch_by_name( $to_cs->name,   $to_cs->version   );
+        my $tmpfrom = $csa->fetch_by_name( $from_cs->name, $from_cs->version ) || $csa->fetch_by_name( $from_cs->name );
+        my $tmpto   = $csa->fetch_by_name( $to_cs->name,   $to_cs->version   ) || $csa->fetch_by_name( $to_cs->name   );
         
         # Wrapper for AssemblyMapper:
         my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(

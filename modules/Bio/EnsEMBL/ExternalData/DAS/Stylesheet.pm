@@ -34,6 +34,7 @@ package Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
 
 use strict;
 use warnings;
+no warnings 'uninitialized';
 
 ####
 # Default stylesheets for use when DAS sources do not provide one

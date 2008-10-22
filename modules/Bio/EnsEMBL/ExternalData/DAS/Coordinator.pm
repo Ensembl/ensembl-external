@@ -484,12 +484,11 @@ sub map_Features {
     my $f = shift;
     $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new( $f );
     # Where target coordsys is genomic, make a slice-relative feature
-    # TODO: I THINK THIS IS BREAKING THE FEATURES, AS NOT ALL INFO IS COPIED.
-    #       NEED TO READDRESS HOW THIS IS DONE. NOTE THAT DAS FEATURES ARRIVE
-    #       IN SEQ_REGION_SLICE COORDS BUT NEED TO END UP RELATIVE TO SLICE.
     if ($slice) {
       $f->slice($slice->seq_region_Slice);
       $f = $f->transfer($slice);
+    } else {
+      $f->seqname( $f->{'segment_id'} );
     }
     return $f;
   };
@@ -660,25 +659,34 @@ sub _get_Segments {
       
       else {
         # AssemblyMapperAdaptor doesn't like DAS::CoordSystem
+        # And sometimes DAS coordinate systems have spurious versions...
         my $csa = $slice->adaptor->db->get_CoordSystemAdaptor;
+        my $ama = $slice->adaptor->db->get_AssemblyMapperAdaptor;
         my $tmpfrom = $csa->fetch_by_name( $from_cs->name, $from_cs->version ) || $csa->fetch_by_name( $from_cs->name );
         my $tmpto   = $csa->fetch_by_name( $to_cs->name,   $to_cs->version   ) || $csa->fetch_by_name( $to_cs->name   );
+        my $tmpmap  = $tmpfrom && $tmpto ? $ama->fetch_by_CoordSystems($tmpfrom, $tmpto) : undef;
         
-        # Wrapper for AssemblyMapper:
-        my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(
-          'from', 'to', $from_cs, $to_cs,
-          $slice->adaptor->db->get_AssemblyMapperAdaptor->fetch_by_CoordSystems($tmpfrom, $tmpto)
-        );
-        
-        # Map backwards to get the query segments
-        my @coords = $mapper->map_coordinates($slice->seq_region_name,
-                                              $slice->start,
-                                              $slice->end,
-                                              $slice->strand,
-                                              'to');
-        for my $c ( @coords ) {
-          $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$c->id} ||= $mapper;
-          push @segments, sprintf '%s:%s,%s', $c->id, $c->start, $c->end;
+        # Ensembl might not support a specific genomic -> genomic mapping
+        if ( $tmpmap ) {
+          
+          # Wrapper for AssemblyMapper:
+          my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(
+            'from', 'to', $from_cs, $to_cs, $tmpmap
+          );
+          
+          # Map backwards to get the query segments
+          my @coords = $mapper->map_coordinates($slice->seq_region_name,
+                                                $slice->start,
+                                                $slice->end,
+                                                $slice->strand,
+                                                'to');
+          for my $c ( @coords ) {
+            $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$c->id} ||= $mapper;
+            push @segments, sprintf '%s:%s,%s', $c->id, $c->start, $c->end;
+          }
+          
+        } else {
+          warning(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
         }
       }
     }

@@ -1,9 +1,115 @@
+#
+# EnsEMBL module for Bio::EnsEMBL::ExternalData::DAS::Feature
+#
+#
+
+=head1 NAME
+
+Bio::EnsEMBL::ExternalData::DAS::Feature
+
+=head1 SYNOPSIS
+
+  my $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new( {
+  
+    # Core Ensembl attributes:
+    'start'  => 100,
+    'end'    => 200,
+    'strand' => -1,     # or can use "orientation"
+    'slice'  => $slice, # optional, for genomic features
+    
+    # DAS-specific attributes:
+    'orientation'   => '+',         # + or - or .
+    'feature_id'    => 'feature1',
+    'feature_label' => 'Feature 1',
+    'type'          => 'exon',
+    'type_id'       => 'SO:0000147',
+    'type_category' => 'inferred from electronic annotation (ECO:00000067)',
+    'score'         => 85,
+    'note'          => [ 'Something useful to know' ],
+    'link'          => [
+                        { 'href' => 'http://...',
+                          'txt'  => 'Feature Link' }
+                       ],
+    'group'         => [
+                        #  hashref, see Bio::EnsEMBL::ExternalData::DAS::FeatureGroup
+                       ],
+    'target'        => [
+                        { 'target_id'    => 'Seq 1',
+                          'target_start' => '500',
+                          'target_stop'  => '600'  }
+                       ]
+    
+  } );
+  
+  printf "ID:           %s\n"     , $f->display_id();
+  printf "Label:        %s\n"     , $f->display_label();
+  printf "Start:        %d (%d)\n", $f->start(), $f->seq_region_start;
+  printf "End:          %d (%d)\n", $f->end()  , $f->seq_region_end;
+  printf "Type Label:   %s\n"     , $f->type_label();
+  printf "Type ID:      %s\n"     , $f->type_id();
+  printf "Category:     %s\n"     , $f->type_category();
+  printf "Score:        %s\n"     , $f->score();
+  
+  for my $l ( @{ $f->links() } ) {
+    printf "Link:         %s -> %s\n", $l->{'href'}, $l->{'txt'};
+  }
+  
+  for my $n ( @{ $f->notes() } ) {
+    printf "Note:         %s\n", $n;
+  }
+  
+  for my $t ( @{ $f->targets() } ) {
+    printf "Target:       %s:%s,%s\n", $t->{'target_id'},
+                                     $t->{'target_start'},
+                                     $t->{'target_stop'};
+  }
+  
+  for my $g ( @{ $f->groups() } ) {
+    printf "Group ID:     %s\n", $g->display_id();
+    printf "Group Label:  %s\n", $g->display_label();
+    printf "Group Type:   %s\n", $g->type_label();
+    
+    for my $l ( @{ $g->links() } ) {
+      printf "Group Link:   %s -> %s\n", $l->{'href'}, $l->{'txt'};
+    }
+    
+    for my $n ( @{ $g->notes() } ) {
+      printf "Group Note:   %s\n", $n;
+    }
+    
+    for my $t ( @{ $g->targets() } ) {
+      printf "Group Target: %s:%s,%s\n", $t->{'target_id'},
+                                         $t->{'target_start'},
+                                         $t->{'target_stop'};
+    }
+  }
+
+=head1 DESCRIPTION
+
+An object representation of a DAS feature using Bio::EnsEMBL::Feature as a base.
+
+The constructor is designed to work with the output of the DAS features command,
+as obtained from the Bio::Das::Lite module.
+
+=head1 AUTHOR
+
+Andy Jenkinson
+
+=head1 CONTACT
+
+Post questions to the EnsEMBL development list ensembl-dev@ebi.ac.uk
+
+=head1 METHODS
+
+=cut
+
 package Bio::EnsEMBL::ExternalData::DAS::Feature;
 
 use strict;
 use warnings;
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
+use Bio::EnsEMBL::ExternalData::DAS::FeatureGroup;
 use base qw(Bio::EnsEMBL::Feature);
 
 sub new {
@@ -11,30 +117,71 @@ sub new {
   my $class = ref $proto || $proto;
   my $raw   = shift;
   
+  # DAS-style "orientation" is fine:
+  if (!defined $raw->{'strand'} && defined $raw->{'orientation'}) {
+    $raw->{'strand'} = $raw->{'orientation'} eq '+'   ?  1
+                     : $raw->{'orientation'} eq '-'   ? -1
+                     : 0;
+  }
+  
   my $self = {};
-  for my $key qw( start end strand
+  for my $key qw( start end strand slice
                   feature_id feature_label
-                  type type_id
+                  type type_id type_category
                   score
-                  note link group target ) {
+                  note link target ) {
     $self->{$key} = $raw->{$key} if exists $raw->{$key};
+  }
+  
+  if ( $raw->{'group'} && ref $raw->{'group'} eq 'ARRAY' ) {
+    $self->{'group'} = [
+      map {
+        Bio::EnsEMBL::ExternalData::DAS::FeatureGroup->new($_)
+      } @{ $raw->{'group'} }
+    ];
   }
   
   bless $self, $class;
   return $self;
 }
 
+=head2 display_id
+
+  Arg [1]    : none
+  Example    : print $f->display_id();
+  Description: This method returns a string that is considered to be
+               the 'display' identifier.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub display_id {
   my $self = shift;
   return $self->{'feature_id'};
 }
+
+=head2 display_label
+
+  Arg [1]    : none
+  Example    : print $f->display_label();
+  Description: This method returns a string that is considered to be
+               the 'display' label.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub display_label {
   my $self = shift;
   return $self->{'feature_label'} || $self->display_id;
 }
 
-sub type {
+sub type_label {
   my $self = shift;
   return $self->{'type'} || $self->type_id;
 }
@@ -54,7 +201,8 @@ sub score {
   return $self->{'score'};
 }
 
-## These ones have multiple possible values... so return arrayrefs...
+# The following are zero-to-many, thus return arrayrefs:
+
 sub notes {
   my $self = shift;
   return $self->{'note'} || [];

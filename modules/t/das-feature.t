@@ -1,7 +1,7 @@
 use strict;
 
 BEGIN { $| = 1;
-        use Test::More tests => 1;
+        use Test::More tests => 32;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
@@ -69,45 +69,56 @@ my $slice = $dba->get_SliceAdaptor()->fetch_by_region('chromosome', 'X',1000,200
   
   my $f = Bio::EnsEMBL::ExternalData::DAS::Feature->new( $raw_feature );
   
-  printf "ID:           %s\n"     , $f->display_id();
-  printf "Label:        %s\n"     , $f->display_label();
-  printf "Start:        %d (%d)\n", $f->start(), $f->seq_region_start;
-  printf "End:          %d (%d)\n", $f->end()  , $f->seq_region_end;
-  printf "Type Label:   %s\n"     , $f->type_label();
-  printf "Type ID:      %s\n"     , $f->type_id();
-  printf "Category:     %s\n"     , $f->type_category();
-  printf "Score:        %s\n"     , $f->score();
-  
+  ok($f->display_id);
+  ok($f->display_label);
+  ok($f->start);
+  ok($f->end);
+  ok($f->seq_region_start);
+  ok($f->seq_region_end);
+  ok($f->type_label);
+  ok($f->type_id);
+  ok($f->type_category);
+  ok($f->score);
+
+  ok(@{ $f->links });
   for my $l ( @{ $f->links() } ) {
-    printf "Link:         %s -> %s\n", $l->{'href'}, $l->{'txt'};
+    ok($l->{'href'});
+    ok($l->{'txt'});
   }
   
+  ok(@{ $f->notes });
   for my $n ( @{ $f->notes() } ) {
-    printf "Note:         %s\n", $n;
+    ok($n);
   }
-  
+ 
+  ok(@{ $f->targets }); 
   for my $t ( @{ $f->targets() } ) {
-    printf "Target:       %s:%s,%s\n", $t->{'target_id'},
-                                     $t->{'target_start'},
-                                     $t->{'target_stop'};
+    ok($t->{'target_id'});
+    ok($t->{'target_start'});
+    ok($t->{'target_stop'});
   }
   
+  ok(@{ $f->groups });
   for my $g ( @{ $f->groups() } ) {
-    printf "Group ID:     %s\n", $g->display_id();
-    printf "Group Label:  %s\n", $g->display_label();
-    printf "Group Type:   %s\n", $g->type_label();
+    ok($g->display_id);
+    ok($g->display_label);
+    ok($g->type_label);
     
+    ok(@{ $g->links });
     for my $l ( @{ $g->links() } ) {
-      printf "Group Link:   %s -> %s\n", $l->{'href'}, $l->{'txt'};
+      ok($l->{'href'});
+      ok($l->{'txt'});
     }
     
+    ok(@{ $g->notes });
     for my $n ( @{ $g->notes() } ) {
-      printf "Group Note:   %s\n", $n;
+      ok($n);
     }
     
+    ok(@{ $g->targets });
     for my $t ( @{ $g->targets() } ) {
-      printf "Group Target: %s:%s,%s\n", $t->{'target_id'},
-                                         $t->{'target_start'},
-                                         $t->{'target_stop'};
+      ok($t->{'target_id'});
+      ok($t->{'target_start'});
+      ok($t->{'target_stop'});
     }
   }

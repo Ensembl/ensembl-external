@@ -16,9 +16,10 @@ Bio::EnsEMBL::ExternalData::DAS::Feature
     'end'    => 200,
     'strand' => -1,     # or can use "orientation"
     'slice'  => $slice, # optional, for genomic features
+    'seqname'=> 'foo',  # optional, for non-genomic features
     
     # DAS-specific attributes:
-    'orientation'   => '+',         # + or - or .
+    'orientation'   => '+', # + or - or .
     'feature_id'    => 'feature1',
     'feature_label' => 'Feature 1',
     'type'          => 'exon',
@@ -60,8 +61,8 @@ Bio::EnsEMBL::ExternalData::DAS::Feature
   
   for my $t ( @{ $f->targets() } ) {
     printf "Target:       %s:%s,%s\n", $t->{'target_id'},
-                                     $t->{'target_start'},
-                                     $t->{'target_stop'};
+                                       $t->{'target_start'},
+                                       $t->{'target_stop'};
   }
   
   for my $g ( @{ $f->groups() } ) {
@@ -112,6 +113,37 @@ use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::ExternalData::DAS::FeatureGroup;
 use base qw(Bio::EnsEMBL::Feature);
 
+=head2 new
+
+  Arg [slice] : Bio::EnsEMBL::SLice - Represents the sequence that this
+                feature is on. The coordinates of the created feature are
+                relative to the start of the slice. (optional)
+  Arg [start] : The start coordinate of this feature relative to the start
+                of the slice it is sitting on.  Coordinates start at 1 and
+                are inclusive.
+  Arg [end]  : The end coordinate of this feature relative to the start of
+                the slice it is sitting on.  Coordinates start at 1 and are
+                inclusive.
+  Arg [strand]: The orientation of this feature.  Valid values are 1,-1,0.
+  Arg [SEQNAME] : A seqname to be used instead of the default name of the 
+                of the slice.  Useful for features that do not have an 
+                attached slice such as protein features.
+  Arg [-dbID]   : (optional) internal database id
+  Arg [-ADAPTOR]: (optional) Bio::EnsEMBL::DBSQL::BaseAdaptor
+  Example    : $feature = Bio::EnsEMBL::Feature->new(-start    => 1, 
+                                                     -end      => 100,
+                                                     -strand   => 1,
+                                                     -slice    => $slice,
+                                                     -analysis => $analysis);
+  Description: Constructs a new Bio::EnsEMBL::Feature.  Generally subclasses
+               of this method are instantiated, rather than this class itself.
+  Returntype : Bio::EnsEMBL::Feature
+  Exceptions : Thrown on invalid -SLICE, -ANALYSIS, -STRAND ,-ADAPTOR arguments
+  Caller     : general, subclass constructors
+  Status     : Stable
+
+=cut
+
 sub new {
   my $proto = shift;
   my $class = ref $proto || $proto;
@@ -125,7 +157,7 @@ sub new {
   }
   
   my $self = {};
-  for my $key qw( start end strand slice
+  for my $key qw( start end strand slice seqname
                   feature_id feature_label
                   type type_id type_category
                   score

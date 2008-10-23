@@ -11,18 +11,24 @@ Bio::EnsEMBL::ExternalData::DAS::Coordinator
   my $struct = $c->fetch_Features( $slice );
   
   for my $logic_name ( keys %{ $struct } ) {
-  
-    my $errors     = $struct->{$logic_name}{'errors'    }; # string array
     
-    # Bio::EnsEMBL::ExternalData::DAS::? objects:
-    my $source     = $struct->{$logic_name}{'source'    }; # Source
-    my $features   = $struct->{$logic_name}{'features'  }; # Feature array
-    my $stylesheet = $struct->{$logic_name}{'stylesheet'}; # Stylesheet
+    # Bio::EnsEMBL::ExternalData::DAS::Source object:
+    my $source = $struct->{$logic_name}{'source'}{'object'};
+    my $error  = $struct->{$logic_name}{'source'}{'error'};
     
-    printf "%s: %d errors, %d features\n",
-           $source->title,
-           scalar @{ $errors   },
-           scalar @{ $features };
+    # Bio::EnsEMBL::ExternalData::DAS::Stylesheet object:
+    my $stylesheet = $struct->{$logic_name}{'stylesheet'}{'object'};
+    my $s_error    = $struct->{$logic_name}{'stylesheet'}{'error'};
+    
+    for my $segment ( keys %{ $struct->{$logic_name}{'features'} } ) {
+      
+      my $f_url    = $struct->{$logic_name}{'features'}{$segment}{'url'};
+      my $f_error  = $struct->{$logic_name}{'features'}{$segment}{'error'};
+      # arrayref of Bio::EnsEMBL::ExternalData::DAS::Feature objects:
+      my $features = $struct->{$logic_name}{'features'}{$segment}{'objects'};
+      
+    }
+    
   }
   
   # Fetch by gene
@@ -182,24 +188,24 @@ sub new {
   Returntype : A hash reference containing Bio::...::DAS::Feature and
                Bio::...::DAS::Stylesheet objects:
                {
-                'http.../das' => {
-                                  'source'            => $source_object,
-                                  'errors'            => [
-                                                          'No relevant features',
-                                                          'Error fetching...',
-                                                         ],
-                                  'features'          => [
-                                                          $feat1,
-                                                          $feat2,
-                                                         ],
-                                  'features_urls'     => [
-                                                          'http://....',
-                                                         ]
-                                  'stylesheet'        => $style1,
-                                  'stylesheet_errors' => [
-                                                          'Error fetching...',
-                                                         ],
-                                 }
+                $logic_name => {
+                                'source'     => {
+                                                 'object' => $source_object,
+                                                 'error'  => 'No applicable',
+                                                },
+                                'features'   => {
+                                                 'error'   => 'Error fetching...',
+                                                 'url'     => 'http://...',
+                                                 'objects' => [
+                                                               $feat1,
+                                                               $feat2,
+                                                              ],
+                                                },
+                                'stylesheet' => {
+                                                   'object' => $style1,
+                                                   'error'  => 'Error fetching...',
+                                                },
+                               }
                }
   Exceptions : Throws if the object is not supported
   Caller     : 
@@ -243,25 +249,32 @@ sub fetch_Features {
   
   for my $source (@{ $self->{'sources'} }) {
     
-    $final->{ $source->logic_name } = { 'features'          => [],
-                                        'features_urls'     => [],
-                                        'errors'            => [],
-                                        'stylesheet'        => undef,
-                                        'stylesheet_errors' => []};
+    # Set up the data structure...
+    $final->{$source->logic_name} = {
+                                     'source'     => {
+                                                      'object' => $source,
+                                                     },
+                                     'features'   => {},
+                                     'stylesheet' => {},
+                                    };
     
     my @coord_systems = @{ $source->coord_systems || [] };
     
     if (! scalar @coord_systems ) {
-      warning($source->key.' has '.scalar @{ $source->coord_systems }.' coord systems');
-      push @{ $final->{$source->logic_name}{'errors'} }, 'Bad source configuration';
+      warning($source->key.' has no coord systems');
+      $final->{$source->logic_name}{'source'}{'error'}
+        = 'Bad source configuration';
       next;
     }
     
     # Check the coordinate system is the correct species (if it has one)
-    @coord_systems = grep { $_->matches_species( $target_species ) } @coord_systems;
+    @coord_systems = grep {
+      $_->matches_species( $target_species )
+    } @coord_systems;
     
     if (! scalar @coord_systems ) {
-      push @{ $final->{$source->logic_name}{'errors'} }, "Source not compatible with $target_species";
+      $final->{$source->logic_name}{'source'}{'error'}
+        = "Source not compatible with $target_species";
     }
     
     # Query in all compatible coordinate systems
@@ -295,7 +308,7 @@ sub fetch_Features {
   
   my $daslite = $self->{'daslite'};
   
-  # Split the requests that will be performed by coordinate system, i.e. parallelise
+  # Split the requests by coordinate system, i.e. parallelise
   # requests for segments that are from the same coordinate system
   while (my ($coord_key, $coord_data) = each %coords) {
     my @segments   = @{ $coord_data->{'segments'} };
@@ -309,7 +322,7 @@ sub fetch_Features {
       info("No segments found for $coord_name");
       for ( values %{ $coord_data->{'sources'} } ) {
         for my $source (@{ $_ }) {
-          push @{ $final->{ $source->logic_name }{ 'errors' } }, 'Not applicable';
+          $final->{$source->logic_name}{'source'}{'error'} = 'Not applicable';
         }
       }
       next;
@@ -375,28 +388,32 @@ sub fetch_Features {
     
     while (my ($raw_url, $features) = each %{ $response }) {
       # Now iterating over coordsys + url
-      info("*** $raw_url ***");
       my $status = $statuses->{$raw_url};
       
       # Parse the segment from the URL
       # Should be one URL for each source/query combination
-      my $url = $raw_url;
-      $url =~ s|/features\?.*$||;
+      my ($url, $segment) = $raw_url =~ m|(.+)/features\?.*segment=([^;&]+)|;
+      info("*** $url $segment ***");
       my @sources = @{ $coord_data->{'sources'}{$url} };
       
       for my $source ( @sources ) {
-        push @{ $final->{$source->logic_name}{'features_urls'} }, $raw_url;
+        $final->{$source->logic_name}{'features'}{$segment} = {
+          'url'          => $raw_url,
+          'coord_system' => $source_cs,
+          'objects'      => [],
+        }
       }
       
       # DAS source generated an error
       if ($status !~ m/^200/) {
         for my $source ( @sources ) {
-          push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching features - $status";
+          $final->{$source->logic_name}{'features'}{$segment}{'error'}
+            = "Error fetching features - $status";
         }
       }
       
       # We got some features in the region of interest
-      elsif (defined $features && ref $features eq 'ARRAY' && scalar @{ $features }) {
+      elsif ($features && ref $features eq 'ARRAY' && scalar @{ $features }) {
         ########
         # Convert into the query coordinate system if applicable
         #
@@ -409,7 +426,9 @@ sub fetch_Features {
         # We got something useful
         if (scalar @{ $features }) {
           for my $source ( @sources ) {
-            push @{ $final->{$source->logic_name}{'features'} }, @{ $features };
+            # Store features:
+            $final->{$source->logic_name}{'features'}{$segment}{'objects'}
+              = $features;
             # For retrieving stylesheets:
             $sources_with_data{$url}{$source->logic_name} = $source;
           }
@@ -417,7 +436,8 @@ sub fetch_Features {
         # Either we couldn't map the features, or nothing matched the filters
         else {
           for my $source ( @sources ) {
-            push @{ $final->{$source->logic_name}{'errors'} }, 'No relevant features';
+            $final->{$source->logic_name}{'features'}{$segment}{'error'}
+              = 'No relevant features';
           }
         }
         
@@ -444,19 +464,18 @@ sub fetch_Features {
     # DAS source generated an error
     if ( $status !~ m/^200/ ) {
       for my $source ( @sources ) {
-        push @{ $final->{$source->logic_name}{'stylesheet_errors'} },
-          "Error fetching stylesheet - $status";
+        $final->{$source->logic_name}{'stylesheet'}{'error'}
+          = "Error fetching stylesheet - $status";
       }
     }
-    # DAS source has no stylesheet
-    elsif (!defined $styledata || ref $styledata ne 'ARRAY' || !scalar @{ $styledata }) {
-      # This code intentionally blank
-    }
-    # We have stylesheet data
-    else {
-      my $stylesheet = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new( $styledata->[0] );
+    # DAS source has stylesheet data
+    elsif ($styledata && ref $styledata eq 'ARRAY' && scalar @{ $styledata }) {
+      # Build stylesheet object:
+      my $stylesheet = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new(
+        $styledata->[0]
+      );
       for my $source ( @sources ) {
-        $final->{$source->logic_name}{'stylesheet'} = $stylesheet;
+        $final->{$source->logic_name}{'stylesheet'}{'object'} = $stylesheet;
       }
     }
   }

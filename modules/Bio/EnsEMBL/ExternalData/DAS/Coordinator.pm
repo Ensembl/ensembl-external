@@ -719,7 +719,11 @@ sub _get_Segments {
     elsif ( my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name} ) {
       # Mapping path is xref -> ensembl_peptide -> slice
       my $mid_cs = $self->{'prot_cs'};
-      for my $tran (@{ $slice->get_all_Transcripts }) {
+      
+      my @transcripts = $gene ? @{ $gene->get_all_Transcripts }
+                              : @{ $slice->get_all_Transcripts };
+      
+      for my $tran ( @transcripts ) {
         my $p = $tran->translation || next;
         # first stage mapper: xref to translation
         push @segments, @{ $self->_get_Segments($from_cs, $mid_cs, undef, undef, $p) };
@@ -734,7 +738,11 @@ sub _get_Segments {
     
     # Mapping from gene-mapped xref to slice
     elsif ( $callback = $XREF_GENE_FILTERS{$from_cs->name} ) {
-      for my $g ( defined $gene ? ($gene) : @{ $slice->get_all_Genes }) {
+      
+      my @genes = $gene ? ($gene)
+                        : @{ $slice->get_all_Genes };
+      
+      for my $g ( @genes ) {
         for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
           my $segid = $callback->{'transformer'}( $xref );
           push @segments, $segid;

@@ -183,17 +183,22 @@ sub new {
                Bio::...::DAS::Stylesheet objects:
                {
                 'http.../das' => {
-                                  'source'     => $source_object,
-                                  'errors'     => [
-                                                   'No features',
-                                                   'No relevant features',
-                                                   'Error fetching...',
-                                                  ],
-                                  'stylesheet' => $style1,
-                                  'features'   => [
-                                                   $feat1,
-                                                   $feat2,
-                                                  ],
+                                  'source'            => $source_object,
+                                  'errors'            => [
+                                                          'No relevant features',
+                                                          'Error fetching...',
+                                                         ],
+                                  'features'          => [
+                                                          $feat1,
+                                                          $feat2,
+                                                         ],
+                                  'features_urls'     => [
+                                                          'http://....',
+                                                         ]
+                                  'stylesheet'        => $style1,
+                                  'stylesheet_errors' => [
+                                                          'Error fetching...',
+                                                         ],
                                  }
                }
   Exceptions : Throws if the object is not supported
@@ -238,10 +243,11 @@ sub fetch_Features {
   
   for my $source (@{ $self->{'sources'} }) {
     
-    $final->{ $source->logic_name } = { 'features'      => [],
-                                        'features_urls' => [],
-                                        'errors'        => [],
-                                        'stylesheet'    => undef };
+    $final->{ $source->logic_name } = { 'features'          => [],
+                                        'features_urls'     => [],
+                                        'errors'            => [],
+                                        'stylesheet'        => undef,
+                                        'stylesheet_errors' => []};
     
     my @coord_systems = @{ $source->coord_systems || [] };
     
@@ -382,22 +388,15 @@ sub fetch_Features {
         push @{ $final->{$source->logic_name}{'features_urls'} }, $raw_url;
       }
       
-      # TODO: is this error handling OK?
       # DAS source generated an error
       if ($status !~ m/^200/) {
         for my $source ( @sources ) {
           push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching features - $status";
         }
       }
-      # DAS source has no features in the region of interest
-      elsif (!defined $features || ref $features ne 'ARRAY' || !scalar @{ $features }) {
-        for my $source ( @sources ) {
-          push @{ $final->{$source->logic_name}{'errors'} }, 'No features';
-        }
-      }
-      # We got "something" at least...
-      else {
-        
+      
+      # We got some features in the region of interest
+      elsif (defined $features && ref $features eq 'ARRAY' && scalar @{ $features }) {
         ########
         # Convert into the query coordinate system if applicable
         #
@@ -445,7 +444,8 @@ sub fetch_Features {
     # DAS source generated an error
     if ( $status !~ m/^200/ ) {
       for my $source ( @sources ) {
-        push @{ $final->{$source->logic_name}{'errors'} }, "Error fetching stylesheet - $status";
+        push @{ $final->{$source->logic_name}{'stylesheet_errors'} },
+          "Error fetching stylesheet - $status";
       }
     }
     # DAS source has no stylesheet
@@ -626,6 +626,7 @@ sub _get_Segments {
   my ($slice, $gene, $prot) = @_;
   #warn sprintf "Getting mapper for %s -> %s", $from_cs->name, $to_cs->name;
   
+  info('Building mappings segments for '.$from_cs->name.' -> '.$to_cs->name);
   my %mappers = ();
   my @segments = ();
   
@@ -693,7 +694,11 @@ sub _get_Segments {
     
     # Mapping from ensembl_gene to slice
     elsif ( $from_cs->equals( $self->{'gene_cs'} ) ) {
-      for my $g ( defined $gene ? ($gene) : @{ $slice->get_all_Genes }) {
+      
+      my @genes = $gene ? ($gene)
+                        : @{ $slice->get_all_Genes };
+      
+      for my $g ( @genes ) {
         # Genes are already definitely relative to the target slice, so don't need to do any assembly mapping
         my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to', $from_cs, $to_cs);
         #warn "ADDING ".$g->stable_id." ".$g->strand;
@@ -708,7 +713,11 @@ sub _get_Segments {
     
     # Mapping from ensembl_peptide to slice
     elsif ( $from_cs->equals( $self->{'prot_cs'} ) ) {
-      for my $tran (@{ $slice->get_all_Transcripts }) {
+      
+      my @transcripts = $gene ? @{ $gene->get_all_Transcripts }
+                              : @{ $slice->get_all_Transcripts };
+      
+      for my $tran ( @transcripts ) {
         my $p = $tran->translation || next;
         $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$p->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
         push @segments, $p->stable_id;
@@ -726,13 +735,13 @@ sub _get_Segments {
       for my $tran ( @transcripts ) {
         my $p = $tran->translation || next;
         # first stage mapper: xref to translation
-        push @segments, @{ $self->_get_Segments($from_cs, $mid_cs, undef, undef, $p) };
+        push @segments, @{ $self->_get_Segments($from_cs, $mid_cs, $slice, $gene, $p) };
       }
       # If the first stage actually produced mappings, we'll need to map from
       # peptide to slice
       if ($self->{'mappers'}{$from_cs->name}{$from_cs->version}) {
         # second stage mapper: gene or translation to transcript's slice
-        $self->_get_Segments($mid_cs, $to_cs, $slice, undef, undef);
+        $self->_get_Segments($mid_cs, $to_cs, $slice, $gene, $prot);
       }
     }
     
@@ -774,7 +783,7 @@ sub _get_Segments {
       my $ta    = $prot->adaptor->db->get_TranscriptAdaptor();
       my $sa    = $prot->adaptor->db->get_SliceAdaptor();
       my $tran  = $ta->fetch_by_translation_stable_id($prot->stable_id);
-      my $slice = $sa->fetch_by_transcript_stable_id($tran->stable_id);
+      $slice = $sa->fetch_by_transcript_stable_id($tran->stable_id);
       $tran = $tran->transfer($slice);
       # second stage mapper: transcript's slice to protein
       my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
@@ -786,14 +795,14 @@ sub _get_Segments {
     
     # Mapping from gene on a slice with the same coordinate system
     elsif ( $from_cs->equals( $self->{'gene_cs'} ) ) {
-      my $ga    = $prot->adaptor->db->get_GeneAdaptor();
-      my $sa    = $prot->adaptor->db->get_SliceAdaptor();
-      my $g     = $ga->fetch_by_translation_stable_id($prot->stable_id);
-      my $slice = $sa->fetch_by_gene_stable_id($g->stable_id);
+      my $ga  = $prot->adaptor->db->get_GeneAdaptor();
+      my $sa  = $prot->adaptor->db->get_SliceAdaptor();
+      $gene   = $ga->fetch_by_translation_stable_id($prot->stable_id);
+      $slice  = $sa->fetch_by_gene_stable_id($gene->stable_id);
       # Second stage mapper: slice to peptide
-      $self->_get_Segments($slice->coord_system, $to_cs, undef, undef, $prot);
+      $self->_get_Segments($slice->coord_system, $to_cs, $slice, $gene, $prot);
       # First stage mapper: gene to slice
-      push @segments, @{ $self->_get_Segments($from_cs, $slice->coord_system, $slice, $g, undef) };
+      push @segments, @{ $self->_get_Segments($from_cs, $slice->coord_system, $slice, $gene, $prot) };
     }
     
     # Mapping from xref to peptide
@@ -816,9 +825,9 @@ sub _get_Segments {
     
     # Mapping from gene-mapped xref to peptide
     elsif ( $callback = $XREF_GENE_FILTERS{$from_cs->name} ) {
-      my $ga    = $prot->adaptor->db->get_GeneAdaptor();
-      my $g     = $ga->fetch_by_translation_stable_id($prot->stable_id);
-      for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
+      my $ga = $prot->adaptor->db->get_GeneAdaptor();
+      $gene  = $ga->fetch_by_translation_stable_id($prot->stable_id);
+      for my $xref (grep { $callback->{'predicate'}($_) } @{ $gene->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
         push @segments, $segid;
         # Gene-based xrefs don't have alignments and so don't generate mappings.

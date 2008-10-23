@@ -40,7 +40,7 @@ sub new {
   $species ||= '';
   
   if (!$label) {
-    $label = join ' ', map { $_ && ucfirst $_ } (split /_/, $name), $version;
+    $label = join ' ', map { ucfirst $_ } grep { $_ } (split /_/, $name), $version;
   }
   
   my $self = {

@@ -65,6 +65,7 @@ use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
 use Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
+use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%NON_GENOMIC_COORDS);
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 
@@ -109,16 +110,6 @@ our %XREF_GENE_FILTERS = (
   },
 );
 
-our %NON_GENOMIC_COORDS = map { $_->name => $_ } (
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrez_gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_gene', -species => 'Mus_musculus', -label => 'MGI Gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'hugo_gene', -species => 'Homo_sapiens', -label => 'HUGO Gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'uniprot_peptide', -label => 'UniProt Peptide' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_peptide', -label => 'IPI Peptide' ),
-);
-
 =head2 new
 
   Arg [..]   : List of named arguments:
@@ -130,7 +121,7 @@ our %NON_GENOMIC_COORDS = map { $_->name => $_ } (
                -PROT_COORDS - Override the coordinate system representing proteins
   Description: Constructor
   Returntype : Bio::EnsEMBL::DAS::Coordinator
-  Exceptions : none
+  Exceptions : If unable to assign the gene and protein coordinate systems
   Caller     : 
   Status     : 
 
@@ -159,8 +150,10 @@ sub new {
     }
   }
   
-  $gene_cs ||= $NON_GENOMIC_COORDS{'ensembl_gene'};
-  $prot_cs ||= $NON_GENOMIC_COORDS{'ensembl_peptide'};
+  $gene_cs ||= $NON_GENOMIC_COORDS{'ensembl_gene'}
+    || throw('Unable to determine Gene coordinate system');
+  $prot_cs ||= $NON_GENOMIC_COORDS{'ensembl_peptide'}
+    || throw('Unable to determine Peptide coordinate system');
   
   my $self = {
     'sources' => $sources,
@@ -191,7 +184,7 @@ sub new {
                 $logic_name => {
                                 'source'     => {
                                                  'object' => $source_object,
-                                                 'error'  => 'No applicable',
+                                                 'error'  => 'Not applicable',
                                                 },
                                 'features'   => {
                                                  'error'   => 'Error fetching...',
@@ -202,8 +195,8 @@ sub new {
                                                               ],
                                                 },
                                 'stylesheet' => {
-                                                   'object' => $style1,
-                                                   'error'  => 'Error fetching...',
+                                                 'object' => $style1,
+                                                 'error'  => 'Error fetching...',
                                                 },
                                }
                }

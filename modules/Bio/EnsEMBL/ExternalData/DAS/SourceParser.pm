@@ -33,7 +33,7 @@ package Bio::EnsEMBL::ExternalData::DAS::SourceParser;
 use strict;
 use warnings;
 use vars qw(@EXPORT_OK);
-@EXPORT_OK = qw($EXTRA_COORDS);
+@EXPORT_OK = qw(%NON_GENOMIC_COORDS @NON_GENOMIC_COORDS);
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw warning info);
@@ -42,7 +42,6 @@ use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
 
 # Intended for occasions when assembly names don't match between DAS and Ensembl
-# e.g. NCBIm37 -> NCBIM37
 # TODO: get these from a config file of some sort?
 our $ASSEMBLY_MAPPINGS = {
   'NCBI m34' => 'NCBIM34',
@@ -54,6 +53,17 @@ our $TYPE_MAPPINGS = {
   'Gene_ID'          => 'gene',
   'Protein Sequence' => 'peptide',
 };
+
+our @NON_GENOMIC_COORDS = (
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrez_gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_gene', -species => 'Mus_musculus', -label => 'MGI Gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'hugo_gene', -species => 'Homo_sapiens', -label => 'HUGO Gene' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'uniprot_peptide', -label => 'UniProt Peptide' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_peptide', -label => 'IPI Peptide' ),
+);
+our %NON_GENOMIC_COORDS = map { $_->name => $_ } @NON_GENOMIC_COORDS;
 
 =head1 METHODS
 
@@ -307,17 +317,19 @@ sub _parse_sources_output {
           $version ||= q();
           $version = $auth.$version;
           $version = $ASSEMBLY_MAPPINGS->{$version} || $version; # handle fringe cases
-          
+          $coord = undef;
         } else {
           # otherwise use a 'fake' coordinate system like 'ensembl_gene'
-          $type = lc $auth.q(_).$type;
+          $type  = lc $auth.q(_).$type;
+          $coord = $NON_GENOMIC_COORDS{$type};
         }
         
-        push @coords, Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
+        $coord ||= Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
           -name    => $type,
           -version => $version,
           -species => $species,
         );
+        push @coords, $coord;
       }
       
       if (!scalar @coords) {

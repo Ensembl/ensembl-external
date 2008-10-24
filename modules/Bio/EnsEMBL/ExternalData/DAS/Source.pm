@@ -35,8 +35,8 @@ use Bio::EnsEMBL::Utils::Exception qw(throw);
   Arg [..]   : List of named arguments:
                -URL           - The URL (excluding source name) for the source.
                -DSN           - The source name.
-               -COORDS        - The coordinate systems supported by the source.
-                                This is an arrayref of
+               -COORDS        - (optional) The coordinate systems supported by
+                                the source. This is an arrayref of
                                 Bio::EnsEMBL::ExternalData::DAS::CoordSystem
                                 objects.
                -LOGIC_NAME    - (optional) The logic name of the source.
@@ -69,11 +69,8 @@ sub new {
   my ($name, $label, $url, $dsn, $coords, $desc, $homepage, $maintainer) =
     rearrange(['LOGIC_NAME', 'LABEL', 'URL', 'DSN', 'COORDS', 'DESCRIPTION', 'HOMEPAGE', 'MAINTAINER'], @_);
   
-  $url || throw('Source has no configured URL');
-  $dsn || throw('Source has no configured DSN');
-  
-  $self->url           ( $url ); # Applies some formatting
-  $self->dsn           ( $dsn );
+  $self->url           ( $url ); # Checks and applies some formatting
+  $self->dsn           ( $dsn ); # Checks
   $self->logic_name    ( $name );
   $self->label         ( $label );
   $self->description   ( $desc );
@@ -86,7 +83,7 @@ sub new {
 
 =head2 full_url
 
-  Arg [1]    : none
+  Args       : none
   Description: Getter for the source URL (including DSN)
   Returntype : scalar
   Status     : Stable
@@ -102,17 +99,17 @@ sub full_url {
   Arg [1]    : Optional value to set
   Description: Get/Setter for the server URL (excluding DSN)
   Returntype : scalar
-  Exceptions : If the URL is of an incorrect format
+  Exceptions : If the URL is missing or of an incorrect format
   Status     : Stable
 
 =cut
 sub url {
-  my ($self, $url) = @_;
-  if ( defined $url ) {
-    my ($goodurl) = $url =~ m!(.+/das1?/?$)!;
-    $goodurl || throw("URL is not of correct format: $url");
-    $goodurl =~ s!/$!!; # remove trailing slash
-    $self->{url} = $goodurl;
+  my $self = shift;
+  if ( @_ ) {
+    $_[0] || throw("No URL specified");
+    my ($url) = $_[0] =~ m{(.+/das)1?/*$};
+    $url || throw("URL is not of correct format: $_[0]");
+    $self->{url} = $url;
   }
   return $self->{url};
 }
@@ -122,12 +119,14 @@ sub url {
   Arg [1]    : Optional value to set
   Description: Get/Setter for the DSN
   Returntype : scalar
+  Exceptions : If the DSN is missing
   Status     : Stable
 
 =cut
 sub dsn {
-  my ($self, $dsn) = @_;
-  if ( defined $dsn ) {
+  my $self = shift;
+  if ( @_ ) {
+    my $dsn = shift || throw("No DSN specified");
     $self->{dsn} = $dsn;
   }
   return $self->{dsn};
@@ -146,7 +145,7 @@ sub coord_systems {
   if ( @_ ) {
     $self->{coords} = shift;
   }
-  return $self->{coords};
+  return $self->{coords} || [];
 }
 
 =head2 description
@@ -158,9 +157,9 @@ sub coord_systems {
 
 =cut
 sub description {
-  my ($self, $description) = @_;
-  if ( defined $description ) {
-    $self->{description} = $description;
+  my $self = shift;
+  if ( @_ ) {
+    $self->{description} = shift;
   }
   return $self->{description} || $self->label;
 }
@@ -174,9 +173,9 @@ sub description {
 
 =cut
 sub maintainer {
-  my ($self, $maintainer) = @_;
-  if ( defined $maintainer ) {
-    $self->{maintainer} = $maintainer;
+  my $self = shift;
+  if ( @_ ) {
+    $self->{maintainer} = shift;
   }
   return $self->{maintainer};
 }
@@ -190,11 +189,11 @@ sub maintainer {
 
 =cut
 sub homepage {
-  my ($self, $homepage) = @_;
-  if ( defined $homepage ) {
-    $self->{homepage} = $homepage;
+  my $self = shift;
+  if ( @_ ) {
+    $self->{homepage} = shift;
   }
-  return $self->{homepage} || $self->full_url;
+  return $self->{homepage};
 }
 
 =head2 logic_name
@@ -206,9 +205,9 @@ sub homepage {
 
 =cut
 sub logic_name {
-  my ($self, $name) = @_;
-  if ( defined $name ) {
-    $self->{logic_name} = $name;
+  my $self = shift;
+  if ( @_ ) {
+    $self->{logic_name} = shift;
   }
   return $self->{logic_name} || $self->dsn;
 }
@@ -222,9 +221,9 @@ sub logic_name {
 
 =cut
 sub label {
-  my ($self, $label) = @_;
-  if ( defined $label ) {
-    $self->{label} = $label;
+  my $self = shift;
+  if ( @_ ) {
+    $self->{label} = shift;
   }
   return $self->{label} || $self->dsn;
 }

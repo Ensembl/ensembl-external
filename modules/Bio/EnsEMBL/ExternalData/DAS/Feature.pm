@@ -92,6 +92,9 @@ An object representation of a DAS feature using Bio::EnsEMBL::Feature as a base.
 The constructor is designed to work with the output of the DAS features command,
 as obtained from the Bio::Das::Lite module.
 
+See L<http://www.biodas.org/documents/spec.html> for more information about DAS
+and its data types.
+
 =head1 AUTHOR
 
 Andy Jenkinson
@@ -109,37 +112,16 @@ package Bio::EnsEMBL::ExternalData::DAS::Feature;
 use strict;
 use warnings;
 
-use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::ExternalData::DAS::FeatureGroup;
 use base qw(Bio::EnsEMBL::Feature);
 
 =head2 new
 
-  Arg [slice] : Bio::EnsEMBL::SLice - Represents the sequence that this
-                feature is on. The coordinates of the created feature are
-                relative to the start of the slice. (optional)
-  Arg [start] : The start coordinate of this feature relative to the start
-                of the slice it is sitting on.  Coordinates start at 1 and
-                are inclusive.
-  Arg [end]  : The end coordinate of this feature relative to the start of
-                the slice it is sitting on.  Coordinates start at 1 and are
-                inclusive.
-  Arg [strand]: The orientation of this feature.  Valid values are 1,-1,0.
-  Arg [SEQNAME] : A seqname to be used instead of the default name of the 
-                of the slice.  Useful for features that do not have an 
-                attached slice such as protein features.
-  Arg [-dbID]   : (optional) internal database id
-  Arg [-ADAPTOR]: (optional) Bio::EnsEMBL::DBSQL::BaseAdaptor
-  Example    : $feature = Bio::EnsEMBL::Feature->new(-start    => 1, 
-                                                     -end      => 100,
-                                                     -strand   => 1,
-                                                     -slice    => $slice,
-                                                     -analysis => $analysis);
-  Description: Constructs a new Bio::EnsEMBL::Feature.  Generally subclasses
-               of this method are instantiated, rather than this class itself.
-  Returntype : Bio::EnsEMBL::Feature
-  Exceptions : Thrown on invalid -SLICE, -ANALYSIS, -STRAND ,-ADAPTOR arguments
-  Caller     : general, subclass constructors
+  Arg [1]    : Hash reference (see SYNOPSIS for details and example)
+  Description: Constructs a new Bio::EnsEMBL::ExternalData::DAS::Feature.
+  Returntype : Bio::EnsEMBL::ExternalData::DAS::Feature
+  Exceptions : none
+  Caller     : Bio::EnsEMBL::ExternalData::DAS::Coordinator
   Status     : Stable
 
 =cut
@@ -181,8 +163,7 @@ sub new {
 
   Arg [1]    : none
   Example    : print $f->display_id();
-  Description: This method returns a string that is considered to be
-               the 'display' identifier.
+  Description: This method returns the DAS feature identifier.
   Returntype : string
   Exceptions : none
   Caller     : web drawing code
@@ -199,8 +180,7 @@ sub display_id {
 
   Arg [1]    : none
   Example    : print $f->display_label();
-  Description: This method returns a string that is considered to be
-               the 'display' label.
+  Description: This method returns the DAS feature label.
   Returntype : string
   Exceptions : none
   Caller     : web drawing code
@@ -213,20 +193,68 @@ sub display_label {
   return $self->{'feature_label'} || $self->display_id;
 }
 
+=head2 type_label
+
+  Arg [1]    : none
+  Example    : print $f->type_label();
+  Description: This method returns the DAS feature type label.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub type_label {
   my $self = shift;
   return $self->{'type'} || $self->type_id;
 }
+
+=head2 type_id
+
+  Arg [1]    : none
+  Example    : print $f->type_id();
+  Description: This method returns the DAS feature type identifier.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub type_id {
   my $self = shift;
   return $self->{'type_id'};
 }
 
+=head2 type_category
+
+  Arg [1]    : none
+  Example    : print $f->type_category();
+  Description: This method returns the DAS feature type category.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub type_category {
   my $self = shift;
   return $self->{'type_category'};
 }
+
+=head2 score
+
+  Arg [1]    : none
+  Example    : print $f->score();
+  Description: This method returns the DAS feature score.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub score {
   my $self = shift;
@@ -235,20 +263,68 @@ sub score {
 
 # The following are zero-to-many, thus return arrayrefs:
 
+=head2 notes
+
+  Arg [1]    : none
+  Example    : @notes = @{ $f->notes() };
+  Description: This method returns the DAS feature notes.
+  Returntype : arrayref of strings
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub notes {
   my $self = shift;
   return $self->{'note'} || [];
 }
+
+=head2 links
+
+  Arg [1]    : none
+  Example    : @links = @{ $f->links() };
+  Description: This method returns the DAS feature external links.
+  Returntype : arrayref of { href=>$, txt=>$ } hashes
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub links {
   my $self = shift;
   return $self->{'link'} || [];
 }
 
+=head2 groups
+
+  Arg [1]    : none
+  Example    : @groups = @{ $f->groups() };
+  Description: This method returns the DAS feature groups.
+  Returntype : arrayref of Bio::EnsEMBL::ExternalData::DAS::FeatureGroup ojects
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub groups {
   my $self = shift;
   return $self->{'group'} || [];
 }
+
+=head2 targets
+
+  Arg [1]    : none
+  Example    : @targets = @{ $f->targets() };
+  Description: This method returns the DAS feature targets.
+  Returntype : arrayref of { target_id=>$, target_start=>$, target_stop=>$ } hashes
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub targets {
   my $self = shift;

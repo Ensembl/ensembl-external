@@ -50,6 +50,9 @@ An object representation of a DAS feature group.
 The constructor is designed to work with the output of the DAS features command,
 as obtained from the Bio::Das::Lite module.
 
+See L<http://www.biodas.org/documents/spec.html> for more information about DAS
+and its data types.
+
 =head1 AUTHOR
 
 Andy Jenkinson
@@ -67,8 +70,16 @@ package Bio::EnsEMBL::ExternalData::DAS::FeatureGroup;
 use strict;
 use warnings;
 
-use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
-use base qw(Bio::EnsEMBL::Feature);
+=head2 new
+
+  Arg [1]    : Hash reference (see SYNOPSIS for details and example)
+  Description: Constructs a new Bio::EnsEMBL::ExternalData::DAS::FeatureGroup.
+  Returntype : Bio::EnsEMBL::ExternalData::DAS::FeatureGroup
+  Exceptions : none
+  Caller     : Bio::EnsEMBL::ExternalData::DAS::Feature
+  Status     : Stable
+
+=cut
 
 sub new {
   my $proto = shift;
@@ -86,15 +97,51 @@ sub new {
   return $self;
 }
 
+=head2 display_id
+
+  Arg [1]    : none
+  Example    : print $g->display_id();
+  Description: This method returns the DAS group identifier.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub display_id {
   my $self = shift;
   return $self->{'group_id'};
 }
 
+=head2 display_label
+
+  Arg [1]    : none
+  Example    : print $g->display_label();
+  Description: This method returns the DAS group label.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub display_label {
   my $self = shift;
   return $self->{'group_label'} || $self->display_id;
 }
+
+=head2 type_label
+
+  Arg [1]    : none
+  Example    : print $g->type_label();
+  Description: This method returns the DAS group type label.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub type_label {
   my $self = shift;
@@ -103,15 +150,51 @@ sub type_label {
 
 # The following are zero-to-many, thus return arrayrefs:
 
+=head2 notes
+
+  Arg [1]    : none
+  Example    : @notes = @{ $g->notes() };
+  Description: This method returns the DAS group notes.
+  Returntype : arrayref of strings
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub notes {
   my $self = shift;
   return $self->{'note'} || [];
 }
 
+=head2 links
+
+  Arg [1]    : none
+  Example    : @links = @{ $g->links() };
+  Description: This method returns the DAS group external links.
+  Returntype : arrayref of { href=>$, txt=>$ } hashes
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
 sub links {
   my $self = shift;
   return $self->{'link'} || [];
 }
+
+=head2 targets
+
+  Arg [1]    : none
+  Example    : @targets = @{ $g->targets() };
+  Description: This method returns the DAS group targets.
+  Returntype : arrayref of { target_id=>$, target_start=>$, target_stop=>$ } hashes
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
 
 sub targets {
   my $self = shift;

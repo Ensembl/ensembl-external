@@ -251,7 +251,7 @@ sub fetch_Features {
                                      'stylesheet' => {},
                                     };
     
-    my @coord_systems = @{ $source->coord_systems || [] };
+    my @coord_systems = @{ $source->coord_systems };
     
     if (! scalar @coord_systems ) {
       warning($source->key.' has no coord systems');

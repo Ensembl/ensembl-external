@@ -210,7 +210,7 @@ sub logic_name {
   if ( defined $name ) {
     $self->{logic_name} = $name;
   }
-  return $self->{logic_name} || $self->full_url;
+  return $self->{logic_name} || $self->dsn;
 }
 
 =head2 label
@@ -260,6 +260,42 @@ sub matches_name {
   return (join '', $self->dsn, $self->label) =~ m/$name/ ? 1 : 0;
 }
 
-# TODO: maybe add style-related properties (for overriding a stylesheet)
+
+=head2 equals
+
+  Arg [1]    : Bio::EnsEMBL::ExternalData::DAS::Source
+               The source to compare to for equality.
+  Example    : if($source1->equals($source2)) { ... }
+  Description: Compares 2 DAS sources and returns true if they are
+               equivalent.  The definition of equivalent is sharing the same
+               full URL and coordinate systems.
+  Returntype : 0 or 1
+  Exceptions : none
+  Caller     : general
+  Status     : Stable
+
+=cut
+sub equals {
+  my ( $this, $that ) = @_;
+  
+  if ($this->full_url eq $that->full_url) {
+    
+    my @this_cs = sort { $a->to_string cmp $b->to_string } @{ $this->coord_systems };
+    my @that_cs = sort { $a->to_string cmp $b->to_string } @{ $that->coord_systems };
+    
+    if ( scalar @this_cs != scalar @that_cs ) {
+      return 0;
+    }
+    
+    while (my $this_cs = shift @this_cs ) {
+      my $that_cs = shift @that_cs;
+      ( $this_cs && $that_cs && $this_cs->equals( $that_cs ) ) || return 0;
+    }
+    
+    return 1;
+  }
+  
+  return 0;
+}
 
 1;

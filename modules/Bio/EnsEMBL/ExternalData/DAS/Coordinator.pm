@@ -327,6 +327,8 @@ sub fetch_Features {
     my $response;
     my $statuses;
     
+    my $maxbins = $source_cs->equals( target_cs ) ? $filters{maxbins} : undef;
+    
     #==========================================================#
     #             Get features for all DAS sources             #
     #==========================================================#
@@ -367,7 +369,7 @@ sub fetch_Features {
          'type'       => $filters{type},
          'feature_id' => $filters{feature},
          'group_id'   => $filters{group},
-         'maxbins'    => $filters{maxbins},
+         'maxbins'    => $maxbins,
         }
       } @segments;
       

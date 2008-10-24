@@ -54,6 +54,31 @@ sub new {
   return $self;
 }
 
+
+=head2 new_from_hashref
+
+  Arg [1]    : Hash reference containing:
+               name     - The name of the coordinate system
+               version  - (optional) The version of the coordinate system.
+                            Note that if the version passed in is undefined,
+                            it will be set to the empty string in the
+                            resulting CoordSystem object.
+               species  - (optional) For species-specific systems
+               label    - (optional) A human-readable label
+  Example    : $cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( {
+                 name    => 'chromosome',
+                 version => 'NCBI33',
+                 species => 'Homo_sapiens',
+               } );
+  Description: Creates a new CoordSystem object representing a coordinate
+               system.
+  Returntype : Bio::EnsEMBL::ExternalData::DAS::CoordSystem
+  Exceptions : none
+  Caller     : general
+  Status     : Stable
+
+=cut
+
 sub new_from_hashref {
   my $caller = shift;
   my $hash   = shift;
@@ -64,6 +89,32 @@ sub new_from_hashref {
                       -species => $hash->{'species'},
                       -label   => $hash->{'label'});
 }
+
+
+=head2 new_from_string
+
+  Arg [1]    : String containing the following fields, joined by a ":"
+               name     - The name of the coordinate system
+               version  - (optional) The version of the coordinate system.
+                            Note that if the version passed in is undefined,
+                            it will be set to the empty string in the
+                            resulting CoordSystem object.
+               species  - (optional) For species-specific systems
+               label    - (optional) A human-readable label
+  Example    : $cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
+                 'chromosome:NCBI33:Homo_sapiens'
+               );
+               $cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
+                 'ensembl_gene'
+               );
+  Description: Creates a new CoordSystem object representing a coordinate
+               system.
+  Returntype : Bio::EnsEMBL::ExternalData::DAS::CoordSystem
+  Exceptions : none
+  Caller     : general
+  Status     : Stable
+
+=cut
 
 sub new_from_string {
   my $caller = shift;
@@ -76,6 +127,7 @@ sub new_from_string {
                       -species => $species,
                       -label   => $label);
 }
+
 
 =head2 name
 
@@ -112,6 +164,7 @@ sub version {
   my $self = shift;
   return $self->{'version'};
 }
+
 
 =head2 species
 
@@ -151,6 +204,25 @@ sub label {
 }
 
 
+=head to_string
+
+  Args       : none
+  Example    : print $coord->to_string();
+  Description: Converts the source into a string form, suitable for the
+               new_from_string constructor.
+  Returntype : string
+  Exceptions : none
+  Caller     : web code
+  Status     : At risk
+
+=cut
+
+sub to_string {
+  my $self = shift;
+  return join ':', $self->name, $self->version, $self->species, $self->label;
+}
+
+
 =head2 equals
 
   Arg [1]    : Bio::EnsEMBL::ExternalData::DAS::CoordSystem
@@ -158,10 +230,9 @@ sub label {
   Example    : if($coord_sys->equals($other_coord_sys)) { ... }
   Description: Compares 2 coordinate systems and returns true if they are
                equivalent.  The definition of equivalent is sharing the same
-               name, version and species. If either coordinate system has no
-               species (i.e. is not species-specific) and they are otherwise
-               equivalent, the coordinate systems match.
-  Returntype : string
+               name and version, and being species compatible (see the
+               matches_species method.
+  Returntype : 0 or 1
   Exceptions : none
   Caller     : general
   Status     : Stable
@@ -177,18 +248,12 @@ sub equals {
             $cs->isa('Bio::EnsEMBL::CoordSystem') ) ) {
     throw('Argument must be a CoordSystem');
   }
-
-  if ($self->{'version'} eq $cs->version() && $self->{'name'} eq $cs->name()) {
-    if (my $me_species = $self->{'species'}) {
-      if (my $cs_species = $cs->species()) {
-        return $me_species eq $cs_species ? 1 : 0;
-      }
-    }
-    return 1;
-  }
-
-  return 0;
+  
+  return ( $self->{'version'} eq $cs->version() &&
+           $self->{'name'}    eq $cs->name()    &&
+           $self->matches_species( $cs->species ) ) ? 1 : 0;
 }
+
 
 =head2 matches_species
 

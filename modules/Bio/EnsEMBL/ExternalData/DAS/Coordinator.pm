@@ -54,6 +54,7 @@ package Bio::EnsEMBL::ExternalData::DAS::Coordinator;
 
 use strict;
 use warnings;
+no warnings 'uninitialized';
 
 use POSIX qw(ceil);
 use Bio::EnsEMBL::Mapper;
@@ -610,7 +611,11 @@ sub map_Features {
     }
     
     if ($positional_mapping_errors) {
-      warning("$positional_mapping_errors positional features could not be mapped");
+      warning(sprintf '%d positional features could not be mapped (%s -> %s)',
+        $positional_mapping_errors,
+        $source_cs ? $source_cs->name.' '.$source_cs->version : 'UNKNOWN',
+        $to_cs     ? $to_cs->name.' '.$to_cs->version         : 'UNKNOWN'
+      );
     }
   }
   

@@ -66,7 +66,7 @@ use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
 use Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
-use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%NON_GENOMIC_COORDS);
+use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%GENE_COORDS %PROT_COORDS);
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 
@@ -90,22 +90,30 @@ our %XREF_PEPTIDE_FILTERS = (
     'predicate'   => sub { $_[0]->dbname eq 'Uniprot/SPTREMBL' || $_[0]->dbname eq 'Uniprot/SWISSPROT' },
     'transformer' => sub { $_[0]->primary_id },
   },
-  'ipi_peptide' => {
+  'ipi_acc' => {
     'predicate'   => sub { $_[0]->dbname eq 'IPI' },
     'transformer' => sub { $_[0]->primary_id },
   },
-  'entrez_gene' => {
+  'ipi' => {
+    'predicate'   => sub { $_[0]->dbname eq 'IPI' },
+    'transformer' => sub { $_[0]->display_label },
+  },
+  'entrezgene_acc' => {
     'predicate'   => sub { $_[0]->dbname eq 'EntrezGene' },
     'transformer' => sub { $_[0]->primary_id },
   },
-  'mgi_gene' => {
+  'mgi_acc' => {
     'predicate'   => sub { $_[0]->dbname eq 'MGI' },
     'transformer' => sub { my $id = $_[0]->primary_id; $id =~ s/\://; $id; },
+  },
+  'mgi' => {
+    'predicate'   => sub { $_[0]->dbname eq 'MGI' },
+    'transformer' => sub { $_[0]->display_label },
   },
 );
 
 our %XREF_GENE_FILTERS = (
-  'hugo_gene' => {
+  'hgnc' => {
     'predicate'   => sub { $_[0]->dbname eq 'HGNC' },
     'transformer' => sub { $_[0]->primary_id },
   },
@@ -151,9 +159,9 @@ sub new {
     }
   }
   
-  $gene_cs ||= $NON_GENOMIC_COORDS{'ensembl_gene'}
+  $gene_cs ||= $GENE_COORDS{'ensembl_gene'}
     || throw('Unable to determine Gene coordinate system');
-  $prot_cs ||= $NON_GENOMIC_COORDS{'ensembl_peptide'}
+  $prot_cs ||= $PROT_COORDS{'ensembl_peptide'}
     || throw('Unable to determine Peptide coordinate system');
   
   my $self = {
@@ -308,7 +316,7 @@ sub fetch_Features {
     my @segments   = @{ $coord_data->{'segments'} };
     my @urls       = keys %{ $coord_data->{'sources'} };
     my $source_cs  = $coord_data->{'coord_system'};
-    my $coord_name = $source_cs->label;
+    my $coord_name = $source_cs->name . ' ' . $source_cs->version;
     
     # Either the mapping isn't supported, or nothing maps to the region we're
     # interested in.
@@ -570,7 +578,7 @@ sub map_Features {
       
       # It doesn't matter what coordinate system non-positional features come
       # from, they are always included and don't need mapping
-      if ($f->{'start'} == 0 && $f->{'end'} == 0) {
+      if (!$f->{'start'} && !$f->{'end'}) {
         push @{ $features }, &$build_Feature( $f ); # Build object
         next;
       }
@@ -664,13 +672,13 @@ sub _get_Segments {
   # wrappers in order to achieve this.
   
   # Mapping to slice-relative coordinates
-  if ( $to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
+  if ( $to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
     
     $slice || throw('Trying to convert to slice coordinates, but no Slice provided');
     $slice->coord_system->equals($to_cs) || throw('Provided slice is not in target coordinate system');
     
     # Mapping from a slice-based coordinate system
-    if ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
+    if ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
       
       # No mapping needed
       if ( $from_cs->equals( $to_cs ) ) {
@@ -798,7 +806,7 @@ sub _get_Segments {
     }
     
     # Mapping from slice. Note that from_cs isnt necessarily the same as the transcript's coord_system
-    elsif ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
+    elsif ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
       my $ta    = $prot->adaptor->db->get_TranscriptAdaptor();
       my $sa    = $prot->adaptor->db->get_SliceAdaptor();
       my $tran  = $ta->fetch_by_translation_stable_id($prot->stable_id);

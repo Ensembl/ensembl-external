@@ -33,7 +33,7 @@ package Bio::EnsEMBL::ExternalData::DAS::SourceParser;
 use strict;
 use warnings;
 use vars qw(@EXPORT_OK);
-@EXPORT_OK = qw(%NON_GENOMIC_COORDS @NON_GENOMIC_COORDS);
+@EXPORT_OK = qw(%GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS);
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw warning info);
@@ -41,29 +41,52 @@ use Bio::EnsEMBL::ExternalData::DAS::CoordSystem;
 use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
 
+our @GENE_COORDS = (
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene', -label => 'Ensembl Gene Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrezgene_acc', -label => 'Entrez Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'hgnc',    -species => 'Homo_sapiens', -label => 'HUGO Gene Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_acc', -species => 'Mus_musculus', -label => 'MGI Gene Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi',     -species => 'Mus_musculus', -label => 'MGI Gene Symbol' ),
+);
+our @PROT_COORDS = (
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide', -label => 'Ensembl Protein Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'uniprot_peptide', -label => 'UniProt Protein Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_acc', -label => 'IPI Protein Accession' ),
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_id',  -label => 'IPI Protein ID' ),
+);
+our %GENE_COORDS = map { $_->name => $_ } @GENE_COORDS;
+our %PROT_COORDS = map { $_->name => $_ } @PROT_COORDS;
+
+# For compatibility with previous versions of Ensembl:
+$PROT_COORDS{'uniprot/swissprot_acc'} = $PROT_COORDS{'uniprot_peptide'};
+$PROT_COORDS{'uniprot/sptrembl'}      = $PROT_COORDS{'uniprot_peptide'};
+
 # Intended for occasions when assembly names don't match between DAS and Ensembl
 # TODO: get these from a config file of some sort?
-our $ASSEMBLY_MAPPINGS = {
-  'NCBI m34' => 'NCBIM34',
-  'NCBI m35' => 'NCBIM35',
-};
 
-our $TYPE_MAPPINGS = {
-  'NT_Contig'        => 'supercontig',
-  'Gene_ID'          => 'gene',
-  'Protein Sequence' => 'peptide',
-};
-
-our @NON_GENOMIC_COORDS = (
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrez_gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_gene', -species => 'Mus_musculus', -label => 'MGI Gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'hugo_gene', -species => 'Homo_sapiens', -label => 'HUGO Gene' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'uniprot_peptide', -label => 'UniProt Peptide' ),
-  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_peptide', -label => 'IPI Peptide' ),
+our %AUTHORITY_MAPPINGS = (
+  'NCBI m' => 'NCBIM',
 );
-our %NON_GENOMIC_COORDS = map { $_->name => $_ } @NON_GENOMIC_COORDS;
+
+our %TYPE_MAPPINGS = (
+  'NT_Contig' => 'supercontig',
+);
+
+our %NON_GENOMIC_COORDS = (
+  'Gene_ID'          => {
+                         'Ensembl'    => $GENE_COORDS{'ensembl_gene'},
+                         'HUGO_ID'    => $GENE_COORDS{'hgnc'},
+                         'MGI'        => $GENE_COORDS{'mgi_acc'},
+                         'MGI_Symbol' => $GENE_COORDS{'mgi'},
+                         'Entrez'     => $GENE_COORDS{'entrezgene_acc'},
+                        },
+  'Protein Sequence' => {
+                         'Ensembl'    => $PROT_COORDS{'ensembl_peptide'},
+                         'UniProt'    => $PROT_COORDS{'uniprot_peptide'},
+                         'IPI'        => $PROT_COORDS{'ipi_acc'},
+                         'IPI_ID'     => $PROT_COORDS{'ipi_id'},
+                        },
+);
 
 =head1 METHODS
 
@@ -100,6 +123,7 @@ sub new {
     = rearrange(['LOCATION','PROXY','NOPROXY','TIMEOUT'], @_);
   
   $server  || throw('No DAS server specified');
+  
   $timeout ||= 10;
   my $das = Bio::Das::Lite->new();
   $das->user_agent('Ensembl');
@@ -116,7 +140,7 @@ sub new {
   }
   
   my $self = {
-    'daslite'    => $das,
+    'daslite' => $das,
   };
   bless $self, $class;
   
@@ -300,7 +324,8 @@ sub _parse_sources_output {
         my $type    = $coord->{'coordinates_source'};
         # Version and species are optional:
         my $version = $coord->{'coordinates_version'} || '';
-        my $species = $coord->{'coordinates'};
+        #my $taxid   = $coord->{'coordinates_taxid'}   || '';
+        my $species = $coord->{'coordinates'}; # element CDATA
         $species    =~ s/^$auth(_$version)?,$type,?//;
         $species    =~ s/ /_/g;
         
@@ -309,31 +334,13 @@ sub _parse_sources_output {
           next;
         }
         
-        $type = $TYPE_MAPPINGS->{$type} || lc $type; # handle fringe cases
-        
-        # Wizardry to convert to Ensembl coord_system
-        if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/) {
-          # seq_region coordinate systems have ensembl equivalents
-          $version ||= q();
-          $version = $auth.$version;
-          $version = $ASSEMBLY_MAPPINGS->{$version} || $version; # handle fringe cases
-          $coord = undef;
-        } else {
-          # otherwise use a 'fake' coordinate system like 'ensembl_gene'
-          $type  = lc $auth.q(_).$type;
-          $coord = $NON_GENOMIC_COORDS{$type};
+        if ( my $coord = $self->_parse_coord_system( $type, $auth, $version, $species ) ) {
+          push @coords, $coord;
         }
-        
-        $coord ||= Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
-          -name    => $type,
-          -version => $version,
-          -species => $species,
-        );
-        push @coords, $coord;
       }
       
       if (!scalar @coords) {
-        warning("$dsn has no coordinate systems; skipping");
+        info("$dsn has no supported coordinate systems; skipping");
         next;
       }
       
@@ -388,6 +395,43 @@ sub _parse_dsn_output {
   
   return undef;
   
+}
+
+sub _parse_coord_system {
+  my ( $self, $type, $auth, $version, $species ) = @_;
+  
+  $type = $TYPE_MAPPINGS{$type}      || $type; # handle fringe cases
+  $auth = $AUTHORITY_MAPPINGS{$auth} || $auth; # handle fringe cases
+  
+  # Wizardry to convert to Ensembl coord_system
+  if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/i) {
+    # seq_region coordinate systems have ensembl equivalents
+    if ( !$species ) {
+      warning("Genomic coordinate system has no species: $type $auth$version");
+      return;
+    }
+    my $cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
+      -name    => lc $type,
+      -version => $auth.$version,
+      -species => $species
+    );
+    return $cs;
+  }
+  
+  # otherwise use a 'fake' coordinate system like 'ensembl_gene'
+  my $cs = $NON_GENOMIC_COORDS{$type}{$auth};
+  if ( !$cs ) {
+    info("Coordinate system not supported: $auth $type");
+    return;
+  }
+  if ( $cs->species ne $species ) {
+    $cs = $cs->new( -name    => $cs->name,
+                    -version => $cs->version,
+                    -species => $species,
+                    -label   => $cs->label );
+  }
+  
+  return $cs;
 }
 
 1;

@@ -137,6 +137,9 @@ sub new {
                      : $raw->{'orientation'} eq '-'   ? -1
                      : 0;
   }
+  $raw->{'strand'} ||= 0;
+  $raw->{'start'}  ||= 0;
+  $raw->{'end'}    ||= 0;
   
   my $self = {};
   for my $key qw( start end strand slice seqname

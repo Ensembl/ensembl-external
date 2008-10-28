@@ -271,7 +271,7 @@ sub equals {
 
 sub matches_species {
   my ($self, $species) = @_;
-  if ( !$self->species || $self->species eq $species ) {
+  if ( !$species || !$self->species || $self->species eq $species ) {
     return 1;
   }
   return 0;

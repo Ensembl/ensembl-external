@@ -123,6 +123,7 @@ sub new {
     = rearrange(['LOCATION','PROXY','NOPROXY','TIMEOUT'], @_);
   
   $server  || throw('No DAS server specified');
+  info("Building parser for $server");
   
   $timeout ||= 10;
   my $das = Bio::Das::Lite->new();
@@ -189,7 +190,7 @@ sub fetch_Sources {
   # optional species filter
   if ( scalar @f_species ) {
     info('Filtering by species');
-    @sources = grep { my $source = $_; grep { $source->matches_species( $_ ) } @f_species } @sources;
+    @sources = grep { my $source = $_; grep { !scalar @{$source->coord_systems} || $source->matches_species( $_ ) } @f_species } @sources;
   }
   
   # optional name filter
@@ -232,26 +233,29 @@ sub _parse_server {
   
   # Servers which don't respond to the "sources" command will be attempted via
   # the "dsn" command
-  my @success = ();
+  my %success = ();
   my $struct = $self->{'daslite'}->sources();
   
   # Iterate over each server
   while (my ($url, $set) = each %{ $struct }) {
     
+    info("Processing $url");
     my $status = $self->{'daslite'}->statuscodes($url);
     $set = $set->[0]->{'source'} || [];
+    $url =~ s|/sources\??$||;
     
     # If we get data back from the sources command, parse it
     if ($status =~ /^200/ && scalar @{ $set }) {
       $self->_parse_sources_output($url, $set);
-      $url =~ s|/sources\??$||;
-      push @success, $url;
+      $success{$url} = 1;
+    } else {
+      info("$url does not support sources command; trying dsn");
     }
     
   }
   
   my @previous = @{ $self->{'daslite'}->dsn || [] };
-  my @failed = grep { my $url = $_; !grep { $_ eq $url } @success } @previous;
+  my @failed = grep { !$success{$_} } @previous;
   
   # Run the dsn command on the remaining servers (if any)
   if (scalar @failed) {
@@ -261,7 +265,7 @@ sub _parse_server {
     $self->{'daslite'}->dsn(\@previous);
     
     while (my ($url, $set) = each %{ $struct }) {
-      
+      info("Processing $url");
       my $status = $self->{'daslite'}->statuscodes($url);
       $url =~ s|/dsn\??$||;
       $set ||= [];

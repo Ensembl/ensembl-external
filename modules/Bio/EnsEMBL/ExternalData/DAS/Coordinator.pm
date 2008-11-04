@@ -96,7 +96,7 @@ our %XREF_PEPTIDE_FILTERS = (
   },
   'ipi' => {
     'predicate'   => sub { $_[0]->dbname eq 'IPI' },
-    'transformer' => sub { $_[0]->display_label },
+    'transformer' => sub { $_[0]->display_id },
   },
   'entrezgene_acc' => {
     'predicate'   => sub { $_[0]->dbname eq 'EntrezGene' },
@@ -108,7 +108,7 @@ our %XREF_PEPTIDE_FILTERS = (
   },
   'mgi' => {
     'predicate'   => sub { $_[0]->dbname eq 'MGI' },
-    'transformer' => sub { $_[0]->display_label },
+    'transformer' => sub { $_[0]->display_id },
   },
 );
 
@@ -709,6 +709,7 @@ sub _get_Segments {
                                                 $slice->strand,
                                                 'to');
           for my $c ( @coords ) {
+            $c->isa('Bio::EnsEMBL::Mapper::Coordinate') || next;
             $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$c->id} ||= $mapper;
             push @segments, sprintf '%s:%s,%s', $c->id, $c->start, $c->end;
           }

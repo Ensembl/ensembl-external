@@ -296,6 +296,8 @@ sub _parse_server {
 sub _parse_sources_output {
   my ($self, $server_url, $set) = @_;
   
+  my $count = 0;
+  
   # Iterate over the <SOURCE> elements
   for my $source (@{ $set }) {
     
@@ -328,10 +330,12 @@ sub _parse_sources_output {
         my $type    = $coord->{'coordinates_source'};
         # Version and species are optional:
         my $version = $coord->{'coordinates_version'} || '';
-        #my $taxid   = $coord->{'coordinates_taxid'}   || '';
-        my $species = $coord->{'coordinates'}; # element CDATA
-        $species    =~ s/^$auth(_$version)?,$type,?//;
-        $species    =~ s/ /_/g;
+        
+        # Would be better to get species name via taxid, but that would require
+        # mappings...
+        my $cdata   = $coord->{'coordinates'};
+        my (undef, undef, $species) = split /,/, $cdata, 3;
+        $species =~ s/ /_/;
         
         if (!$type || !$auth) {
           warning("Unable to parse authority and sequence type for $dsn ; skipping"); # Something went wrong!
@@ -359,12 +363,15 @@ sub _parse_sources_output {
         -homepage      => $homepage,
         -coords        => \@coords,
       );
+      $count++;
       
       $self->{'_sources'}{$source->full_url} ||= $source;
       
     } # end version loop
     
   } # end source loop
+  
+  info("Found $count sources");
   
   return undef;
 }
@@ -384,6 +391,8 @@ sub _parse_sources_output {
 sub _parse_dsn_output {
   my ($self, $server_url, $set) = @_;
   
+  my $count = 0;
+  
   # Iterate over the <DSN> elements
   for my $source (@{ $set }) {
     
@@ -395,7 +404,10 @@ sub _parse_dsn_output {
     );
     
     $self->{'_sources'}{$source->full_url} ||= $source;
+    $count++;
   }
+  
+  info("Found $count sources");
   
   return undef;
   

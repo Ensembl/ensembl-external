@@ -335,6 +335,7 @@ sub _parse_sources_output {
         # mappings...
         my $cdata   = $coord->{'coordinates'};
         my (undef, undef, $species) = split /,/, $cdata, 3;
+        $species ||= '';
         $species =~ s/ /_/;
         
         if (!$type || !$auth) {

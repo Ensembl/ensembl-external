@@ -141,9 +141,14 @@ sub new {
   }
   
   my $self = {
-    'daslite' => $das,
+    'daslite'  => $das,
+    'location' => $server,
+    'proxy'    => $proxy,
+    'noproxy'  => $no_proxy,
+    'timeout'  => $timeout,
   };
   bless $self, $class;
+  $self->{'_sub_parsers'}{$server} = $self;
   
   return $self;
 }
@@ -395,23 +400,68 @@ sub _parse_dsn_output {
   my $count = 0;
   
   # Iterate over the <DSN> elements
-  for my $source (@{ $set }) {
+  for my $hash (@{ $set }) {
     
     my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
       -url           => $server_url,
-      -dsn           => $source->{'source_id'},
-      -label         => $source->{'source'},
-      -description   => $source->{'description'},
+      -dsn           => $hash->{'source_id'},
+      -label         => $hash->{'source'},
+      -description   => $hash->{'description'},
     );
     
     $self->{'_sources'}{$source->full_url} ||= $source;
     $count++;
+    
+    # Try to find the coordinate systems from the mapmaster..
+    if ( my $mapmaster = $self->_find_mapmaster( $hash->{'mapmaster'} ) ) {
+      $source->coord_systems( $mapmaster->coord_systems );
+    }
+    
   }
   
   info("Found $count sources");
   
   return undef;
   
+}
+
+sub _find_mapmaster {
+  my ( $self, $raw_url ) = @_;
+  
+  my $mapmaster = undef;
+  
+  if ( $raw_url ) {
+    my ($map_server, $map_dsn) = $raw_url =~ m{^(.+/das)/([^/]+)};
+    
+    if ($map_server && $map_dsn) {
+      my $mapmaster_url = join '/', $map_server, $map_dsn;
+      
+      # If the mapmaster is on a "new" server, query it!
+      my $sub_parser = $self->{'_sub_parsers'}{$map_server};
+      if (! $sub_parser ) {
+        $sub_parser = $self->{'_sub_parsers'}{$map_server} = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
+          -LOCATION => $map_server,
+          -PROXY    => $self->{'proxy'},
+          -NOPROXY  => $self->{'noproxy'},
+          -TIMEOUT  => $self->{'timeout'},
+        );
+        # NOTE: recursive lookup *should* be OK, as we always finish sources
+        # parsing before dsn parsing... famous last words
+        $sub_parser->{'_sub_parsers'}{$self->{'location'}} = $self;
+        # Mapmaster servers can generate errors, but this isn't fatal
+        eval {
+          $sub_parser->_parse_server();
+        };
+        if ($@) {
+          warning("Error finding mapmaster $mapmaster_url : $@")
+        }
+      }
+      
+      $mapmaster = $sub_parser->{'_sources'}{$mapmaster_url};
+    }
+  }
+  
+  return $mapmaster;
 }
 
 sub _parse_coord_system {

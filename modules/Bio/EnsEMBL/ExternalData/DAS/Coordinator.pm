@@ -191,22 +191,21 @@ sub new {
                Bio::...::DAS::Stylesheet objects:
                {
                 $logic_name => {
-                                'source'     => {
-                                                 'object' => $source_object,
-                                                 'error'  => 'Not applicable',
-                                                },
-                                'features'   => {
-                                                 'error'   => 'Error fetching...',
-                                                 'url'     => 'http://...',
-                                                 'objects' => [
-                                                               $feat1,
-                                                               $feat2,
-                                                              ],
-                                                },
-                                'stylesheet' => {
-                                                 'object' => $style1,
-                                                 'error'  => 'Error fetching...',
-                                                },
+                  'source'     => {
+                                   'object' => $source_object,
+                                   'error'  => 'Not applicable',
+                                  },
+                  'features'   => {
+                                   'X:1000,2000' => {
+                                     'error'   => 'Error fetching...',
+                                     'url'     => 'http://...',
+                                     'objects' => [  $feat1, $feat2 ],
+                                     },
+                                  },
+                  'stylesheet' => {
+                                   'object' => $style1,
+                                   'error'  => 'Error fetching...',
+                                  },
                                }
                }
   Exceptions : Throws if the object is not supported
@@ -538,6 +537,7 @@ sub map_Features {
   # an extra iteration step which inefficient (especially for large numbers of
   # features). So we duplicate a bit of code.
   if ( $source_cs->equals( $to_cs ) ) {
+    
     my @new_features = ();
       
     for my $f ( @{ $features } ) {
@@ -653,7 +653,7 @@ sub _get_Segments {
   my ($slice, $gene, $prot) = @_;
   #warn sprintf "Getting mapper for %s -> %s", $from_cs->name, $to_cs->name;
   
-  info('Building mappings segments for '.$from_cs->name.' -> '.$to_cs->name);
+  info('Building mappings for '.$from_cs->name.' -> '.$to_cs->name);
   my %mappers = ();
   my @segments = ();
   
@@ -873,7 +873,8 @@ sub _get_Segments {
     warning(sprintf 'Mapping to %s is not supported', $to_cs->name);
   }
   
-  return \@segments;
+  my %segments = map { $_ => 1 } @segments;
+  return [ keys %segments ];
 }
 
 1;

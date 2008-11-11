@@ -699,7 +699,7 @@ sub _get_Segments {
           
           # Wrapper for AssemblyMapper:
           my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(
-            'from', 'to', $from_cs, $to_cs, $tmpmap
+            'from', 'to', $tmpfrom, $tmpto, $tmpmap
           );
           
           # Map backwards to get the query segments

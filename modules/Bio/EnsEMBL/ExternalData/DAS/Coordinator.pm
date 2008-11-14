@@ -681,7 +681,7 @@ sub _get_Segments {
     if ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
       
       # No mapping needed
-      if ( $from_cs->equals( $to_cs ) ) {
+      if ( $from_cs->equals( $to_cs ) || $from_cs->name eq 'toplevel' ) {
         push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
       }
       
@@ -729,7 +729,6 @@ sub _get_Segments {
       for my $g ( @genes ) {
         # Genes are already definitely relative to the target slice, so don't need to do any assembly mapping
         my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to', $from_cs, $to_cs);
-        #warn "ADDING ".$g->stable_id." ".$g->strand;
         $mapper->add_map_coordinates(
           $g->stable_id,           1,                    $g->length, $g->seq_region_strand,
           $slice->seq_region_name, $g->seq_region_start, $g->seq_region_end

@@ -562,7 +562,7 @@ sub map_Features {
     my @this_features = @{ $features };
     my $mappers = $self->{'mappers'}{$source_cs->name}{$source_cs->version||''};
     $features  = [];
-    $source_cs = undef;
+    my $this_cs = undef;
     
     my $positional_mapping_errors = 0;
     
@@ -576,6 +576,14 @@ sub map_Features {
         $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0;
       }
       
+      my $segid  = $f->{'segment_id'};
+      my $mapper = $mappers->{$segid};
+      if (!$mapper) {
+        $positional_mapping_errors++;
+        next;
+      }
+      $this_cs = $mapper->{'to_cs'} || throw('Mapper maps to unknown coordinate system');
+      
       # It doesn't matter what coordinate system non-positional features come
       # from, they are always included and don't need mapping
       if (!$f->{'start'} && !$f->{'end'}) {
@@ -583,15 +591,7 @@ sub map_Features {
         next;
       }
       
-      my $segid  = $f->{'segment_id'};
-      
       # Get new coordinates for this feature
-      my $mapper = $mappers->{$segid};
-      if (!$mapper) {
-        $positional_mapping_errors++;
-        next;
-      }
-      $source_cs = $mapper->{'to_cs'} || throw('Mapper maps to unknown coordinate system');
       my @coords = $mapper->map_coordinates($segid,
                                             $f->{'start'},
                                             $f->{'end'},
@@ -608,7 +608,7 @@ sub map_Features {
         $new{'strand'    } = $c->strand;
         
         # If this is the final step, convert to Ensembl Feature
-        if ( $source_cs->equals( $to_cs ) ) {
+        if ( $this_cs->equals( $to_cs ) ) {
           push @{ $features }, &$build_Feature( \%new );
         }
         else {
@@ -622,9 +622,11 @@ sub map_Features {
       warning(sprintf '%d positional features could not be mapped (%s -> %s)',
         $positional_mapping_errors,
         $source_cs ? $source_cs->name.' '.$source_cs->version : 'UNKNOWN',
-        $to_cs     ? $to_cs->name.' '.$to_cs->version         : 'UNKNOWN'
+        $this_cs   ? $this_cs->name  .' '.$this_cs->version   : 'UNKNOWN'
       );
     }
+    
+    $source_cs = $this_cs;
   }
   
   return $features;

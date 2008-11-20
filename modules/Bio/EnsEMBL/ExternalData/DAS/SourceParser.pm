@@ -353,11 +353,6 @@ sub _parse_sources_output {
         }
       }
       
-      if (!scalar @coords) {
-        info("$dsn has no supported coordinate systems; skipping");
-        next;
-      }
-      
       # Create the actual source
       my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
         -logic_name    => $version_uri,

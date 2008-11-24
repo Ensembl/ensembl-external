@@ -532,21 +532,20 @@ sub map_Features {
     return 1;
   };
   
+  my @new_features = ();
+  
   # As part of the feature parsing we need to do some converting and filtering.
   # We could do this in a separate loop before doing any mapping, but this adds
   # an extra iteration step which inefficient (especially for large numbers of
   # features). So we duplicate a bit of code.
+  
   if ( $source_cs->equals( $to_cs ) ) {
     
-    my @new_features = ();
-      
     for my $f ( @{ $features } ) {
-      
       if ( $nofilter || &$filter_Feature( $f ) ) {
         $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0; # Convert to Ensembl-style (numeric) strand
         push @new_features, &$build_Feature( $f ); # Build object
       }
-      
     }
     
     return \@new_features;
@@ -587,7 +586,7 @@ sub map_Features {
       # It doesn't matter what coordinate system non-positional features come
       # from, they are always included and don't need mapping
       if (!$f->{'start'} && !$f->{'end'}) {
-        push @{ $features }, &$build_Feature( $f ); # Build object
+        push @new_features, &$build_Feature( $f );
         next;
       }
       
@@ -609,7 +608,7 @@ sub map_Features {
         
         # If this is the final step, convert to Ensembl Feature
         if ( $this_cs->equals( $to_cs ) ) {
-          push @{ $features }, &$build_Feature( \%new );
+          push @new_features, &$build_Feature( \%new );
         }
         else {
           push @{ $features }, \%new;
@@ -629,7 +628,7 @@ sub map_Features {
     $source_cs = $this_cs;
   }
   
-  return $features;
+  return \@new_features;
 }
 
 # Supports mappings:

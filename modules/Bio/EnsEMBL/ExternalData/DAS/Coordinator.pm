@@ -259,7 +259,7 @@ sub fetch_Features {
                                      'stylesheet' => {},
                                     };
     
-    my @coord_systems = @{ $source->coord_systems };
+    my @coord_systems = @{ $self->_choose_coord_systems($target_cs, $target_obj, $source->coord_systems) };
     
     if (! scalar @coord_systems ) {
       warning($source->key.' has no coord systems');
@@ -654,7 +654,8 @@ sub _get_Segments {
   my ($slice, $gene, $prot) = @_;
   #warn sprintf "Getting mapper for %s -> %s", $from_cs->name, $to_cs->name;
   
-  info('Building mappings for '.$from_cs->name.' -> '.$to_cs->name);
+  info(sprintf 'Building mappings for %s %s -> %s %s',
+               $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
   my %mappers = ();
   my @segments = ();
   
@@ -875,6 +876,64 @@ sub _get_Segments {
   
   my %segments = map { $_ => 1 } @segments;
   return [ keys %segments ];
+}
+
+sub _choose_coord_systems {
+  my ( $self, $target_cs, $target_ob, $coord_systems ) = @_;
+  
+  my @best_genomic = ();
+  my @best_gene    = ();
+  my @best_protein = ();
+  
+  my $csa = $target_ob->adaptor->db->get_CoordSystemAdaptor;
+  my $ens_rank;
+  my $ens_gene;
+  my $ens_prot;
+  
+  for my $cs ( @{ $coord_systems } ) {
+    if ( $cs->equals( $target_cs ) ) {
+      return [ $cs ];
+    }
+    if ( $cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+      my $tmp = $csa->fetch_by_name( $cs->name, $cs->version ) || $csa->fetch_by_name( $cs->name ) || next;
+      if ( !defined $ens_rank || $tmp->rank < $ens_rank ) {
+        $ens_rank = $tmp->rank;
+        @best_genomic = ($cs);
+      } elsif ( $tmp->rank == $ens_rank ) {
+        push @best_genomic, $cs;
+      }
+    }
+    elsif ( $GENE_COORDS{$cs->name} ) {
+      if ( $cs->equals( $self->{'gene_cs'} ) ) {
+        $ens_gene = 1;
+        @best_gene = ($cs);
+      }
+      elsif ( !$ens_gene ) {
+        push @best_gene, $cs;
+      }
+    }
+    elsif ( $PROT_COORDS{$cs->name} ) {
+      if ( $cs->equals( $self->{'prot_cs'} ) ) {
+        $ens_prot = 1;
+        @best_protein = ($cs);
+      }
+      elsif ( !$ens_prot ) {
+        push @best_protein, $cs;
+      }
+    }
+  }
+  
+  my $best = [];
+  if ( $target_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+    $best = @best_genomic ? \@best_genomic : @best_protein ? \@best_protein : \@best_gene;
+  } elsif ( $GENE_COORDS{$target_cs->name} ) {
+    $best = @best_gene    ? \@best_gene    : @best_genomic ? \@best_genomic : \@best_protein;
+  } elsif ( $PROT_COORDS{$target_cs->name} ) {
+    $best = @best_protein ? \@best_protein : @best_gene    ? \@best_gene    : \@best_genomic;
+  }
+  
+  info('Choosen from '.scalar @{$coord_systems}.' coords: ' . join '; ', map { $_->name .' '. $_->version } @{$best});
+  return $best;
 }
 
 1;

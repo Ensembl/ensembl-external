@@ -5,12 +5,14 @@ Bio::EnsEMBL::ExternalData::DAS::SourceParser
 =head1 SYNOPSIS
 
   my $parser = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
-    -location => 'http://www.dasregistry.org/das',
     -timeout  => 5,
     -proxy    => 'http://proxy.company.com',
   );
   
-  my $sources = $parser->fetch_Sources( -species => 'Homo_sapiens' );
+  my $sources = $parser->fetch_Sources(
+    -location => 'http://www.dasregistry.org/das',
+    -species  => 'Homo_sapiens'
+  );
   for my $source (@{ $sources }) {
     printf "URL: %s, Description: %s, Coords: %s\n",
             $source->full_url,
@@ -40,6 +42,7 @@ use Bio::EnsEMBL::Utils::Exception qw(throw warning info);
 use Bio::EnsEMBL::ExternalData::DAS::CoordSystem;
 use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
+use URI;
 
 our @GENE_COORDS = (
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene', -label => 'Ensembl Gene Accession' ),
@@ -92,21 +95,11 @@ our %NON_GENOMIC_COORDS = (
 
 =head2 new
 
-  Arg [..]   : List of named arguments:
-               -LOCATION  - A URL from which to obtain a list of sources XML.
-                            This is usually a DAS registry or server URL, but
-                            could be a local path to a directory containing an
-                            XML file named "sources?" or "dsn?"
+  Arg [..]   : List of optional named arguments:
                -PROXY     - A URL to use as an HTTP proxy server
                -NOPROXY   - A list of domains/hosts not to use the proxy for
                -TIMEOUT   - Timeout in seconds (default is 10)
   Example    : my $parser = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
-                 -location => 'http://www.dasregistry.org/das',
-                 -proxy    => 'http://proxy.company.com',
-                 -timeout  => 10,
-               );
-  Example    : my $parser = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
-                 -location => 'file:///registry', # parses "/registry/sources?"
                  -proxy    => 'http://proxy.company.com',
                  -timeout  => 10,
                );
@@ -119,16 +112,12 @@ our %NON_GENOMIC_COORDS = (
 =cut
 sub new {
   my $class = shift;
-  my ($server, $proxy, $no_proxy, $timeout)
-    = rearrange(['LOCATION','PROXY','NOPROXY','TIMEOUT'], @_);
-  
-  $server  || throw('No DAS server specified');
-  info("Building parser for $server");
+  my ($proxy, $no_proxy, $timeout)
+    = rearrange(['PROXY','NOPROXY','TIMEOUT'], @_);
   
   $timeout ||= 10;
   my $das = Bio::Das::Lite->new();
   $das->user_agent('Ensembl');
-  $das->dsn($server);
   $das->timeout($timeout);
   
   $das->http_proxy($proxy);
@@ -142,13 +131,11 @@ sub new {
   
   my $self = {
     'daslite'  => $das,
-    'location' => $server,
     'proxy'    => $proxy,
     'noproxy'  => $no_proxy,
     'timeout'  => $timeout,
   };
   bless $self, $class;
-  $self->{'_sub_parsers'}{$server} = $self;
   
   return $self;
 }
@@ -156,13 +143,21 @@ sub new {
 =head2 fetch_Sources
 
   Arg [..]   : List of named arguments:
+               -LOCATION   -  A URL from which to obtain a list of sources XML.
+                             This is usually a DAS registry or server URL, but
+                             could be a local path to a directory containing an
+                             XML file named "sources?" or "dsn?"
                -SPECIES    - (optional) scalar or arrayref species name filter
                -NAME       - (optional) scalar or arrayref source name filter
                -LOGIC_NAME - (optional) scalar or arrayref logic_name filter
   Example:     $arr = $parser->fetch_Sources(
-                                             -species => 'Homo_sapiens',
-                                             -name    => ['asd', 'atd', 'astd'],
-                                            );
+                 -location => 'http://www.dasregistry.org/das',
+                 -species => 'Homo_sapiens',
+                 -name    => ['asd', 'atd', 'astd'],
+               );
+  Example:     $arr = $parser->fetch_Sources(
+                 -location => 'file:///registry', # parses "/registry/sources?"
+               );
   Description: Fetches DAS Source objects. The first call to this method
                initiates lazy parsing of the XML, and the results are stored.
                The different filter types supplied to this method are treated as
@@ -176,14 +171,18 @@ sub new {
 =cut
 sub fetch_Sources {
   my $self = shift;
-  my ($f_species, $f_name, $f_logic) = rearrange([ 'SPECIES', 'NAME', 'LOGIC_NAME' ], @_);
+  my ($server, $f_species, $f_name, $f_logic)
+    = rearrange([ 'LOCATION', 'SPECIES', 'NAME', 'LOGIC_NAME' ], @_);
+  
+  $server || throw('No DAS server specified');
+  ($server, my $f_id) = $self->parse_das_string( $server );
   
   # Actual parsing is lazy
-  if (!defined $self->{'_sources'}) {
-    $self->_parse_server();
+  if (!defined $self->{'_sources'}{$server}) {
+    $self->_parse_server( $server );
   }
   
-  my @sources = values %{ $self->{'_sources'} || {} };
+  my @sources = values %{ $self->{'_sources'}{$server} || {} };
   
   my @f_species = !defined $f_species ? ()
                 : ref $f_species ? @{ $f_species } : ( $f_species );
@@ -210,19 +209,23 @@ sub fetch_Sources {
     @sources = grep { my $source = $_; grep { $source->logic_name eq $_ } @f_logic  } @sources;
   }
   
+  if ( $f_id ) {
+    info('Filtering by identifier (logic_name or dsn)');
+    @sources = grep { $_->logic_name eq $f_id || $_->dsn eq $f_id } @sources;
+  }
+  
   return [sort { lc $a->label cmp lc $b->label } @sources];
 }
 
 =head2 _parse_server
 
   Arg [..]   : none
-  Example    : $parser->_parse_server();
-  Description: Contacts the configured DAS server via the sources or dsn command
+  Example    : $parser->_parse_server( @servers );
+  Description: Contacts the given DAS server(s) via the sources or dsn command
                and parses the results. Populates $self->{'_sources} as a hashref
-               of DAS sources, organised by taxonomy ID:
+               of DAS sources, organised by server:
                {
-                Homo_sapiens => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
-                __NONE__     => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
+                http://... => [ Bio::EnsEMBL::ExternalData::DAS::Source, .. ],
                }
   Returntype : none
   Exceptions : If there is an error contacting the DAS registry/server.
@@ -231,10 +234,11 @@ sub fetch_Sources {
 
 =cut
 sub _parse_server {
-  my $self = shift;
+  my ( $self, @servers ) = @_;
   
   # NOTE: this method technically supports multiple servers/locations, but
   #       in practice we expect to only be parsing one at a time
+  $self->{'daslite'}->dsn(\@servers);
   
   # Servers which don't respond to the "sources" command will be attempted via
   # the "dsn" command
@@ -246,8 +250,9 @@ sub _parse_server {
     
     info("Processing $url");
     my $status = $self->{'daslite'}->statuscodes($url);
-    $set = $set->[0]->{'source'} || [];
     $url =~ s|/sources\??$||;
+    $self->{'_sources'}{$url} = {};
+    $set = $set->[0]->{'source'} || [];
     
     # If we get data back from the sources command, parse it
     if ($status =~ /^200/ && scalar @{ $set }) {
@@ -259,15 +264,14 @@ sub _parse_server {
     
   }
   
-  my @previous = @{ $self->{'daslite'}->dsn || [] };
-  my @failed = grep { !$success{$_} } @previous;
+  my @failed = grep { !$success{$_} } @servers;
   
   # Run the dsn command on the remaining servers (if any)
   if (scalar @failed) {
     
     $self->{'daslite'}->dsn(\@failed);
     $struct = $self->{'daslite'}->dsns();
-    $self->{'daslite'}->dsn(\@previous);
+    $self->{'daslite'}->dsn(\@servers);
     
     while (my ($url, $set) = each %{ $struct }) {
       info("Processing $url");
@@ -366,7 +370,7 @@ sub _parse_sources_output {
       );
       $count++;
       
-      $self->{'_sources'}{$source->full_url} ||= $source;
+      $self->{'_sources'}{$server_url}{$source->full_url} ||= $source;
       
     } # end version loop
     
@@ -404,7 +408,7 @@ sub _parse_dsn_output {
       -description   => $hash->{'description'},
     );
     
-    $self->{'_sources'}{$source->full_url} ||= $source;
+    $self->{'_sources'}{$server_url}{$source->full_url} ||= $source;
     $count++;
     
     # Try to find the coordinate systems from the mapmaster..
@@ -426,33 +430,23 @@ sub _find_mapmaster {
   my $mapmaster = undef;
   
   if ( $raw_url ) {
-    my ($map_server, $map_dsn) = $raw_url =~ m{^(.+/das)/([^/]+)};
+    my ($map_server, $map_dsn) = $self->parse_das_string( $raw_url );
     
     if ($map_server && $map_dsn) {
       my $mapmaster_url = join '/', $map_server, $map_dsn;
       
       # If the mapmaster is on a "new" server, query it!
-      my $sub_parser = $self->{'_sub_parsers'}{$map_server};
-      if (! $sub_parser ) {
-        $sub_parser = $self->{'_sub_parsers'}{$map_server} = Bio::EnsEMBL::ExternalData::DAS::SourceParser->new(
-          -LOCATION => $map_server,
-          -PROXY    => $self->{'proxy'},
-          -NOPROXY  => $self->{'noproxy'},
-          -TIMEOUT  => $self->{'timeout'},
-        );
-        # NOTE: recursive lookup *should* be OK, as we always finish sources
-        # parsing before dsn parsing... famous last words
-        $sub_parser->{'_sub_parsers'}{$self->{'location'}} = $self;
+      if ( !exists $self->{'_sources'}{$map_server} ) {
         # Mapmaster servers can generate errors, but this isn't fatal
         eval {
-          $sub_parser->_parse_server();
+          $self->fetch_Sources( -location => $map_server );
         };
         if ($@) {
           warning("Error finding mapmaster $mapmaster_url : $@")
         }
       }
       
-      $mapmaster = $sub_parser->{'_sources'}{$mapmaster_url};
+      $mapmaster = $self->{'_sources'}{$map_server}{$mapmaster_url};
     }
   }
   
@@ -494,6 +488,53 @@ sub _parse_coord_system {
   }
   
   return $cs;
+}
+
+# Convert some form of DAS source identifier into a server URI and relative
+# source URI. Where no reliable inference can be made, a server URI is returned
+# but no DSN (rather than the other way around).
+# e.g. http://server/das             -> http://server/das              + undef
+#      http://server/das/            -> http://server/das              + undef
+#      http://server/das/foo         -> http://server/das              + foo
+#      file://server/das/foo         -> file://server/das              + foo
+#      http://server/das/sources/foo -> http://server/das              + foo
+#      server/das/foo                -> http://server/das              + foo
+#      server/das/sources/foo        -> http://server/das              + foo
+#      foo                           -> http://foo/das                 + undef
+sub parse_das_string {
+  my ( $self, $in ) = @_;
+  # OK... start the analysis...
+  if ($in !~ m{^\w+:}) {
+    $in = "http://$in"; # if no scheme, assume http
+  }
+  
+  my $server = URI->new($in)->canonical;
+  my $dsn    = URI->new();
+  my $path = $server->path;
+  $path =~ s|/+|/|g; # // -> /
+  $server->path($path);
+  
+  my @segs = $server->path_segments;
+  my @server_segs = ();
+  my @dsn_segs = ();
+  my $found = 0;
+  for my $seg ($server->path_segments) {
+    $seg || next;
+    if ($seg =~ /^das1?$/) {
+      $found = 1;
+    } elsif ($seg =~ /^sources|dsn$/) {
+      next;
+    } elsif ($found) {
+      push @dsn_segs, $seg;
+    } else {
+      push @server_segs, $seg;
+    }
+  }
+  
+  $server->path_segments( @server_segs, 'das' );
+  $dsn->path_segments( @dsn_segs );
+  
+  return ($server->as_string, $dsn->as_string);
 }
 
 1;

@@ -575,6 +575,13 @@ sub map_Features {
         $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0;
       }
       
+      # It doesn't matter what coordinate system non-positional features come
+      # from, they are always included and don't need mapping
+      if (!$f->{'start'} && !$f->{'end'}) {
+        push @new_features, &$build_Feature( $f );
+        next;
+      }
+      
       my $segid  = $f->{'segment_id'};
       my $mapper = $mappers->{$segid};
       if (!$mapper) {
@@ -582,13 +589,6 @@ sub map_Features {
         next;
       }
       $this_cs = $mapper->{'to_cs'} || throw('Mapper maps to unknown coordinate system');
-      
-      # It doesn't matter what coordinate system non-positional features come
-      # from, they are always included and don't need mapping
-      if (!$f->{'start'} && !$f->{'end'}) {
-        push @new_features, &$build_Feature( $f );
-        next;
-      }
       
       # Get new coordinates for this feature
       my @coords = $mapper->map_coordinates($segid,

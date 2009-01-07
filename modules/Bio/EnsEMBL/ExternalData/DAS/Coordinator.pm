@@ -102,6 +102,13 @@ our %XREF_PEPTIDE_FILTERS = (
     'predicate'   => sub { $_[0]->dbname eq 'EntrezGene' },
     'transformer' => sub { $_[0]->primary_id },
   },
+);
+
+our %XREF_GENE_FILTERS = (
+  'hgnc' => {
+    'predicate'   => sub { $_[0]->dbname eq 'HGNC' },
+    'transformer' => sub { $_[0]->primary_id },
+  },
   'mgi_acc' => {
     'predicate'   => sub { $_[0]->dbname eq 'MGI' },
     'transformer' => sub { my $id = $_[0]->primary_id; $id =~ s/\://; $id; },
@@ -109,13 +116,6 @@ our %XREF_PEPTIDE_FILTERS = (
   'mgi' => {
     'predicate'   => sub { $_[0]->dbname eq 'MGI' },
     'transformer' => sub { $_[0]->display_id },
-  },
-);
-
-our %XREF_GENE_FILTERS = (
-  'hgnc' => {
-    'predicate'   => sub { $_[0]->dbname eq 'HGNC' },
-    'transformer' => sub { $_[0]->primary_id },
   },
 );
 
@@ -262,7 +262,7 @@ sub fetch_Features {
     my @coord_systems = @{ $self->_choose_coord_systems($target_cs, $target_obj, $source->coord_systems) };
     
     if (! scalar @coord_systems ) {
-      warning($source->key.' has no coord systems');
+      warning($source->logic_name.' has no coord systems');
       $final->{$source->logic_name}{'source'}{'error'}
         = 'Bad source configuration';
       next;
@@ -536,10 +536,10 @@ sub map_Features {
   
   # As part of the feature parsing we need to do some converting and filtering.
   # We could do this in a separate loop before doing any mapping, but this adds
-  # an extra iteration step which inefficient (especially for large numbers of
-  # features). So we duplicate a bit of code.
+  # an extra iteration step which is inefficient (especially for large numbers
+  # of features). So we duplicate a bit of code.
   
-  if ( $source_cs->equals( $to_cs ) ) {
+  if ( $source_cs->equals( $to_cs ) || ( $slice && $source_cs->name eq 'toplevel' && $slice->is_toplevel ) ) {
     
     for my $f ( @{ $features } ) {
       if ( $nofilter || &$filter_Feature( $f ) ) {
@@ -560,6 +560,7 @@ sub map_Features {
     
     my @this_features = @{ $features };
     my $mappers = $self->{'mappers'}{$source_cs->name}{$source_cs->version||''};
+    my $passthrough = $self->{'passthrough'}{$source_cs->name}{$source_cs->version||''};
     $features  = [];
     my $this_cs = undef;
     
@@ -583,6 +584,22 @@ sub map_Features {
       }
       
       my $segid  = $f->{'segment_id'};
+      
+      # Check for passthrough mappings (i.e. no mapping is needed but the coord system needs to change)
+      # This is used when mapping from toplevel
+      if (my $pass_cs = $passthrough->{$segid}) {
+        $this_cs = $pass_cs;
+        # If this is the final step, convert to Ensembl Feature
+        if ( $this_cs->equals( $to_cs ) ) {
+          push @new_features, &$build_Feature( $f );
+        }
+        else {
+          push @{ $features }, $f;
+        }
+        next;
+      }
+      
+      # Otherwise check there are mappings available for this segment
       my $mapper = $mappers->{$segid};
       if (!$mapper) {
         $positional_mapping_errors++;
@@ -674,17 +691,32 @@ sub _get_Segments {
   # wrappers in order to achieve this.
   
   # Mapping to slice-relative coordinates
-  if ( $to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+  if ( $to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
     
+    # Sanity checks
     $slice || throw('Trying to convert to slice coordinates, but no Slice provided');
     $slice->coord_system->equals($to_cs) || throw('Provided slice is not in target coordinate system');
     
     # Mapping from a slice-based coordinate system
     if ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
       
-      # No mapping needed
-      if ( $from_cs->equals( $to_cs ) || $from_cs->name eq 'toplevel' ) {
+      # No mapping needed - the coords are identical
+      if ( $from_cs->equals( $to_cs ) ) {
+        info(sprintf 'No mappings needed for %s %s -> %s %s',
+          $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
         push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
+      }
+      # No mapping needed, but we need to indicate what the real coordsys is
+      elsif ( $from_cs->name eq 'toplevel' && $slice->is_toplevel ) {
+        info(sprintf 'No mappings needed for %s %s -> %s %s',
+          $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
+        $self->{'passthrough'}{$from_cs->name}{$from_cs->version}{$slice->seq_region_name} = $to_cs;
+        push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
+      }
+      
+      # We can't map from toplevel, only detect when no mapping is required...
+      elsif ( $from_cs->name eq 'toplevel' ) {
+        warning(sprintf 'Mapping from toplevel to %s is only supported where the given %1$s slice is also toplevel', $to_cs->name);
       }
       
       else {
@@ -710,6 +742,9 @@ sub _get_Segments {
                                                 $slice->end,
                                                 $slice->strand,
                                                 'to');
+          
+          info(sprintf 'Adding mappings for %s %s -> %s %s',
+            $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
           for my $c ( @coords ) {
             $c->isa('Bio::EnsEMBL::Mapper::Coordinate') || next;
             $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$c->id} ||= $mapper;
@@ -728,6 +763,8 @@ sub _get_Segments {
       my @genes = $gene ? ($gene)
                         : @{ $slice->get_all_Genes };
       
+      info(sprintf 'Adding mappings for %s %s -> %s %s',
+        $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $g ( @genes ) {
         # Genes are already definitely relative to the target slice, so don't need to do any assembly mapping
         my $mapper = Bio::EnsEMBL::Mapper->new('from', 'to', $from_cs, $to_cs);
@@ -746,6 +783,8 @@ sub _get_Segments {
       my @transcripts = $gene ? @{ $gene->get_all_Transcripts }
                               : @{ $slice->get_all_Transcripts };
       
+      info(sprintf 'Adding mappings for %s %s -> %s %s',
+        $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $tran ( @transcripts ) {
         my $p = $tran->translation || next;
         $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$p->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
@@ -780,6 +819,8 @@ sub _get_Segments {
       my @genes = $gene ? ($gene)
                         : @{ $slice->get_all_Genes };
       
+      info(sprintf 'Adding (nonpositional) mappings for %s %s -> %s %s',
+        $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $g ( @genes ) {
         for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
           my $segid = $callback->{'transformer'}( $xref );
@@ -804,6 +845,9 @@ sub _get_Segments {
     # Mapping from protein to protein (the same)
     if ( $from_cs->equals( $to_cs ) ) {
       # no mapper needed
+      info(sprintf 'No mappings needed for %s %s -> %s %s',
+        $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
+      $self->{'passthrough'}{$from_cs->name}{$from_cs->version}{$prot->stable_id} = $to_cs;
       push @segments, $prot->stable_id;
     }
     
@@ -814,9 +858,12 @@ sub _get_Segments {
       my $tran  = $ta->fetch_by_translation_stable_id($prot->stable_id);
       $slice = $sa->fetch_by_transcript_stable_id($tran->stable_id);
       $tran = $tran->transfer($slice);
+      my $tran_cs = $slice->coord_system;
       # second stage mapper: transcript's slice to protein
-      my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
+      my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $tran_cs, $to_cs, $tran);
       
+      info(sprintf 'Adding mappings for %s %s -> %s %s',
+        $tran_cs->name, $tran_cs->version, $to_cs->name, $to_cs->version);
       $self->{'mappers'}{$slice->coord_system->name}{$slice->coord_system->version||''}{$slice->seq_region_name} = $mapper;
       # first stage mapper: from_cs to transcript's slice
       push @segments, @{ $self->_get_Segments($from_cs, $tran->slice->coord_system, $slice) };
@@ -836,6 +883,8 @@ sub _get_Segments {
     
     # Mapping from xref to peptide
     elsif ( my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name} ) {
+      info(sprintf 'Adding mappings for %s %s -> %s %s',
+        $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $prot->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
         push @segments, $segid;
@@ -856,6 +905,8 @@ sub _get_Segments {
     elsif ( $callback = $XREF_GENE_FILTERS{$from_cs->name} ) {
       my $ga = $prot->adaptor->db->get_GeneAdaptor();
       $gene  = $ga->fetch_by_translation_stable_id($prot->stable_id);
+      info(sprintf 'Adding (nonpositional) mappings for %s %s -> %s %s',
+        $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $gene->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
         push @segments, $segid;

@@ -37,12 +37,12 @@ my $gene = $gea->fetch_by_translation_stable_id($prot->stable_id);
 my $chro = $sla->fetch_by_transcript_stable_id($tran->stable_id);
 $gene = $gene->transfer($chro);
 
-my ($xref) = @{ $prot->get_all_DBEntries('MGI') };
+my ($xref) = @{ $tran->get_all_DBLinks('MGI') };
 my $q_id = $xref->primary_id;
 $q_id =~ s/\://;
 
-my $prot_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
-my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'mgi_gene', -rank => 99 );
+my $prot_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
+my $xref_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'mgi_acc' );
 my $chro_cs = $chro->coord_system;
 
 my $desc = 'mgi->peptide positional';

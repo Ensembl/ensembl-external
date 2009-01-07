@@ -29,7 +29,7 @@ my $gene1 = $gea->fetch_by_translation_stable_id('ENSP00000324984');            
 my $gene2 = $gene1->transfer($sla->fetch_by_gene_stable_id($gene1->stable_id)); # gene on a forward strand regional slice
 my $gene3 = $gene1->transfer($gene1->feature_Slice);                            # gene on a reverse strand regional slice
 my $chro_cs = $gene1->slice->coord_system;
-my $gene_cs = Bio::EnsEMBL::CoordSystem->new(-name =>'ensembl_gene', -rank=>99);
+my $gene_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name =>'ensembl_gene' );
 
 # Don't really want to use this slice, could take a while to get all the genes
 #is($gene1->slice->strand,  1, "test gene 1 correct slice strand");

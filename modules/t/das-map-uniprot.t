@@ -32,9 +32,9 @@ my $tran = $tra->fetch_by_translation_stable_id($prot->stable_id);
 my $chro = $sla->fetch_by_transcript_stable_id($tran->stable_id);
 $tran = $tran->transfer($chro);
 
-my ($xref) = grep {$_->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i && $_->primary_id eq 'Q96LP6'} @{ $prot->get_all_DBEntries('Uniprot/%') };
-my $prot_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
-my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'uniprot_peptide', -rank => 99 );
+my ($xref) = grep {$_->dbname =~ m{uniprot/sptrembl|uniprot/swissprot}i && $_->primary_id eq 'Q96LP6'} @{ $tran->get_all_DBLinks('Uniprot/%') };
+my $prot_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
+my $xref_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'uniprot_peptide' );
 my $chro_cs = $chro->coord_system;
 
 my $desc = 'uniprot->peptide';

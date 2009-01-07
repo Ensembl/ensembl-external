@@ -4,12 +4,13 @@ This test covers the following DAS conversions:
   ensembl_peptide -> chromosome 36
   chromosome 36   -> ensembl_peptide
   ensembl_gene    -> ensembl_peptide
+  toplevel        -> ensembl_peptide
 
 =cut
 use strict;
 
 BEGIN { $| = 1;
-	use Test::More tests => 5+(5*3);
+	use Test::More tests => 5+(5*4);
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
@@ -37,15 +38,15 @@ $gene = $gene->transfer($sla->fetch_by_gene_stable_id($gene->stable_id)); # reve
 my $prot = $tran->translation;
 
 my $chro_cs = $tran->slice->coord_system;
-my $prot_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
-my $gene_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_gene'   , -rank => 99 );
+my $topl_cs = $dba->get_CoordSystemAdaptor()->fetch_by_name('toplevel');
+my $prot_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
+my $gene_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene' );
 
 is($gene->slice->strand,  1, "test gene correct slice strand");
 is($gene->strand,        -1, "test gene correct strand");
 is($gene->start,          1, "test gene correct start");
 is($tran->slice->strand,  1, "test transcript correct slice strand");
 is($tran->strand,        -1, "test transcript correct strand");
-#use Bio::EnsEMBL::Utils::Exception; verbose('INFO');
 
 my $desc = 'peptide->chromosome';
 my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
@@ -88,6 +89,24 @@ my $q_start = $gene->end - $tran->coding_region_end + 1;
 my $q_end   = $q_start + 29;
 my $q_feat = &build_feat($gene->stable_id, $q_start, $q_end, 1); # the 'rightmost' genomic position is the 'leftmost' peptide position
 my $f = $c->map_Features([$q_feat], $gene_cs, $prot_cs, undef)->[0];
+ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
+is($f->start,  1 , "$desc correct start");
+is($f->end,    10, "$desc correct end");
+is($f->strand, 1 , "$desc correct strand");
+}
+
+$desc = 'toplevel->peptide';
+$c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+$segments = $c->_get_Segments($topl_cs, $prot_cs, undef, undef, $prot);
+is_deeply($segments, [sprintf '%s:%s,%s', $tran->seq_region_name,
+                              $tran->seq_region_start,
+                              $tran->seq_region_end],
+                      "$desc correct query segment");
+SKIP: {
+my $q_start = $tran->coding_region_end-30 + $tran->slice->start;
+my $q_end   = $tran->coding_region_end-1  + $tran->slice->start;
+my $q_feat = &build_feat($tran->seq_region_name, $q_start, $q_end, $tran->strand); # the 'rightmost' genomic position is the 'leftmost' peptide position
+my $f = $c->map_Features([$q_feat], $topl_cs, $prot_cs, undef)->[0];
 ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
 is($f->start,  1 , "$desc correct start");
 is($f->end,    10, "$desc correct end");

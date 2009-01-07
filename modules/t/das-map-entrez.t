@@ -8,7 +8,7 @@ This test covers the following DAS conversions:
 use strict;
 
 BEGIN { $| = 1;
-	use Test::More tests => 14;
+	use Test::More tests => 15;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
@@ -35,10 +35,12 @@ my $prot = $pea->fetch_by_stable_id('ENSP00000324984');
 my $tran = $tra->fetch_by_translation_stable_id($prot->stable_id);
 my $chro = $sla->fetch_by_transcript_stable_id($tran->stable_id);
 
-my ($xref) = grep {$_->primary_id eq '374470'} @{ $prot->get_all_DBEntries('EntrezGene') };
-my $prot_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'ensembl_peptide', -rank => 99 );
-my $xref_cs = Bio::EnsEMBL::CoordSystem->new( -name => 'entrez_gene', -rank => 99 );
+my ($xref) = @{ $prot->get_all_DBEntries('EntrezGene') };
+my $prot_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
+my $xref_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrezgene_acc' );
 my $chro_cs = $chro->coord_system;
+
+ok($xref, 'Found an xref');
 
 my $desc = 'entrez->peptide positional';
 my $c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();

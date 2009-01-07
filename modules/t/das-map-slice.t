@@ -4,13 +4,15 @@ This test covers the following DAS conversions:
   chromosome 36 -> contig
   contig        -> chromosome 36
   chromosome 35 -> chromosome 36
+  toplevel      -> chromosome 36
+  toplevel      -> contig (not supported)
 
 =cut
 
 use strict;
 
 BEGIN { $| = 1;
-	use Test::More tests => 43;
+	use Test::More tests => 59;
 }
 
 use Bio::EnsEMBL::ExternalData::DAS::Coordinator;
@@ -26,11 +28,15 @@ Bio::EnsEMBL::Registry->load_registry_from_db(
 );
 my $dba = Bio::EnsEMBL::Registry->get_DBAdaptor( 'human', 'core' ) || die("Can't connect to database");
 
+use Bio::EnsEMBL::Utils::Exception qw(verbose);
+verbose('EXCEPTION'); # we are deliberately instigating warnings
+
 my $sla = $dba->get_SliceAdaptor();
 my $csa = $dba->get_CoordSystemAdaptor();
 my $chro_cs = $csa->fetch_by_name('chromosome', 'NCBI36');
 my $cont_cs = $csa->fetch_by_name('contig');
 my $ch35_cs = $csa->fetch_by_name('chromosome', 'NCBI35');
+my $topl_cs = $csa->fetch_by_name('toplevel');
 # contig:
 my $cont1 = $sla->fetch_by_region('contig',     'AC126176.5.1.23501',   1,    21561, -1); # this contig aligns on reverse strand
 my $cont2 = $sla->fetch_by_region('contig',     'AC090000.17.1.173552', 2054, 173552, 1);
@@ -106,6 +112,32 @@ for (@pairs) {
     is($f->seq_region_end,    $corr_end,   "$desc2 correct end");
     is($f->seq_region_strand, 1,           "$desc2 correct strand");
   };
+}
+
+$desc = 'toplevel->chromosome36';
+$c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+for (@pairs) {
+  my ($cont, $chro) = @$_;
+  my $desc2 = "$desc ".$cont->seq_region_name;
+  my $segments = $c->_get_Segments($topl_cs, $chro_cs, $chro);
+  ok(grep ((sprintf "%s:%s,%s", $chro->seq_region_name, $chro->start, $chro->end), @$segments), "$desc2 correct query segment");
+  SKIP: {
+    my $q_feat = &build_feat($chro->seq_region_name, $chro->end-9, $chro->end, 1); # the 'rightmost' chromosomal position
+    my $f = $c->map_Features([$q_feat], $topl_cs, $chro_cs, $chro_all)->[0];
+    ok($f, "$desc got mapped feature") || skip('requires mapped feature', 3);
+    is($f->seq_region_start,  $chro->end-9, "$desc2 correct start");
+    is($f->seq_region_end,    $chro->end,   "$desc2 correct end");
+    is($f->seq_region_strand, 1,            "$desc2 correct strand");
+  };
+}
+
+$desc = 'toplevel->contig';
+$c = Bio::EnsEMBL::ExternalData::DAS::Coordinator->new();
+for (@pairs[0 .. 0]) {
+  my ($cont, $chro) = @$_;
+  my $desc2 = "$desc ".$cont->seq_region_name;
+  my $segments = $c->_get_Segments($topl_cs, $cont_cs, $cont);
+  ok(!@$segments, "$desc2 no query segments (not supported)");
 }
 
 sub build_feat {

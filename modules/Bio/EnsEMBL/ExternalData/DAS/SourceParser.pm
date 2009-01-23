@@ -35,7 +35,8 @@ package Bio::EnsEMBL::ExternalData::DAS::SourceParser;
 use strict;
 use warnings;
 use vars qw(@EXPORT_OK);
-@EXPORT_OK = qw(%GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS);
+use base qw(Exporter);
+@EXPORT_OK = qw(%GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS is_genomic);
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw warning info);
@@ -44,6 +45,7 @@ use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
 use URI;
 
+our $GENOMIC_REGEX = '^chromosome|clone|contig|scaffold|genescaffold|supercontig|ultracontig|reftig$';
 our @GENE_COORDS = (
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene', -label => 'Ensembl Gene Accession' ),
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrezgene_acc', -label => 'Entrez Accession' ),
@@ -69,6 +71,8 @@ $PROT_COORDS{'uniprot/sptrembl'}      = $PROT_COORDS{'uniprot_peptide'};
 
 our %AUTHORITY_MAPPINGS = (
   'NCBI m' => 'NCBIM',
+  'Btau'   => 'Btau_',
+  'MMUL'   => 'MMUL_',
 );
 
 our %TYPE_MAPPINGS = (
@@ -338,14 +342,12 @@ sub _parse_sources_output {
         my $auth    = $coord->{'coordinates_authority'};
         my $type    = $coord->{'coordinates_source'};
         # Version and species are optional:
-        my $version = $coord->{'coordinates_version'} || '';
+        my $version = $coord->{'coordinates_version'};
         
         # Would be better to get species name via taxid, but that would require
         # mappings...
         my $cdata   = $coord->{'coordinates'};
         my (undef, undef, $species) = split /,/, $cdata, 3;
-        $species ||= '';
-        $species =~ s/ /_/;
         
         if (!$type || !$auth) {
           warning("Unable to parse authority and sequence type for $dsn ; skipping"); # Something went wrong!
@@ -458,9 +460,12 @@ sub _parse_coord_system {
   
   $type = $TYPE_MAPPINGS{$type}      || $type; # handle fringe cases
   $auth = $AUTHORITY_MAPPINGS{$auth} || $auth; # handle fringe cases
+  $version ||= '';
+  $species ||= '';
+  $species =~ s/ /_/; # DAS species use spaces, Ensembl uses underscores
   
   # Wizardry to convert to Ensembl coord_system
-  if ($type =~ m/^chromosome|clone|contig|scaffold|supercontig$/i) {
+  if ( is_genomic($type) ) {
     # seq_region coordinate systems have ensembl equivalents
     if ( !$species ) {
       warning("Genomic coordinate system has no species: $type $auth$version");
@@ -535,6 +540,12 @@ sub parse_das_string {
   $dsn->path_segments( @dsn_segs );
   
   return ($server->as_string, $dsn->as_string);
+}
+
+sub is_genomic {
+  my ($test) = @_;
+  my $name = ref $test && $test->can('name') ? $test->name : $test;
+  return $test =~ m/$GENOMIC_REGEX/i ? 1 : 0;
 }
 
 1;

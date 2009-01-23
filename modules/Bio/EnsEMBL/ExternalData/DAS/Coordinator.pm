@@ -66,7 +66,7 @@ use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
 use Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
-use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%GENE_COORDS %PROT_COORDS);
+use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%GENE_COORDS %PROT_COORDS is_genomic);
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 
@@ -660,7 +660,7 @@ sub map_Features {
 #   xref-based to gene-based
 #
 # Coordinate system definitions:
-#   location-based  == chromosome|clone|contig|scaffold|supercontig
+#   location-based  == chromosome|clone|contig|scaffold|supercontig etc
 #   protein-based   == $self->{prot_cs} (ensembl_peptide)
 #   gene-based      == $self->{gene_cs} (ensembl_gene)
 #   xref-based      == uniprot_peptide|entrez_gene... (see %XREF_PEPTIDE_FILTERS)
@@ -691,14 +691,14 @@ sub _get_Segments {
   # wrappers in order to achieve this.
   
   # Mapping to slice-relative coordinates
-  if ( $to_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig$/ ) {
+  if ( is_genomic($to_cs) ) {
     
     # Sanity checks
     $slice || throw('Trying to convert to slice coordinates, but no Slice provided');
     $slice->coord_system->equals($to_cs) || throw('Provided slice is not in target coordinate system');
     
     # Mapping from a slice-based coordinate system
-    if ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+    if ( is_genomic($from_cs) || $from_cs->name eq 'toplevel' ) {
       
       # No mapping needed - the coords are identical
       if ( $from_cs->equals( $to_cs ) ) {
@@ -852,7 +852,7 @@ sub _get_Segments {
     }
     
     # Mapping from slice. Note that from_cs isnt necessarily the same as the transcript's coord_system
-    elsif ( $from_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+    elsif ( is_genomic($from_cs) || $from_cs->name eq 'toplevel' ) {
       my $ta    = $prot->adaptor->db->get_TranscriptAdaptor();
       my $sa    = $prot->adaptor->db->get_SliceAdaptor();
       my $tran  = $ta->fetch_by_translation_stable_id($prot->stable_id);
@@ -945,7 +945,7 @@ sub _choose_coord_systems {
     if ( $cs->equals( $target_cs ) ) {
       return [ $cs ];
     }
-    if ( $cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+    if ( is_genomic($cs) || $cs->name eq 'toplevel' ) {
       my $tmp = $csa->fetch_by_name( $cs->name, $cs->version ) || $csa->fetch_by_name( $cs->name ) || next;
       if ( !defined $ens_rank || $tmp->rank < $ens_rank ) {
         $ens_rank = $tmp->rank;
@@ -975,7 +975,7 @@ sub _choose_coord_systems {
   }
   
   my $best = [];
-  if ( $target_cs->name =~ m/^chromosome|clone|contig|scaffold|supercontig|toplevel$/ ) {
+  if ( is_genomic($target_cs) || $target_cs->name eq 'toplevel' ) {
     $best = @best_genomic ? \@best_genomic : @best_protein ? \@best_protein : \@best_gene;
   } elsif ( $GENE_COORDS{$target_cs->name} ) {
     $best = @best_gene    ? \@best_gene    : @best_genomic ? \@best_genomic : \@best_protein;

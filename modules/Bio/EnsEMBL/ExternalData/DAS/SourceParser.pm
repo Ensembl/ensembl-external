@@ -45,7 +45,7 @@ use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
 use URI;
 
-our $GENOMIC_REGEX = '^chromosome|clone|contig|scaffold|genescaffold|supercontig|ultracontig|reftig$';
+our $GENOMIC_REGEX = '^chromosome|clone|contig|scaffold|genescaffold|supercontig|ultracontig|reftig|group$';
 our @GENE_COORDS = (
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene', -label => 'Ensembl Gene Accession' ),
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrezgene_acc', -label => 'Entrez Accession' ),
@@ -76,7 +76,18 @@ our %AUTHORITY_MAPPINGS = (
 );
 
 our %TYPE_MAPPINGS = (
-  'NT_Contig' => 'supercontig',
+  'NT_Contig'     => 'supercontig',
+  'Gene Scaffold' => 'genescaffold',
+);
+
+our %COORD_MAPPINGS = (
+  'Chromosome' => {
+                   'BROADS' => {
+                                '1' => {
+                                        'Gasterosteus aculeatus' => 'group:BROADS1:Gasterosteus_aculeatus',
+                                       },
+                               },
+                  },
 );
 
 our %NON_GENOMIC_COORDS = (
@@ -458,6 +469,14 @@ sub _find_mapmaster {
 sub _parse_coord_system {
   my ( $self, $type, $auth, $version, $species ) = @_;
   
+  if ( exists $COORD_MAPPINGS{$type} &&
+       exists $COORD_MAPPINGS{$type}{$auth} &&
+       exists $COORD_MAPPINGS{$type}{$auth}{$version} &&
+       exists $COORD_MAPPINGS{$type}{$auth}{$version}{$species} ) {
+    my $s = $COORD_MAPPINGS{$type}{$auth}{$version}{$species};
+    return Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new_from_string($s);
+  }
+  
   $type = $TYPE_MAPPINGS{$type}      || $type; # handle fringe cases
   $auth = $AUTHORITY_MAPPINGS{$auth} || $auth; # handle fringe cases
   $version ||= '';
@@ -545,7 +564,7 @@ sub parse_das_string {
 sub is_genomic {
   my ($test) = @_;
   my $name = ref $test && $test->can('name') ? $test->name : $test;
-  return $test =~ m/$GENOMIC_REGEX/i ? 1 : 0;
+  return $name =~ m/$GENOMIC_REGEX/i ? 1 : 0;
 }
 
 1;

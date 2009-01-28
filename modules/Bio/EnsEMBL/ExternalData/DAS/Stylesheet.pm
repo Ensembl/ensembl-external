@@ -36,10 +36,11 @@ use strict;
 use warnings;
 no warnings 'uninitialized';
 
-####
-# Default stylesheets for use when DAS sources do not provide one
-#
-our $DEFAULT_STYLESHEET = Bio::EnsEMBL::ExternalData::DAS::Stylesheet->new();
+use base qw(Exporter);
+use vars qw(@EXPORT @EXPORT_OK);
+
+@EXPORT = @EXPORT_OK = qw($DEFAULT_GRADIENT $DEFAULT_HISTOGRAM $DEFAULT_TILING
+                          $BOX_GLYPH $LINE_GLYPH $HIDDEN_GLYPH);
 
 our $DEFAULT_GRADIENT = bless {
   'default' => { 'default' => { 'default' => { 'symbol' => 'gradient',
@@ -57,6 +58,24 @@ our $DEFAULT_TILING = bless {
   'default' => { 'default' => { 'default' => { 'symbol' => 'tiling',
                                                'color1' => 'orange'  } } }
 }, 'Bio::EnsEMBL::ExternalData::DAS::Stylesheet';
+
+# Default glyph, returned by find_feature_glyph when there is no matching style data
+our $BOX_GLYPH = {
+  'symbol'  => 'box',
+  'fgcolor' => 'blue',
+  'bgcolor' => 'blue'
+};
+
+# Default glyph, returned by find_group_glyph when there is no matching style data
+our $LINE_GLYPH = {
+  'symbol'  => 'line',
+  'fgcolor' => 'blue',
+  'bgcolor' => 'blue'
+};
+
+our $HIDDEN_GLYPH = {
+  'symbol'  => 'hidden',
+};
 
 =head1 METHODS
 
@@ -143,13 +162,6 @@ sub new {
   return $self;
 }
 
-# Default glyph, returned by find_feature_glyph when there is no matching style data
-our $BOX_GLYPH = {
-  'symbol'  => 'box',
-  'fgcolor' => 'blue',
-  'bgcolor' => 'blue'
-};
-
 =head2 find_feature_glyph
 
   Arg [1]    : string category
@@ -179,12 +191,6 @@ sub find_feature_glyph {
                                        $self->{'default'}{'default'}{'default'} ||
                                        $BOX_GLYPH;
 }
-
-our $LINE_GLYPH = {
-  'symbol'  => 'line',
-  'fgcolor' => 'blue',
-  'bgcolor' => 'blue'
-};
 
 =head2 find_group_glyph
 

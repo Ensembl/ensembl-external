@@ -343,6 +343,7 @@ sub _parse_sources_output {
       $dsn || next; # this source doesn't support features command
       
       my $version_uri = $version->{'version_uri'};
+      info("Parsing source $version_uri");
       
       # Now parse the coordinate systems and map to Ensembl's
       # This is the tedious bit, as some things don't map easily
@@ -361,7 +362,7 @@ sub _parse_sources_output {
         my (undef, undef, $species) = split /,/, $cdata, 3;
         
         if (!$type || !$auth) {
-          warning("Unable to parse authority and sequence type for $dsn ; skipping"); # Something went wrong!
+          warning("Unable to parse authority and sequence type for $version_uri ; skipping"); # Something went wrong!
           next;
         }
         
@@ -425,7 +426,7 @@ sub _parse_dsn_output {
     $count++;
     
     # Try to find the coordinate systems from the mapmaster..
-    if ( my $mapmaster = $self->_find_mapmaster( $hash->{'mapmaster'} ) ) {
+    if ( my $mapmaster = $self->_find_mapmaster( $source->full_url, $hash->{'mapmaster'} ) ) {
       $source->coord_systems( $mapmaster->coord_systems );
     }
     
@@ -438,7 +439,7 @@ sub _parse_dsn_output {
 }
 
 sub _find_mapmaster {
-  my ( $self, $raw_url ) = @_;
+  my ( $self, $source_url, $raw_url ) = @_;
   
   my $mapmaster = undef;
   
@@ -455,7 +456,7 @@ sub _find_mapmaster {
           $self->fetch_Sources( -location => $map_server );
         };
         if ($@) {
-          warning("Error finding mapmaster $mapmaster_url : $@")
+          warning("Error parsing $source_url - bad mapmaster $mapmaster_url : $@")
         }
       }
       
@@ -487,7 +488,7 @@ sub _parse_coord_system {
   if ( is_genomic($type) ) {
     # seq_region coordinate systems have ensembl equivalents
     if ( !$species ) {
-      warning("Genomic coordinate system has no species: $type $auth$version");
+      info("Genomic coordinate system has no species: $type $auth$version");
       return;
     }
     $species =~ s/ /_/;

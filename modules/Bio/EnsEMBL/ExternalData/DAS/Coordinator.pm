@@ -262,7 +262,7 @@ sub fetch_Features {
     my @coord_systems = @{ $self->_choose_coord_systems($target_cs, $target_obj, $source->coord_systems) };
     
     if (! scalar @coord_systems ) {
-      warning($source->key.' has no coord systems');
+      warning($source->logic_name.' has no coord systems');
       $final->{$source->logic_name}{'source'}{'error'}
         = 'Bad source configuration';
       next;

@@ -142,6 +142,14 @@ sub fetch_by_accession_version {
   return $entry_obj;
 }
 
+sub fetch_by_accession_noversion {
+  my $self = shift;
+  my $acc = shift;
+  my $constraint = "e.name = '$acc'";
+  my ($entry_obj) = @{ $self->generic_fetch($constraint) };
+  return $entry_obj;
+}
+
 sub fetch_by_name {
   my $self = shift;
   my $name = shift;

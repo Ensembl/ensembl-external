@@ -482,7 +482,7 @@ sub _parse_coord_system {
   $auth = $AUTHORITY_MAPPINGS{$auth} || $auth; # handle fringe cases
   $version ||= '';
   $species ||= '';
-  $species =~ s/ /_/; # DAS species use spaces, Ensembl uses underscores
+  $species =~ s/ /_/g; # DAS species use spaces, Ensembl uses underscores
   
   # Wizardry to convert to Ensembl coord_system
   if ( is_genomic($type) ) {

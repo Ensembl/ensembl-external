@@ -69,6 +69,7 @@ use Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
 use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%GENE_COORDS %PROT_COORDS is_genomic);
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
+use Bio::EnsEMBL::Registry;
 
 our %ORI_NUMERIC = (
    1    =>  1,
@@ -145,7 +146,7 @@ sub new {
   $sources = [$sources] if ($sources && !ref $sources);
   
   my $das = Bio::Das::Lite->new();
-  $das->user_agent('Ensembl');
+  $das->user_agent('Ensembl/' . Bio::EnsEMBL::Registry->software_version);
   $das->timeout($timeout);
   $das->caching(0);
   $das->http_proxy($proxy);

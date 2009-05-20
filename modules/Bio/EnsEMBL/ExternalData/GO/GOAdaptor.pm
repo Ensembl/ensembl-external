@@ -228,6 +228,8 @@ sub _db_handle {
   return $self->{'_db_handle'};
 }
 
+sub dbc { return shift }
+
 sub DESTROY {
 
    my ($self) = @_;

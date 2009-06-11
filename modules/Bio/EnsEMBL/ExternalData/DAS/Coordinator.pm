@@ -731,11 +731,11 @@ sub _get_Segments {
         
         # NOTE we need to be careful that we don't pull back an entirely different version.
         # This check is necessary because CoordSystemAdaptor assumes a blank version means "default version".
-        if ($tmpfrom->version && $tmpfrom->version ne $from_cs->version) {
+        if ($tmpfrom && $tmpfrom->version && $tmpfrom->version ne $from_cs->version) {
           warning(sprintf 'Mapping from %s %s is not supported', $from_cs->name, $from_cs->version);
           $tmpfrom = undef;
         }
-        if ($tmpto->version && $tmpto->version ne $to_cs->version) {
+        if ($tmpto && $tmpto->version && $tmpto->version ne $to_cs->version) {
           warning(sprintf 'Mapping to %s %s is not supported', $to_cs->name, $to_cs->version);
           $tmpto = undef;
         }

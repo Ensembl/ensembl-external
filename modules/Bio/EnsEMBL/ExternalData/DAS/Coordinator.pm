@@ -720,15 +720,28 @@ sub _get_Segments {
         warning(sprintf 'Mapping from toplevel to %s is only supported where the given %1$s slice is also toplevel', $to_cs->name);
       }
       
+      # Standard genomic->genomic mapping
       else {
-        # AssemblyMapperAdaptor doesn't like DAS::CoordSystem
-        # And sometimes DAS coordinate systems have spurious versions...
+        # AssemblyMapperAdaptor doesn't like DAS::CoordSystem, so we need the Ensembl versions
+        # And sometimes DAS coordinate systems have versions when Ensembl coordinates don't, so we need to look for these
         my $csa = $slice->adaptor->db->get_CoordSystemAdaptor;
         my $ama = $slice->adaptor->db->get_AssemblyMapperAdaptor;
         my $tmpfrom = $csa->fetch_by_name( $from_cs->name, $from_cs->version ) || $csa->fetch_by_name( $from_cs->name );
         my $tmpto   = $csa->fetch_by_name( $to_cs->name,   $to_cs->version   ) || $csa->fetch_by_name( $to_cs->name   );
-        my $tmpmap  = $tmpfrom && $tmpto ? $ama->fetch_by_CoordSystems($tmpfrom, $tmpto) : undef;
         
+        # NOTE we need to be careful that we don't pull back an entirely different version.
+        # This check is necessary because CoordSystemAdaptor assumes a blank version means "default version".
+        if ($tmpfrom->version && $tmpfrom->version ne $from_cs->version) {
+          warning(sprintf 'Mapping from %s %s is not supported', $from_cs->name, $from_cs->version);
+          $tmpfrom = undef;
+        }
+        if ($tmpto->version && $tmpto->version ne $to_cs->version) {
+          warning(sprintf 'Mapping to %s %s is not supported', $to_cs->name, $to_cs->version);
+          $tmpto = undef;
+        }
+        
+        my $tmpmap  = $tmpfrom && $tmpto ? $ama->fetch_by_CoordSystems($tmpfrom, $tmpto) : undef;
+      
         # Ensembl might not support a specific genomic -> genomic mapping
         if ( $tmpmap ) {
           

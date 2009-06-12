@@ -291,11 +291,12 @@ sub fetch_Features {
       if ( !$coords{$cs_key} ) {
         # Do a lot of funky stuff to get the query segments, and build up
         # mappers at the same time
-        my $segments = $self->_get_Segments( $source_cs, $target_cs,
-                                             $slice, $gene, $prot);
+        my ($segments, $error) = $self->_get_Segments( $source_cs, $target_cs,
+                                                       $slice, $gene, $prot );
         
         $coords{ $cs_key } = { 'sources'      => {},
                                'coord_system' => $source_cs,
+                               'error'        => $error,
                                'segments'     => $segments   };
       }
       
@@ -316,15 +317,16 @@ sub fetch_Features {
     my @segments   = @{ $coord_data->{'segments'} };
     my @urls       = keys %{ $coord_data->{'sources'} };
     my $source_cs  = $coord_data->{'coord_system'};
+    my $error      = $coord_data->{'error'};
     my $coord_name = $source_cs->name . ' ' . $source_cs->version;
     
     # Either the mapping isn't supported, or nothing maps to the region we're
     # interested in.
-    if (! scalar @segments ) {
+    if ( $error || ! scalar @segments ) {
       info("No segments found for $coord_name");
       for ( values %{ $coord_data->{'sources'} } ) {
         for my $source (@{ $_ }) {
-          $final->{$source->logic_name}{'source'}{'error'} = 'Not applicable';
+          $final->{$source->logic_name}{'source'}{'error'} = $error || 'Not applicable';
         }
       }
       next;
@@ -674,8 +676,8 @@ sub _get_Segments {
   
   info(sprintf 'Building mappings for %s %s -> %s %s',
                $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
-  my %mappers = ();
   my @segments = ();
+  my $problem;
   
   # There are several different Mapper implementations in the API to convert
   # between various coordinate systems: AssemblyMapper, TranscriptMapper,
@@ -717,7 +719,7 @@ sub _get_Segments {
       
       # We can't map from toplevel, only detect when no mapping is required...
       elsif ( $from_cs->name eq 'toplevel' ) {
-        warning(sprintf 'Mapping from toplevel to %s is only supported where the given %1$s slice is also toplevel', $to_cs->name);
+        warning($problem = sprintf 'Mapping from toplevel to %s is not supported for this region', $to_cs->name);
       }
       
       # Standard genomic->genomic mapping
@@ -731,19 +733,14 @@ sub _get_Segments {
         
         # NOTE we need to be careful that we don't pull back an entirely different version.
         # This check is necessary because CoordSystemAdaptor assumes a blank version means "default version".
-        if ($tmpfrom && $tmpfrom->version && $tmpfrom->version ne $from_cs->version) {
-          warning(sprintf 'Mapping from %s %s is not supported', $from_cs->name, $from_cs->version);
-          $tmpfrom = undef;
+        if ( !$tmpfrom || ($tmpfrom->version && $tmpfrom->version ne $from_cs->version) ) {
+          warning($problem = sprintf 'Mapping from %s %s is not supported', $from_cs->name, $from_cs->version);
         }
-        if ($tmpto && $tmpto->version && $tmpto->version ne $to_cs->version) {
-          warning(sprintf 'Mapping to %s %s is not supported', $to_cs->name, $to_cs->version);
-          $tmpto = undef;
+        elsif ( !$tmpto || ($tmpto->version && $tmpto->version ne $to_cs->version) ) {
+          warning($problem = sprintf 'Mapping to %s %s is not supported', $to_cs->name, $to_cs->version);
         }
-        
-        my $tmpmap  = $tmpfrom && $tmpto ? $ama->fetch_by_CoordSystems($tmpfrom, $tmpto) : undef;
-      
         # Ensembl might not support a specific genomic -> genomic mapping
-        if ( $tmpmap ) {
+        elsif ( my $tmpmap = $ama->fetch_by_CoordSystems($tmpfrom, $tmpto) ) {
           
           # Wrapper for AssemblyMapper:
           my $mapper = Bio::EnsEMBL::ExternalData::DAS::GenomicMapper->new(
@@ -766,7 +763,7 @@ sub _get_Segments {
           }
           
         } else {
-          warning(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
+          warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
         }
       }
     }
@@ -817,13 +814,21 @@ sub _get_Segments {
       for my $tran ( @transcripts ) {
         my $p = $tran->translation || next;
         # first stage mapper: xref to translation
-        push @segments, @{ $self->_get_Segments($from_cs, $mid_cs, $slice, $gene, $p) };
+        my ($segs, $err) = $self->_get_Segments($from_cs, $mid_cs, $slice, $gene, $p);
+        push @segments, @{ $segs };
+        $problem ||= $err;
       }
       # If the first stage actually produced mappings, we'll need to map from
       # peptide to slice
       if ($self->{'mappers'}{$from_cs->name}{$from_cs->version}) {
         # second stage mapper: gene or translation to transcript's slice
-        $self->_get_Segments($mid_cs, $to_cs, $slice, $gene, $prot);
+        my (undef, $problem2) = $self->_get_Segments($mid_cs, $to_cs, $slice, $gene, $prot);
+        $problem ||= $problem2;
+      }
+      
+      # Apply an error message that refers to the start and end coordinates
+      if ($problem) {
+        warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
       }
     }
     
@@ -847,7 +852,7 @@ sub _get_Segments {
     }
     
     else {
-      warning(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
+      warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   } # end mapping to slice/gene
   
@@ -880,7 +885,8 @@ sub _get_Segments {
         $tran_cs->name, $tran_cs->version, $to_cs->name, $to_cs->version);
       $self->{'mappers'}{$slice->coord_system->name}{$slice->coord_system->version||''}{$slice->seq_region_name} = $mapper;
       # first stage mapper: from_cs to transcript's slice
-      push @segments, @{ $self->_get_Segments($from_cs, $tran->slice->coord_system, $slice) };
+      (my $segs, $problem) = $self->_get_Segments($from_cs, $tran->slice->coord_system, $slice);
+      push @segments, @{ $segs };
     }
     
     # Mapping from gene on a slice with the same coordinate system
@@ -890,9 +896,15 @@ sub _get_Segments {
       $gene   = $ga->fetch_by_translation_stable_id($prot->stable_id);
       $slice  = $sa->fetch_by_gene_stable_id($gene->stable_id);
       # Second stage mapper: slice to peptide
-      $self->_get_Segments($slice->coord_system, $to_cs, $slice, $gene, $prot);
+      (undef, $problem) = $self->_get_Segments($slice->coord_system, $to_cs, $slice, $gene, $prot);
       # First stage mapper: gene to slice
-      push @segments, @{ $self->_get_Segments($from_cs, $slice->coord_system, $slice, $gene, $prot) };
+      my ($segs, $problem2) = $self->_get_Segments($from_cs, $slice->coord_system, $slice, $gene, $prot);
+      push @segments, @{ $segs };
+      
+      # Apply an error message that refers to the start and end coordinates
+      if ($problem || $problem2) {
+        warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
+      }
     }
     
     # Mapping from xref to peptide
@@ -931,16 +943,17 @@ sub _get_Segments {
     }
     
     else {
-      warning(sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
+      warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   }
   
   else {
-    warning(sprintf 'Mapping to %s is not supported', $to_cs->name);
+    warning($problem = sprintf 'Mapping to %s is not supported', $to_cs->name);
   }
   
-  my %segments = map { $_ => 1 } @segments;
-  return [ keys %segments ];
+   my %segments = map { $_ => 1 } @segments; # Filter duplicates
+   @segments = keys %segments;
+  return ( \@segments, $problem );
 }
 
 sub _choose_coord_systems {

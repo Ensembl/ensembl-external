@@ -491,7 +491,6 @@ sub _parse_coord_system {
       info("Genomic coordinate system has no species: $type $auth$version");
       return;
     }
-    $species =~ s/ /_/;
     my $cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new(
       -name    => lc $type,
       -version => $auth.$version,

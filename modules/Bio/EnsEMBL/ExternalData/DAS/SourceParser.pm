@@ -36,7 +36,7 @@ use strict;
 use warnings;
 use vars qw(@EXPORT_OK);
 use base qw(Exporter);
-@EXPORT_OK = qw(%GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS is_genomic);
+@EXPORT_OK = qw(%GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS is_genomic %AUTHORITY_MAPPINGS %TYPE_MAPPINGS %COORD_MAPPINGS %NON_GENOMIC_COORDS);
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw warning info);

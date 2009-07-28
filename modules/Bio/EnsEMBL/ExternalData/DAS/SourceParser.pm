@@ -73,10 +73,10 @@ our %AUTHORITY_MAPPINGS = (
   'NCBI m' => 'NCBIM',
   'Btau'   => 'Btau_',
   'MMUL'   => 'MMUL_',
+  'Meug'   => 'Meug_',
 );
 
 our %TYPE_MAPPINGS = (
-  'NT_Contig'     => 'supercontig',
   'Gene Scaffold' => 'genescaffold',
 );
 

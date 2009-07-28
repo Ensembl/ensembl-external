@@ -145,7 +145,7 @@ sub new {
   for my $key qw( start end strand slice seqname
                   feature_id feature_label
                   type type_id type_category
-                  score
+                  score method method_id
                   note link target ) {
     $self->{$key} = $raw->{$key} if exists $raw->{$key};
   }
@@ -194,6 +194,40 @@ sub display_id {
 sub display_label {
   my $self = shift;
   return $self->{'feature_label'} || $self->display_id;
+}
+
+=head2 method_id
+
+  Arg [1]    : none
+  Example    : print $f->method_id();
+  Description: This method returns the DAS feature method identifier.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
+sub method_id {
+  my $self = shift;
+  return $self->{'method_id'};
+}
+
+=head2 method_label
+
+  Arg [1]    : none
+  Example    : print $f->method_label();
+  Description: This method returns the DAS feature method label.
+  Returntype : string
+  Exceptions : none
+  Caller     : web drawing code
+  Status     : Stable
+
+=cut
+
+sub method_label {
+  my $self = shift;
+  return $self->{'method'} || $self->method_id;
 }
 
 =head2 type_label

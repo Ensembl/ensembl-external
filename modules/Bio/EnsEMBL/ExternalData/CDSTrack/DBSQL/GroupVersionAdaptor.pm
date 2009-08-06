@@ -41,6 +41,12 @@ sub fetch_by_dbID {
   my $constraint = "gv.group_version_uid = '$gv_id'";
   my ($gv_obj) = @{ $self->generic_fetch($constraint) };
 
+  if (defined $gv_obj) {
+    print "Got gv.group_version_uid = '$gv_id'\n";
+  } else {
+    print "Unable to fetch $gv_id\n";
+    exit;
+  }
   return $gv_obj;
 }
 
@@ -303,9 +309,12 @@ sub fetch_all_current {
     $sql = join " ", $sql, "AND gv.ncbi_build_number = '$build_number'";
   }
   
+  print "$sql\n";
+
   my $sth = $self->prepare($sql);
   $sth->execute();
   while ( my $id = $sth->fetchrow()) {
+    print "Got gv.group_version_uid $id, now fetching...\n";
     push @GroupVersion_array, $self->fetch_by_dbID($id);
   }
   return \@GroupVersion_array;
@@ -316,6 +325,8 @@ sub ncbi_build_number {
   my $build_number = shift;
   
   if ($build_number=~/[NCBIM]+(\d+)/){
+    $build_number = $1;
+  } elsif ($build_number=~/[GRChm]+(\d+)/) {
     $build_number = $1;
   }
   return $build_number;

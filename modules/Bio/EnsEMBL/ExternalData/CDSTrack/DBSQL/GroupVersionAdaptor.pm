@@ -299,6 +299,7 @@ sub fetch_all_current {
   my $sql = "SELECT gv.group_version_uid ".
             "FROM GroupVersions gv, Groups g ".
             "WHERE gv.group_uid = g.group_uid ".
+            #"AND gv.version > g.current_version ";
             "AND gv.version = g.current_version ";
   
   if ($tax_id){
@@ -326,7 +327,7 @@ sub ncbi_build_number {
   
   if ($build_number=~/[NCBIM]+(\d+)/){
     $build_number = $1;
-  } elsif ($build_number=~/[GRChm]+(\d+)/) {
+  } elsif ($build_number=~/[GRCh]+(\d+)/) {
     $build_number = $1;
   }
   return $build_number;

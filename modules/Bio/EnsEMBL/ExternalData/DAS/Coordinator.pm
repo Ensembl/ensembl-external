@@ -391,7 +391,7 @@ sub fetch_Features {
     #========================================================#
     #               Check and map the features               #
     #========================================================#
-    
+    my $feature_ids = {};
     while (my ($raw_url, $features) = each %{ $response }) {
       # Now iterating over coordsys + url
       my $status = $statuses->{$raw_url};
@@ -427,6 +427,7 @@ sub fetch_Features {
                                         $source_cs,
                                         $target_cs,
                                         $slice,
+                                        $feature_ids->{$url},
                                         %filters);
         
         # We got something useful
@@ -491,7 +492,7 @@ sub fetch_Features {
 
 # Returns: new arrayref with features
 sub map_Features {
-  my ( $self, $features, $source_cs, $to_cs, $slice ) = splice @_, 0, 5;
+  my ( $self, $features, $source_cs, $to_cs, $slice, $feature_ids ) = splice @_, 0, 6;
   my %filters = @_; # feature, type, group
   
   # TODO: implement maxbins filter??
@@ -545,6 +546,10 @@ sub map_Features {
   if ( $source_cs->equals( $to_cs ) || ( $slice && $source_cs->name eq 'toplevel' && $slice->is_toplevel ) ) {
     
     for my $f ( @{ $features } ) {
+      if (exists $feature_ids->{ $f->{'feature_id'} }) {
+        next;
+      }
+      $feature_ids->{ $f->{'feature_id'} } = 1;
       if ( $nofilter || &$filter_Feature( $f ) ) {
         $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0; # Convert to Ensembl-style (numeric) strand
         push @new_features, &$build_Feature( $f ); # Build object
@@ -554,9 +559,13 @@ sub map_Features {
     return \@new_features;
   }
   
+  my $first_iteration = 1;
+  
   # May need multiple mapping steps to reach the target coordinate system
-  # This loop works by undefining $source_cs, the redefining it when we know
-  # which coordinate system the mapper is mapping to
+  # This loop works by setting $source_cs to the coordinate system we have
+  # mapped to in each iteration, and continuing to iterate until it matches
+  # the target coordinate system. On the last iteration we create a solid
+  # object for each feature.
   while ( $source_cs && !$source_cs->equals($to_cs) ) {
     
     info('Beginning mapping from '.$source_cs->name);
@@ -572,10 +581,18 @@ sub map_Features {
     # Map the current set of features to the next coordinate system
     for my $f ( @this_features ) {
       
-      $nofilter || &$filter_Feature( $f ) || next;
-      
       my $strand = $f->{'strand'};
-      if (!defined $strand) {
+      
+      # For the first iteration we have features that are fresh from the DAS
+      # server. We need to do some filtering, and to only do it once.
+      if ($first_iteration) {
+        if (exists $feature_ids->{ $f->{'feature_id'} }) {
+          next;
+        }
+        $feature_ids->{ $f->{'feature_id'} } = 1;
+        $nofilter || &$filter_Feature( $f ) || next;
+        
+        # Convert DAS-style strand to Ensembl-style
         $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0;
       }
       
@@ -707,14 +724,14 @@ sub _get_Segments {
       if ( $from_cs->equals( $to_cs ) ) {
         info(sprintf 'No mappings needed for %s %s -> %s %s',
           $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
-        push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
+        push @segments, [ $slice->seq_region_name, $slice->start, $slice->end ];
       }
       # No mapping needed, but we need to indicate what the real coordsys is
       elsif ( $from_cs->name eq 'toplevel' && $slice->is_toplevel ) {
         info(sprintf 'No mappings needed for %s %s -> %s %s',
           $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
         $self->{'passthrough'}{$from_cs->name}{$from_cs->version}{$slice->seq_region_name} = $to_cs;
-        push @segments, sprintf '%s:%s,%s', $slice->seq_region_name, $slice->start, $slice->end;
+        push @segments, [ $slice->seq_region_name, $slice->start, $slice->end ];
       }
       
       # We can't map from toplevel, only detect when no mapping is required...
@@ -759,7 +776,7 @@ sub _get_Segments {
           for my $c ( @coords ) {
             $c->isa('Bio::EnsEMBL::Mapper::Coordinate') || next;
             $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$c->id} ||= $mapper;
-            push @segments, sprintf '%s:%s,%s', $c->id, $c->start, $c->end;
+            push @segments, [ $c->id, $c->start, $c->end ];
           }
           
         } else {
@@ -784,7 +801,7 @@ sub _get_Segments {
           $slice->seq_region_name, $g->seq_region_start, $g->seq_region_end
         );
         $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$g->stable_id} = $mapper;
-        push @segments, $g->stable_id;
+        push @segments, [ $g->stable_id ];
       }
     }
     
@@ -799,7 +816,7 @@ sub _get_Segments {
       for my $tran ( @transcripts ) {
         my $p = $tran->translation || next;
         $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$p->stable_id} ||= Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper->new('from', 'to', $from_cs, $to_cs, $tran);
-        push @segments, $p->stable_id;
+        push @segments, [ $p->stable_id ];
       }
     }
     
@@ -843,7 +860,7 @@ sub _get_Segments {
       for my $g ( @genes ) {
         for my $xref (grep { $callback->{'predicate'}($_) } @{ $g->get_all_DBEntries() }) {
           my $segid = $callback->{'transformer'}( $xref );
-          push @segments, $segid;
+          push @segments, [ $segid ];
         }
         # Gene-based xrefs don't have alignments and so don't generate mappings.
         # It is enough to simply collate the segment ID's; only non-positional
@@ -867,7 +884,7 @@ sub _get_Segments {
       info(sprintf 'No mappings needed for %s %s -> %s %s',
         $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       $self->{'passthrough'}{$from_cs->name}{$from_cs->version}{$prot->stable_id} = $to_cs;
-      push @segments, $prot->stable_id;
+      push @segments, [ $prot->stable_id ];
     }
     
     # Mapping from slice. Note that from_cs isnt necessarily the same as the transcript's coord_system
@@ -913,7 +930,7 @@ sub _get_Segments {
         $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $prot->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
-        push @segments, $segid;
+        push @segments, [ $segid ];
         # If xref has a cigar alignment, use it to build mappings to the
         # Ensembl translation (assume they all align to the translation).
         # If not, we still query with the segment because non-positional
@@ -935,7 +952,7 @@ sub _get_Segments {
         $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $gene->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
-        push @segments, $segid;
+        push @segments, [ $segid ];
         # Gene-based xrefs don't have alignments and so don't generate mappings.
         # It is enough to simply collate the segment ID's; only non-positional
         # features will mapped.
@@ -951,13 +968,41 @@ sub _get_Segments {
     warning($problem = sprintf 'Mapping to %s is not supported', $to_cs->name);
   }
   
-   my %segments = map { $_ => 1 } @segments; # Filter duplicates
-   @segments = keys %segments;
-  return ( \@segments, $problem );
+   my @filtered;
+   my $last_segment;
+   
+  # Assembly mappings can often create separate segments which are contiguous
+  # in the "from" coordinate system. To save multiple requests and reduce
+  # receiving duplicate features, we join contiguous segments before querying.
+  
+  for my $segment (sort { $a->[0] cmp $b->[0] || $a->[1] <=> $b->[1] } @segments) {
+    if ($last_segment) {
+      # For new segment IDs, or noncontiguous segments, just add the segment
+      if ($segment->[0] ne $last_segment->[0] || $segment->[1] > $last_segment->[2]+1) {
+        push @filtered, sprintf '%s:%s,%s', @{$last_segment};
+      }
+      # For contiguous (or overlapping) segments, join together
+      else {
+        INFO(sprintf 'Joining %s %s segments %s:%s,%s and %s:%s,%s',
+                     $from_cs->name, $from_cs->version,
+                     @{$last_segment},@{$segment});
+        $segment->[1] = $last_segment->[1] if ($last_segment->[1] < $segment->[1]);
+        $segment->[2] = $last_segment->[2] if ($last_segment->[2] > $segment->[2]);
+      }
+    }
+    $last_segment = $segment;
+  }
+  push @filtered, sprintf '%s:%s,%s', @{$last_segment} if ($last_segment);
+  
+  return ( \@filtered, $problem );
 }
 
 sub _choose_coord_systems {
   my ( $self, $target_cs, $target_ob, $coord_systems ) = @_;
+  
+  if (scalar @{ $coord_systems } < 2) {
+    return $coord_systems;
+  }
   
   my @best_genomic = ();
   my @best_gene    = ();
@@ -1010,7 +1055,7 @@ sub _choose_coord_systems {
     $best = @best_protein ? \@best_protein : @best_gene    ? \@best_gene    : \@best_genomic;
   }
   
-  info('Choosen from '.scalar @{$coord_systems}.' coords: ' . join '; ', map { $_->name .' '. $_->version } @{$best});
+  info('Chosen from '.scalar @{$coord_systems}.' coords: ' . join '; ', map { $_->name .' '. $_->version } @{$best});
   return $best;
 }
 

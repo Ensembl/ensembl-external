@@ -975,11 +975,15 @@ sub _get_Segments {
   # in the "from" coordinate system. To save multiple requests and reduce
   # receiving duplicate features, we join contiguous segments before querying.
   
-  for my $segment (sort { $a->[0] cmp $b->[0] || $a->[1] <=> $b->[1] } @segments) {
+  for my $segment (sort { $a->[0] cmp $b->[0] || ($a->[1] || 0) <=> ($b->[1] || 0) } @segments) {
     if ($last_segment) {
       # For new segment IDs, or noncontiguous segments, just add the segment
-      if ($segment->[0] ne $last_segment->[0] || $segment->[1] > $last_segment->[2]+1) {
-        push @filtered, sprintf '%s:%s,%s', @{$last_segment};
+      if ($segment->[0] ne $last_segment->[0] || !$segment->[1] || !$last_segment->[1] || $segment->[1] > $last_segment->[2]+1) {
+        if (scalar @{ $last_segment } > 1) {
+          push @filtered, sprintf '%s:%s,%s', @{$last_segment};
+        } else {
+          push @filtered, $last_segment->[0];
+        }
       }
       # For contiguous (or overlapping) segments, join together
       else {
@@ -992,7 +996,14 @@ sub _get_Segments {
     }
     $last_segment = $segment;
   }
-  push @filtered, sprintf '%s:%s,%s', @{$last_segment} if ($last_segment);
+  if ($last_segment) {
+    if (scalar @{ $last_segment } > 1) {
+      push @filtered, sprintf '%s:%s,%s', @{$last_segment};
+    } else {
+      push @filtered, $last_segment->[0];
+    }
+  }
+  
   
   return ( \@filtered, $problem );
 }

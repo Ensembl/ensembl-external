@@ -987,7 +987,7 @@ sub _get_Segments {
       }
       # For contiguous (or overlapping) segments, join together
       else {
-        INFO(sprintf 'Joining %s %s segments %s:%s,%s and %s:%s,%s',
+        info(sprintf 'Joining %s %s segments %s:%s,%s and %s:%s,%s',
                      $from_cs->name, $from_cs->version,
                      @{$last_segment},@{$segment});
         $segment->[1] = $last_segment->[1] if ($last_segment->[1] < $segment->[1]);

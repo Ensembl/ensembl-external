@@ -59,6 +59,7 @@ no warnings 'uninitialized';
 use POSIX qw(ceil);
 use Bio::EnsEMBL::Mapper;
 use Bio::Das::Lite;
+use Data::Dumper;
 
 use Bio::EnsEMBL::ExternalData::DAS::CoordSystem;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicMapper;
@@ -66,7 +67,7 @@ use Bio::EnsEMBL::ExternalData::DAS::XrefPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicPeptideMapper;
 use Bio::EnsEMBL::ExternalData::DAS::Feature;
 use Bio::EnsEMBL::ExternalData::DAS::Stylesheet;
-use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%GENE_COORDS %PROT_COORDS is_genomic);
+use Bio::EnsEMBL::ExternalData::DAS::SourceParser qw(%SNP_COORDS %GENE_COORDS %PROT_COORDS is_genomic);
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw info warning);
 use Bio::EnsEMBL::Registry;
@@ -139,9 +140,9 @@ our %XREF_GENE_FILTERS = (
 sub new {
   my $class = shift;
   
-  my ($sources, $proxy, $no_proxy, $timeout, $gene_cs, $prot_cs)
+  my ($sources, $proxy, $no_proxy, $timeout, $gene_cs, $prot_cs, $snp_cs)
     = rearrange(['SOURCES','PROXY', 'NOPROXY', 'TIMEOUT',
-                 'GENE_COORDS', 'PROT_COORDS'], @_);
+                 'GENE_COORDS', 'PROT_COORDS', 'SNP_COORDS'], @_);
   
   $sources = [$sources] if ($sources && !ref $sources);
   
@@ -164,12 +165,15 @@ sub new {
     || throw('Unable to determine Gene coordinate system');
   $prot_cs ||= $PROT_COORDS{'ensembl_peptide'}
     || throw('Unable to determine Peptide coordinate system');
+  $snp_cs ||= $SNP_COORDS{'dbsnp_rsid'}
+    || throw('Unable to determine Variation coordinate system');
   
   my $self = {
     'sources' => $sources,
     'daslite' => $das,
     'gene_cs' => $gene_cs,
     'prot_cs' => $prot_cs,
+    'snp_cs' => $snp_cs,
     'objects' => {},
   };
   bless $self, $class;
@@ -222,7 +226,7 @@ sub fetch_Features {
   # segment ID? We don't always know it before we parse the feature though (e.g.
   # when querying by feat ID). Also stylesheet errors aren't segment-specific
   
-  my ( $target_cs, $target_segment, $slice, $gene, $prot );
+  my ( $target_cs, $target_segment, $slice, $gene, $prot, $snp );
   if ( $target_obj->isa('Bio::EnsEMBL::Gene') ) {
     $slice = $target_obj->slice;
     $gene = $target_obj;
@@ -236,6 +240,11 @@ sub fetch_Features {
     $prot = $target_obj;
     $target_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_peptide' );
     $target_segment = $target_obj->stable_id;
+  } elsif ( $target_obj->isa('Bio::EnsEMBL::Variation::Variation') ) {
+    $snp = $target_obj;
+    $target_cs = Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'dbsnp_rsid' );
+    $target_segment = $target_obj->name;
+
   } else {
     throw('Unsupported object type: '.$target_obj);
   }
@@ -292,7 +301,7 @@ sub fetch_Features {
         # Do a lot of funky stuff to get the query segments, and build up
         # mappers at the same time
         my ($segments, $error) = $self->_get_Segments( $source_cs, $target_cs,
-                                                       $slice, $gene, $prot );
+                                                       $slice, $gene, $prot, $snp );
         
         $coords{ $cs_key } = { 'sources'      => {},
                                'coord_system' => $source_cs,
@@ -395,7 +404,6 @@ sub fetch_Features {
     while (my ($raw_url, $features) = each %{ $response }) {
       # Now iterating over coordsys + url
       my $status = $statuses->{$raw_url};
-      
       # Parse the segment from the URL
       # Should be one URL for each source/query combination
       my ($url, $segment) = $raw_url =~ m|(.+)/features\?.*segment=([^;&]+)|;
@@ -683,15 +691,16 @@ sub map_Features {
 #   location-based  == chromosome|clone|contig|scaffold|supercontig etc
 #   protein-based   == $self->{prot_cs} (ensembl_peptide)
 #   gene-based      == $self->{gene_cs} (ensembl_gene)
+#   variation-based      == $self->{snp_cs} (dbsnp_rsid)
 #   xref-based      == uniprot_peptide|entrez_gene... (see %XREF_PEPTIDE_FILTERS)
 sub _get_Segments {
   my $self = shift;
   my $from_cs = shift; # the "foreign" source coordinate system 
   my $to_cs = shift;   # the target coordsys that mapped objects will be converted to
-  my ($slice, $gene, $prot) = @_;
+  my ($slice, $gene, $prot, $snp) = @_;
   #warn sprintf "Getting mapper for %s -> %s", $from_cs->name, $to_cs->name;
   
-  info(sprintf 'Building mappings for %s %s -> %s %s',
+  info (sprintf 'Building mappings for %s %s -> %s %s',
                $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
   my @segments = ();
   my $problem;
@@ -803,8 +812,7 @@ sub _get_Segments {
         $self->{'mappers'}{$from_cs->name}{$from_cs->version}{$g->stable_id} = $mapper;
         push @segments, [ $g->stable_id ];
       }
-    }
-    
+    }    
     # Mapping from ensembl_peptide to slice
     elsif ( $from_cs->equals( $self->{'prot_cs'} ) ) {
       
@@ -963,7 +971,10 @@ sub _get_Segments {
       warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   }
-  
+  # No need to map from snpid to slice
+  elsif ( $from_cs->equals( $self->{'snp_cs'} ) ) {
+      push @segments, [ $snp->name ];
+  }
   else {
     warning($problem = sprintf 'Mapping to %s is not supported', $to_cs->name);
   }
@@ -1018,11 +1029,13 @@ sub _choose_coord_systems {
   my @best_genomic = ();
   my @best_gene    = ();
   my @best_protein = ();
+  my @best_snp = ();
   
   my $csa = $target_ob->adaptor->db->get_CoordSystemAdaptor;
   my $ens_rank;
   my $ens_gene;
   my $ens_prot;
+  my $ens_snp;
   
   for my $cs ( @{ $coord_systems } ) {
     if ( $cs->equals( $target_cs ) ) {
@@ -1055,6 +1068,15 @@ sub _choose_coord_systems {
         push @best_protein, $cs;
       }
     }
+    elsif ( $SNP_COORDS{$cs->name} ) {
+      if ( $cs->equals( $self->{'snp_cs'} ) ) {
+        $ens_snp = 1;
+        @best_snp = ($cs);
+      }
+      elsif ( !$ens_snp ) {
+        push @best_snp, $cs;
+      }
+    }
   }
   
   my $best = [];
@@ -1064,6 +1086,8 @@ sub _choose_coord_systems {
     $best = @best_gene    ? \@best_gene    : @best_genomic ? \@best_genomic : \@best_protein;
   } elsif ( $PROT_COORDS{$target_cs->name} ) {
     $best = @best_protein ? \@best_protein : @best_gene    ? \@best_gene    : \@best_genomic;
+  } elsif ( $SNP_COORDS{$target_cs->name} ) {
+    $best = @best_snp ? \@best_snp : @best_gene    ? \@best_gene    : \@best_genomic;
   }
   
   info('Chosen from '.scalar @{$coord_systems}.' coords: ' . join '; ', map { $_->name .' '. $_->version } @{$best});

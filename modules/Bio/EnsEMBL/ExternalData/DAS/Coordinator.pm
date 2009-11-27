@@ -130,6 +130,7 @@ our %XREF_GENE_FILTERS = (
                -TIMEOUT     - The request timeout, in seconds
                -GENE_COORDS - Override the coordinate system representing genes
                -PROT_COORDS - Override the coordinate system representing proteins
+               -SNP_COORDS  - Override the coordinate system representing variations
   Description: Constructor
   Returntype : Bio::EnsEMBL::DAS::Coordinator
   Exceptions : If unable to assign the gene and protein coordinate systems
@@ -190,7 +191,7 @@ sub new {
                   feature - the feature ID
                   type    - the type ID
                   group   - the group ID
-  Description: Fetches DAS features  for a given Slice, Gene or Translation
+  Description: Fetches DAS features  for a given Slice, Gene, Translation or Variation
   Example    : $hashref = $c->fetch_Features( $slice, type => 'mytype' );
   Returntype : A hash reference containing Bio::...::DAS::Feature and
                Bio::...::DAS::Stylesheet objects:
@@ -293,7 +294,7 @@ sub fetch_Features {
       
       # The coordinate system name doesn't need species in it because we have
       # just checked it is species-compatible - we treat them the same from now
-      #Êon. That is, Ensembl,Gene_ID == Ensembl,Gene_ID,Homo sapiens.
+      # on. That is, Ensembl,Gene_ID == Ensembl,Gene_ID,Homo sapiens.
       my $cs_key = $source_cs->name . ' ' . $source_cs->version;
       
       # Sort sources by coordinate system
@@ -686,6 +687,7 @@ sub map_Features {
 #   xref-based to location-based
 #   xref-based to protein-based
 #   xref-based to gene-based
+#   variation-based to variation-based
 #
 # Coordinate system definitions:
 #   location-based  == chromosome|clone|contig|scaffold|supercontig etc
@@ -971,8 +973,8 @@ sub _get_Segments {
       warning($problem = sprintf 'Mapping from %s to %s is not supported', $from_cs->name, $to_cs->name);
     }
   }
-  # No need to map from snpid to slice
-  elsif ( $from_cs->equals( $self->{'snp_cs'} ) ) {
+  # No need to map from snpid to snpid
+  elsif ( $to_cs->equals( $self->{'snp_cs'} ) && $from_cs->equals( $self->{'snp_cs'} ) ) {
       push @segments, [ $snp->name ];
   }
   else {

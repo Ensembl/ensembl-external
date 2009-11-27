@@ -109,6 +109,9 @@ our %NON_GENOMIC_COORDS = (
                          'IPI'        => $PROT_COORDS{'ipi_acc'},
                          'IPI_ID'     => $PROT_COORDS{'ipi_id'},
                         },
+  'Variation'        => {
+                         'dbSNP'      => $SNP_COORDS{'dbsnp_rsid'},
+                        },
 );
 
 =head1 METHODS

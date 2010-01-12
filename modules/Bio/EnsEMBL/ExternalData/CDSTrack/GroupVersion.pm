@@ -79,11 +79,32 @@ sub get_all_Locations { #for XY will only return X coords
       my $la = $self->adaptor()->db()->get_LocationAdaptor();
       my $locations = $la->fetch_all_by_GroupVersion( $self );
       $self->{'_location_array'} = $locations;
+      print "Stored ".scalar(@$locations)." locations  for ".$self->group_id."\n";
     }
   }
   return $self->{'_location_array'};
 }
 
+sub get_ccds_uid {
+  my $self = shift;
+  my $ccds_id;
+
+  if( ! exists $self->{'_ccds_id'} ) {
+    if( defined $self->adaptor() ) {
+      my $ca = $self->adaptor()->db()->get_CcdsAdaptor();
+      if (defined $ca->fetch_by_GroupVersion($self)){
+        ($ccds_id) = $ca->fetch_by_GroupVersion($self)->ccds_id;
+      }
+    }
+  } else {
+    $ccds_id = $self->{'_ccds_id'};
+  }
+  
+  $ccds_id =~ s/CCDS//;
+  $ccds_id =~ s/\.\d+//;
+  $self->{'_ccds_id'} = $ccds_id;
+  return $self->{'_ccds_id'};
+}
 sub get_ccds_id {
   my $self = shift;
   if( ! exists $self->{'_ccds_id'} ) {
@@ -99,6 +120,29 @@ sub get_ccds_id {
   return $self->{'_ccds_id'};
 }
 
+sub get_all_Interpretations {
+
+  my $self = shift;
+  my $interpretation_subtype = shift; # eg 'Translation exception'
+
+  if( ! exists $self->{'interpretations' } ) {
+    if(!$self->adaptor() ) {
+      return [];
+    }
+
+    my $interpretation_adaptor = $self->adaptor->db->get_InterpretationAdaptor();
+    $self->{'interpretations'} = $interpretation_adaptor->fetch_all_by_GroupVersion_and_CcdsID($self,$self->get_ccds_uid);
+  }
+
+  if( defined $interpretation_subtype) {
+    my @results = grep { uc($_->interpretation_subtype()) eq uc($interpretation_subtype) }
+      @{$self->{'interpretations'}};
+    return\@ results;
+  } else {
+    return $self->{'interpretations'};
+  }
+
+}
 
 sub get_status {
   my $self = shift;

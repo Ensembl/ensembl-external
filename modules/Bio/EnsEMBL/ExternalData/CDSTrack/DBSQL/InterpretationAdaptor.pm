@@ -42,7 +42,38 @@ sub fetch_by_dbID {
   return $int_obj;
 }
 
+sub fetch_all_by_GroupVersion_and_CcdsID {
+  my $self = shift;
+  my $gv = shift;
+  my $ccds_uid = shift;
+  my @interpretations;
 
+  if (!ref $gv || !$gv->isa('Bio::EnsEMBL::ExternalData::CDSTrack::GroupVersion') ) {
+    throw("Must provide a Bio::EnsEMBL::ExternalData::CDSTrack::GroupVersion object");
+  }
+
+  print STDERR "Fetching interpretations for ccds_uid ".$ccds_uid.", group_version_uid ".$gv->dbID."\n";
+  my $group_version_uid = $gv->dbID;
+  if (!$ccds_uid || !$group_version_uid) { 
+    throw("Need ccds_uid and group_version_uid");
+  }
+
+  my $sql = "SELECT i.interpretation_uid ".
+            "FROM Interpretations i ".
+            "WHERE i.group_version_uid = $group_version_uid ".
+            "AND i.ccds_uid = $ccds_uid";
+  
+  print "SQL: $sql\n";
+  my $sth = $self->prepare($sql);
+  $sth->execute();
+
+  while ( my $id = $sth->fetchrow()) {
+    print "$id, ";
+    push @interpretations, $self->fetch_by_dbID($id);
+  }
+  print "\ngot ".scalar(@interpretations)." interpretations\n";
+  return \@interpretations;
+}
 
 sub _objs_from_sth {
   my ($self, $sth) = @_;

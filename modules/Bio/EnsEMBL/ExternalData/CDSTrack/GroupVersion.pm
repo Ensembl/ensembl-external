@@ -92,7 +92,7 @@ sub get_ccds_uid {
   my $self = shift;
   my $ccds_id;
 
-  if( ! exists $self->{'_ccds_id'} ) {
+  if( ! exists $self->{'_ccds_uid'} ) {
     if( defined $self->adaptor() ) {
       my $ca = $self->adaptor()->db()->get_CcdsAdaptor();
       if (defined $ca->fetch_by_GroupVersion($self)){
@@ -100,13 +100,13 @@ sub get_ccds_uid {
       }
     }
   } else {
-    $ccds_id = $self->{'_ccds_id'};
+    $ccds_id = $self->{'_ccds_uid'};
   }
   
   $ccds_id =~ s/CCDS//;
   $ccds_id =~ s/\.\d+//;
-  $self->{'_ccds_id'} = $ccds_id;
-  return $self->{'_ccds_id'};
+  $self->{'_ccds_uid'} = $ccds_id;
+  return $self->{'_ccds_uid'};
 }
 sub get_ccds_id {
   my $self = shift;

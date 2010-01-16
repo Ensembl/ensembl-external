@@ -73,6 +73,7 @@ sub get_all_Accessions {
 
 sub get_all_Locations { #for XY will only return X coords
   my $self = shift;
+  print "Getting all locations for group_version_uid '".$self->group_id."'\n";
 
   if( ! exists $self->{'_location_array'} ) {
     if( defined $self->adaptor() ) {
@@ -81,6 +82,8 @@ sub get_all_Locations { #for XY will only return X coords
       $self->{'_location_array'} = $locations;
       print "Stored ".scalar(@$locations)." locations  for ".$self->group_id."\n";
     }
+  } else {
+    print "LOCATION ARRAY EXISTS\n";
   }
   return $self->{'_location_array'};
 }
@@ -107,7 +110,7 @@ sub get_ccds_uid {
 }
 sub get_ccds_id {
   my $self = shift;
-  if( ! exists $self->{'_ccds_id'} ) {
+  if( ! exists $self->{'_ccds_id'}  || exists $self->{'_ccds_id'} && $self->{'_ccds_id'} !~ /^CCDS/) {
     if( defined $self->adaptor() ) {
       my $ca = $self->adaptor()->db()->get_CcdsAdaptor();
       if (defined $ca->fetch_by_GroupVersion($self)){

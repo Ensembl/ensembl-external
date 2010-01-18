@@ -59,9 +59,10 @@ sub fetch_all_by_GroupVersion_and_CcdsID {
   }
 
   my $sql = "SELECT i.interpretation_uid ".
-            "FROM Interpretations i ".
+            "FROM Interpretations i, GroupVersions gv ".
             "WHERE i.group_version_uid = $group_version_uid ".
-            "AND i.ccds_uid = $ccds_uid";
+            "AND i.ccds_uid = $ccds_uid ".
+            "AND i.group_version_uid = gv.group_version_uid";
   
   print "SQL: $sql\n";
   my $sth = $self->prepare($sql);

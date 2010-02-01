@@ -324,7 +324,7 @@ sub fetch_Features {
   # Split the requests by coordinate system, i.e. parallelise
   # requests for segments that are from the same coordinate system
   while (my ($coord_key, $coord_data) = each %coords) {
-    my @segments   = @{ $coord_data->{'segments'} };
+    my @segments   = map { scalar @{$_} > 1 ? sprintf '%s:%d,%d', @{$_} : $_->[0]; } @{ $coord_data->{'segments'} };
     my @urls       = keys %{ $coord_data->{'sources'} };
     my $source_cs  = $coord_data->{'coord_system'};
     my $error      = $coord_data->{'error'};
@@ -992,11 +992,7 @@ sub _get_Segments {
     if ($last_segment) {
       # For new segment IDs, or noncontiguous segments, just add the segment
       if ($segment->[0] ne $last_segment->[0] || !$segment->[1] || !$last_segment->[1] || $segment->[1] > $last_segment->[2]+1) {
-        if (scalar @{ $last_segment } > 1) {
-          push @filtered, sprintf '%s:%s,%s', @{$last_segment};
-        } else {
-          push @filtered, $last_segment->[0];
-        }
+        push @filtered, $last_segment;
       }
       # For contiguous (or overlapping) segments, join together
       else {
@@ -1010,13 +1006,8 @@ sub _get_Segments {
     $last_segment = $segment;
   }
   if ($last_segment) {
-    if (scalar @{ $last_segment } > 1) {
-      push @filtered, sprintf '%s:%s,%s', @{$last_segment};
-    } else {
-      push @filtered, $last_segment->[0];
-    }
+    push @filtered, $last_segment;
   }
-  
   
   return ( \@filtered, $problem );
 }

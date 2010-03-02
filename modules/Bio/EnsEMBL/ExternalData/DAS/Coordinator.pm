@@ -59,7 +59,6 @@ no warnings 'uninitialized';
 use POSIX qw(ceil);
 use Bio::EnsEMBL::Mapper;
 use Bio::Das::Lite;
-use Data::Dumper;
 
 use Bio::EnsEMBL::ExternalData::DAS::CoordSystem;
 use Bio::EnsEMBL::ExternalData::DAS::GenomicMapper;

@@ -36,7 +36,7 @@ use strict;
 use warnings;
 use vars qw(@EXPORT_OK);
 use base qw(Exporter);
-@EXPORT_OK = qw(%GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS is_genomic %AUTHORITY_MAPPINGS %TYPE_MAPPINGS %COORD_MAPPINGS %NON_GENOMIC_COORDS);
+@EXPORT_OK = qw(%SNP_COORDS @SNP_COORDS %GENE_COORDS @GENE_COORDS %PROT_COORDS @PROT_COORDS is_genomic %AUTHORITY_MAPPINGS %TYPE_MAPPINGS %COORD_MAPPINGS %NON_GENOMIC_COORDS);
 
 use Bio::EnsEMBL::Utils::Argument  qw(rearrange);
 use Bio::EnsEMBL::Utils::Exception qw(throw warning info);
@@ -59,8 +59,13 @@ our @PROT_COORDS = (
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_acc', -label => 'IPI Protein Accession' ),
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ipi_id',  -label => 'IPI Protein ID' ),
 );
+our @SNP_COORDS = (
+  Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'dbsnp_rsid', -label => 'dbSNP Variation RS ID' ),
+);
+
 our %GENE_COORDS = map { $_->name => $_ } @GENE_COORDS;
 our %PROT_COORDS = map { $_->name => $_ } @PROT_COORDS;
+our %SNP_COORDS = map { $_->name => $_ } @SNP_COORDS;
 
 # For compatibility with previous versions of Ensembl:
 $PROT_COORDS{'uniprot/swissprot_acc'} = $PROT_COORDS{'uniprot_peptide'};
@@ -103,6 +108,9 @@ our %NON_GENOMIC_COORDS = (
                          'UniProt'    => $PROT_COORDS{'uniprot_peptide'},
                          'IPI'        => $PROT_COORDS{'ipi_acc'},
                          'IPI_ID'     => $PROT_COORDS{'ipi_id'},
+                        },
+  'Variation'        => {
+                         'dbSNP'      => $SNP_COORDS{'dbsnp_rsid'},
                         },
 );
 

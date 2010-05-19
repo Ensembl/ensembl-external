@@ -337,6 +337,7 @@ sub _parse_sources_output {
     my $homepage    = $source->{'source_doc_href'};
     my $description = $source->{'source_description'};
     my $email       = $source->{'maintainer'}[0]{'maintainer_email'};
+    my $source_uri  = $source->{'source_uri'};
     
     # Iterate over the <VERSION> elements
     for my $version (@{ $source->{'version'} || [] }) {
@@ -381,7 +382,7 @@ sub _parse_sources_output {
       
       # Create the actual source
       my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-        -logic_name    => $version_uri,
+        -logic_name    => $source_uri,
         -url           => $url,
         -dsn           => $dsn,
         -label         => $title,

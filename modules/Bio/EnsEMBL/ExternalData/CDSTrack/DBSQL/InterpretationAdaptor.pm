@@ -48,6 +48,15 @@ sub fetch_all_by_GroupVersion_and_CcdsID {
   my $ccds_uid = shift;
   my @interpretations;
 
+#
+# For each CCDS build, each CCDS record gets a
+# new group_version_uid number.  If the CDS structure has changed since the previous
+# build, then the CCDS ID gets a new version, e.g., CCDS7.1 becomes CCDS7.2.
+#
+# The ccds_uid column in the Interpretations table is used when a record is related to
+# a CCDS ID, and the group_version_uid is used when it is related to a specific build
+# version of a CCDS.  
+#
   if (!ref $gv || !$gv->isa('Bio::EnsEMBL::ExternalData::CDSTrack::GroupVersion') ) {
     throw("Must provide a Bio::EnsEMBL::ExternalData::CDSTrack::GroupVersion object");
   }
@@ -74,6 +83,54 @@ sub fetch_all_by_GroupVersion_and_CcdsID {
   }
   print "\ngot ".scalar(@interpretations)." interpretations\n";
   return \@interpretations;
+}
+
+sub fetch_PublicNote_by_CcdsID {
+  my $self = shift;
+  my $ccds_uid = shift;
+  my @interpretations;
+  my $public_note;
+
+#
+# The ccds_uid column in the Interpretations table is used when a record is related to
+# a CCDS ID, and the group_version_uid is used when it is related to a specific build
+# version of a CCDS.  The public notes are a bit unusual in that they are associated
+# with a CCDS ID version, not a build version, so group_version_uid cannot be used. 
+# For example, there could be one public note for CCDS7.1, and another public note for
+# CCDS7.2.
+#
+# In the case of public notes, the ccds_uid in the Interpretations table is used to
+# relate to the CCDS ID, and the integer_val column is used to relate to the CCDS ID
+# version.
+#
+  print STDERR "Fetching Public Note for ccds_uid ".$ccds_uid."\n";
+  if (!$ccds_uid) {
+    throw("Need ccds_uid");
+  }
+
+   my $sql = "SELECT i.interpretation_uid ".
+             "FROM Interpretations i ".
+             "WHERE i.ccds_uid = $ccds_uid ".
+             "AND i.interpretation_subtype_uid = 17";
+
+
+  print "SQL: $sql\n";
+  my $sth = $self->prepare($sql);
+  $sth->execute();
+
+  while ( my $id = $sth->fetchrow()) {
+    print "$id, ";
+    push @interpretations, $self->fetch_by_dbID($id);
+  }
+  print "\ngot ".scalar(@interpretations)." interpretations\n";
+  if (scalar(@interpretations) == 0) {
+    $public_note = undef;
+  } elsif (scalar(@interpretations) ==1) {
+    $public_note = $interpretations[0];
+  } else {
+    throw("Each CCDS ID may only have 1 or 0 Public Notes");
+  }
+  return $public_note;
 }
 
 sub _objs_from_sth {

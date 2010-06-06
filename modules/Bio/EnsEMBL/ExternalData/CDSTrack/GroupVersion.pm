@@ -147,6 +147,22 @@ sub get_all_Interpretations {
 
 }
 
+sub get_Public_Note {
+  my $self = shift;
+
+  if( ! exists $self->{'public_note' } ) {
+    if(!$self->adaptor() ) {
+      return [];
+    }
+
+    my $interpretation_adaptor = $self->adaptor->db->get_InterpretationAdaptor();
+    $self->{'public_note'} = $interpretation_adaptor->fetch_PublicNote_by_CcdsID($self->get_ccds_uid);
+  }
+
+  return $self->{'public_note'};
+
+}
+
 sub get_status {
   my $self = shift;
   if( ! exists $self->{'_status'} ) {

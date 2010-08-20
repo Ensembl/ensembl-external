@@ -55,6 +55,7 @@ sub get_available_adaptors {
       "Comment"       => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::CommentAdaptor",
       "Description"   => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::DescriptionAdaptor",
       "Entry"         => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::EntryAdaptor",
+      "EntryArchive"  => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::EntryArchiveAdaptor",
       "GeneName"      => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::GeneNameAdaptor",
       "Keyword"       => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::KeywordAdaptor",
       "Location"      => "Bio::EnsEMBL::ExternalData::Mole::DBSQL::LocationAdaptor",

@@ -111,7 +111,9 @@ sub fetch_PublicNote_by_CcdsID {
    my $sql = "SELECT i.interpretation_uid ".
              "FROM Interpretations i ".
              "WHERE i.ccds_uid = $ccds_uid ".
-             "AND i.interpretation_subtype_uid = 17";
+             "AND i.interpretation_subtype_uid = 17 ".
+             "ORDER BY i.integer_val DESC"; # take the latest version of the ccds
+                                            # rarely there are multiple public notes
 
 
   print "SQL: $sql\n";
@@ -128,7 +130,8 @@ sub fetch_PublicNote_by_CcdsID {
   } elsif (scalar(@interpretations) ==1) {
     $public_note = $interpretations[0];
   } else {
-    throw("Each CCDS ID may only have 1 or 0 Public Notes");
+    warn("Each CCDS ID may only have 1 or 0 Public Notes. Ignoring earlier versions");
+    $public_note = $interpretations[0]; # takes the highest version (sorted desc)
   }
   return $public_note;
 }

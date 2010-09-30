@@ -21,6 +21,7 @@ sub new {
   my ($dbid, $accession_version, 
       $name, $topology, $molecule_type,
       $data_class, $tax_division, $sequence_length,
+      $last_updated, $first_submitted,
       $accession_obj, $dbxref_objs, $comment_objs,
       $description_obj,$sequence_obj, $taxonomy_obj) =  
 	  rearrange([qw(DBID
@@ -31,6 +32,8 @@ sub new {
                         DATA_CLASS
                         TAX_DIVISION 
                         SEQUENCE_LENGTH
+                        LAST_UPDATED
+                        FIRST_SUBMITTED
                         ACCESSION_OBJ
                         DBXREF_OBJS
                         COMMENT_OBJS
@@ -47,6 +50,8 @@ sub new {
   $self->data_class        ( $data_class );
   $self->tax_division      ( $tax_division );
   $self->sequence_length   ( $sequence_length ) if (defined $sequence_length);
+  $self->last_updated      ( $last_updated ) if (defined $last_updated);    
+  $self->first_submitted   ( $first_submitted ) if (defined $first_submitted);
 
   if(!ref($accession_obj) || !$accession_obj->isa('Bio::EnsEMBL::ExternalData::Mole::Accession')) {
     throw('-ACCESSION_OBJ argument must be a Bio::EnsEMBL::ExternalData::Mole::Accession not '.
@@ -140,6 +145,20 @@ sub sequence_length {
   $self->{'sequence_length'} = shift if ( @_ );
   return $self->{'sequence_length'};
 }
+
+sub last_updated {
+  my $self = shift;                  
+  $self->{'last_updated'} = shift if ( @_);
+  return $self->{'last_updated'};
+}
+
+sub first_submitted {
+  my $self = shift;                      
+  $self->{'first_submitted'} = shift if ( @_);
+  return $self->{'first_submitted'};
+}
+      
+
 
 sub accession_obj {
   my $self = shift;

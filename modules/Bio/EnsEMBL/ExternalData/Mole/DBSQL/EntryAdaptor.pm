@@ -18,10 +18,16 @@ sub _tables {
 
 sub _columns {
   my $self = shift;
-  return ( 'e.entry_id', 'e.accession_version',
-           'e.name', 'e.topology', 'e.molecule_type',
-           'e.data_class', 'e.tax_division',
-           'e.sequence_length');
+  return ( 'e.entry_id',
+           'e.accession_version',
+           'e.name', 
+           'e.topology',
+           'e.molecule_type',
+           'e.data_class',
+           'e.tax_division',
+           'e.sequence_length',
+           'e.last_updated',
+           'e.first_submitted');
 }
 
 sub fetch_by_dbID {
@@ -278,10 +284,12 @@ sub _objs_from_sth {
   my @out;
   my ( $entry_id, $accession_version, $name,
        $topology, $molecule_type, $data_class,
-       $tax_division, $sequence_length );
+       $tax_division, $sequence_length,
+       $last_updated, $first_submitted );
   $sth->bind_columns( \$entry_id, \$accession_version, \$name, 
                       \$topology, \$molecule_type, \$data_class,
-                      \$tax_division, \$sequence_length);
+                      \$tax_division, \$sequence_length,
+                      \$last_updated, \$first_submitted);
 
   while($sth->fetch()) {
     my $acc_obj = $self->db->get_AccessionAdaptor->fetch_by_entry_id($entry_id);
@@ -298,6 +306,8 @@ sub _objs_from_sth {
               -data_class         => $data_class,
               -tax_division       => $tax_division,
               -sequence_length    => $sequence_length,
+              -last_updated       => $last_updated,
+              -first_submitted    => $first_submitted,
               -accession_obj      => $acc_obj,
               -dbxref_objs        => $dbxref_objs, 
               -description_obj    => $desc_obj,

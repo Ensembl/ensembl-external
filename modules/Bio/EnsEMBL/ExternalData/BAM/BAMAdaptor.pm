@@ -143,50 +143,16 @@ sub fetch_alignments_filtered {
 
   #warn Dumper $filter if ($DEBUG > 2);
 
-  # filter out unmapped mates - the ones that don't have location set
-  $filter ||= sub {my $a = shift; return 0 unless $a->start; return 1};
 
   my @features = ();
 
   my $callback = sub {
     my $a     = shift;
-#    my $atype = '';
-#    if ($a->proper_pair) {
-#      $atype = 'regular';
-#      if ($a->reversed == $a->mreversed) {
-#        $atype = 'misoriented';    ### Mis-oriented : mates should be on different strands
-#      }
-#    } elsif ($a->paired) {
-#      if ($a->unmapped || $a->munmapped) {
-#
-#        #   $atype = 'orphan'; ### Orphan : one of the mates failed to align. It's the same as singleton apparently
-#        $atype = 'singleton';      ### Singleton
-#      } elsif ($a->isize) {
-#        $atype = 'gap';            ### Anomalous gap ???
-#      } else {
-#        $atype = 'chimera';        ### Chimera
-#      }
-#    } else {
-#      $atype = 'singleton';        ### Singleton
-#    }
-    
-    #warn "qname [" . $a->qname . "] start [" . $a->start . "] end [" . $a->end . "]";
-    
-#    my $ba = new Bio::EnsEMBL::File::BAMAlignment({
-#        'atype'     => $atype,
-#        'start'     => $a->start || 0,
-#        'end'       => $a->end || 0,
-#        'isize'     => $a->isize,
-#        'qual'      => $a->qual,
-#        'qname'     => $a->qname,
-#        'cigar_str' => $a->cigar_str,
-#        'qdna'      => $a->query->dna,
-#        'reversed'  => $a->reversed,
-#        'paired'    => $a->paired,
-#        'flag'      => $a->flag,
-#    });
-#    push @features, $ba if ($filter->($ba));
-    push @features, $a;
+    if ($filter) {
+      push @features, $a if ($filter->($a));
+    } elsif ($a->start) { # default filter out unmapped mates - the ones that don't have location set
+      push @features, $a;
+    }
   };
 
   my $header = $bam->header;

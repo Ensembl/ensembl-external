@@ -45,7 +45,7 @@ use Bio::EnsEMBL::ExternalData::DAS::Source;
 use Bio::Das::Lite;
 use URI;
 
-our $GENOMIC_REGEX = '^chromosome|clone|contig|scaffold|genescaffold|supercontig|ultracontig|reftig|group$';
+our $GENOMIC_REGEX = '^chromosome|clone|contig|scaffold|genescaffold|supercontig|ultracontig|reftig|group|plasmid$';
 our @GENE_COORDS = (
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'ensembl_gene', -label => 'Ensembl Gene Accession' ),
   Bio::EnsEMBL::ExternalData::DAS::CoordSystem->new( -name => 'entrezgene_acc', -label => 'Entrez Accession' ),

@@ -379,10 +379,11 @@ sub _parse_sources_output {
           push @coords, $coord;
         }
       }
-      
+      # take the last part if it is the full url 
+      my $logic_name = (split '/',  $source_uri)[-1];
       # Create the actual source
       my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-        -logic_name    => $source_uri,
+        -logic_name    => $logic_name,
         -url           => $url,
         -dsn           => $dsn,
         -label         => $title,

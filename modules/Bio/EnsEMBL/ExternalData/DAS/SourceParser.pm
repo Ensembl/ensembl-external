@@ -338,7 +338,7 @@ sub _parse_sources_output {
     my $description = $source->{'source_description'};
     my $email       = $source->{'maintainer'}[0]{'maintainer_email'};
     my $source_uri  = $source->{'source_uri'};
-    
+
     # Iterate over the <VERSION> elements
     for my $version (@{ $source->{'version'} || [] }) {
       
@@ -350,7 +350,6 @@ sub _parse_sources_output {
         }
       }
       $dsn || next; # this source doesn't support features command
-      
       my $version_uri = $version->{'version_uri'};
       info("Parsing source $version_uri");
       
@@ -362,27 +361,35 @@ sub _parse_sources_output {
         # Extract coordinate details
         my $auth    = $coord->{'coordinates_authority'};
         my $type    = $coord->{'coordinates_source'};
+
+        if (!$type || !$auth) {
+          warning("Unable to parse authority and sequence type for $version_uri ; skipping"); # Something went wrong!
+          next;
+        }
+
         # Version and species are optional:
         my $version = $coord->{'coordinates_version'};
         
         # Would be better to get species name via taxid, but that would require
         # mappings...
-        my $cdata   = $coord->{'coordinates'};
-        my (undef, undef, $species) = split /,/, $cdata, 3;
-        
-        if (!$type || !$auth) {
-          warning("Unable to parse authority and sequence type for $version_uri ; skipping"); # Something went wrong!
-          next;
-        }
+	my $species;
+
+        if (my $cdata   = $coord->{'coordinates'}) {
+	    my (undef, undef, $sp) = split /,/, $cdata, 3;
+	    $species = $sp;
+	}
         
         if ( my $coord = $self->_parse_coord_system( $type, $auth, $version, $species ) ) {
           push @coords, $coord;
         }
       }
+
+      # in case of full url we take just the last part
+      my $logic_name = (split '/', $source_uri)[-1];
       
       # Create the actual source
       my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
-        -logic_name    => $source_uri,
+        -logic_name    => $logic_name,
         -url           => $url,
         -dsn           => $dsn,
         -label         => $title,
@@ -392,7 +399,7 @@ sub _parse_sources_output {
         -coords        => \@coords,
       );
       $count++;
-      
+
       $self->{'_sources'}{$server_url}{$source->full_url} ||= $source;
       
     } # end version loop

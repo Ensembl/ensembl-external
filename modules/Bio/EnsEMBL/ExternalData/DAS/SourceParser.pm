@@ -196,6 +196,8 @@ sub fetch_Sources {
   my $self = shift;
   my ($server, $f_species, $f_name, $f_logic)
     = rearrange([ 'LOCATION', 'SPECIES', 'NAME', 'LOGIC_NAME' ], @_);
+
+  my $start = time();
   
   $server || throw('No DAS server specified');
   ($server, my $f_id) = $self->parse_das_string( $server );
@@ -216,26 +218,28 @@ sub fetch_Sources {
   
   # optional species filter
   if ( scalar @f_species ) {
-    info('Filtering by species');
     @sources = grep { my $source = $_; grep { !scalar @{$source->coord_systems} || $source->matches_species( $_ ) } @f_species } @sources;
+    info("After filtering by species '".(join '|', @f_species)."': ".scalar @sources.' sources');
   }
   
   # optional name filter
   if ( scalar @f_name ) {
-    info('Filtering by name');
     @sources = grep { my $source = $_; grep { $source->matches_name( $_ ) } @f_name  } @sources;
+    info('After filtering by name: '.scalar @sources.' sources');
   }
   
   # optional logic name filter
   if ( scalar @f_logic ) {
-    info('Filtering by logic_name');
     @sources = grep { my $source = $_; grep { $source->logic_name eq $_ } @f_logic  } @sources;
+    info('After filtering by logic_name: '.scalar @sources.' sources');
   }
   
   if ( $f_id ) {
-    info('Filtering by identifier (logic_name or dsn)');
     @sources = grep { $_->logic_name eq $f_id || $_->dsn eq $f_id } @sources;
+    info('After filtering by identifier (logic_name or dsn): '.scalar @sources.' sources');
   }
+
+  info('Parsed '.scalar @sources.' sources in '.(time() - $start).' seconds');
   
   return [sort { lc $a->label cmp lc $b->label } @sources];
 }
@@ -349,9 +353,14 @@ sub _parse_sources_output {
           last;
         }
       }
-      $dsn || next; # this source doesn't support features command
+
       my $version_uri = $version->{'version_uri'};
-      info("Parsing source $version_uri");
+      if (!$dsn) {
+        info("Skipping $version_uri - does not support the features command");
+        next; # this source doesn't support features command
+      }
+      
+      info("Parsing source $version_uri from $server_url");
       
       # Now parse the coordinate systems and map to Ensembl's
       # This is the tedious bit, as some things don't map easily
@@ -372,17 +381,19 @@ sub _parse_sources_output {
         
         # Would be better to get species name via taxid, but that would require
         # mappings...
-	my $species;
+        my $species;
 
         if (my $cdata   = $coord->{'coordinates'}) {
-	    my (undef, undef, $sp) = split /,/, $cdata, 3;
-	    $species = $sp;
-	}
-        
+          my (undef, undef, $sp) = split /,/, $cdata, 3;
+          $species = $sp;
+        }
+
         if ( my $coord = $self->_parse_coord_system( $type, $auth, $version, $species ) ) {
           push @coords, $coord;
         }
       }
+
+      info("Source $version_uri has ".(scalar @coords)." supported coordinate systems");
 
       # in case of full url we take just the last part
       my $logic_name = (split '/', $source_uri)[-1];
@@ -406,7 +417,7 @@ sub _parse_sources_output {
     
   } # end source loop
   
-  info("Found $count sources");
+  info("Found $count sources via sources command for $server_url");
   
   return undef;
 }
@@ -431,12 +442,16 @@ sub _parse_dsn_output {
   # Iterate over the <DSN> elements
   for my $hash (@{ $set }) {
     
+    my $dsn = $hash->{'source_id'};
+    
     my $source = Bio::EnsEMBL::ExternalData::DAS::Source->new(
       -url           => $server_url,
-      -dsn           => $hash->{'source_id'},
+      -dsn           => $dsn,
       -label         => $hash->{'source'},
       -description   => $hash->{'description'},
     );
+    
+    info("Parsing source $dsn from $server_url");
     
     $self->{'_sources'}{$server_url}{$source->full_url} ||= $source;
     $count++;
@@ -446,9 +461,10 @@ sub _parse_dsn_output {
       $source->coord_systems( $mapmaster->coord_systems );
     }
     
+    info("Source $dsn has ".(scalar @{ $source->coord_systems })." supported coordinate systems");
   }
   
-  info("Found $count sources");
+  info("Found $count sources via dsn command for $server_url");
   
   return undef;
   

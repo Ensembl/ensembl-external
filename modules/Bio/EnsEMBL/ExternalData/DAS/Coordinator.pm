@@ -118,6 +118,18 @@ our %XREF_GENE_FILTERS = (
     'predicate'   => sub { $_[0]->dbname eq 'MGI' },
     'transformer' => sub { $_[0]->display_id },
   },
+  'flybase_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'FlyBaseName_gene' },
+    'transformer' => sub { $_[0]->display_id },
+  },
+  'wormbase_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'wormbase_gene' },
+    'transformer' => sub { $_[0]->display_id },
+  },
+  'vectorbase_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'VB_Community_Annotation' },
+    'transformer' => sub { $_[0]->display_id },
+  },
 );
 
 =head2 new

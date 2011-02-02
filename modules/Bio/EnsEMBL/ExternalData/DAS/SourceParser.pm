@@ -102,6 +102,9 @@ our %NON_GENOMIC_COORDS = (
                          'MGI'        => $GENE_COORDS{'mgi_acc'},
                          'MGI_Symbol' => $GENE_COORDS{'mgi'},
                          'Entrez'     => $GENE_COORDS{'entrezgene_acc'},
+                         'FlyBase Gene'    => $GENE_COORDS{'flybase_gene'},
+                         'WormBase Gene'   => $GENE_COORDS{'wormbase_gene'},
+                         'VectorBase Gene' => $GENE_COORDS{'vectorbase_gene'},
                         },
   'Protein Sequence' => {
                          'Ensembl'    => $PROT_COORDS{'ensembl_peptide'},

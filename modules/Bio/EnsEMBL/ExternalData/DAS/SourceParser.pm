@@ -97,20 +97,23 @@ our %COORD_MAPPINGS = (
 
 our %NON_GENOMIC_COORDS = (
   'Gene_ID'          => {
-                         'Ensembl'    => $GENE_COORDS{'ensembl_gene'},
-                         'HUGO_ID'    => $GENE_COORDS{'hgnc'},
-                         'MGI'        => $GENE_COORDS{'mgi_acc'},
-                         'MGI_Symbol' => $GENE_COORDS{'mgi'},
-                         'Entrez'     => $GENE_COORDS{'entrezgene_acc'},
+                         'Ensembl'         => $GENE_COORDS{'ensembl_gene'},
+                         'HUGO_ID'         => $GENE_COORDS{'hgnc'},
+                         'MGI'             => $GENE_COORDS{'mgi_acc'},
+                         'MGI_Symbol'      => $GENE_COORDS{'mgi'},
+                         'Entrez'          => $GENE_COORDS{'entrezgene_acc'},
+                         'FlyBase Gene'    => $GENE_COORDS{'flybase_gene'},
+                         'WormBase Gene'   => $GENE_COORDS{'wormbase_gene'},
+                         'VectorBase Gene' => $GENE_COORDS{'vectorbase_gene'},
                         },
   'Protein Sequence' => {
-                         'Ensembl'    => $PROT_COORDS{'ensembl_peptide'},
-                         'UniProt'    => $PROT_COORDS{'uniprot_peptide'},
-                         'IPI'        => $PROT_COORDS{'ipi_acc'},
-                         'IPI_ID'     => $PROT_COORDS{'ipi_id'},
+                         'Ensembl'      => $PROT_COORDS{'ensembl_peptide'},
+                         'UniProt'      => $PROT_COORDS{'uniprot_peptide'},
+                         'IPI'          => $PROT_COORDS{'ipi_acc'},
+                         'IPI_ID'       => $PROT_COORDS{'ipi_id'},
                         },
   'Variation'        => {
-                         'dbSNP'      => $SNP_COORDS{'dbsnp_rsid'},
+                         'dbSNP'        => $SNP_COORDS{'dbsnp_rsid'},
                         },
 );
 

@@ -124,13 +124,24 @@ our %XREF_GENE_FILTERS = (
   },
   'wormbase_gene' => {
     'predicate'   => sub { $_[0]->dbname eq 'wormbase_gene' },
-    'transformer' => sub { $_[0]->display_id },
+    'transformer' => sub { $_[0]->primary_id },
   },
   'vectorbase_gene' => {
     'predicate'   => sub { $_[0]->dbname eq 'VB_Community_Annotation' },
     'transformer' => sub { $_[0]->display_id },
   },
-  
+  'gramene_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'Gramene_GenesDB' },
+    'transformer' => sub { $_[0]->display_id },
+  }, 
+  'ena_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'ENA_GENE' },
+    'transformer' => sub { $_[0]->display_id },
+  }, 
+  'dictybase_gene' => {
+    'predicate'   => sub { $_[0]->dbname eq 'DictyBase' },
+    'transformer' => sub { $_[0]->display_id },
+  }, 
 );
 
 =head2 new

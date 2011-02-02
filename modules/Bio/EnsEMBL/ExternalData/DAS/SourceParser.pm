@@ -105,6 +105,9 @@ our %NON_GENOMIC_COORDS = (
                          'FlyBase Gene'    => $GENE_COORDS{'flybase_gene'},
                          'WormBase Gene'   => $GENE_COORDS{'wormbase_gene'},
                          'VectorBase Gene' => $GENE_COORDS{'vectorbase_gene'},
+                         'Gramene Gene'    => $GENE_COORDS{'gramene_gene'},
+                         'ENA Gene'        => $GENE_COORDS{'ena_gene'},
+                         'DictyBase'       => $GENE_COORDS{'dictybase_gene'},
                         },
   'Protein Sequence' => {
                          'Ensembl'      => $PROT_COORDS{'ensembl_peptide'},

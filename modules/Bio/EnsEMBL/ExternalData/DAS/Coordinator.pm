@@ -124,7 +124,7 @@ our %XREF_GENE_FILTERS = (
   },
   'wormbase_gene' => {
     'predicate'   => sub { $_[0]->dbname eq 'wormbase_gene' },
-    'transformer' => sub { $_[0]->display_id },
+    'transformer' => sub { $_[0]->primary_id },
   },
   'vectorbase_gene' => {
     'predicate'   => sub { $_[0]->dbname eq 'VB_Community_Annotation' },

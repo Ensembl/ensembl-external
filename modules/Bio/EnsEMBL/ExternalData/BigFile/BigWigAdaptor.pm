@@ -23,6 +23,7 @@ sub url { return $_[0]->{'_url'} };
 sub bigwig_open {
   my $self = shift;
 
+  Bio::DB::BigFile->set_udc_defaults;
   $self->{_cache}->{_bigwig_handle} ||= Bio::DB::BigFile->bigWigFileOpen($self->url);
   return $self->{_cache}->{_bigwig_handle};
 }

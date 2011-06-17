@@ -468,7 +468,7 @@ sub fetch_by_Library_Name
 
 
 
-=head2 fetch_by_LibraryList_dbID
+=head2 fetch_by_LibraryList_dbIDs
 
  Title   : fetch_by_LibraryList_dbID
  Usage   : $obj->fetch_by_LibraryList_dbID

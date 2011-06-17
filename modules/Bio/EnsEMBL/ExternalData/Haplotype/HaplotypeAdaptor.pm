@@ -166,16 +166,6 @@ sub fetch_Haplotype_by_chr_start_end  {
 }                                       
 
 
-=head2 fetch_lite_Haplotype_by_id
-
- Title   : fetch_lite_Haplotype_by_id
- Usage   : $db->fetch_lite_Haplotype_by_id('B10045');
- Function: fetch "shallow" haplotype object based on an ID.
- Example :
- Returns : a list of Haplotype objects, undef otherwise
- Args    : chr start, chr end
-
-=cut
 
 sub fetchSNPs {
     my $self = shift;
@@ -199,6 +189,16 @@ sub fetchSNPs {
     return %snps;
 }
 
+=head2 fetch_lite_Haplotype_by_id
+
+ Title   : fetch_lite_Haplotype_by_id
+ Usage   : $db->fetch_lite_Haplotype_by_id('B10045');
+ Function: fetch "shallow" haplotype object based on an ID.
+ Example :
+ Returns : a list of Haplotype objects, undef otherwise
+ Args    : chr start, chr end
+
+=cut
 sub fetch_lite_Haplotype_by_id {
     my ($self, $id) = @_; 
 

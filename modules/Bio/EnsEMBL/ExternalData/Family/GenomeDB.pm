@@ -256,7 +256,7 @@ sub has_query {
 
 
 
-=head2 linked
+=head2 linked_genomes
 
   Arg [1]    : Bio::EnsEMBL::Compara::GenomeDB $genomedb
   Example    : none

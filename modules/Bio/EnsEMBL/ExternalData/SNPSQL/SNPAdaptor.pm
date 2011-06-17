@@ -479,7 +479,7 @@ sub fetch_slice_strand_by_ssid {
 
 =cut
 
-  sub fetch_by_clone_accession_version {
+sub fetch_by_clone_accession_version {
     my($self) = shift;
     my ($acc, $ver, $start, $stop) = @_;
 
@@ -702,7 +702,7 @@ sub fetch_between_internal_ids {
            
 =cut
 
-sub  fetch_all_by_Slice{
+sub fetch_all_by_Slice{
   my ($self,$slice) = @_;
   my ($query, @var_objs, %var_objs);
   my $chr_start = $slice->start;
@@ -748,7 +748,7 @@ sub  fetch_all_by_Slice{
 
 =cut
 
-sub  fetch_genotyped_by_Slice{
+sub fetch_genotyped_by_Slice{
   my ($self, $slice) = @_;
   warn ("ERROR:  No slice object passed to $0") if !$slice;
   my ($query, @var_objs, %var_objs);

@@ -131,7 +131,7 @@ sub add_db_adaptor {
 
 
 
-=head2 disease by name
+=head2 disease_by_name
 
  Title   : disease_by_name
  Usage   : my $disease=$diseasedb->disease_by_name("DiGeorge syndrome (2)");
@@ -231,7 +231,7 @@ sub disease_name_by_ensembl_gene
 
 
 
-=head2 all diseases
+=head2 all_diseases
 
  Title   : all_diseases
  Usage   : my @diseases=$diseasedb->all_diseases[(30,10)];
@@ -302,7 +302,7 @@ sub all_diseases
 
 
 
-=head2 all disease names
+=head2 all_disease_names
 
  Title   : all_disease_names
  Usage   : my @diseases=$diseasedb->all_disease_names(90,2);
@@ -334,7 +334,7 @@ sub all_disease_names
 
                        
 
-=head2 all disease count
+=head2 all_disease_count
 
  Title   : all_disease_count
  Usage   : my $count=$diseasedb->all_disease_count;
@@ -360,7 +360,7 @@ sub all_disease_count
 
                          
 
-=head2 diseases on chromosome
+=head2 diseases_on_chromosome
 
  Title   : diseases_on_chromosome
  Usage   : my @diseases=$diseasedb->diseases_on_chromosome(22,90,30);
@@ -438,7 +438,7 @@ sub diseases_on_chromosome
 
 
 
-=head2 disease names on chromosome
+=head2 disease_names_on_chromosome
 
  Title   : diseases_names_on_chromosome
  Usage   : my @diseases=$diseasedb->disease_name_on_chromosome(90,2);
@@ -472,7 +472,7 @@ sub disease_names_on_chromosome
 
 
 
-=head2 diseases on chromosome count
+=head2 diseases_on_chromosome_count
 
  Title   : disease on chromosome count
  Usage   : my $count=$diseasedb->diseases_on_chromosome_count(3);
@@ -502,7 +502,7 @@ sub diseases_on_chromosome_count
 
 
 
-=head2 diseases with genes
+=head2 diseases_with_genes
 
  Title   : diseases_with_genes
  Usage   : my @diseases=$diseasedb->diseases_with_genes;
@@ -532,7 +532,7 @@ sub diseases_with_genes
 
 
 
-=head2 disease names with genes
+=head2 disease_names_with_genes
 
  Title   : disease_names_with_genes
  Usage   : my @diseases=$diseasedb->disease_names_with_genes(90,3);
@@ -564,7 +564,7 @@ sub disease_names_with_genes
 
 
 
-=head2 diseases with genes count
+=head2 diseases_with_genes_count
 
  Title   : disease with genes count
  Usage   : my $count=$diseasedb->diseases_with_genes_count(3);
@@ -590,7 +590,7 @@ sub diseases_with_genes_count
 
 
 
-=head2 diseases without genes
+=head2 diseases_without_genes
 
  Title   : diseases_without_genes
  Usage   : my @diseases=$diseasedb->diseases_without_genes;
@@ -619,7 +619,7 @@ sub diseases_without_genes
 
 
 
-=head2 disease names without genes
+=head2 disease_names_without_genes
 
  Title   : disease_names_without_genes
  Usage   : my @diseases=$diseasedb->disease_names_without_genes(90,3);
@@ -651,7 +651,7 @@ sub disease_names_without_genes
 
 
 
-=head2 diseases without genes count
+=head2 diseases_without_genes_count
 
  Title   : disease without genes count
  Usage   : my $count=$diseasedb->diseases_without_genes_count(3);
@@ -677,7 +677,7 @@ sub diseases_without_genes_count
 
 
 
-=head2 diseases like
+=head2 diseases_like
 
  Title   : diseases_like
  Usage   : my @diseases=$diseasedb->diseases_like("leukemia");
@@ -705,7 +705,7 @@ sub diseases_like
 
 
 
-=head2 disease names like
+=head2 disease_names_like
 
  Title   : disease_names_like
  Usage   : my @diseases=$diseasedb->disease_names_like("leukemia",3,2);
@@ -740,7 +740,7 @@ sub disease_names_like
 
 
 
-=head2 disease name like count
+=head2 disease_name_like_count
 
  Title   : disease name like count
  Usage   : my $count=$diseasedb->disease_names_like_count(3);

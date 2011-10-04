@@ -967,7 +967,7 @@ sub _get_Segments {
     elsif ( my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name} ) {
       info(sprintf 'Adding mappings for %s %s -> %s %s',
         $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
-warn join ', ', map {$_->dbname} @{($prot->get_all_DBEntries())};
+
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $prot->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
         push @segments, [ $segid ];

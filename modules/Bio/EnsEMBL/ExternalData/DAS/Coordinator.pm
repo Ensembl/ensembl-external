@@ -226,7 +226,7 @@ sub new {
                 $logic_name => {
                   'source'     => {
                                    'object' => $source_object,
-                                   'error'  => 'Not applicable',
+                                   'error'  => 'No data for region',
                                   },
                   'features'   => {
                                    'X:1000,2000' => {
@@ -363,7 +363,7 @@ sub fetch_Features {
       info("No segments found for $coord_name");
       for ( values %{ $coord_data->{'sources'} } ) {
         for my $source (@{ $_ }) {
-          $final->{$source->logic_name}{'source'}{'error'} = $error || 'Not applicable';
+          $final->{$source->logic_name}{'source'}{'error'} = $error || 'No data for region';
         }
       }
       next;

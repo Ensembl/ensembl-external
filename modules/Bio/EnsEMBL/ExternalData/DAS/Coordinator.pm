@@ -226,7 +226,7 @@ sub new {
                 $logic_name => {
                   'source'     => {
                                    'object' => $source_object,
-                                   'error'  => 'Not applicable',
+                                   'error'  => 'No data for region',
                                   },
                   'features'   => {
                                    'X:1000,2000' => {
@@ -363,7 +363,7 @@ sub fetch_Features {
       info("No segments found for $coord_name");
       for ( values %{ $coord_data->{'sources'} } ) {
         for my $source (@{ $_ }) {
-          $final->{$source->logic_name}{'source'}{'error'} = $error || 'Not applicable';
+          $final->{$source->logic_name}{'source'}{'error'} = $error || 'No data for region';
         }
       }
       next;
@@ -967,7 +967,7 @@ sub _get_Segments {
     elsif ( my $callback = $XREF_PEPTIDE_FILTERS{$from_cs->name} ) {
       info(sprintf 'Adding mappings for %s %s -> %s %s',
         $from_cs->name, $from_cs->version, $to_cs->name, $to_cs->version);
-warn join ', ', map {$_->dbname} @{($prot->get_all_DBEntries())};
+
       for my $xref (grep { $callback->{'predicate'}($_) } @{ $prot->get_all_DBEntries() }) {
         my $segid = $callback->{'transformer'}( $xref );
         push @segments, [ $segid ];

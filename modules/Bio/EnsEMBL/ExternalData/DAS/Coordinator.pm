@@ -141,6 +141,10 @@ our %XREF_GENE_FILTERS = (
   'dictybase_gene' => {
     'predicate'   => sub { $_[0]->dbname eq 'DictyBase' },
     'transformer' => sub { $_[0]->display_id },
+  },
+  'pubmed_id' => {
+    'predicate'   => sub { $_[0]->dbname eq 'PUBMED' },
+    'transformer' => sub { $_[0]->primary_id },
   }, 
 );
 

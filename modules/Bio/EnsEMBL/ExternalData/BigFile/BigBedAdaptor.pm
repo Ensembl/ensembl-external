@@ -4,8 +4,8 @@ use strict;
 use Data::Dumper;
 use Bio::DB::BigFile;
 use Bio::DB::BigFile::Constants;
-my $DEBUG = 0;
 
+use EnsEMBL::Web::Text::Feature::BED;
 
 sub new {
   my ($class, $url) = @_;
@@ -73,10 +73,6 @@ sub fetch_extended_summary_array  {
 # Remember this method takes half-open coords (subtract 1 from start)
   my $summary_e = $bb->bigBedSummaryArrayExtended("$seq_id",$start-1,$end,$bins);
 
-  if ($DEBUG) {
-    warn " *** fetch extended summary: $chr_id:$start-$end : found ", scalar(@$summary_e), " summary points\n";
-  }
-
   return $summary_e;
 }
 
@@ -98,10 +94,16 @@ sub fetch_features  {
   for (my $i=$list_head->head;$i;$i=$i->next) {
     my @bedline = ($chr_id,$i->start,$i->end,split(/\t/,$i->rest));
     my $bed = EnsEMBL::Web::Text::Feature::BED->new(\@bedline);
-    $bed->coords([$chr_id,$i->start,$i->end]); # XXX +1 to start probably: check!
+    $bed->coords([$chr_id,$i->start,$i->end]);
+
+    ## Set score to undef if missing to distinguish it from a genuine present but zero score
+    $bed->score(undef) if @bedline < 5;
+
     push @features,$bed;
   }
   
   return \@features;
 }
+
 1;
+

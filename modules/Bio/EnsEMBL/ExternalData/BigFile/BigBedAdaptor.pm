@@ -76,7 +76,7 @@ sub fetch_extended_summary_array  {
   if ($DEBUG) {
     warn " *** fetch extended summary: $chr_id:$start-$end : found ", scalar(@$summary_e), " summary points\n";
   }
-  
+
   return $summary_e;
 }
 
@@ -94,14 +94,14 @@ sub fetch_features  {
 # Remember this method takes half-open coords (subtract 1 from start)
   my $list_head = $bb->bigBedIntervalQuery("$seq_id",$start-1,$end);
 
+  my @features;
   for (my $i=$list_head->head;$i;$i=$i->next) {
-    print STDERR join("\t",$chr_id,$i->start,$i->end,$i->rest),"\n";
-  }
-
-  if ($DEBUG) {
-    #warn " *** fetch features: $chr_id:$start-$end : found ", scalar(@$list_head), " summary points\n";
+    my @bedline = ($chr_id,$i->start,$i->end,split(/\t/,$i->rest));
+    my $bed = EnsEMBL::Web::Text::Feature::BED->new(\@bedline);
+    $bed->coords([$chr_id,$i->start,$i->end]); # XXX +1 to start probably: check!
+    push @features,$bed;
   }
   
-  return $list_head;
+  return \@features;
 }
 1;

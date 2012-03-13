@@ -41,6 +41,7 @@ sub new {
   my $class = shift;
   my ($timeout, $proxy) = @_;
 
+  ## Needs implementing with better LWP fetching and error handling
   my $self = {
     'timeout' => $timeout,
     'proxy'   => $proxy,
@@ -50,6 +51,22 @@ sub new {
 
   return $self;
 }
+
+=head2 parse
+
+  Arg [1]    : URL of root directory for config files
+  Arg [2]    : arrayref of config file names
+  Example    : $parser->parse();
+  Description: Contacts the given data hub, fetches each config 
+               file and parses the results. Returns an array of 
+               datahub sources (see _parse_file_content for details)
+  Returntype : arrayref
+  Exceptions : 
+  Caller     : EnsEMBL::Web::ConfigPacker
+  Status     : Under development
+
+=cut
+
 
 sub parse {
   my ($self, $hub, $files) = @_;
@@ -67,6 +84,20 @@ sub parse {
   }
   return $tracks;
 }
+
+=head2 _parse_file_content
+
+  Arg [1]    : content of a config file, as a string 
+  Example    : 
+  Description: Parses the contents of a config file into a configuration 
+               hash and an array of tracks 
+               {'config' => {}, 'tracks' => []}
+  Returntype : hashref
+  Exceptions : none
+  Caller     : &parse
+  Status     : Under development
+
+=cut
 
 sub _parse_file_content {
   my ($self, $content) = @_;
@@ -127,13 +158,17 @@ sub _parse_file_content {
         if ($values && $values =~ /=/) {
           my @A = split(/\s/, $values);
           $values = {};
+          if ($key eq 'type') {
+            $values->{'format'} = shift @A;
+            $values->{'number'} = shift @A;
+          }
           foreach my $pair (@A) {
             my ($k, $v) = split(/=/, $pair);
             $values->{$k} = $v;
           }
         }
-        $track_set->{$i}{$key} = $values;
       }
+      $track_set->{$i}{$key} = $values;
     }
   }
   foreach my $index (sort keys %$track_set) {

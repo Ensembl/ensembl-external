@@ -31,7 +31,7 @@ use LWP::Simple;
   Example    :
   Description: Constructor
   Returntype : Bio::EnsEMBL::ExternalData::DataHub::SourceParser
-  Exceptions : If no location is specified
+  Exceptions : none 
   Caller     : general
   Status     : Under development
   
@@ -39,27 +39,71 @@ use LWP::Simple;
 
 sub new {
   my $class = shift;
-  my ($timeout, $proxy) = @_;
 
-  ## Needs implementing with better LWP fetching and error handling
-  my $self = {
-    'timeout' => $timeout,
-    'proxy'   => $proxy,
-  };
-
+  my $self = {};
   bless $self, $class;
 
   return $self;
 }
 
+=head2 get_hub_info
+
+  Arg [1]    : URL of datahub
+  Example    : $parser->get_hub_info();
+  Description: Contacts the given data hub, reads the base config file 
+              (hub.txt) and from there gets a list of configuration files 
+  Returntype : hashref
+  Exceptions : 
+  Caller     : EnsEMBL::Web::ConfigPacker
+  Status     : Under development
+
+=cut
+
+sub get_hub_info {
+  my ($self, $url) = @_;
+
+  my $hub_file = get($url.'/hub.txt');
+  my ($genome_filename, $genomes);
+
+  ## Get file name for file with genome info
+  foreach (split(/\n/,$hub_file)) {
+    next unless $_ =~ /^genomesFile/;
+    ($genome_filename = $_) =~ s/genomesFile //;    
+  }
+
+  ## Now get genome file and parse
+  my $genome_file = get($url.'/'.$genome_filename);
+  foreach (split(/\n/,$genome_file)) {
+    my ($k, $v) = split(/\s/, $_);
+    ## We only need the values, not the fieldnames
+    push @$genomes, $v;
+  }
+  my %genome_info = @$genomes;
+
+  ## Parse list of config files
+  while (my($genome, $file) = each(%genome_info)) {
+    my $content = get($url.'/'.$file);
+    my @track_list;
+    foreach (split(/\n/,$content)) {
+      next if (/^#/ || $_ !~ /\w+/);
+      (my $filename = $_) =~ s/^include //;
+      push @track_list, $filename;
+    }
+    ## replace trackDb file location with list of track files
+    $genome_info{$genome} = \@track_list;
+  }
+
+  return \%genome_info;
+}
+
 =head2 parse
 
-  Arg [1]    : URL of root directory for config files
-  Arg [2]    : arrayref of config file names
+  Arg [1]    : URL of datahub
+  Arg [2]    : Arrayref of config file names
   Example    : $parser->parse();
   Description: Contacts the given data hub, fetches each config 
                file and parses the results. Returns an array of 
-               datahub sources (see _parse_file_content for details)
+               track configurations (see _parse_file_content for details)
   Returntype : arrayref
   Exceptions : 
   Caller     : EnsEMBL::Web::ConfigPacker
@@ -69,19 +113,24 @@ sub new {
 
 
 sub parse {
-  my ($self, $hub, $files) = @_;
+  my ($self, $url, $files) = @_;
 
-  $hub || ( warn 'No datahub URL specified!' and return );
+  $url || ( warn 'No datahub URL specified!' and return );
 
   my $tracks = [];
 
-  foreach my $file (@{$files||[]}) {
-    my $content = get($hub.'/'.$file);
-    if ($content) {
-      my $track_set = $self->_parse_file_content($content);
-      push @$tracks, $track_set if $track_set;
+  ## Get all the text files in the hub directory
+  foreach (@$files) {
+    my $config_url = $url.'/'.$_;
+    my $config = get($config_url);
+    my $track_set = $self->_parse_file_content($config);
+    if ($track_set) {
+      (my $desc_url = $config_url) =~ s/txt$/html/;
+      $track_set->{'config'}{'description_url'} = $desc_url;
+      push @$tracks, $track_set;
     }
   }
+
   return $tracks;
 }
 
@@ -101,81 +150,94 @@ sub parse {
 
 sub _parse_file_content {
   my ($self, $content) = @_;
-  my $config      = {};
-  my $tracks      = [];
-  my $track_set   = {};
-  my $config_done = 0;
-  my $new_track   = 0;
+
+  ## First, parse the whole file into track blocks
+  my $block;
   my $i = 0;
 
-  foreach my $line (split(/\n/, $content)) {
-    if ($line =~ /^\s*track/) {
-      $new_track = 1;
-      $config_done = 1 if scalar keys %$config;
+  foreach my $line (split(/\n/,$content)) {
+    my ($key, $info) = ($line =~ /^\s*(\w+)\s(.+)/);
+    next unless $key;
+    if ($key eq 'track') {
+      $i++;
+    }
+    ## Preserve full value on labels and URLs
+    if ($key =~ /label/i || $key eq 'bigDataUrl') {
+      $block->{$i}{$key} = $info;
     }
     else {
-      $new_track = 0;
-    }
-    $line =~ /(\w+)\s(.+)/;
-    my $key = $1;
-    my $values = $2;
-    if (!$config_done) {
-      if ($key =~ /^subGroup/) {
-        my @A = split(/\s/, $values);
-        $values = {};
-        $values->{'name'} = shift @A;
-        $values->{'label'} = shift @A;
-        $values->{'values'} = [];
-        foreach my $pair (@A) {
-          my ($k, $v) = split(/=/, $pair);
-          push @{$values->{'values'}}, $k;
-        }
+      my @V = split(/\s/,$info);
+      if (scalar(@V) == 1) {
+        $block->{$i}{$key} = $info;
       }
-      elsif ($key !~ /label/i) {
-        my @A = split(/\s/, $values);
-        if (scalar(@A) > 1) {
-          if ($values =~ /=/) {
-            $values = {};
-            foreach my $pair (@A) {
-              my ($k, $v) = split(/=/, $pair);
-              $values->{$k} = $v;
-            }
-          }
-          else {
-            $values = [@A];
-          }
-        }
-      }
-      $config->{$key} = $values;
-    }
-    else {
-      $key =~ s/^\s+//; 
-      if ($new_track) {
-        $i++;
-        $track_set->{$i} = {};
+      elsif ($key eq 'type') {
+        ## Not clear what additional values in this field are for, since
+        ## they're not mentioned in UCSC spec - throwing them away for now!
+        $block->{$i}{$key} = $V[0];
       }
       else {
-        if ($values && $values =~ /=/) {
-          my @A = split(/\s/, $values);
-          $values = {};
-          if ($key eq 'type') {
-            $values->{'format'} = shift @A;
-            $values->{'number'} = shift @A;
-          }
-          foreach my $pair (@A) {
-            my ($k, $v) = split(/=/, $pair);
-            $values->{$k} = $v;
-          }
+        my $values = {};
+        if ($key =~ /^subGroup[0-9]+/) {
+          $values->{'name'} = shift @V;
+          $values->{'label'} = shift @V;
         }
+        foreach my $setting (@V) {
+          my ($k, $v) = split(/=/,$setting);
+          $v ||= 1;
+          $values->{$k} = $v;
+        }
+        $block->{$i}{$key} = $values;
       }
-      $track_set->{$i}{$key} = $values;
     }
   }
-  foreach my $index (sort keys %$track_set) {
-    push @$tracks, $track_set->{$index};
-  }
 
-  return {'config' => $config, 'tracks' => $tracks};
+  ## Now assemble the blocks into a hierarchical structure
+  my $track_set = {};
+  my $has_subsets = 0;
+  my ($level, $track_name, $subtracks, $has_data);
+
+  foreach my $j (sort keys %$block) {
+    my $track_info = $block->{$j};
+    $track_name = $track_info->{'track'};
+    next unless $track_name;
+
+    ## Identify what level of hierarchy we're at
+    if ($track_info->{'bigDataUrl'}) {
+      $level = 'data';
+      $has_data = 1;
+    }
+    else {
+      if ($track_info->{'parent'}) {
+        $level = 'subset';
+        $has_subsets = 1;
+      }
+      else {
+        $level = 'set';
+      }
+    }
+
+    ## Now assign this block a slot in the datastructure
+    if ($level eq 'set') {
+      $track_set->{'config'} = $track_info;
+      $track_set->{'tracks'} = [];
+    }
+    elsif ($level eq 'subset') {
+      $track_set->{'config'}{'subsets'}++;
+      my $track_array = [];
+      push @{$track_set->{'tracks'}}, {'config' => $track_info, 'tracks' => $track_array};
+      $subtracks = $track_array;
+    }
+    else {
+      if ($has_subsets) {
+        push @{$subtracks}, $track_info;
+        warn "SUBTRACK COUNT: ".scalar(@{$subtracks});
+      }
+      else {
+        push @{$track_set->{'tracks'}}, $track_info;
+      }
+    } 
+  }
+  return $track_set if $has_data;
 }
 
 1;

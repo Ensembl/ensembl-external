@@ -151,7 +151,7 @@ sub parse {
     my $config_url = $url.'/'.$_;
     $response = $ua->get($config_url);
     if (!$response->is_success) {
-      $tracks = ['error', $response->status_line];
+      push @$tracks, {'error' => $response->status_line, 'file' => $config_url};
     }
     else {
       my $config = $response->content;

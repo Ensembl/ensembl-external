@@ -101,7 +101,7 @@ sub get_hub_info {
       while (my($genome, $file) = each(%genome_info)) {
         $response = $ua->get($url.'/'.$file);
         if (!$response->is_success) {
-          $track_errors{$file} => $response->status_line;
+          $track_errors{$file} = $response->status_line;
           next;
         }
         else {

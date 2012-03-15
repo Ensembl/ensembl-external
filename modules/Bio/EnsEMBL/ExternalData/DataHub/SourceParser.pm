@@ -21,7 +21,7 @@ use warnings;
 use vars qw(@EXPORT_OK);
 use base qw(Exporter);
 
-use LWP::Simple;
+use LWP::UserAgent;
 
 =head1 METHODS
 
@@ -33,14 +33,18 @@ use LWP::Simple;
   Returntype : Bio::EnsEMBL::ExternalData::DataHub::SourceParser
   Exceptions : none 
   Caller     : general
-  Status     : Under development
+  Status     : Stable 
   
 =cut
 
 sub new {
-  my $class = shift;
+  my ($class, $settings) = @_;
 
-  my $self = {};
+  my $ua = new LWP::UserAgent;
+  $ua->timeout( $settings->{'timeout'} );
+  $ua->proxy( 'http', $settings->{'proxy'} ) if $settings->{'proxy'};
+
+  my $self = {'ua' => $ua};
   bless $self, $class;
 
   return $self;
@@ -60,39 +64,60 @@ sub new {
 =cut
 
 sub get_hub_info {
-  my ($self, $url) = @_;
+  my ($self, $url, $settings) = @_;
+  my %genome_info;
 
-  my $hub_file = get($url.'/hub.txt');
-  my ($genome_filename, $genomes);
-
-  ## Get file name for file with genome info
-  foreach (split(/\n/,$hub_file)) {
-    next unless $_ =~ /^genomesFile/;
-    ($genome_filename = $_) =~ s/genomesFile //;    
+  my $ua = $self->{'ua'};
+  my $response = $ua->get($url.'/hub.txt');
+  if (!$response->is_success) {
+    return {'error' => $response->status_line};
   }
+  else {
+    my $hub_file = $response->content;
+    my ($genome_filename, $genomes);
 
-  ## Now get genome file and parse
-  my $genome_file = get($url.'/'.$genome_filename);
-  foreach (split(/\n/,$genome_file)) {
-    my ($k, $v) = split(/\s/, $_);
-    ## We only need the values, not the fieldnames
-    push @$genomes, $v;
-  }
-  my %genome_info = @$genomes;
-
-  ## Parse list of config files
-  while (my($genome, $file) = each(%genome_info)) {
-    my $content = get($url.'/'.$file);
-    my @track_list;
-    foreach (split(/\n/,$content)) {
-      next if (/^#/ || $_ !~ /\w+/);
-      (my $filename = $_) =~ s/^include //;
-      push @track_list, $filename;
+    ## Get file name for file with genome info
+    foreach (split(/\n/,$hub_file)) {
+      next unless $_ =~ /^genomesFile/;
+      ($genome_filename = $_) =~ s/genomesFile //;    
     }
-    ## replace trackDb file location with list of track files
-    $genome_info{$genome} = \@track_list;
-  }
 
+    ## Now get genome file and parse
+    $response = $ua->get($url.'/'.$genome_filename);
+    if (!$response->is_success) {
+      return {'error' => $response->status_line};
+    }
+    else {
+      my $genome_file = $response->content;
+      foreach (split(/\n/,$genome_file)) {
+        my ($k, $v) = split(/\s/, $_);
+        ## We only need the values, not the fieldnames
+        push @$genomes, $v;
+      }
+      %genome_info = @$genomes;
+
+      ## Parse list of config files
+      my %track_errors;
+      while (my($genome, $file) = each(%genome_info)) {
+        $response = $ua->get($url.'/'.$file);
+        if (!$response->is_success) {
+          $track_errors{$file} => $response->status_line;
+          next;
+        }
+        else {
+          my $content = $response->content; 
+          my @track_list;
+          foreach (split(/\n/,$content)) {
+            next if (/^#/ || $_ !~ /\w+/);
+            (my $filename = $_) =~ s/^include //;
+            push @track_list, $filename;
+          }
+          ## replace trackDb file location with list of track files
+          $genome_info{$genome} = \@track_list;
+        }
+      }
+    }
+  }
   return \%genome_info;
 }
 
@@ -117,20 +142,27 @@ sub parse {
 
   $url || ( warn 'No datahub URL specified!' and return );
 
+  my $ua = $self->{'ua'};
   my $tracks = [];
+  my $response;
 
   ## Get all the text files in the hub directory
   foreach (@$files) {
     my $config_url = $url.'/'.$_;
-    my $config = get($config_url);
-    my $track_set = $self->_parse_file_content($config);
-    if ($track_set) {
-      (my $desc_url = $config_url) =~ s/txt$/html/;
-      $track_set->{'config'}{'description_url'} = $desc_url;
-      push @$tracks, $track_set;
+    $response = $ua->get($config_url);
+    if (!$response->is_success) {
+      $tracks = ['error', $response->status_line];
+    }
+    else {
+      my $config = $response->content;
+      my $track_set = $self->_parse_file_content($config);
+      if ($track_set) {
+        (my $desc_url = $config_url) =~ s/txt$/html/;
+        $track_set->{'config'}{'description_url'} = $desc_url;
+        push @$tracks, $track_set;
+      }
     }
   }
-
   return $tracks;
 }
 
@@ -183,6 +215,7 @@ sub _parse_file_content {
         }
         foreach my $setting (@V) {
           my ($k, $v) = split(/=/,$setting);
+          next unless $k;
           $v ||= 1;
           $values->{$k} = $v;
         }
@@ -230,7 +263,6 @@ sub _parse_file_content {
     else {
       if ($has_subsets) {
         push @{$subtracks}, $track_info;
-        warn "SUBTRACK COUNT: ".scalar(@{$subtracks});
       }
       else {
         push @{$track_set->{'tracks'}}, $track_info;

@@ -1,6 +1,8 @@
 package Bio::EnsEMBL::ExternalData::BigFile::BigBedAdaptor;
 use strict;
 
+use List::Util qw(max);
+
 use Data::Dumper;
 use Bio::DB::BigFile;
 use Bio::DB::BigFile::Constants;
@@ -105,5 +107,25 @@ sub fetch_features  {
   return \@features;
 }
 
-1;
+sub file_bedline_length {
+  my $self = shift;
+  my $length = 3;
+  my $num = 0;
+  my $MAX_SAMPLE_SIZE = 100;
 
+  my $bb = $self->bigbed_open;
+  warn "Failed to open BigBed file" . $self->url unless $bb;
+  # list needs to exist and not be undefed until done to avoid SIGSEG
+  my $list = $bb->chromList;
+  SAMPLE: for (my $c = $list->head; $c; $c=$c->next) {
+    my $intervals = $bb->bigBedIntervalQuery($c->name,0,$c->size,$MAX_SAMPLE_SIZE);
+    for (my $i=$intervals->head;$i;$i=$i->next) {
+      $length = max($length,3 + scalar split(/\t/,$i->rest));
+      $num++;
+      last SAMPLE if $num > $MAX_SAMPLE_SIZE;
+    }
+  }
+  return $length;
+}
+
+1;

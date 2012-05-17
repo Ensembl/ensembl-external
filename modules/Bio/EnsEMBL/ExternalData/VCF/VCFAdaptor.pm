@@ -42,25 +42,28 @@ sub snp_code {
 
 
 sub fetch_variations {
-    my ($self, $chr, $s, $e) = @_;
+  my ($self, $chr, $s, $e) = @_;
 
-    unless ($self->{_cache}->{features}) {
-	my @features;
-	my %args = ( 
-		     region => "$chr:$s-$e",
-		     file => $self->url
-		     );
+  unless ($self->{_cache}->{features}) {
+    my @features;
+    foreach my $chr_name ($chr,"chr$chr") { # maybe UCSC-type names?
+      $self->{_cache}->{features} = [];
+      my %args = ( 
+        region => "$chr_name:$s-$e",
+        file => $self->url
+      );
 
-	my $vcf = Vcf->new(%args);
+      my $vcf = Vcf->new(%args);
 
-	while (my $line=$vcf->next_line()) {
-	    my $x=$vcf->next_data_hash($line);
-	    push @features, $x;
-	}
-	$self->{_cache}->{features} = \@features;
+      while (my $line=$vcf->next_line()) {
+        my $x=$vcf->next_data_hash($line);
+        push @features, $x;
+      }
+      last if(@features);
     }
-
-    return $self->{_cache}->{features};
+    $self->{_cache}->{features} = \@features;
+  }
+  return $self->{_cache}->{features};
 }
 
 1;

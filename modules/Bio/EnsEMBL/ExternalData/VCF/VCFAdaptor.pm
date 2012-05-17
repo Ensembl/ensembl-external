@@ -44,7 +44,6 @@ sub snp_code {
 sub fetch_variations {
   my ($self, $chr, $s, $e) = @_;
 
-  delete $self->{_cache}->{features};
   unless ($self->{_cache}->{features}) {
     my @features;
     delete $self->{_cache}->{features};

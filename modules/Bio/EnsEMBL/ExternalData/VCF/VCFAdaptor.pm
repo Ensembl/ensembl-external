@@ -44,10 +44,11 @@ sub snp_code {
 sub fetch_variations {
   my ($self, $chr, $s, $e) = @_;
 
+  delete $self->{_cache}->{features};
   unless ($self->{_cache}->{features}) {
     my @features;
+    delete $self->{_cache}->{features};
     foreach my $chr_name ($chr,"chr$chr") { # maybe UCSC-type names?
-      $self->{_cache}->{features} = [];
       my %args = ( 
         region => "$chr_name:$s-$e",
         file => $self->url

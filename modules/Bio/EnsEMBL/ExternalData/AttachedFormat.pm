@@ -27,10 +27,11 @@ sub trackline { shift->{'trackline'} }
 sub extra_config_page { return undef; }
 
 sub check_data {
-  my ($self, $url) = @_;
+  my ($self) = @_;
   my $error = '';
   my $options = {};
 
+  my $url = $self->{'url'};
   $url = "http://$url" unless $url =~ /^http/;
 
   ## Check file size

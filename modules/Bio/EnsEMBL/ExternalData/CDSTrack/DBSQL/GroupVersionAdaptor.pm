@@ -325,7 +325,9 @@ sub fetch_all_current {
 sub ncbi_build_number {
   my $build_number = shift;
   
-  if ($build_number=~/[NCBIM]+(\d+)/){
+  if ($build_number=~/[NCBIM]+(\d+)/) {
+    $build_number = $1;
+  } elsif ($build_number=~/[GRCm]+(\d+)/) {
     $build_number = $1;
   } elsif ($build_number=~/[GRCh]+(\d+)/) {
     $build_number = $1;

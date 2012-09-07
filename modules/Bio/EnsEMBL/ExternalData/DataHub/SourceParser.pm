@@ -64,11 +64,13 @@ sub new {
 =cut
 
 sub get_hub_info {
-  my ($self, $url, $settings) = @_;
+  my ($self, $url, $hub_file) = @_;
   my %genome_info;
 
+  my $hub_file_url = "$url/$hub_file";
+
   my $ua = $self->{'ua'};
-  my $response = $ua->get($url.'/hub.txt');
+  my $response = $ua->get($hub_file_url);
   if (!$response->is_success) {
     return {'error' => $response->status_line};
   }
@@ -105,15 +107,24 @@ sub get_hub_info {
           next;
         }
         else {
-          my $content = $response->content; 
+          my $content = $response->content;
           my @track_list;
+          # Hack here: Assume if file contains one include it only contains includes and no actual data
+          # Would be better to resolve all includes (read the files) and pass the complete config data into 
+          # the parsing function rather than the list of file names
           foreach (split(/\n/,$content)) {
             next if (/^#/ || $_ !~ /\w+/);
+            next if ($_!~/^include/);
             (my $filename = $_) =~ s/^include //;
             push @track_list, $filename;
           }
-          ## replace trackDb file location with list of track files
-          $genome_info{$genome} = \@track_list;
+          if (scalar(@track_list)) {
+            ## replace trackDb file location with list of track files
+            $genome_info{$genome} = \@track_list;
+          } else {
+            $file =~ s/.*\///;
+            $genome_info{$genome} = [$file];
+          }
         }
       }
     }
@@ -155,14 +166,30 @@ sub parse {
     }
     else {
       my $config = $response->content;
-      my $track_set = $self->_parse_file_content($config);
-      if ($track_set) {
-        (my $desc_url = $config_url) =~ s/txt$/html/;
-        $track_set->{'config'}{'description_url'} = $desc_url;
-        push @$tracks, $track_set;
+      
+      my $track_sets = $self->_parse_file_content($config, $url);
+      if (scalar(@$track_sets)) {
+        #(my $desc_url = $config_url) =~ s/txt$/html/;
+        #$track_set->{'config'}{'description_url'} = $desc_url;
+        foreach my $track_set (@$track_sets) {
+          my $track_name = $track_set->{'config'}{'track'};
+          # url for description file should be based on track name, not the config file name
+          # It should. Currently it just
+          # if there's no track_name (when there are no parent tracks 
+          # (composites, containers, supertracks) in the file), then just use the config_url which might
+          # contain some comments
+          if (defined($track_name)) {
+            my $desc_url = $url . '/' . $track_name . ".html";
+            $track_set->{'config'}{'description_url'} = $desc_url;
+          } else {
+            $track_set->{'config'}{'description_url'} = $config_url;
+          }
+          push @$tracks, $track_set;
+        }
       }
     }
   }
+
   return $tracks;
 }
 
@@ -181,7 +208,7 @@ sub parse {
 =cut
 
 sub _parse_file_content {
-  my ($self, $content) = @_;
+  my ($self, $content, $urlpath) = @_;
 
   ## First, parse the whole file into track blocks
   my $block;
@@ -193,9 +220,16 @@ sub _parse_file_content {
     if ($key eq 'track') {
       $i++;
     }
-    ## Preserve full value on labels and URLs
-    if ($key =~ /label/i || $key eq 'bigDataUrl') {
+
+    ## Preserve full value on labels and URLs, and make relative URL file locations absolute
+    if ($key =~ /label/i) {
       $block->{$i}{$key} = $info;
+    } elsif ($key eq 'bigDataUrl') {
+      if ($info !~ /^ftp:\/\// && $info !~ /^http:\/\// && $info !~ /^https:\/\//) {
+        $block->{$i}{$key} = $urlpath . "/" . $info;
+      } else {
+        $block->{$i}{$key} = $info;
+      }
     }
     else {
       my @V = split(/\s/,$info);
@@ -225,11 +259,19 @@ sub _parse_file_content {
   }
 
   ## Now assemble the blocks into a hierarchical structure
-  my $track_set = {};
+  my @track_sets;
+
+  ## May be no set structure at all
+  my $current_set = {};
+  push @track_sets,$current_set;
+
   my $has_subsets = 0;
+  my $first_set = 1;
   my ($level, $track_name, $subtracks, $has_data);
 
-  foreach my $j (sort keys %$block) {
+  # This loop needs to be made more generic to handle the heirachy better 
+  # I'm not sure file is guarenteed to have all components of a set directly after it.
+  foreach my $j (sort { $a <=> $b } keys %$block) {
     my $track_info = $block->{$j};
     $track_name = $track_info->{'track'};
     next unless $track_name;
@@ -251,13 +293,24 @@ sub _parse_file_content {
 
     ## Now assign this block a slot in the datastructure
     if ($level eq 'set') {
-      $track_set->{'config'} = $track_info;
-      $track_set->{'tracks'} = [];
+      if (!$first_set) {
+        if (!$has_data) {
+          pop @track_sets;
+        }
+
+        $current_set = {};
+        push @track_sets,$current_set;
+      }
+      $first_set = 0;
+      $has_data = 0;
+      $has_subsets = 0;
+      $current_set->{'config'} = $track_info;
+      $current_set->{'tracks'} = [];
     }
     elsif ($level eq 'subset') {
-      $track_set->{'config'}{'subsets'}++;
+      $current_set->{'config'}{'subsets'}++;
       my $track_array = [];
-      push @{$track_set->{'tracks'}}, {'config' => $track_info, 'tracks' => $track_array};
+      push @{$current_set->{'tracks'}}, {'config' => $track_info, 'tracks' => $track_array};
       $subtracks = $track_array;
     }
     else {
@@ -265,11 +318,15 @@ sub _parse_file_content {
         push @{$subtracks}, $track_info;
       }
       else {
-        push @{$track_set->{'tracks'}}, $track_info;
+        push @{$current_set->{'tracks'}}, $track_info;
       }
     } 
   }
-  return $track_set if $has_data;
+  if  ($current_set && !$has_data) {
+    pop @track_sets;
+  }
+
+  return \@track_sets;
 }
 
 1;

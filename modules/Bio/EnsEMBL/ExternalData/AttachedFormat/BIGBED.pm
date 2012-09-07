@@ -57,7 +57,7 @@ sub _calc_style {
     $tl_score = $trackline->{'useScore'} || 0;
   }
 
-  # WORK OUT HOW TO CONFIGURE FEATURES FOR ENDERING
+  # WORK OUT HOW TO CONFIGURE FEATURES FOR RENDERING
   # Explicit: Check if mode is specified on trackline
   if($tl_score == 2) {
     return 'score';

@@ -96,7 +96,7 @@ sub munge_chr_id {
     if (@coords) {
       $ret_id = "chr$chr_id";
     } else {
-      warn " *** could not parse_region for BAM with $chr_id\n";
+      warn " *** could not parse_region for BAM with $chr_id in file " . $self->url ."\n";
       return undef;
     }
   }

@@ -10,8 +10,17 @@ use base qw(Bio::EnsEMBL::ExternalData::AttachedFormat);
 
 sub new {
   my $self = shift->SUPER::new(@_);
-  $self->{'bigbed_adaptor'} = Bio::EnsEMBL::ExternalData::BigFile::BigBedAdaptor->new($self->{'url'});
   return $self;
+}
+
+sub _bigbed_adaptor {
+  my ($self,$bba) = @_;
+  if (defined($bba)) {
+    $self->{'_cache'}->{'bigbed_adaptor'} = $bba;
+  } elsif (!$self->{'_cache'}->{'bigbed_adaptor'}) {
+    $self->{'_cache'}->{'bigbed_adaptor'} = Bio::EnsEMBL::ExternalData::BigFile::BigBedAdaptor->new($self->{'url'});
+  }
+  return $self->{'_cache'}->{'bigbed_adaptor'};
 }
 
 sub check_data {
@@ -67,7 +76,7 @@ sub _calc_style {
     return 'wiggle';
   } elsif($tl_score == 0) {
     # Implicit: No help from trackline, have to work it out
-    my $line_length = $self->{'bigbed_adaptor'}->file_bedline_length;
+    my $line_length = $self->_bigbed_adaptor->file_bedline_length;
     if($line_length >= 8) {
       return 'colour';      
     } elsif($line_length >= 5) {

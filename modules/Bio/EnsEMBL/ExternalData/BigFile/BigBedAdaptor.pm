@@ -101,6 +101,8 @@ sub fetch_features  {
     ## Set score to undef if missing to distinguish it from a genuine present but zero score
     $bed->score(undef) if @bedline < 5;
 
+    $self->{_cache}->{numfield} = max($self->{_cache}->{numfield}, scalar(@bedline)); 
+
     push @features,$bed;
   }
   
@@ -111,6 +113,13 @@ sub file_bedline_length {
   my $self = shift;
   my $length = 3;
   my $num = 0;
+
+  # If already fetched some features using this adaptor then use cached max number of fields
+  if (exists($self->{_cache}->{numfield})) {
+    return $self->{_cache}->{numfield};
+  }
+
+  # Else sample the file - this is rather inefficient
   my $MAX_SAMPLE_SIZE = 100;
 
   my $bb = $self->bigbed_open;

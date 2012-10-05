@@ -81,6 +81,24 @@ sub fetch_extended_summary_array  {
 sub fetch_features  {
   my ($self, $chr_id, $start, $end) = @_;
 
+  my @features;
+  $self->fetch_rows($chr_id,$start,$end,sub {
+    my $bed = EnsEMBL::Web::Text::Feature::BED->new(\@_);
+    $bed->coords([$_[0],$_[1],$_[2]]);
+
+    ## Set score to undef if missing to distinguish it from a genuine present but zero score
+    $bed->score(undef) if @_ < 5;
+
+    $self->{_cache}->{numfield} = max($self->{_cache}->{numfield}, scalar(@_)); 
+
+    push @features,$bed;
+  });
+  return \@features;
+}
+
+sub fetch_rows  {
+  my ($self, $chr_id, $start, $end, $dowhat) = @_;
+
   my $bb = $self->bigbed_open;
   warn "Failed to open BigBed file" . $self->url unless $bb;
   return [] unless $bb;
@@ -90,23 +108,12 @@ sub fetch_features  {
   return [] if !defined($seq_id);
 
 # Remember this method takes half-open coords (subtract 1 from start)
-  my $list_head = $bb->bigBedIntervalQuery("$seq_id",$start-1,$end);
+  my $list_head = $bb->bigBedIntervalQuery("$seq_id",$start-1,$end-1);
 
-  my @features;
   for (my $i=$list_head->head;$i;$i=$i->next) {
     my @bedline = ($chr_id,$i->start,$i->end,split(/\t/,$i->rest));
-    my $bed = EnsEMBL::Web::Text::Feature::BED->new(\@bedline);
-    $bed->coords([$chr_id,$i->start,$i->end]);
-
-    ## Set score to undef if missing to distinguish it from a genuine present but zero score
-    $bed->score(undef) if @bedline < 5;
-
-    $self->{_cache}->{numfield} = max($self->{_cache}->{numfield}, scalar(@bedline)); 
-
-    push @features,$bed;
+    &{$dowhat}(@bedline);
   }
-  
-  return \@features;
 }
 
 sub file_bedline_length {

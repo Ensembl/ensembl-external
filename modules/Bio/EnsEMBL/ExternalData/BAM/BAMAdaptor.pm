@@ -264,7 +264,7 @@ sub fetch_consensus {
     my ($total, $different);
     my $qhash;
     for my $pileup (@$p) {
-      if ($pileup->indel) {
+      if ($pileup->indel || $pileup->is_refskip || $pileup->is_del) {
         $qhash->{'-'}++;
         next;
       }

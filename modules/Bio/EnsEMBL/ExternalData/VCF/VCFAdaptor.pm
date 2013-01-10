@@ -44,7 +44,7 @@ sub snp_code {
 sub fetch_variations {
   my ($self, $chr, $s, $e) = @_;
 
-  unless ($self->{_cache}->{features}) {
+  if (!$self->{_cache}->{features} || (ref $self->{_cache}->{features} eq 'ARRAY' && !@{$self->{_cache}->{features}})){
     my @features;
     delete $self->{_cache}->{features};
     foreach my $chr_name ($chr,"chr$chr") { # maybe UCSC-type names?

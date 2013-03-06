@@ -40,7 +40,7 @@ sub check_data {
   warn "Failed to open Data Hub " . $url unless $datahub;
 
   if ($@ or !$datahub) {
-    $error = "Unable to open remote Data Hub file: $url<br>Ensure hat your web/ftp server is accessible to the Ensembl site";
+    $error = "Unable to open remote Data Hub file: $url<br>Ensure that your web/ftp server is accessible to the Ensembl site";
   }
   return $error;
 }

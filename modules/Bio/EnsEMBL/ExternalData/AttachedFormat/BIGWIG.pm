@@ -30,7 +30,7 @@ sub check_data {
     warn "Failed to open BigWig " . $url unless $bigwig;
 
     if ($@ or !$bigwig) {
-      $error = "Unable to open remote BigWig file: $url<br>Ensure hat your web/ftp server is accessible to the Ensembl site";
+      $error = "Unable to open remote BigWig file: $url<br>Ensure that your web/ftp server is accessible to the Ensembl site";
     }
   }
   return $error;

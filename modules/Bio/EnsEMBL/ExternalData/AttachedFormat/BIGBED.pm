@@ -45,7 +45,7 @@ sub check_data {
     warn "Failed to open BigBed " . $url unless $bigbed;
 
     if ($@ or !$bigbed) {
-      $error = "Unable to open remote BigBed file: $url<br>Ensure hat your web/ftp server is accessible to the Ensembl site";
+      $error = "Unable to open remote BigBed file: $url<br>Ensure that your web/ftp server is accessible to the Ensembl site";
     }
   }
   return $error;

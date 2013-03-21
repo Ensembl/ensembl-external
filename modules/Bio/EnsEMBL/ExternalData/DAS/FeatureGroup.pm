@@ -87,9 +87,9 @@ sub new {
   my $raw   = shift;
   
   my $self = {};
-  for my $key qw( group_id group_label
+  for my $key (qw( group_id group_label
                   group_type
-                  note link target ) {
+                  note link target )) {
     $self->{$key} = $raw->{$key} if exists $raw->{$key};
   }
   

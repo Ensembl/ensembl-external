@@ -142,11 +142,11 @@ sub new {
   $raw->{'end'}    ||= 0;
   
   my $self = {};
-  for my $key qw( start end strand slice seqname
+  for my $key (qw( start end strand slice seqname
                   feature_id feature_label
                   type type_id type_category
                   score method method_id
-                  note link target ) {
+                  note link target )) {
     $self->{$key} = $raw->{$key} if exists $raw->{$key};
   }
   

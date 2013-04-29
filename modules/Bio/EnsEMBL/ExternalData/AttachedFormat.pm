@@ -32,7 +32,7 @@ sub check_data {
   my $options = {};
 
   my $url = $self->{'url'};
-  $url = "http://$url" unless $url =~ /^http/;
+  $url = "http://$url" unless $url =~ /^http|^ftp/;
 
   ## Check file size
   my $feedback = get_url_filesize($url);

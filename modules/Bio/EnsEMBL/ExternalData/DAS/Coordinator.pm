@@ -620,6 +620,12 @@ sub map_Features {
       
       my $strand = $f->{'strand'};
       
+      # It doesn't matter what coordinate system non-positional features come
+      # from, they are always included and don't need mapping
+      if (!$f->{'start'} && !$f->{'end'}) {
+        push @new_features, &$build_Feature( $f );
+        next;
+      }
       # For the first iteration we have features that are fresh from the DAS
       # server. We need to do some filtering, and to only do it once.
       if ($first_iteration) {
@@ -631,13 +637,6 @@ sub map_Features {
         
         # Convert DAS-style strand to Ensembl-style
         $strand = $f->{'strand'} = $ORI_NUMERIC{$f->{'orientation'} || '.'} || 0;
-      }
-      
-      # It doesn't matter what coordinate system non-positional features come
-      # from, they are always included and don't need mapping
-      if (!$f->{'start'} && !$f->{'end'}) {
-        push @new_features, &$build_Feature( $f );
-        next;
       }
       
       my $segid  = $f->{'segment_id'};

@@ -75,7 +75,7 @@ sub get_hub_info {
     return {'error' => $response->status_line};
   }
   else {
-    my $hub_file = $response->content;
+    (my $hub_file = $response->content) =~ s/\r//g;
     my ($genome_filename, $genomes);
 
     ## Get file name for file with genome info
@@ -90,7 +90,7 @@ sub get_hub_info {
       return {'error' => $response->status_line};
     }
     else {
-      my $genome_file = $response->content;
+      (my $genome_file = $response->content) =~ s/\r//g;
       foreach (split(/\n/,$genome_file)) {
         my ($k, $v) = split(/\s/, $_);
         ## We only need the values, not the fieldnames
@@ -107,7 +107,7 @@ sub get_hub_info {
           next;
         }
         else {
-          my $content = $response->content;
+          (my $content = $response->content) =~ s/\r//g;
           my @track_list;
           # Hack here: Assume if file contains one include it only contains includes and no actual data
           # Would be better to resolve all includes (read the files) and pass the complete config data into 
@@ -165,8 +165,7 @@ sub parse {
       push @$tracks, {'error' => $response->status_line, 'file' => $config_url};
     }
     else {
-      my $config = $response->content;
-      
+      (my $config = $response->content) =~ s/\r//g;
       my $track_sets = $self->_parse_file_content($config, $url);
       if (scalar(@$track_sets)) {
         #(my $desc_url = $config_url) =~ s/txt$/html/;

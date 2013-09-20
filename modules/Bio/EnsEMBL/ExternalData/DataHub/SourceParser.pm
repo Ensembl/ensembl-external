@@ -237,7 +237,7 @@ sub parse_file_content {
         # Short and long labels may contain =, but in these cases the value is just a single string
         if ($value =~ /=/ && $key !~ /^(short|long)Label$/) {
           my ($k, $v);
-          my @pairs = split /\s(\w+)=/, " $value";
+          my @pairs = split /\s+(\w+)=/, " $value";
           shift @pairs;
           
           for (my $i = 0; $i < $#pairs; $i += 2) {
@@ -295,9 +295,6 @@ sub parse_file_content {
   $self->make_tree($tree, \%tracks);
   $self->fix_tree($tree);
   $self->sort_tree($tree);
-  
-  #Carp::cluck;
-  #warn "\n\n\n";
 }
 
 sub make_tree {

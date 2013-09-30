@@ -1,7 +1,0 @@
-# $Id$
-# This file is to be source'd, before running stuff
-export FAMPATH PERL5LIB
-FAMPATH=`pwd` # this only works if you source this file while 'in' its directory
-
-PATH=$FAMPATH/scripts:$FAMPATH/bin:$PATH
-PERL5LIB=$FAMPATH/modules:${PERL5LIB:-}

@@ -53,8 +53,15 @@ sub fetch_variations {
         file => $self->url
       );
 
+      ## Eagle fix - tabix will want to write the downloaded index file to 
+      ## the current working directory. By default this is '/'
+      chdir($SiteDefs::ENSEMBL_TMP_DIR);
+
       my $vcf = Vcf->new(%args);
 
+      ## Eagle fix - this should be called before calling $vcf->next_line to avoid
+      ## header line error messages, but require latest vcftools 
+      $vcf->parse_header();
       while (my $line=$vcf->next_line()) {
         my $x=$vcf->next_data_hash($line);
         push @features, $x;

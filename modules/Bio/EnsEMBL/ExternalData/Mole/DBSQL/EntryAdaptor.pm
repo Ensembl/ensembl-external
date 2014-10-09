@@ -148,6 +148,46 @@ sub fetch_by_accession_version {
   return $entry_obj;
 }
 
+sub fetch_all_dbIDs_by_accession_version {
+  my ($self,$id_list_ref) = @_;
+
+  if(!defined($id_list_ref) || ref($id_list_ref) ne 'ARRAY') {
+    throw("entry id list reference argument is required");
+  }
+
+  return [] if(!@$id_list_ref);
+
+  my @out;
+
+  # mysql is faster and we ensure that we do not exceed the max query size by
+  # splitting large queries into smaller queries of 200 ids
+  my $max_size = 200;
+  my @id_list = @$id_list_ref;
+
+  while(@id_list) {
+    my @ids;
+    if(@id_list > $max_size) {
+      @ids = splice(@id_list, 0, $max_size);
+    } else {
+      @ids = splice(@id_list, 0);
+    }
+
+    my $id_str;
+    if(@ids > 1)  {
+      $id_str = " IN (\"" . join('","', @ids). "\")";
+    } else {
+      $id_str = " = \"" . $ids[0] . "\"";
+    }
+
+    my $constraint = "e.accession_version $id_str";
+
+    foreach my $entry (@{$self->generic_fetch($constraint)}) {
+      push @out, {'accession_version' => $entry->accession_version(), 'dbID' => $entry->dbID};
+    }
+  }
+  return \@out;
+}
+
 sub fetch_by_accession_noversion {
   my $self = shift;
   my $acc = shift;
@@ -162,6 +202,45 @@ sub fetch_by_name {
   my $constraint = "e.name = '$name'";
   my ($entry_obj) = @{ $self->generic_fetch($constraint) };
   return $entry_obj;
+}
+
+sub fetch_all_dbIDs_by_name {
+  my ($self,$id_list_ref) = @_;
+
+  if(!defined($id_list_ref) || ref($id_list_ref) ne 'ARRAY') {
+    throw("entry id list reference argument is required");
+  }
+
+  return [] if(!@$id_list_ref);
+
+  my @out;
+
+  # mysql is faster and we ensure that we do not exceed the max query size by
+  # splitting large queries into smaller queries of 200 ids
+  my $max_size = 200;
+  my @id_list = @$id_list_ref;
+
+  while(@id_list) {
+    my @ids;
+    if(@id_list > $max_size) {
+      @ids = splice(@id_list, 0, $max_size);
+    } else {
+      @ids = splice(@id_list, 0);
+    }
+
+    my $id_str;
+    if(@ids > 1)  {
+      $id_str = " IN (\"" . join('\",\"', @ids). "\")";
+    } else {
+      $id_str = " = \"" . $ids[0] . "\"";
+    }
+
+    my $constraint = "e.name $id_str";
+    foreach my $entry (@{$self->generic_fetch($constraint)}) {
+      push @out, {'accession_version' => $entry->accession_version(), 'dbID' => $entry->dbID};
+    }
+  }
+  return \@out;  
 }
 
 sub fetch_by_topology {
